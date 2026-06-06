@@ -1,13 +1,15 @@
-import { existsSync, createReadStream } from "node:fs";
+import { existsSync, createReadStream, statSync } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import type {
   Condition,
   CreateSessionResponse,
+  HostMode,
   SessionIntent,
   SessionStateResponse,
 } from "@auracle/shared";
+import { parseHostMode } from "@auracle/shared";
 import type { ApiContext } from "../context.js";
-import { createPlan } from "../flow/plan.js";
+import { createPlanCached } from "../flow/plan.js";
 import { applyReplan } from "../session/replan-service.js";
 import { attachLiveRelay, type RelayDeps } from "../live/relay.js";
 
@@ -26,7 +28,7 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
 
     // Condition C reads cross-session preferences into the plan and the DJ prompt; A/B don't.
     const mem0Context = condition === "C" ? await ctx.memory.recall(`${intent.mood} ${intent.scene}`) : "";
-    const { result, violations, candidatesById } = await createPlan(ctx.planDeps, intent, mem0Context);
+    const { result, violations, candidatesById } = await createPlanCached(ctx.planDeps, intent, mem0Context);
     const state = ctx.store.create({
       intent,
       condition,
@@ -52,6 +54,7 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
       session_id: state.id,
       session_title: state.title,
       session_subtitle: state.subtitle,
+      host_mode: state.hostMode,
       tracklist: state.tracklist,
       mem0_context: state.mem0Context,
       mem0_available: ctx.memory.enabled && !ctx.memory.degraded,
@@ -85,6 +88,7 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
       session_id: state.id,
       session_title: state.title,
       session_subtitle: state.subtitle,
+      host_mode: state.hostMode,
       current_track_index: state.currentTrackIndex,
       tracklist: state.tracklist,
       remaining: ctx.store.remaining(state),
@@ -107,6 +111,19 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
     }
     ctx.db.recordEvent(id, body.event_type, body.payload ?? {});
     return { ok: true, current_track_index: state.currentTrackIndex };
+  });
+
+  app.post("/sessions/:id/host-mode", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const state = ctx.store.get(id);
+    if (!state) return reply.code(404).send({ error: "session not found" });
+    const body = (req.body ?? {}) as { host_mode?: unknown };
+    const hostMode = parseHostMode(body.host_mode);
+    if (!hostMode) return reply.code(400).send({ error: "host_mode is required" });
+    const previous: HostMode = state.hostMode;
+    state.hostMode = hostMode;
+    ctx.db.recordEvent(id, "change_host_mode", { host_mode: hostMode, previous, source: "api" });
+    return { ok: true, host_mode: hostMode, previous, changed: previous !== hostMode };
   });
 
   app.post("/sessions/:id/replan", async (req, reply) => {
@@ -132,6 +149,10 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
     if (!track || !existsSync(track.filePath)) {
       return reply.code(404).send({ error: "audio not available" });
     }
+    // Content-Length lets the browser <audio> element report a real duration.
+    reply.header("content-length", statSync(track.filePath).size);
+    // Track files are immutable per id — cache so the client's next-track prefetch sticks.
+    reply.header("cache-control", "public, max-age=31536000, immutable");
     return reply.type("audio/mpeg").send(createReadStream(track.filePath));
   });
 }

@@ -4,21 +4,31 @@ import { useBarCount } from '../hooks/useBarCount';
 import { formatTime } from '../lib/formatTime';
 import { cn } from '../lib/cn';
 import type { UiPhase } from '../types';
-import { IconPause, IconPlay } from './Icons';
+import { IconPause, IconPlay, IconSkipNext } from './Icons';
 import styles from './MiniControlBar.module.css';
 
 interface MiniControlBarProps {
   phase: UiPhase;
   progressSec: number;
   durationSec: number;
+  hasNextTrack: boolean;
   onTogglePause: () => void;
+  onSkipTrack: () => void;
 }
 
-export function MiniControlBar({ phase, progressSec, durationSec, onTogglePause }: MiniControlBarProps) {
+export function MiniControlBar({
+  phase,
+  progressSec,
+  durationSec,
+  hasNextTrack,
+  onTogglePause,
+  onSkipTrack,
+}: MiniControlBarProps) {
   const waveRef = useRef<HTMLDivElement>(null);
   const barCount = useBarCount(waveRef, 5, 32, 160);
-  const isIdle = phase === 'idle';
   const isPaused = phase === 'paused';
+  const notReady = phase === 'idle' || phase === 'curating';
+  const skipDisabled = notReady || !hasNextTrack;
   const pct = durationSec > 0 ? Math.min(100, (progressSec / durationSec) * 100) : 0;
 
   return (
@@ -43,11 +53,21 @@ export function MiniControlBar({ phase, progressSec, durationSec, onTogglePause 
       <button
         type="button"
         className={styles.btn}
-        onClick={onTogglePause}
-        disabled={isIdle}
-        aria-label={isPaused || isIdle ? 'Play' : 'Pause'}
+        onClick={onSkipTrack}
+        disabled={skipDisabled}
+        aria-label="Next track"
       >
-        {isPaused || isIdle ? <IconPlay size={16} /> : <IconPause size={16} />}
+        <IconSkipNext size={16} />
+      </button>
+
+      <button
+        type="button"
+        className={styles.btn}
+        onClick={onTogglePause}
+        disabled={notReady}
+        aria-label={isPaused || notReady ? 'Play' : 'Pause'}
+      >
+        {isPaused || notReady ? <IconPlay size={16} /> : <IconPause size={16} />}
       </button>
     </footer>
   );

@@ -1,5 +1,5 @@
 import type { FlowTrackRef, TrackCandidate } from "@auracle/shared";
-import { MAX_ENERGY_JUMP, MAX_TEMPO_JUMP_BPM } from "@auracle/shared";
+import { MAX_ENERGY_JUMP, MAX_TEMPO_JUMP_BPM, isAdjacentStepLegal } from "@auracle/shared";
 
 export type ViolationKind = "unknown_track" | "non_contiguous" | "tempo_jump" | "energy_jump" | "genre_repeat";
 
@@ -11,7 +11,7 @@ export interface Violation {
 
 /**
  * Post-validation of a Flow result against the hard ordering rules
- * (doc/auracle_flow_prompt_design.md §硬性规则). Empty array ⇒ valid.
+ * (packages/shared flow-rules + arc constants).
  */
 export function validateTracklist(refs: FlowTrackRef[], byId: Map<string, TrackCandidate>): Violation[] {
   const violations: Violation[] = [];
@@ -32,10 +32,18 @@ export function validateTracklist(refs: FlowTrackRef[], byId: Map<string, TrackC
     if (!prev || !cur) continue;
     const pos = ordered[i]!.flow_position;
     if (Math.abs(cur.tempo - prev.tempo) > MAX_TEMPO_JUMP_BPM) {
-      violations.push({ kind: "tempo_jump", position: pos, detail: `${prev.tempo}→${cur.tempo} BPM > ${MAX_TEMPO_JUMP_BPM}` });
+      violations.push({
+        kind: "tempo_jump",
+        position: pos,
+        detail: `${prev.tempo}→${cur.tempo} BPM > ${MAX_TEMPO_JUMP_BPM}`,
+      });
     }
     if (Math.abs(cur.energy - prev.energy) > MAX_ENERGY_JUMP) {
-      violations.push({ kind: "energy_jump", position: pos, detail: `${prev.energy}→${cur.energy} > ${MAX_ENERGY_JUMP}` });
+      violations.push({
+        kind: "energy_jump",
+        position: pos,
+        detail: `${prev.energy}→${cur.energy} > ${MAX_ENERGY_JUMP}`,
+      });
     }
     if (cur.genre === prev.genre) {
       violations.push({ kind: "genre_repeat", position: pos, detail: `genre ${cur.genre} repeats` });
@@ -43,4 +51,20 @@ export function validateTracklist(refs: FlowTrackRef[], byId: Map<string, TrackC
   }
 
   return violations;
+}
+
+/** Human-readable violation list fed back into Flow on retry (plan.ts). */
+export function formatViolationsForRetry(violations: Violation[]): string {
+  return violations.map((v) => `- ${v.kind} at position ${v.position}: ${v.detail}`).join("\n");
+}
+
+/** True when a candidate fits both neighbours (used by repair.ts). */
+export function fitsAdjacentSlot(
+  prev: TrackCandidate | undefined,
+  candidate: TrackCandidate,
+  next: TrackCandidate | undefined,
+): boolean {
+  if (prev && !isAdjacentStepLegal(prev, candidate)) return false;
+  if (next && !isAdjacentStepLegal(candidate, next)) return false;
+  return true;
 }

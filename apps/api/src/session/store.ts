@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { ArcStage, Condition, FlowTrackRef, SessionIntent, TrackCandidate } from "@auracle/shared";
+import type { ArcStage, Condition, FlowTrackRef, HostMode, SessionIntent, TrackCandidate } from "@auracle/shared";
+import { inferHostModeFromScene } from "@auracle/shared";
 
 export interface SessionState {
   id: string;
   intent: SessionIntent;
   condition: Condition;
+  hostMode: HostMode;
   title: string;
   subtitle: string;
   arc: ArcStage;
@@ -40,6 +42,7 @@ export class SessionStore {
       id: randomUUID(),
       intent: params.intent,
       condition: params.condition,
+      hostMode: inferHostModeFromScene(params.intent.scene),
       title: params.title,
       subtitle: params.subtitle,
       arc: params.arc,

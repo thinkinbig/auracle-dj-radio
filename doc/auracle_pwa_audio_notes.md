@@ -17,8 +17,11 @@
 ```
 AudioContext
 ├── musicGain ──┐
-├── djGain ─────┼── masterGain ── destination
+├── djGain ─────┼── masterGain ── analyser ── destination
+                              └── StageWaveform (getByteFrequencyData)
 ```
+
+`AnalyserNode` 挂在 `masterGain` 与 `destination` 之间，混音后的 DJ + 曲库信号驱动 Stage 波形。**禁止**用 `Math.random()` 等假波形占位。
 
 ---
 
@@ -37,21 +40,25 @@ WS 连接、麦克风、第一场播放挂在 **同一点击事件** 链上。
 
 ---
 
-## 坑 2：DJ ↔ 音乐 fade（电台 crossfade）🔴
+## 坑 2：DJ ↔ 音乐 fade（talk-over 压音）🔴
+
+> 决定改为 **talk-over**，不做曲间 crossfade —— 见 `docs/adr/0001-talk-over-instead-of-crossfade.md`。
+> 原 crossfade 表（音乐淡到 0 → DJ 空档 → ~2s 进歌）已废弃。
+
+DJ 盖在**当前曲前奏**上讲，音乐 duck 到 0.25，过渡用 ~0.4s 平滑 ramp：
 
 | 场景 | musicGain | djGain | 时长 |
 |------|-----------|--------|------|
-| 曲终 → DJ | 1 → 0 | 0 → 1 | 音乐 out ~2.5s；DJ in ~0.5s overlap |
-| DJ 完 → 进歌 | 0 → 1 | 1 → 0 | crossfade ~2s |
-| 曲 ↔ 曲 skip | A→0, B→1 | 0 | ~3–4s |
-| 用户打断（播歌中） | duck → 0.25 | Live | ~300ms |
+| 开讲（talk-over 前奏） | 1 → 0.25 | 0 → 1 | 音乐 duck ~0.4s；DJ in ~0.15s |
+| DJ 完 → 续播 | 0.25 → 1 | 1 → 0 | 音乐 restore ~0.4s；DJ out ~0.3s |
+| 手动 skip track | dip → 0 → 1 | （如在讲则截断） | dip ~0.2s |
+| skip voice-over | 0.25 → 1 | 1 → 0 | 服务端 `skip_dj` 截断 → `dj_turn_end` |
+| 用户打断（barge-in） | duck → 0.25 | Live | ~300ms |
 
 ```js
-// WS: { "type": "phase", "phase": "dj_turn_end", "track_index": 2 }
-onPhase('dj_turn_end', () => {
-  ramp(djGain, 0.0001, 0.8)
-  startNextTrackWithFadeIn(2.0)
-})
+// 仅用 phase 驱动 gain；djGain 由 dj_turn_start/end 淡入淡出。
+onPhase('dj_turn_start', () => ramp(musicGain, 0.25, 0.4)) // duck
+onPhase('dj_turn_end',   () => ramp(musicGain, 1.0, 0.4))  // restore
 ```
 
 ---

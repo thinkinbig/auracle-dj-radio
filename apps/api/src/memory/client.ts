@@ -1,5 +1,7 @@
 import type { Memory } from "mem0ai/oss";
 import { config } from "../config.js";
+import { allowGeminiDial, recordGeminiDial } from "../gemini/guard.js";
+import { recordOpaqueGeminiFault } from "../gemini/resilience.js";
 
 /** Hardcoded single demo user (doc/auracle_memory_decision.md). */
 const USER_ID = "auracle_user";
@@ -53,13 +55,16 @@ class Mem0Memory implements MemoryClient {
 
   async recall(query: string): Promise<string> {
     if (this.broken) return "";
+    const gate = allowGeminiDial();
+    if (!gate.allowed) return "";
     try {
       const m = await this.client();
       const res = await m.search(query, { filters: { user_id: USER_ID }, topK: 5 });
       const facts = res.results.map((r) => r.memory).filter((f): f is string => Boolean(f));
+      recordGeminiDial(null);
       return facts.map((f) => `- ${f}`).join("\n");
     } catch (err) {
-      // Disable for the rest of the run so we don't stall every request on a dead Qdrant.
+      recordOpaqueGeminiFault(err);
       this.broken = true;
       console.error("[mem0] recall failed, disabling memory:", (err as Error).message);
       return "";
@@ -68,10 +73,14 @@ class Mem0Memory implements MemoryClient {
 
   async remember(fact: string, sessionId: string): Promise<void> {
     if (this.broken || !fact.trim()) return;
+    const gate = allowGeminiDial();
+    if (!gate.allowed) return;
     try {
       const m = await this.client();
       await m.add(fact, { userId: USER_ID, runId: sessionId });
+      recordGeminiDial(null);
     } catch (err) {
+      recordOpaqueGeminiFault(err);
       console.error("[mem0] remember failed:", (err as Error).message);
     }
   }

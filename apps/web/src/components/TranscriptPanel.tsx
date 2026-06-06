@@ -33,7 +33,7 @@ export function TranscriptPanel({
     <div className={styles.root}>
       <div ref={scrollRef} className={styles.scroll}>
         {lines.length === 0 && !isIdle && (
-          <p className={styles.empty}>Waiting for DJ…</p>
+          <p className={styles.empty}>{phase === 'curating' ? 'Curating your session…' : 'Waiting for DJ…'}</p>
         )}
 
         {lines.map((line) => {

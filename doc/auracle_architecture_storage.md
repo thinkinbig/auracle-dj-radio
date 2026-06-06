@@ -82,7 +82,7 @@ auracle-dj-radio/
 | 用途 | API | 模型（Demo 默认） |
 |------|-----|-------------------|
 | 曲间实时 DJ | Gemini **Live** | **`gemini-3.1-flash-live-preview`** |
-| Flow 重排 JSON | `generateContent` + schema | `gemini-2.5-flash` |
+| Flow 重排 JSON | `generateContent` + schema | `gemini-3.1-flash-lite` |
 | 向量检索 | 暂不换模型 | SQLite + TS 余弦相似度 |
 
 Live 与 Flow 同进程、同 SDK，共享 `GEMINI_API_KEY`。  
@@ -130,7 +130,7 @@ import { Memory } from "mem0ai/oss";
 
 const memory = new Memory({
   embedder: { provider: "google", config: { apiKey: GEMINI_API_KEY, model: "gemini-embedding-001" } }, // native 3072
-  llm: { provider: "google", config: { apiKey: GEMINI_API_KEY, model: "gemini-2.5-flash" } },
+  llm: { provider: "google", config: { apiKey: GEMINI_API_KEY, model: "gemini-3.1-flash-lite" } },
   vectorStore: { provider: "qdrant", config: { url: QDRANT_URL, collectionName: "auracle_memories", dimension: 3072 } },
   historyDbPath: AURACLE_MEM0_HISTORY_DB,
 });

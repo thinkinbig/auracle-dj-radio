@@ -42,7 +42,7 @@ playing ──track end──▶ between_tracks ──Live DJ──▶ playing
 ## Step 2 — Flow 编排（Gemini Flash JSON）
 
 **调用方**：Fastify `apps/api`  
-**模型**：`gemini-2.5-flash`（或同 tier）+ structured output  
+**模型**：`gemini-3.1-flash-lite` + structured output  
 **触发**：创建 session；以及 intent `mood_change` / `explicit_pick` / `full_replan`
 
 ### 能量曲线约束
@@ -60,9 +60,18 @@ playing ──track end──▶ between_tracks ──Live DJ──▶ playing
 
 ### 硬性规则
 
+常量与 prose 单一来源：`packages/shared/src/arc.ts`（`MAX_TEMPO_JUMP_BPM`、`MAX_ENERGY_JUMP`、`buildHardRulesText()`）+ `flow-rules.ts`（`isAdjacentStepLegal`、`adjacentStepPenalty`）。`validate.ts`、heuristic、`gemini.ts` system instruction 均从此派生。
+
 - 相邻曲 tempo 差 ≤ 15 BPM  
 - 能量等级每次跳幅 ≤ 1 级  
 - 连续两首不重复 genre  
+
+### Plan 编排流水线（`flow/plan.ts`）
+
+1. Flow 首次 `plan`  
+2. `validateTracklist` — 失败则带 `repairHint`（violations 文本）**再调一次** Gemini  
+3. 仍失败 → `repair.ts` 确定性换轨  
+4. 返回最终 `violations`（可能非空，若候选池无解）
 
 ### Prompt 结构
 

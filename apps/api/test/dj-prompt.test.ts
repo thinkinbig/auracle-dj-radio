@@ -1,18 +1,63 @@
 import { describe, it, expect } from "vitest";
-import { buildCueText, buildSystemInstruction, DJ_TOOLS } from "../src/live/dj-prompt.js";
+import { inferHostModeFromScene } from "@auracle/shared";
+import { buildCueText, buildSystemInstruction, DJ_TOOLS, vibeHint } from "../src/live/dj-prompt.js";
+
+describe("inferHostModeFromScene", () => {
+  it("maps gym to hype", () => {
+    expect(inferHostModeFromScene("gym")).toBe("hype");
+  });
+
+  it("maps study to minimal", () => {
+    expect(inferHostModeFromScene("study")).toBe("minimal");
+  });
+
+  it("maps commute to curator", () => {
+    expect(inferHostModeFromScene("commute")).toBe("curator");
+  });
+
+  it("defaults chill to set_dj", () => {
+    expect(inferHostModeFromScene("chill")).toBe("set_dj");
+  });
+});
+
+describe("vibeHint", () => {
+  it("uses natural language without numbers", () => {
+    const hint = vibeHint({ title: "Drift", energy: 2, tempo: 90, genre: "lo-fi" });
+    expect(hint).toContain("soft");
+    expect(hint).toContain("lo-fi");
+    expect(hint).not.toMatch(/\d/);
+  });
+});
 
 describe("buildSystemInstruction", () => {
-  const base = { title: "Quiet Hours", subtitle: "25 min · winds down", total: 8, mem0Context: "" };
+  const base = {
+    title: "Quiet Hours",
+    subtitle: "25 min · winds down",
+    total: 8,
+    mem0Context: "",
+    hostMode: "set_dj" as const,
+    mood: "calm",
+    scene: "chill",
+  };
+
+  it("uses live set DJ persona", () => {
+    const s = buildSystemInstruction({ ...base, condition: "C" });
+    expect(s).toContain("live set DJ");
+    expect(s).not.toContain("radio host");
+    expect(s).toContain("HOST MODE: set_dj");
+    expect(s).toContain("mood=calm");
+  });
 
   it("pins the playlist for condition A", () => {
     const s = buildSystemInstruction({ ...base, condition: "A" });
     expect(s).toContain("playlist is fixed");
-    expect(s).not.toContain("triggers a replan");
+    expect(s).not.toContain("replan remaining");
   });
 
   it("allows replan for condition C", () => {
     const s = buildSystemInstruction({ ...base, condition: "C" });
-    expect(s).toContain("triggers a replan");
+    expect(s).toContain("replan remaining tracks");
+    expect(s).toContain("change_host_mode");
   });
 
   it("falls back when no memory is present", () => {
@@ -24,25 +69,57 @@ describe("buildCueText", () => {
   const now = { title: "Drift", energy: 2, tempo: 90, genre: "lo-fi" };
   const next = { title: "Haze", energy: 3, tempo: 100, genre: "ambient" };
 
-  it("opens the set on the first cue", () => {
-    const t = buildCueText({ kind: "opening", sessionTitle: "Quiet Hours", now, next });
-    expect(t).toContain("[opening");
-    expect(t).toContain('Open the set "Quiet Hours"');
-    expect(t).toContain("Up next");
+  it("opens with talk-over framing and no up next", () => {
+    const t = buildCueText({ kind: "opening", hostMode: "set_dj", sessionTitle: "Quiet Hours", now, next });
+    expect(t).toContain("[opening, set_dj, 5-8s]");
+    expect(t).toContain("Music is silent");
+    expect(t).toContain("preloading but not playing");
+    expect(t).toContain('Track: "Drift"');
+    expect(t).toContain("vibe:");
+    expect(t).not.toContain("Up next");
+    expect(t).not.toContain("BPM");
+    expect(t).not.toContain("2/5");
+    expect(t).toContain("Example tone:");
+  });
+
+  it("lets curator optionally mention set name", () => {
+    const t = buildCueText({ kind: "opening", hostMode: "curator", sessionTitle: "Quiet Hours", now });
+    expect(t).toContain('Set name "Quiet Hours"');
+    expect(t).toContain("[opening, curator, 8-12s]");
+  });
+
+  it("omits set name hint for set_dj", () => {
+    const t = buildCueText({ kind: "opening", hostMode: "set_dj", sessionTitle: "Quiet Hours", now });
+    expect(t).not.toContain("Set name");
+  });
+
+  it("uses minimal duration for minimal mode", () => {
+    const t = buildCueText({ kind: "opening", hostMode: "minimal", sessionTitle: "Quiet Hours", now });
+    expect(t).toContain("[opening, minimal, 6-9s]");
+    expect(t).toContain("Use one complete short sentence");
+  });
+
+  it("segue includes next with vibe hint not stats", () => {
+    const t = buildCueText({ kind: "segue", hostMode: "set_dj", sessionTitle: "Quiet Hours", now, next });
+    expect(t).toContain('Next: "Haze"');
+    expect(t).toContain("vibe:");
+    expect(t).not.toContain("BPM");
   });
 
   it("omits next on the outro", () => {
-    const t = buildCueText({ kind: "outro", sessionTitle: "Quiet Hours", now });
-    expect(t).toContain("last track");
+    const t = buildCueText({ kind: "outro", hostMode: "set_dj", sessionTitle: "Quiet Hours", now });
+    expect(t).toMatch(/last track/i);
     expect(t).not.toContain("Up next");
+    expect(t).not.toContain('Next: "');
   });
 });
 
 describe("DJ_TOOLS", () => {
-  it("declares the four intent tools", () => {
+  it("declares the five intent tools", () => {
     expect(DJ_TOOLS.map((t) => t.name)).toEqual([
       "skip_track",
       "mood_change",
+      "change_host_mode",
       "pause_playback",
       "record_preference",
     ]);

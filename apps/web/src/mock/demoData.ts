@@ -4,6 +4,7 @@ export const DEMO_SESSION: CreateSessionResponse = {
   session_id: 'demo-session',
   session_title: 'Quiet Hours, vol. 3',
   session_subtitle: '25 min · winds down',
+  host_mode: 'minimal',
   tracklist: [
     { id: 't01', flow_position: 1, reason: 'Soft opener for focus' },
     { id: 't02', flow_position: 2, reason: 'Gentle lift without distraction' },

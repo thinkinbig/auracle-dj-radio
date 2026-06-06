@@ -1,13 +1,10 @@
 #!/bin/sh
 set -e
 
-# Ensure persistent data directories exist
-mkdir -p "$(dirname "$AURACLE_DB_PATH")" 2>/dev/null || true
-mkdir -p "$(dirname "$AURACLE_MEM0_HISTORY_DB")" 2>/dev/null || true
+. /entrypoint-common.sh
 
-# Seed track library (upsertTrack is idempotent — safe to run every boot)
-echo "[entrypoint] seeding track library..."
-node dist/db/seed.js
+auracle_boot_prepare
+auracle_seed_tracks
 
 echo "[entrypoint] starting API server..."
 exec node dist/index.js

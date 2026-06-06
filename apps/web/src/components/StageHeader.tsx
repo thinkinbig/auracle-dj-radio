@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+import type { HostMode } from '@auracle/shared';
 import { formatTime } from '../lib/formatTime';
 import { cn } from '../lib/cn';
 import type { UiPhase } from '../types';
@@ -8,10 +10,24 @@ interface StageHeaderProps {
   djName: string;
   phase: UiPhase;
   sessionElapsedSec: number;
+  analyser: AnalyserNode | null;
+  liveWarning: string | null;
+  hostMode: HostMode;
+  onChangeHostMode: (hostMode: HostMode) => void;
 }
+
+const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
+  { value: 'set_dj', label: 'Quiet' },
+  { value: 'curator', label: 'Guide' },
+  { value: 'hype', label: 'Energy' },
+  { value: 'minimal', label: 'Minimal' },
+];
 
 function statusLabel(phase: UiPhase): { text: string; live: boolean } {
   switch (phase) {
+    case 'curating':
+      return { text: 'Tuning in…', live: true };
+    case 'opening':
     case 'speaking':
       return { text: 'Speaking…', live: true };
     case 'listening':
@@ -25,8 +41,32 @@ function statusLabel(phase: UiPhase): { text: string; live: boolean } {
   }
 }
 
-export function StageHeader({ djName, phase, sessionElapsedSec }: StageHeaderProps) {
+export function StageHeader({
+  djName,
+  phase,
+  sessionElapsedSec,
+  analyser,
+  liveWarning,
+  hostMode,
+  onChangeHostMode,
+}: StageHeaderProps) {
   const status = statusLabel(phase);
+  const onAir = phase !== 'idle';
+  const isPaused = phase === 'paused';
+  const hostModeDisabled = phase === 'idle' || phase === 'curating';
+  const mountedRef = useRef(false);
+  const [modeToast, setModeToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    const label = HOST_MODE_OPTIONS.find((o) => o.value === hostMode)?.label ?? hostMode;
+    setModeToast(`Host mode: ${label}`);
+    const id = window.setTimeout(() => setModeToast(null), 1800);
+    return () => window.clearTimeout(id);
+  }, [hostMode]);
 
   return (
     <header className={styles.root}>
@@ -37,17 +77,58 @@ export function StageHeader({ djName, phase, sessionElapsedSec }: StageHeaderPro
           </div>
           <span className={styles.name}>{djName}</span>
         </div>
-        <time className={styles.timer} aria-label="Session elapsed">
-          {formatTime(sessionElapsedSec)}
-        </time>
+        <div className={styles.topRight}>
+          {onAir && (
+            <span
+              className={cn(styles.onAir, isPaused && styles.onAirDim)}
+              aria-label={isPaused ? 'On air, paused' : 'On air'}
+            >
+              ON AIR
+            </span>
+          )}
+          <time className={styles.timer} aria-label="Session elapsed">
+            {formatTime(sessionElapsedSec)}
+          </time>
+        </div>
       </div>
 
       <p className={styles.status} aria-live="polite">
         <span className={cn(styles.liveDot, status.live && styles.liveDotOn)} aria-hidden />
         {status.text}
       </p>
+      <div className={styles.modeSection} aria-label="Host mode">
+        <span className={styles.modeTitle}>Host mode</span>
+        <div className={styles.modePills}>
+          {HOST_MODE_OPTIONS.map((o) => {
+            const active = hostMode === o.value;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                className={cn(styles.modePill, active && styles.modePillActive)}
+                onClick={() => onChangeHostMode(o.value)}
+                disabled={hostModeDisabled}
+                aria-pressed={active}
+                aria-label={`Switch host mode to ${o.label}`}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {modeToast && (
+        <p className={styles.modeToast} role="status" aria-live="polite">
+          {modeToast}
+        </p>
+      )}
+      {liveWarning && (
+        <p className={styles.warning} role="status" aria-live="polite">
+          {liveWarning}
+        </p>
+      )}
 
-      <StageWaveform phase={phase} />
+      <StageWaveform phase={phase} analyser={analyser} />
     </header>
   );
 }

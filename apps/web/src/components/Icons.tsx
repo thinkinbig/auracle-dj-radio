@@ -17,6 +17,15 @@ export function IconPause({ size = 24, className }: IconProps) {
   );
 }
 
+export function IconSkipNext({ size = 24, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M5 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 5 5.14Z" />
+      <rect x="19" y="5" width="2" height="14" rx="0.5" />
+    </svg>
+  );
+}
+
 export function IconMic({ size = 20, className }: IconProps) {
   return (
     <svg

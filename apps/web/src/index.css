@@ -22,9 +22,15 @@
   --accent-live: #22c55e;
   --accent-live-pulse: rgba(34, 197, 94, 0.35);
   --highlight-bg: rgba(34, 197, 94, 0.25);
+  --on-air-bg: #dc2626;
+  --on-air-fg: #ffffff;
 
   --wave-stage-active: #ffffff;
-  --wave-stage-idle: rgba(255, 255, 255, 0.2);
+  --wave-stage-idle: rgba(255, 255, 255, 0.08);
+  --wave-live-low: rgba(34, 197, 94, 0.22);
+  --wave-live-high: #ffffff;
+  --wave-play-low: rgba(255, 255, 255, 0.12);
+  --wave-play-high: rgba(255, 255, 255, 0.58);
   --wave-mini-active: #111827;
   --wave-mini-idle: #e5e7eb;
 

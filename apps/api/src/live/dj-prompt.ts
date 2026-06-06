@@ -1,5 +1,5 @@
 import { Type, type FunctionDeclaration } from "@google/genai";
-import type { Condition } from "@auracle/shared";
+import type { Condition, HostMode } from "@auracle/shared";
 
 /** Function declarations sent once at Live setup (doc §4). Same set for A/B/C. */
 export const DJ_TOOLS: FunctionDeclaration[] = [
@@ -18,6 +18,18 @@ export const DJ_TOOLS: FunctionDeclaration[] = [
         energy_delta: { type: Type.STRING, enum: ["lighter", "heavier", "same"] },
       },
       required: ["mood"],
+    },
+  },
+  {
+    name: "change_host_mode",
+    description:
+      "User wants you to speak differently (more hype, quieter, more curation). Does NOT change the playlist.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        host_mode: { type: Type.STRING, enum: ["set_dj", "curator", "hype", "minimal"] },
+      },
+      required: ["host_mode"],
     },
   },
   {
@@ -40,12 +52,37 @@ export const DJ_TOOLS: FunctionDeclaration[] = [
   },
 ];
 
+const MODE_INSTRUCTION: Record<HostMode, string> = {
+  set_dj: "Cool, music-first. One sentence max. Vibe over explanation.",
+  curator: "Warm curator. May name the set once per session. Brief context OK.",
+  hype: "High energy, short imperatives. No shouting. Ride the beat.",
+  minimal:
+    "Ultra-brief but complete. Use one short sentence (about 6-12 words), not fragments. Skip track names unless essential.",
+};
+
+const OPENING_DURATION: Record<HostMode, string> = {
+  minimal: "6-9s",
+  set_dj: "5-8s",
+  hype: "4-6s",
+  curator: "8-12s",
+};
+
+const OPENING_EXAMPLE: Record<HostMode, string> = {
+  minimal: "Settle in — this one starts soft and steady.",
+  set_dj: "Alright — something soft to ease in.",
+  hype: "Here we go — lock in.",
+  curator: "Quiet Hours — let's start gentle with this one.",
+};
+
 export interface SystemInstructionInput {
   title: string;
   subtitle: string;
   total: number;
   mem0Context: string;
   condition: Condition;
+  hostMode: HostMode;
+  mood: string;
+  scene: string;
 }
 
 /** Host persona + session rules (doc §5). Condition A pins the playlist. */
@@ -53,27 +90,34 @@ export function buildSystemInstruction(input: SystemInstructionInput): string {
   const moodRule =
     input.condition === "A"
       ? "mood_change → acknowledge warmly, but the playlist is fixed; do NOT promise to change what's next."
-      : "mood_change → triggers a replan; tell the user you're adjusting what's next.";
+      : "mood_change → replan remaining tracks; tell the user you're adjusting what's next.";
   const context = input.mem0Context.trim() || "(no prior preferences on file)";
-  return `You are Auracle, a warm radio host — not a chatbot, not a playlist app.
+  return `You are Auracle, a live set DJ — not a podcast host, not a chatbot.
 
-SESSION RULES
-- You are hosting "${input.title}" (${input.subtitle}), a ${input.total}-track set.
-- Tracks play in a fixed arc; you speak between songs (opening, segues, outro).
-- The user may ONLY change the remaining playlist between tracks, not mid-song.
+DELIVERY
+- Talk over the intro of the now-playing track; music is already underneath you — except the session opening (track 1), where music stays silent until you finish.
+- Never say "welcome to", "today we", "in this episode", or read stats (BPM, energy numbers).
+- Short lines only. Never read the tracklist.
+
+SESSION
+- Hosting "${input.title}" (${input.subtitle}), ${input.total} tracks, arc already set.
+- User can change remaining playlist between tracks only.
 - If they speak during a song, acknowledge briefly; use tools only for clear intents.
+
+HOST MODE: ${input.hostMode}
+${MODE_INSTRUCTION[input.hostMode]}
 
 VOICE
 - Always speak English. All session titles, spoken lines, and transcriptions must be in English.
-- Short spoken lines (5-15 seconds). Never read the full tracklist.
-- Match the session arc: wind_down = calm; gym = energetic but not shouty.
 
 TOOLS
 - ${moodRule}
+- change_host_mode → switch speaking style only; playlist unchanged. NOT for music taste changes.
 - skip_track, pause_playback, record_preference as documented.
 
 CONTEXT (preferences carried across sessions)
-${context}`;
+${context}
+Listener intent: mood=${input.mood}, scene=${input.scene}.`;
 }
 
 export type CueKind = "opening" | "segue" | "outro";
@@ -87,9 +131,23 @@ export interface CueTrack {
 
 export interface CueInput {
   kind: CueKind;
+  hostMode: HostMode;
   sessionTitle: string;
   now?: CueTrack;
   next?: CueTrack;
+}
+
+/** Natural-language vibe from track metadata — never speak raw BPM or energy numbers. */
+export function vibeHint(track: CueTrack): string {
+  const pace =
+    track.tempo < 80 ? "slow and unhurried" : track.tempo < 110 ? "steady groove" : "driving pace";
+  const weight =
+    track.energy <= 2 ? "soft" : track.energy <= 3 ? "balanced" : track.energy <= 4 ? "lifted" : "peak energy";
+  return `${weight}, ${pace}, ${track.genre}`;
+}
+
+function trackLine(track: CueTrack): string {
+  return `Track: "${track.title}" — vibe: ${vibeHint(track)}.`;
 }
 
 /**
@@ -97,18 +155,40 @@ export interface CueInput {
  * (doc §4 "口播 cue"). 3.1 uses realtimeInput for mid-session cues, not clientContent.
  */
 export function buildCueText(input: CueInput): string {
-  const tone = input.kind === "outro" ? "warm, closing" : input.kind === "opening" ? "warm, welcoming" : "smooth";
-  const lines: string[] = [`[${input.kind}, ${tone}, ~8s]`];
-  if (input.kind === "opening") {
-    lines.push(`Open the set "${input.sessionTitle}".`);
-  } else if (input.kind === "outro") {
-    lines.push(`This is the last track of "${input.sessionTitle}".`);
+  const { kind, hostMode } = input;
+  const lines: string[] = [];
+
+  if (kind === "opening") {
+    lines.push(`[opening, ${hostMode}, ${OPENING_DURATION[hostMode]}]`);
+    lines.push("Music is silent — open the set before playback begins. Track one is preloading but not playing yet.");
+    if (hostMode === "minimal") {
+      lines.push("Use one complete short sentence (6-12 words); do not answer with one or two words.");
+    }
+    if (input.now) lines.push(trackLine(input.now));
+    if (hostMode === "curator") {
+      lines.push(`Set name "${input.sessionTitle}" — mention once, softly, optional.`);
+    }
+    lines.push("Do NOT preview upcoming tracks.");
+    lines.push(
+      `Example tone: "${OPENING_EXAMPLE[hostMode]}" — match this energy, do not read verbatim.`,
+    );
+    return lines.join(" ");
   }
-  if (input.now) {
-    lines.push(`Now playing: "${input.now.title}" (${input.now.energy}/5, ${input.now.tempo} BPM, ${input.now.genre}).`);
+
+  if (kind === "outro") {
+    lines.push(`[outro, ${hostMode}, closing]`);
+    lines.push("Talk over the intro — music is already playing.");
+    lines.push(`Last track of "${input.sessionTitle}".`);
+    if (input.now) lines.push(trackLine(input.now));
+    return lines.join(" ");
   }
-  if (input.next && input.kind !== "outro") {
-    lines.push(`Up next: "${input.next.title}".`);
+
+  // segue
+  lines.push(`[segue, ${hostMode}, 5-8s]`);
+  lines.push("Talk over the intro — music is already playing.");
+  if (input.now) lines.push(trackLine(input.now));
+  if (input.next) {
+    lines.push(`Next: "${input.next.title}" — vibe: ${vibeHint(input.next)}. Do not read stats.`);
   }
   return lines.join(" ");
 }

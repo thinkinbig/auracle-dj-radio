@@ -1,4 +1,6 @@
-export type UiPhase = 'idle' | 'playing' | 'speaking' | 'listening' | 'paused';
+import type { HostMode } from '@auracle/shared';
+
+export type UiPhase = 'idle' | 'curating' | 'opening' | 'playing' | 'speaking' | 'listening' | 'paused';
 
 export interface TranscriptLine {
   id: string;
@@ -9,6 +11,10 @@ export interface TranscriptLine {
 
 export interface PlaybackState {
   phase: UiPhase;
+  sessionId: string | null;
+  hostMode: HostMode;
+  /** Non-null when the app is running in local demo fallback (no backend Live session). */
+  liveWarning: string | null;
   sessionTitle: string;
   sessionSubtitle: string;
   trackId: string;

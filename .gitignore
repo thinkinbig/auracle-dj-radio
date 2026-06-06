@@ -3,7 +3,6 @@ dist/
 data/
 *.tsbuildinfo
 .env
-.env.docker
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

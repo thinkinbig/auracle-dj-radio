@@ -3,19 +3,15 @@ import type { FlowResult, TrackCandidate } from "@auracle/shared";
 import { buildHardRulesText } from "@auracle/shared";
 import type { Track } from "@auracle/shared";
 import { config } from "../config.js";
+import { createGeminiClient } from "../gemini/client.js";
 import type { Embedder } from "./embedder.js";
 import type { FlowModel, FlowInput } from "./flow-model.js";
-
-function client(): GoogleGenAI {
-  if (!config.geminiApiKey) throw new Error("GEMINI_API_KEY is required for the Gemini provider");
-  return new GoogleGenAI({ apiKey: config.geminiApiKey });
-}
 
 type TagFields = Pick<Track, "mood" | "scene" | "energy" | "genre">;
 
 /** Real embeddings via gemini-embedding-001 (native 3072-dim, no truncation). */
 export class GeminiEmbedder implements Embedder {
-  private readonly ai = client();
+  private readonly ai = createGeminiClient();
 
   async embedTrack(t: TagFields | TrackCandidate): Promise<number[]> {
     return this.embed(`mood: ${t.mood} scene: ${t.scene} energy: ${t.energy} genre: ${t.genre}`);
@@ -64,9 +60,9 @@ When replanning remaining slots, glide smoothly from the last played energy down
 Hard rules: ${buildHardRulesText()}.
 Only use track ids from the provided candidates. Output exactly the requested number of slots.`;
 
-/** Step 2 Flow orchestration via gemini-2.5-flash structured JSON. */
+/** Step 2 Flow orchestration via gemini-3.1-flash-lite structured JSON. */
 export class GeminiFlowModel implements FlowModel {
-  private readonly ai = client();
+  private readonly ai = createGeminiClient();
 
   async plan(input: FlowInput): Promise<FlowResult> {
     const prompt = buildPrompt(input);
@@ -77,6 +73,9 @@ export class GeminiFlowModel implements FlowModel {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
         responseSchema: FLOW_SCHEMA,
+        // Ordering candidates against explicit rules needs no chain-of-thought;
+        // thinking is the dominant latency cost on flash, so cap it off.
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
     const text = res.text;
@@ -86,12 +85,16 @@ export class GeminiFlowModel implements FlowModel {
 }
 
 function buildPrompt(input: FlowInput): string {
-  return [
+  const lines = [
     input.memories ? `User profile: ${input.memories}` : "User profile: (none)",
     `Session intent: mood=${input.intent.mood}, scene=${input.intent.scene}, duration=${input.intent.duration_min}min`,
     `Already played: ${JSON.stringify(input.played)}`,
     `Last played energy: ${input.lastPlayedEnergy ?? "n/a (initial session)"}`,
     `Remaining slots: ${input.remainingSlots}`,
     `Candidate tracks: ${JSON.stringify(input.candidates)}`,
-  ].join("\n");
+  ];
+  if (input.repairHint) {
+    lines.push(`Fix these violations from your previous attempt:\n${input.repairHint}`);
+  }
+  return lines.join("\n");
 }

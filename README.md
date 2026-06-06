@@ -27,25 +27,26 @@ Gemini 协议可参考 [thinkinbig/rt_llm_proxy](https://github.com/thinkinbig/r
 git clone https://github.com/thinkinbig/auracle-dj-radio.git
 cd auracle-dj-radio
 
-cp .env.example .env          # GEMINI_API_KEY；本地 pnpm dev 用
-cp .env.docker.example .env.docker   # Docker api 容器用（Compose 读此文件）
+cp .env.example .env          # GEMINI_API_KEY；本地 pnpm dev 与 Docker 共用
 
-pnpm docker:dev               # qdrant + api（6333 / 3000），前端用 Vite
+pnpm docker:dev               # qdrant + api（6333 / **3001**，api 容器内 tsx 热更新）
 pnpm install
-pnpm dev                      # api :3000（本地进程）
-pnpm dev:web                  # web :5173（代理到 localhost:3000）
+pnpm dev:web:docker           # web :5173 → Docker api :3001
+
+# 或全本机（与 Docker api 可并行，端口不冲突）：
+pnpm dev                      # api :3000（宿主机 tsx watch，需单独起 qdrant）
+pnpm dev:web                  # web :5173 → localhost:3000
 ```
 
 ### Docker 全栈（答辩 / 单机部署）
 
 ```bash
-cp .env.docker.example .env.docker   # 填入 GEMINI_API_KEY
-pnpm docker:prod                   # 构建并启动 qdrant + api + web
+pnpm docker:prod                   # 构建并启动 qdrant + api + web（读 .env）
 # 浏览器打开 http://localhost:8080  （WEB_PORT 可改）
 pnpm docker:down                   # 停止容器，保留 volumes
 ```
 
-Compose 结构：`docker-compose.yml`（基础）+ `docker-compose.dev.yml`（开发暴露端口）或 `docker-compose.prod.yml`（仅暴露 web）。Qdrant 使用 `ops/qdrant` 薄包装镜像以便 `curl` 健康检查。
+Compose：`docker-compose.dev.yml`（开发，暴露 qdrant/api）与 `docker-compose.prod.yml`（答辩/部署，仅暴露 web）互不叠加。Qdrant 使用 `ops/qdrant` 薄包装镜像以便 `curl` 健康检查。
 
 Phase 1 Demo：**Desktop Chrome**。见 `doc/auracle_pwa_audio_notes.md`。
 

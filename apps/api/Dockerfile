@@ -37,8 +37,9 @@ COPY --from=builder /bundle .
 # Bake in pre-generated demo tracks (read-only audio content)
 COPY apps/api/data/tracks ./data/tracks/
 
+COPY apps/api/entrypoint-common.sh /entrypoint-common.sh
 COPY apps/api/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint-common.sh /entrypoint.sh
 
 EXPOSE 3000
 ENTRYPOINT ["/entrypoint.sh"]

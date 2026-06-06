@@ -1,11 +1,11 @@
 import type { FlowResult, FlowTrackRef, TrackCandidate } from "@auracle/shared";
-import { ARC_BANDS, MAX_ENERGY_JUMP, MAX_TEMPO_JUMP_BPM } from "@auracle/shared";
+import { ARC_BANDS, adjacentStepPenalty } from "@auracle/shared";
 import type { FlowModel, FlowInput } from "./flow-model.js";
 
 /**
  * Deterministic, LLM-free Flow model. Orders candidates along the energy arc
  * so the server runs offline and so plan/validate logic is unit-testable.
- * The real Gemini Flash model replaces it when a key is configured.
+ * The real Gemini flow model replaces it when a key is configured.
  */
 export class HeuristicFlowModel implements FlowModel {
   async plan(input: FlowInput): Promise<FlowResult> {
@@ -79,11 +79,7 @@ function chooseNext(pool: TrackCandidate[], target: number, prev: TrackCandidate
   let bestCost = Infinity;
   for (const c of pool) {
     let cost = Math.abs(c.energy - target);
-    if (prev) {
-      if (c.genre === prev.genre) cost += 2;
-      if (Math.abs(c.tempo - prev.tempo) > MAX_TEMPO_JUMP_BPM) cost += 2;
-      if (Math.abs(c.energy - prev.energy) > MAX_ENERGY_JUMP) cost += 3;
-    }
+    if (prev) cost += adjacentStepPenalty(prev, c);
     if (cost < bestCost) {
       bestCost = cost;
       best = c;

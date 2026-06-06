@@ -1,4 +1,5 @@
 import type { FlowTrackRef } from "./flow.js";
+import type { HostMode } from "./host-mode.js";
 
 /**
  * Live WS protocol (doc/auracle_api_protocol.md §Live WebSocket).
@@ -10,6 +11,7 @@ export type Phase = "dj_turn_start" | "dj_turn_end" | "user_barge_in" | "user_ba
 export type Intent =
   | { type: "skip_track" }
   | { type: "mood_change"; mood: string; energy_delta: "lighter" | "heavier" | "same" }
+  | { type: "host_mode_changed"; host_mode: HostMode }
   | { type: "pause_playback"; action: "pause" | "resume" }
   | { type: "record_preference"; fact: string };
 
@@ -24,4 +26,4 @@ export type ServerMessage =
   | { type: "phase"; phase: Phase; track_index: number }
   | { type: "tracklist_updated"; remaining: FlowTrackRef[] }
   | { type: "intent"; intent: Intent }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; circuit_state?: string; retry_after_sec?: number };

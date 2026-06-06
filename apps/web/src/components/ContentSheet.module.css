@@ -75,6 +75,32 @@
   cursor: not-allowed;
 }
 
+.skipBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  color: var(--text-primary);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background var(--duration-fast), transform var(--duration-fast) var(--ease-out);
+}
+
+.skipBtn:hover:not(:disabled) {
+  background: var(--transcript-bg);
+  transform: scale(1.05);
+}
+
+.skipBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.skipBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .progress {
   flex: 1;
   min-width: 0;

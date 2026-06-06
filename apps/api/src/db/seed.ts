@@ -1,7 +1,7 @@
 import { config } from "../config.js";
 import { Db, type TrackRow } from "./index.js";
 import { SEED_TRACKS } from "./seed-data.js";
-import { selectEmbedder } from "../context.js";
+import { buildSeedEmbedder } from "../gemini/wiring.js";
 
 /**
  * Build the SQLite library. Embeddings are precomputed offline (doc §Step 1)
@@ -12,7 +12,7 @@ import { selectEmbedder } from "../context.js";
  */
 async function main(): Promise<void> {
   const db = new Db(config.dbPath);
-  const embedder = await selectEmbedder();
+  const embedder = await buildSeedEmbedder();
   for (const track of SEED_TRACKS) {
     const embedding = await embedder.embedTrack(track);
     const row: TrackRow = { ...track, embedding };

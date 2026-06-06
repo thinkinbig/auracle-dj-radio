@@ -9,6 +9,8 @@ export interface FlowInput {
   lastPlayedEnergy: number | null;
   remainingSlots: number;
   candidates: TrackCandidate[];
+  /** Set by plan.ts on retry after validate failures — fed into Gemini prompt. */
+  repairHint?: string;
 }
 
 /** Step 2 — orders candidates into an energy-arc tracklist. */

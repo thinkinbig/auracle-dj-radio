@@ -1,6 +1,6 @@
 import { formatTime } from '../lib/formatTime';
 import type { TranscriptLine, UiPhase } from '../types';
-import { IconPause, IconPlay } from './Icons';
+import { IconPause, IconPlay, IconSkipNext } from './Icons';
 import { TranscriptPanel } from './TranscriptPanel';
 import styles from './ContentSheet.module.css';
 
@@ -16,6 +16,8 @@ interface ContentSheetProps {
   activeTranscriptId: string | null;
   djName: string;
   onTogglePause: () => void;
+  onSkipTrack: () => void;
+  hasNextTrack: boolean;
   onStart: () => void;
 }
 
@@ -31,10 +33,14 @@ export function ContentSheet({
   activeTranscriptId,
   djName,
   onTogglePause,
+  onSkipTrack,
+  hasNextTrack,
   onStart,
 }: ContentSheetProps) {
   const isPaused = phase === 'paused';
   const isIdle = phase === 'idle';
+  const notReady = isIdle || phase === 'curating';
+  const skipDisabled = notReady || !hasNextTrack;
   const pct = durationSec > 0 ? Math.min(100, (progressSec / durationSec) * 100) : 0;
 
   return (
@@ -52,10 +58,20 @@ export function ContentSheet({
           type="button"
           className={styles.controlBtn}
           onClick={onTogglePause}
-          disabled={isIdle}
-          aria-label={isPaused || isIdle ? 'Play' : 'Pause'}
+          disabled={notReady}
+          aria-label={isPaused || notReady ? 'Play' : 'Pause'}
         >
-          {isPaused || isIdle ? <IconPlay size={18} /> : <IconPause size={18} />}
+          {isPaused || notReady ? <IconPlay size={18} /> : <IconPause size={18} />}
+        </button>
+
+        <button
+          type="button"
+          className={styles.skipBtn}
+          onClick={onSkipTrack}
+          disabled={skipDisabled}
+          aria-label="Next track"
+        >
+          <IconSkipNext size={18} />
         </button>
 
         <div className={styles.progress}>
