@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import type { SessionIntent } from "@auracle/shared";
 import { FULL_SESSION_LENGTH } from "@auracle/shared";
-import { HashEmbedder, trackTagText } from "../src/flow/embedder.js";
+import { HashEmbedder } from "../src/flow/embedder.js";
 import { HeuristicFlowModel } from "../src/flow/heuristic-flow.js";
 import { createPlan, replan, type PlanDeps } from "../src/flow/plan.js";
 import { validateTracklist } from "../src/flow/validate.js";
@@ -14,7 +14,7 @@ beforeAll(async () => {
   const embedder = new HashEmbedder();
   const rows: TrackRow[] = [];
   for (const t of SEED_TRACKS) {
-    rows.push({ ...t, embedding: await embedder.embed(trackTagText(t)) });
+    rows.push({ ...t, embedding: await embedder.embedTrack(t) });
   }
   deps = { embedder, flowModel: new HeuristicFlowModel(), tracks: () => rows };
 });

@@ -1,5 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { FlowResult } from "@auracle/shared";
+import type { FlowResult, TrackCandidate } from "@auracle/shared";
+import { buildHardRulesText } from "@auracle/shared";
+import type { Track } from "@auracle/shared";
 import { config } from "../config.js";
 import type { Embedder } from "./embedder.js";
 import type { FlowModel, FlowInput } from "./flow-model.js";
@@ -9,11 +11,21 @@ function client(): GoogleGenAI {
   return new GoogleGenAI({ apiKey: config.geminiApiKey });
 }
 
-/** Real embeddings via gemini-embedding-001 (used when AURACLE_EMBEDDER=gemini). */
+type TagFields = Pick<Track, "mood" | "scene" | "energy" | "genre">;
+
+/** Real embeddings via gemini-embedding-001 (native 3072-dim, no truncation). */
 export class GeminiEmbedder implements Embedder {
   private readonly ai = client();
 
-  async embed(text: string): Promise<number[]> {
+  async embedTrack(t: TagFields | TrackCandidate): Promise<number[]> {
+    return this.embed(`mood: ${t.mood} scene: ${t.scene} energy: ${t.energy} genre: ${t.genre}`);
+  }
+
+  async embedQuery(mood: string, scene: string): Promise<number[]> {
+    return this.embed(`mood: ${mood} scene: ${scene}`);
+  }
+
+  private async embed(text: string): Promise<number[]> {
     const res = await this.ai.models.embedContent({ model: config.embedModel, contents: text });
     const values = res.embeddings?.[0]?.values;
     if (!values) throw new Error("Gemini embedContent returned no embedding");
@@ -46,7 +58,7 @@ const FLOW_SCHEMA = {
 const SYSTEM_INSTRUCTION = `You are a professional radio session curator. Order candidate tracks into an energy arc.
 Energy is an integer 1-5. For a full 8-track session: warm-up (1-2) → build (3-4) → peak (5-6) → wind-down (7-8).
 When replanning remaining slots, glide smoothly from the last played energy down to a wind-down floor of 2; do NOT restart the full arc.
-Hard rules: adjacent tempo difference ≤ 15 BPM; energy step ≤ 1 level; no two consecutive tracks share a genre.
+Hard rules: ${buildHardRulesText()}.
 Only use track ids from the provided candidates. Output exactly the requested number of slots.`;
 
 /** Step 2 Flow orchestration via gemini-2.5-flash structured JSON. */

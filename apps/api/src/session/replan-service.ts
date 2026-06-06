@@ -65,7 +65,7 @@ export async function applyReplan(
 }
 
 /** Shift the glide seed by the requested energy delta, clamped to 1–5. */
-function nudge(energy: number | null, delta: ReplanParams["energy_delta"]): number | null {
+export function nudge(energy: number | null, delta: ReplanParams["energy_delta"]): number | null {
   if (energy === null) return null;
   if (delta === "heavier") return Math.min(5, energy + 1);
   if (delta === "lighter") return Math.max(1, energy - 1);

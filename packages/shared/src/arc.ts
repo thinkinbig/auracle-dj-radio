@@ -23,3 +23,12 @@ export const ARC_BANDS: Record<number, { stage: ArcStage; min: Energy; max: Ener
 /** Hard ordering rules enforced by post-validation (doc §硬性规则). */
 export const MAX_TEMPO_JUMP_BPM = 15;
 export const MAX_ENERGY_JUMP = 1;
+
+/**
+ * Single source of truth for the hard-rule prose injected into the Gemini
+ * system instruction. Derived from the constants above so a rule change
+ * updates both the validator and the prompt automatically.
+ */
+export function buildHardRulesText(): string {
+  return `adjacent tempo difference ≤ ${MAX_TEMPO_JUMP_BPM} BPM; energy step ≤ ${MAX_ENERGY_JUMP} level; no two consecutive tracks share a genre`;
+}

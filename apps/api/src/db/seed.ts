@@ -1,7 +1,6 @@
 import { config } from "../config.js";
 import { Db, type TrackRow } from "./index.js";
 import { SEED_TRACKS } from "./seed-data.js";
-import { trackTagText } from "../flow/embedder.js";
 import { selectEmbedder } from "../context.js";
 
 /**
@@ -15,7 +14,7 @@ async function main(): Promise<void> {
   const db = new Db(config.dbPath);
   const embedder = await selectEmbedder();
   for (const track of SEED_TRACKS) {
-    const embedding = await embedder.embed(trackTagText(track));
+    const embedding = await embedder.embedTrack(track);
     const row: TrackRow = { ...track, embedding };
     db.upsertTrack(row);
   }

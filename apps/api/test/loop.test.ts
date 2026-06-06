@@ -3,10 +3,10 @@ import type { Condition, SessionIntent } from "@auracle/shared";
 import { Db } from "../src/db/index.js";
 import { SEED_TRACKS } from "../src/db/seed-data.js";
 import { SessionStore } from "../src/session/store.js";
-import { HashEmbedder, trackTagText } from "../src/flow/embedder.js";
+import { HashEmbedder } from "../src/flow/embedder.js";
 import { HeuristicFlowModel } from "../src/flow/heuristic-flow.js";
 import { createPlan, type PlanDeps } from "../src/flow/plan.js";
-import { applyReplan } from "../src/session/replan-service.js";
+import { applyReplan, nudge } from "../src/session/replan-service.js";
 import type { ApiContext } from "../src/context.js";
 
 const intent: SessionIntent = { mood: "calm", scene: "study", duration_min: 25 };
@@ -15,7 +15,7 @@ async function buildCtx(): Promise<ApiContext> {
   const db = new Db(":memory:");
   const embedder = new HashEmbedder();
   for (const t of SEED_TRACKS) {
-    db.upsertTrack({ ...t, embedding: await embedder.embed(trackTagText(t)) });
+    db.upsertTrack({ ...t, embedding: await embedder.embedTrack(t) });
   }
   const planDeps: PlanDeps = { embedder, flowModel: new HeuristicFlowModel(), tracks: () => db.allTracks() };
   const memory = { enabled: false, recall: async () => "", remember: async () => {} };
@@ -82,5 +82,24 @@ describe("applyReplan", () => {
 
     expect(out.replanned).toBe(false);
     expect(state.tracklist.map((r) => r.id)).toEqual(before);
+  });
+});
+
+describe("nudge", () => {
+  it("returns null when energy is unknown", () => {
+    expect(nudge(null, "lighter")).toBeNull();
+    expect(nudge(null, "heavier")).toBeNull();
+    expect(nudge(null, "same")).toBeNull();
+  });
+
+  it("shifts energy by one step in the requested direction", () => {
+    expect(nudge(3, "lighter")).toBe(2);
+    expect(nudge(3, "heavier")).toBe(4);
+    expect(nudge(3, "same")).toBe(3);
+  });
+
+  it("clamps at the energy floor (1) and ceiling (5)", () => {
+    expect(nudge(1, "lighter")).toBe(1);
+    expect(nudge(5, "heavier")).toBe(5);
   });
 });

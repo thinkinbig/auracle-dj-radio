@@ -1,5 +1,5 @@
 import type { FlowResult, FlowTrackRef, TrackCandidate } from "@auracle/shared";
-import { ARC_BANDS, MAX_TEMPO_JUMP_BPM } from "@auracle/shared";
+import { ARC_BANDS, MAX_ENERGY_JUMP, MAX_TEMPO_JUMP_BPM } from "@auracle/shared";
 import type { FlowModel, FlowInput } from "./flow-model.js";
 
 /**
@@ -60,7 +60,7 @@ function chooseNext(pool: TrackCandidate[], target: number, prev: TrackCandidate
     if (prev) {
       if (c.genre === prev.genre) cost += 2;
       if (Math.abs(c.tempo - prev.tempo) > MAX_TEMPO_JUMP_BPM) cost += 2;
-      if (Math.abs(c.energy - prev.energy) > 1) cost += 3;
+      if (Math.abs(c.energy - prev.energy) > MAX_ENERGY_JUMP) cost += 3;
     }
     if (cost < bestCost) {
       bestCost = cost;

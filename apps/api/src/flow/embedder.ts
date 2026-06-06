@@ -1,18 +1,24 @@
 import type { Track, TrackCandidate } from "@auracle/shared";
 
-export const EMBED_DIM = 768;
+const EMBED_DIM = 768;
 
+/** Minimal track fields needed to produce a tag embedding. */
+type TagFields = Pick<Track, "mood" | "scene" | "energy" | "genre">;
+
+/**
+ * Domain-typed embedder. Callers never construct tag strings — the encoding
+ * is an implementation detail hidden behind this seam.
+ */
 export interface Embedder {
-  embed(text: string): Promise<number[]>;
+  embedTrack(t: TagFields | TrackCandidate): Promise<number[]>;
+  embedQuery(mood: string, scene: string): Promise<number[]>;
 }
 
-/** Canonical tag text used both at index time and query time. */
-export function trackTagText(t: Pick<Track, "mood" | "scene" | "energy" | "genre"> | TrackCandidate): string {
-  return `mood: ${t.mood} scene: ${t.scene} energy: ${t.energy} genre: ${t.genre}`;
-}
-
-export function queryTagText(mood: string, scene: string): string {
-  return `mood: ${mood} scene: ${scene}`;
+function tagText(mood: string, scene: string, energy?: number, genre?: string): string {
+  const parts = [`mood: ${mood}`, `scene: ${scene}`];
+  if (energy !== undefined) parts.push(`energy: ${energy}`);
+  if (genre !== undefined) parts.push(`genre: ${genre}`);
+  return parts.join(" ");
 }
 
 /**
@@ -21,19 +27,25 @@ export function queryTagText(mood: string, scene: string): string {
  * demo and lets retrieval be unit-tested without a Gemini key.
  */
 export class HashEmbedder implements Embedder {
-  constructor(private readonly dim = EMBED_DIM) {}
+  async embedTrack(t: TagFields | TrackCandidate): Promise<number[]> {
+    return this.hash(tagText(t.mood, t.scene, t.energy, t.genre));
+  }
 
-  async embed(text: string): Promise<number[]> {
-    const vec = new Array<number>(this.dim).fill(0);
+  async embedQuery(mood: string, scene: string): Promise<number[]> {
+    return this.hash(tagText(mood, scene));
+  }
+
+  private hash(text: string): number[] {
+    const vec = new Array<number>(EMBED_DIM).fill(0);
     for (const token of text.toLowerCase().split(/\s+/).filter(Boolean)) {
-      const idx = hash(token) % this.dim;
+      const idx = fnv32(token) % EMBED_DIM;
       vec[idx] = (vec[idx] ?? 0) + 1;
     }
     return vec;
   }
 }
 
-function hash(s: string): number {
+function fnv32(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
