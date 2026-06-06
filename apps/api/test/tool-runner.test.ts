@@ -7,7 +7,7 @@ function mockState(): SessionState {
     id: "s1",
     intent: { mood: "calm", scene: "study", duration_min: 25 },
     condition: "C",
-    hostMode: "minimal",
+    hostMode: "curator",
     title: "Quiet Hours",
     subtitle: "25 min",
     arc: "wind_down",
@@ -49,12 +49,12 @@ describe("LiveToolRunner", () => {
     }, send);
 
     const res = await runner.run({ name: "change_host_mode", args: { host_mode: "hype" } });
-    expect(res).toMatchObject({ ok: true, host_mode: "hype", previous: "minimal", changed: true });
+    expect(res).toMatchObject({ ok: true, host_mode: "hype", previous: "curator", changed: true });
     expect(state.hostMode).toBe("hype");
     expect(replan).not.toHaveBeenCalled();
     expect(recordEvent).toHaveBeenCalledWith("s1", "change_host_mode", {
       host_mode: "hype",
-      previous: "minimal",
+      previous: "curator",
     });
     expect(send).toHaveBeenCalledWith({
       type: "intent",

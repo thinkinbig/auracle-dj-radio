@@ -4,21 +4,18 @@ import { ContentSheet } from './components/ContentSheet';
 import { MiniControlBar } from './components/MiniControlBar';
 import { StageHeader } from './components/StageHeader';
 import { TrackQueue } from './components/TrackQueue';
+import { RadioSessionProvider, useRadioActions, useRadioState } from './context/RadioSessionContext';
 import { useLayoutMode } from './hooks/useMediaQuery';
-import { useRadioSession } from './hooks/useRadioSession';
-import { DJ_NAME } from './lib/constants';
+import { loadTrackCatalog } from './lib/trackCatalog';
 
-export default function App() {
-  const {
-    state,
-    analyser,
-    handleStart,
-    handleTogglePause,
-    handleSkipTrack,
-    handleSkipDj,
-    handleChangeHostMode,
-  } = useRadioSession();
+function AppContent() {
+  const state = useRadioState();
+  const { handleStart, handleTogglePause, handleSkipTrack } = useRadioActions();
   const { isWide } = useLayoutMode();
+
+  useEffect(() => {
+    void loadTrackCatalog();
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -38,59 +35,18 @@ export default function App() {
 
   return (
     <AppShell
-      stage={
-        <StageHeader
-          djName={DJ_NAME}
-          phase={state.phase}
-          sessionElapsedSec={state.sessionElapsedSec}
-          analyser={analyser}
-          liveWarning={state.liveWarning}
-          hostMode={state.hostMode}
-          onChangeHostMode={handleChangeHostMode}
-          onStart={handleStart}
-          albumCoverUrl={state.albumCoverUrl}
-          artistPhotoUrl={state.artistPhotoUrl}
-        />
-      }
-      sheet={
-        <ContentSheet
-          phase={state.phase}
-          sessionTitle={state.sessionTitle}
-          sessionSubtitle={state.sessionSubtitle}
-          trackTitle={state.trackTitle}
-          artist={state.artist}
-          albumTitle={state.albumTitle}
-          albumCoverUrl={state.albumCoverUrl}
-          artistPhotoUrl={state.artistPhotoUrl}
-          lore={state.lore}
-          progressSec={state.progressSec}
-          durationSec={state.durationSec}
-          transcript={state.transcript}
-          activeTranscriptId={state.activeTranscriptId}
-          djName={DJ_NAME}
-          onTogglePause={handleTogglePause}
-          onSkipTrack={handleSkipTrack}
-          hasNextTrack={state.remainingTrackIds.length > 0}
-          onStart={handleStart}
-        />
-      }
-      queue={
-        isWide ? (
-          <TrackQueue currentTrackId={state.trackId} remainingTrackIds={state.remainingTrackIds} />
-        ) : undefined
-      }
-      miniBar={
-        <MiniControlBar
-          phase={state.phase}
-          progressSec={state.progressSec}
-          durationSec={state.durationSec}
-          hasNextTrack={state.remainingTrackIds.length > 0}
-          onStart={handleStart}
-          onTogglePause={handleTogglePause}
-          onSkipTrack={handleSkipTrack}
-          onSkipDj={handleSkipDj}
-        />
-      }
+      stage={<StageHeader />}
+      sheet={<ContentSheet />}
+      queue={isWide ? <TrackQueue /> : undefined}
+      miniBar={<MiniControlBar />}
     />
+  );
+}
+
+export default function App() {
+  return (
+    <RadioSessionProvider>
+      <AppContent />
+    </RadioSessionProvider>
   );
 }

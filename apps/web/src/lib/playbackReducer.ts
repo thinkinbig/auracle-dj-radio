@@ -111,6 +111,7 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         artist: meta.artist,
         albumTitle: meta.albumTitle,
         albumCoverUrl: meta.albumCoverUrl,
+        artistPhotoUrl: meta.artistPhotoUrl,
         lore: meta.lore,
         durationSec: meta.durationSec,
         progressSec: 0,

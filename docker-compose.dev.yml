@@ -1,4 +1,4 @@
-# Dev: qdrant + api (tsx hot reload). Web on host → pnpm dev:web:docker (:5173 → api :3001).
+# Dev: qdrant + api (tsx hot reload). Web on host → pnpm dev:web (:5173 → api :3001).
 # Local api without Docker: pnpm dev (:3000) + pnpm dev:web — ports do not overlap.
 # Requires repo-root .env (see .env.example). Container paths below override local paths.
 

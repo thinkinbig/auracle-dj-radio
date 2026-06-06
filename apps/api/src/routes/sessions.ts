@@ -9,6 +9,7 @@ import type {
 } from "@auracle/shared";
 import { parseHostMode } from "@auracle/shared";
 import type { ApiContext } from "../context.js";
+import { toTrackMeta, tracksWithAssets } from "../catalog/manifest.js";
 import { createPlanCached } from "../flow/plan.js";
 import { applyReplan } from "../session/replan-service.js";
 import { attachLiveRelay, type RelayDeps } from "../live/relay.js";
@@ -141,6 +142,10 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
     if (!meta) return reply.code(404).send({ error: "track not found" });
     return meta;
   });
+
+  app.get("/catalog/tracks", async () => ({
+    tracks: tracksWithAssets().map(toTrackMeta),
+  }));
 
   app.get("/tracks/:id/audio", async (req, reply) => {
     const { id } = req.params as { id: string };

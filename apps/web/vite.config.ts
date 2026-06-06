@@ -8,9 +8,12 @@ export default defineConfig(() => {
   return {
     plugins: [react()],
     server: {
+      port: 5173,
+      strictPort: true,
       proxy: {
         // ws:true so the Live WebSocket upgrade at /sessions/:id/live is proxied too.
         '/sessions': { target: apiTarget, ws: true },
+        '/catalog': apiTarget,
         '/tracks': apiTarget,
         '/covers': apiTarget,
         '/artists': apiTarget,

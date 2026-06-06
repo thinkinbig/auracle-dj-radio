@@ -7,16 +7,16 @@ describe("inferHostModeFromScene", () => {
     expect(inferHostModeFromScene("gym")).toBe("hype");
   });
 
-  it("maps study to minimal", () => {
-    expect(inferHostModeFromScene("study")).toBe("minimal");
+  it("maps study to curator (guide)", () => {
+    expect(inferHostModeFromScene("study")).toBe("curator");
   });
 
   it("maps commute to curator", () => {
     expect(inferHostModeFromScene("commute")).toBe("curator");
   });
 
-  it("defaults chill to set_dj", () => {
-    expect(inferHostModeFromScene("chill")).toBe("set_dj");
+  it("defaults chill to curator (guide)", () => {
+    expect(inferHostModeFromScene("chill")).toBe("curator");
   });
 });
 
@@ -113,12 +113,7 @@ describe("buildCueText", () => {
   it("omits set name hint for set_dj", () => {
     const t = buildCueText({ kind: "opening", hostMode: "set_dj", sessionTitle: "Quiet Hours", now });
     expect(t).not.toContain("Set name");
-  });
-
-  it("uses minimal duration for minimal mode", () => {
-    const t = buildCueText({ kind: "opening", hostMode: "minimal", sessionTitle: "Quiet Hours", now });
-    expect(t).toContain("[opening, minimal, 6-9s]");
-    expect(t).toContain("Use one complete short sentence");
+    expect(t).not.toContain("Lore hint");
   });
 
   it("segue includes next with vibe hint not stats", () => {

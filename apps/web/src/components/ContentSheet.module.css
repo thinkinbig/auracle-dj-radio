@@ -11,9 +11,21 @@
 }
 
 :global([data-layout='split']) .root {
+  flex: 1;
+  min-height: 0;
   border-radius: var(--radius-inner);
   box-shadow: none;
   padding: var(--space-lg);
+}
+
+:global([data-layout='split']) .header {
+  flex-shrink: 0;
+}
+
+:global([data-layout='split']) .loreScroll {
+  max-height: clamp(3rem, 14vh, 5.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .header {
@@ -265,6 +277,10 @@
 }
 
 :global([data-layout='split']) .cover {
+  display: none;
+}
+
+:global([data-layout='split']) .controls {
   display: none;
 }
 

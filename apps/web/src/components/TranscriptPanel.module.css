@@ -11,8 +11,8 @@
 }
 
 :global([data-layout='split']) .root {
-  flex: 1 1 auto;
-  min-height: 120px;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .scroll {

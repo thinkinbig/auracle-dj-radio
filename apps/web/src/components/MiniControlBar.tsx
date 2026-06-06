@@ -1,44 +1,33 @@
 import { useRef } from 'react';
 import type { CSSProperties } from 'react';
+import { useRadioActions, useRadioState } from '../context/RadioSessionContext';
 import { useBarCount } from '../hooks/useBarCount';
 import { formatTime } from '../lib/formatTime';
 import { cn } from '../lib/cn';
-import type { UiPhase } from '../types';
+import {
+  canSkipTrack,
+  isCurating,
+  isIdle,
+  isPaused,
+  playbackProgressPct,
+} from '../lib/playbackSelectors';
 import { IconPause, IconPlay, IconSkipNext, IconSkipVoice } from './Icons';
 import styles from './MiniControlBar.module.css';
 
-interface MiniControlBarProps {
-  phase: UiPhase;
-  progressSec: number;
-  durationSec: number;
-  hasNextTrack: boolean;
-  onStart: () => void;
-  onTogglePause: () => void;
-  onSkipTrack: () => void;
-  onSkipDj: () => void;
-}
-
-export function MiniControlBar({
-  phase,
-  progressSec,
-  durationSec,
-  hasNextTrack,
-  onStart,
-  onTogglePause,
-  onSkipTrack,
-  onSkipDj,
-}: MiniControlBarProps) {
+export function MiniControlBar() {
+  const state = useRadioState();
+  const { handleStart, handleTogglePause, handleSkipTrack, handleSkipDj } = useRadioActions();
   const waveRef = useRef<HTMLDivElement>(null);
   const barCount = useBarCount(waveRef, 5, 32, 160);
-  const isPaused = phase === 'paused';
-  const isIdle = phase === 'idle';
-  const isCurating = phase === 'curating';
-  const skipDisabled = isIdle || isCurating || !hasNextTrack;
-  const pct = durationSec > 0 ? Math.min(100, (progressSec / durationSec) * 100) : 0;
+  const paused = isPaused(state.phase);
+  const idle = isIdle(state.phase);
+  const curating = isCurating(state.phase);
+  const skipDisabled = !canSkipTrack(state);
+  const pct = playbackProgressPct(state);
 
   return (
     <footer className={styles.root} aria-label="Playback controls">
-      <time className={styles.time}>{formatTime(progressSec)}</time>
+      <time className={styles.time}>{formatTime(state.progressSec)}</time>
 
       <div
         ref={waveRef}
@@ -53,13 +42,13 @@ export function MiniControlBar({
         })}
       </div>
 
-      <time className={styles.timeEnd}>{formatTime(durationSec)}</time>
+      <time className={styles.timeEnd}>{formatTime(state.durationSec)}</time>
 
-      {phase === 'speaking' && (
+      {state.phase === 'speaking' && (
         <button
           type="button"
           className={styles.btn}
-          onClick={onSkipDj}
+          onClick={handleSkipDj}
           aria-label="Skip voice-over"
         >
           <IconSkipVoice size={16} />
@@ -69,7 +58,7 @@ export function MiniControlBar({
       <button
         type="button"
         className={styles.btn}
-        onClick={onSkipTrack}
+        onClick={handleSkipTrack}
         disabled={skipDisabled}
         aria-label="Next track"
       >
@@ -79,11 +68,11 @@ export function MiniControlBar({
       <button
         type="button"
         className={styles.btn}
-        onClick={isIdle ? onStart : onTogglePause}
-        disabled={isCurating}
-        aria-label={isIdle || isPaused ? 'Start session' : 'Pause'}
+        onClick={idle ? () => void handleStart() : handleTogglePause}
+        disabled={curating}
+        aria-label={idle || paused ? 'Start session' : 'Pause'}
       >
-        {isIdle || isPaused ? <IconPlay size={16} /> : <IconPause size={16} />}
+        {idle || paused ? <IconPlay size={16} /> : <IconPause size={16} />}
       </button>
     </footer>
   );

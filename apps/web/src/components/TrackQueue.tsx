@@ -1,14 +1,11 @@
-import { getTrackMeta } from '../lib/trackCatalog';
+import { useRadioState } from '../context/RadioSessionContext';
+import { useTrackMeta } from '../hooks/useTrackCatalog';
 import { cn } from '../lib/cn';
 import styles from './TrackQueue.module.css';
 
-interface TrackQueueProps {
-  currentTrackId: string;
-  remainingTrackIds: string[];
-}
-
-export function TrackQueue({ currentTrackId, remainingTrackIds }: TrackQueueProps) {
-  const current = getTrackMeta(currentTrackId);
+export function TrackQueue() {
+  const state = useRadioState();
+  const current = useTrackMeta(state.trackId);
 
   return (
     <aside className={styles.root} aria-label="Up next">
@@ -23,19 +20,23 @@ export function TrackQueue({ currentTrackId, remainingTrackIds }: TrackQueueProp
       </div>
 
       <ul className={styles.list}>
-        {remainingTrackIds.map((id, i) => {
-          const track = getTrackMeta(id);
-          return (
-            <li key={id} className={styles.item}>
-              <span className={styles.index}>{i + 2}</span>
-              <div>
-                <p className={styles.title}>{track.title}</p>
-                <p className={styles.artist}>{track.artist}</p>
-              </div>
-            </li>
-          );
-        })}
+        {state.remainingTrackIds.map((id, i) => (
+          <TrackQueueItem key={id} id={id} index={i + 2} />
+        ))}
       </ul>
     </aside>
+  );
+}
+
+function TrackQueueItem({ id, index }: { id: string; index: number }) {
+  const track = useTrackMeta(id);
+  return (
+    <li className={styles.item}>
+      <span className={styles.index}>{index}</span>
+      <div>
+        <p className={styles.title}>{track.title}</p>
+        <p className={styles.artist}>{track.artist}</p>
+      </div>
+    </li>
   );
 }

@@ -1,70 +1,38 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HostMode } from '@auracle/shared';
+import { useRadioActions, useRadioAnalyser, useRadioState } from '../context/RadioSessionContext';
 import { useLayoutMode } from '../hooks/useMediaQuery';
 import { formatTime } from '../lib/formatTime';
 import { cn } from '../lib/cn';
-import type { UiPhase } from '../types';
+import { DJ_NAME } from '../lib/constants';
+import {
+  hostModeDisabled,
+  isIdle,
+  isOnAir,
+  isPaused,
+  statusLabel,
+} from '../lib/playbackSelectors';
 import styles from './StageHeader.module.css';
 import { StageWaveform } from './StageWaveform';
 import { IconPlay } from './Icons';
 
-interface StageHeaderProps {
-  djName: string;
-  phase: UiPhase;
-  sessionElapsedSec: number;
-  analyser: AnalyserNode | null;
-  liveWarning: string | null;
-  hostMode: HostMode;
-  onChangeHostMode: (hostMode: HostMode) => void;
-  onStart?: () => void;
-  albumCoverUrl?: string;
-  artistPhotoUrl?: string;
-}
-
 const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
-  { value: 'set_dj', label: 'Quiet' },
   { value: 'curator', label: 'Guide' },
+  { value: 'set_dj', label: 'Quiet' },
   { value: 'hype', label: 'Energy' },
-  { value: 'minimal', label: 'Minimal' },
 ];
 
-function statusLabel(phase: UiPhase): { text: string; live: boolean } {
-  switch (phase) {
-    case 'curating':
-      return { text: 'Tuning in…', live: true };
-    case 'opening':
-    case 'speaking':
-      return { text: 'Speaking…', live: true };
-    case 'listening':
-      return { text: 'Listening…', live: true };
-    case 'playing':
-      return { text: 'Playing…', live: false };
-    case 'paused':
-      return { text: 'Paused', live: false };
-    default:
-      return { text: 'Tap to start', live: false };
-  }
-}
-
-export function StageHeader({
-  djName,
-  phase,
-  sessionElapsedSec,
-  analyser,
-  liveWarning,
-  hostMode,
-  onChangeHostMode,
-  onStart,
-  albumCoverUrl,
-  artistPhotoUrl,
-}: StageHeaderProps) {
+export function StageHeader() {
+  const state = useRadioState();
+  const analyser = useRadioAnalyser();
+  const { handleStart, handleChangeHostMode } = useRadioActions();
   const { isWide } = useLayoutMode();
-  const status = statusLabel(phase);
-  const onAir = phase !== 'idle';
-  const isPaused = phase === 'paused';
-  const hostModeDisabled = phase === 'idle' || phase === 'curating';
-  const showStageArt = isWide && Boolean(albumCoverUrl);
-  const canStartFromStage = showStageArt && phase === 'idle' && Boolean(onStart);
+  const status = statusLabel(state.phase);
+  const onAir = isOnAir(state);
+  const paused = isPaused(state.phase);
+  const modeDisabled = hostModeDisabled(state);
+  const showStageArt = isWide && Boolean(state.albumCoverUrl);
+  const canStartFromStage = showStageArt && isIdle(state.phase);
   const mountedRef = useRef(false);
   const [modeToast, setModeToast] = useState<string | null>(null);
 
@@ -73,32 +41,32 @@ export function StageHeader({
       mountedRef.current = true;
       return;
     }
-    const label = HOST_MODE_OPTIONS.find((o) => o.value === hostMode)?.label ?? hostMode;
+    const label = HOST_MODE_OPTIONS.find((o) => o.value === state.hostMode)?.label ?? state.hostMode;
     setModeToast(`Host mode: ${label}`);
     const id = window.setTimeout(() => setModeToast(null), 1800);
     return () => window.clearTimeout(id);
-  }, [hostMode]);
+  }, [state.hostMode]);
 
   return (
     <header className={styles.root}>
       <div className={styles.top}>
         <div className={styles.identity}>
           <div className={styles.avatar} aria-hidden>
-            {djName.charAt(0).toUpperCase()}
+            {DJ_NAME.charAt(0).toUpperCase()}
           </div>
-          <span className={styles.name}>{djName}</span>
+          <span className={styles.name}>{DJ_NAME}</span>
         </div>
         <div className={styles.topRight}>
           {onAir && (
             <span
-              className={cn(styles.onAir, isPaused && styles.onAirDim)}
-              aria-label={isPaused ? 'On air, paused' : 'On air'}
+              className={cn(styles.onAir, paused && styles.onAirDim)}
+              aria-label={paused ? 'On air, paused' : 'On air'}
             >
               ON AIR
             </span>
           )}
           <time className={styles.timer} aria-label="Session elapsed">
-            {formatTime(sessionElapsedSec)}
+            {formatTime(state.sessionElapsedSec)}
           </time>
         </div>
       </div>
@@ -111,14 +79,14 @@ export function StageHeader({
         <span className={styles.modeTitle}>Host mode</span>
         <div className={styles.modePills}>
           {HOST_MODE_OPTIONS.map((o) => {
-            const active = hostMode === o.value;
+            const active = state.hostMode === o.value;
             return (
               <button
                 key={o.value}
                 type="button"
                 className={cn(styles.modePill, active && styles.modePillActive)}
-                onClick={() => onChangeHostMode(o.value)}
-                disabled={hostModeDisabled}
+                onClick={() => handleChangeHostMode(o.value)}
+                disabled={modeDisabled}
                 aria-pressed={active}
                 aria-label={`Switch host mode to ${o.label}`}
               >
@@ -133,9 +101,9 @@ export function StageHeader({
           {modeToast}
         </p>
       )}
-      {liveWarning && (
+      {state.liveWarning && (
         <p className={styles.warning} role="status" aria-live="polite">
-          {liveWarning}
+          {state.liveWarning}
         </p>
       )}
 
@@ -145,15 +113,15 @@ export function StageHeader({
             <button
               type="button"
               className={styles.artStartBtn}
-              onClick={onStart}
+              onClick={() => void handleStart()}
               aria-label="Tap to start session"
             >
               <div className={styles.artStack}>
-                <img className={styles.albumCover} src={albumCoverUrl} alt="" />
-                {artistPhotoUrl && (
+                <img className={styles.albumCover} src={state.albumCoverUrl} alt="" />
+                {state.artistPhotoUrl && (
                   <img
                     className={styles.artistBadge}
-                    src={artistPhotoUrl}
+                    src={state.artistPhotoUrl}
                     alt=""
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                   />
@@ -167,11 +135,11 @@ export function StageHeader({
             </button>
           ) : (
             <div className={styles.artStack}>
-              <img className={styles.albumCover} src={albumCoverUrl} alt="" />
-              {artistPhotoUrl && (
+              <img className={styles.albumCover} src={state.albumCoverUrl} alt="" />
+              {state.artistPhotoUrl && (
                 <img
                   className={styles.artistBadge}
-                  src={artistPhotoUrl}
+                  src={state.artistPhotoUrl}
                   alt=""
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
@@ -180,7 +148,7 @@ export function StageHeader({
           )}
         </div>
       ) : (
-        <StageWaveform phase={phase} analyser={analyser} />
+        <StageWaveform phase={state.phase} analyser={analyser} />
       )}
     </header>
   );

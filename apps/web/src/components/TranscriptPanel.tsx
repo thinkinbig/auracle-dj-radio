@@ -1,48 +1,45 @@
 import { useEffect, useRef } from 'react';
+import { useRadioActions, useRadioState } from '../context/RadioSessionContext';
 import { useLayoutMode } from '../hooks/useMediaQuery';
 import { formatTime } from '../lib/formatTime';
 import { cn } from '../lib/cn';
-import type { TranscriptLine, UiPhase } from '../types';
+import { isCurating, isIdle } from '../lib/playbackSelectors';
 import { IconPlay } from './Icons';
 import styles from './TranscriptPanel.module.css';
 
 interface TranscriptPanelProps {
-  phase: UiPhase;
-  lines: TranscriptLine[];
-  activeId: string | null;
   djName: string;
-  onStart: () => void;
 }
 
-export function TranscriptPanel({
-  phase,
-  lines,
-  activeId,
-  djName,
-  onStart,
-}: TranscriptPanelProps) {
+export function TranscriptPanel({ djName }: TranscriptPanelProps) {
+  const state = useRadioState();
+  const { handleStart } = useRadioActions();
   const { isWide } = useLayoutMode();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const isIdle = phase === 'idle';
-  const showStartOverlay = isIdle && isWide;
+  const idle = isIdle(state.phase);
+  const showStartOverlay = idle && isWide;
 
   useEffect(() => {
-    if (!activeId || !scrollRef.current) return;
-    const el = scrollRef.current.querySelector(`[data-id="${activeId}"]`);
+    if (!state.activeTranscriptId || !scrollRef.current) return;
+    const el = scrollRef.current.querySelector(`[data-id="${state.activeTranscriptId}"]`);
     el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [activeId]);
+  }, [state.activeTranscriptId]);
 
   return (
     <div className={styles.root}>
       <div ref={scrollRef} className={styles.scroll}>
-        {lines.length === 0 && !isIdle && (
-          <p className={styles.empty}>{phase === 'curating' ? 'Curating your session…' : 'Waiting for DJ…'}</p>
+        {state.transcript.length === 0 && !idle && (
+          <p className={styles.empty}>
+            {isCurating(state.phase) ? 'Curating your session…' : 'Waiting for DJ…'}
+          </p>
         )}
 
-        {lines.map((line) => {
-          const isActive = line.id === activeId;
-          const activeIndex = activeId ? lines.findIndex((l) => l.id === activeId) : -1;
-          const lineIndex = lines.findIndex((l) => l.id === line.id);
+        {state.transcript.map((line) => {
+          const isActive = line.id === state.activeTranscriptId;
+          const activeIndex = state.activeTranscriptId
+            ? state.transcript.findIndex((l) => l.id === state.activeTranscriptId)
+            : -1;
+          const lineIndex = state.transcript.findIndex((l) => l.id === line.id);
           const isPast = activeIndex >= 0 && lineIndex < activeIndex;
           return (
             <article
@@ -65,7 +62,12 @@ export function TranscriptPanel({
 
       {showStartOverlay && (
         <div className={styles.overlay}>
-          <button type="button" className={styles.startBtn} onClick={onStart} aria-label="Tap to start session">
+          <button
+            type="button"
+            className={styles.startBtn}
+            onClick={() => void handleStart()}
+            aria-label="Tap to start session"
+          >
             <span className={styles.startIcon}>
               <IconPlay size={28} />
             </span>

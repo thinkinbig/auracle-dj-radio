@@ -1,12 +1,12 @@
 import type { Track } from "@auracle/shared";
-import { loadCatalogManifest, manifestToTracks } from "../catalog/manifest.js";
+import { tracksWithAssets } from "../catalog/manifest.js";
 
 /**
- * Tracks loaded from `apps/api/data/catalog/manifest.json`.
+ * Tracks loaded from `apps/api/data/catalog/manifest.json` when all assets exist on disk.
  * Replaces the hand-maintained seed list — single source of truth (ADR-0003).
  */
 export function loadSeedTracks(): Track[] {
-  return manifestToTracks(loadCatalogManifest());
+  return tracksWithAssets();
 }
 
 /** @deprecated Use loadSeedTracks() — kept for tests importing SEED_TRACKS. */

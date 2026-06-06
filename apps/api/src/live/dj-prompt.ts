@@ -1,5 +1,6 @@
 import { Type, type FunctionDeclaration } from "@google/genai";
 import type { Condition, HostMode } from "@auracle/shared";
+import { HOST_MODES } from "@auracle/shared";
 
 /** Function declarations sent once at Live setup (doc §4). Same set for A/B/C. */
 export const DJ_TOOLS: FunctionDeclaration[] = [
@@ -27,7 +28,7 @@ export const DJ_TOOLS: FunctionDeclaration[] = [
     parameters: {
       type: Type.OBJECT,
       properties: {
-        host_mode: { type: Type.STRING, enum: ["set_dj", "curator", "hype", "minimal"] },
+        host_mode: { type: Type.STRING, enum: [...HOST_MODES] },
       },
       required: ["host_mode"],
     },
@@ -56,19 +57,15 @@ const MODE_INSTRUCTION: Record<HostMode, string> = {
   set_dj: "Cool, music-first. One sentence max. Vibe over explanation.",
   curator: "Warm curator. May name the set once per session. Brief context OK.",
   hype: "High energy, short imperatives. No shouting. Ride the beat.",
-  minimal:
-    "Ultra-brief but complete. Use one short sentence (about 6-12 words), not fragments. Skip track names unless essential.",
 };
 
 const OPENING_DURATION: Record<HostMode, string> = {
-  minimal: "6-9s",
   set_dj: "5-8s",
   hype: "4-6s",
   curator: "8-12s",
 };
 
 const OPENING_EXAMPLE: Record<HostMode, string> = {
-  minimal: "Settle in — this one starts soft and steady.",
   set_dj: "Alright — something soft to ease in.",
   hype: "Here we go — lock in.",
   curator: "Quiet Hours — let's start gentle with this one.",
@@ -172,11 +169,8 @@ export function buildCueText(input: CueInput): string {
   if (kind === "opening") {
     lines.push(`[opening, ${hostMode}, ${OPENING_DURATION[hostMode]}]`);
     lines.push("Music is silent — open the set before playback begins. Track one is preloading but not playing yet.");
-    if (hostMode === "minimal") {
-      lines.push("Use one complete short sentence (6-12 words); do not answer with one or two words.");
-    }
     if (input.now) lines.push(trackLine(input.now));
-    if (input.now?.lore && hostMode !== "minimal" && hostMode !== "hype") {
+    if (input.now?.lore && hostMode === "curator") {
       lines.push(
         `Lore hint (borrow one phrase, ≤15 words, do not read verbatim): "${loreHint(input.now.lore)}".`,
       );
@@ -203,7 +197,7 @@ export function buildCueText(input: CueInput): string {
   lines.push(`[segue, ${hostMode}, 5-8s]`);
   lines.push("Talk over the intro — music is already playing.");
   if (input.now) lines.push(trackLine(input.now));
-  if (input.now?.lore && hostMode !== "minimal" && hostMode !== "hype") {
+  if (input.now?.lore && hostMode === "curator") {
     lines.push(
       `Lore hint (borrow one phrase, ≤15 words, do not read verbatim): "${loreHint(input.now.lore)}".`,
     );

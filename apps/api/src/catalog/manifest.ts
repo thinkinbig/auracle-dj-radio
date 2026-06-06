@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CatalogManifest, Track, TrackMeta } from "@auracle/shared";
@@ -25,6 +25,16 @@ export function coverUrl(coverFile: string): string {
 
 export function artistPhotoUrl(photoFile: string): string {
   return `/artists/${photoFile}`;
+}
+
+/** Tracks whose audio, cover, and artist photo all exist on disk. */
+export function tracksWithAssets(manifest = loadCatalogManifest()): Track[] {
+  return manifestToTracks(manifest).filter(
+    (t) =>
+      existsSync(resolveCatalogPath(t.filePath)) &&
+      existsSync(resolveCatalogPath(t.albumCoverPath)) &&
+      existsSync(resolveCatalogPath(t.artistPhotoPath)),
+  );
 }
 
 /** Join manifest artists/albums/tracks into API-ready Track rows. */
