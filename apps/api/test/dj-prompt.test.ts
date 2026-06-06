@@ -22,7 +22,14 @@ describe("inferHostModeFromScene", () => {
 
 describe("vibeHint", () => {
   it("uses natural language without numbers", () => {
-    const hint = vibeHint({ title: "Drift", energy: 2, tempo: 90, genre: "lo-fi" });
+    const hint = vibeHint({
+      title: "Drift",
+      artist: "Lumen",
+      albumTitle: "Midnight Commute",
+      energy: 2,
+      tempo: 90,
+      genre: "lo-fi",
+    });
     expect(hint).toContain("soft");
     expect(hint).toContain("lo-fi");
     expect(hint).not.toMatch(/\d/);
@@ -66,15 +73,30 @@ describe("buildSystemInstruction", () => {
 });
 
 describe("buildCueText", () => {
-  const now = { title: "Drift", energy: 2, tempo: 90, genre: "lo-fi" };
-  const next = { title: "Haze", energy: 3, tempo: 100, genre: "ambient" };
+  const now = {
+    title: "Drift",
+    artist: "Lumen",
+    albumTitle: "Midnight Commute",
+    energy: 2,
+    tempo: 90,
+    genre: "lo-fi",
+    lore: "Written after a rainy night bus ride — soft pads and tape hiss.",
+  };
+  const next = {
+    title: "Haze",
+    artist: "Kova",
+    albumTitle: "Neon District",
+    energy: 3,
+    tempo: 100,
+    genre: "ambient",
+  };
 
   it("opens with talk-over framing and no up next", () => {
     const t = buildCueText({ kind: "opening", hostMode: "set_dj", sessionTitle: "Quiet Hours", now, next });
     expect(t).toContain("[opening, set_dj, 5-8s]");
     expect(t).toContain("Music is silent");
     expect(t).toContain("preloading but not playing");
-    expect(t).toContain('Track: "Drift"');
+    expect(t).toContain('Track: "Drift" by Lumen');
     expect(t).toContain("vibe:");
     expect(t).not.toContain("Up next");
     expect(t).not.toContain("BPM");
@@ -101,9 +123,17 @@ describe("buildCueText", () => {
 
   it("segue includes next with vibe hint not stats", () => {
     const t = buildCueText({ kind: "segue", hostMode: "set_dj", sessionTitle: "Quiet Hours", now, next });
-    expect(t).toContain('Next: "Haze"');
+    expect(t).toContain('Next: "Haze" by Kova');
     expect(t).toContain("vibe:");
     expect(t).not.toContain("BPM");
+    expect(t).not.toContain("Lore hint");
+  });
+
+  it("curator segue includes lore hint", () => {
+    const t = buildCueText({ kind: "segue", hostMode: "curator", sessionTitle: "Quiet Hours", now, next });
+    expect(t).toContain("Lore hint");
+    expect(t).toContain("do not read verbatim");
+    expect(t).toContain("rainy night bus ride");
   });
 
   it("omits next on the outro", () => {

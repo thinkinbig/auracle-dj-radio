@@ -24,6 +24,7 @@ export interface RadioSession {
   handleStart: () => Promise<void>;
   handleTogglePause: () => void;
   handleSkipTrack: () => void;
+  handleSkipDj: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
 }
 
@@ -46,6 +47,7 @@ export function useRadioSession(): RadioSession {
   const skipGuardRef = useRef(false);
   const preloadRef = useRef<HTMLAudioElement | null>(null);
   const openingRef = useRef<OpeningController | null>(null);
+  const prevPhaseRef = useRef(state.phase);
 
   const applyPlaybackPolicy = useCallback(() => {
     const bus = audioBusRef.current;
@@ -114,6 +116,13 @@ export function useRadioSession(): RadioSession {
     postSessionEvent(s.sessionId, 'track_skipped', { track_id: s.trackId });
     dispatchRef.current({ type: 'advance' });
   }, [releaseOpening]);
+
+  const handleSkipDj = useCallback(() => {
+    if (stateRef.current.phase !== 'speaking') return;
+    // Cut the local voice immediately; the relay's dj_turn_end restores the music.
+    audioBusRef.current?.skipDj();
+    liveRef.current?.send({ type: 'skip_dj' });
+  }, []);
 
   const handleChangeHostMode = useCallback((hostMode: HostMode) => {
     const s = stateRef.current;
@@ -260,6 +269,15 @@ export function useRadioSession(): RadioSession {
   }, [state.sessionId]);
 
   useEffect(() => {
+    const prev = prevPhaseRef.current;
+    prevPhaseRef.current = state.phase;
+    const bus = audioBusRef.current;
+    if (!bus) return;
+    if (state.phase === 'paused' && prev !== 'paused') bus.skipDj();
+    else if (prev === 'paused' && state.phase !== 'paused') bus.resumeDj();
+  }, [state.phase]);
+
+  useEffect(() => {
     if (!isSessionClockRunning(state.phase)) return;
     const id = setInterval(() => dispatch({ type: 'tick' } satisfies PlaybackAction), 1000);
     return () => clearInterval(id);
@@ -271,6 +289,7 @@ export function useRadioSession(): RadioSession {
     handleStart,
     handleTogglePause,
     handleSkipTrack,
+    handleSkipDj,
     handleChangeHostMode,
   };
 }

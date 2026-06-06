@@ -1,24 +1,41 @@
 import type { Track, TrackCandidate } from "@auracle/shared";
+import { buildRichEmbedText } from "../catalog/manifest.js";
 
 const EMBED_DIM = 768;
 
-/** Minimal track fields needed to produce a tag embedding. */
-type TagFields = Pick<Track, "mood" | "scene" | "energy" | "genre">;
+/** Fields used for catalog embedding (Phase 1 rich text). */
+export type EmbedTrackInput = Pick<
+  Track,
+  "artist" | "albumTitle" | "mood" | "scene" | "energy" | "genre" | "lore"
+> &
+  Partial<Pick<TrackCandidate, "mood" | "scene" | "energy" | "genre">>;
 
 /**
  * Domain-typed embedder. Callers never construct tag strings — the encoding
  * is an implementation detail hidden behind this seam.
  */
 export interface Embedder {
-  embedTrack(t: TagFields | TrackCandidate): Promise<number[]>;
+  embedTrack(t: EmbedTrackInput): Promise<number[]>;
   embedQuery(mood: string, scene: string): Promise<number[]>;
 }
 
-function tagText(mood: string, scene: string, energy?: number, genre?: string): string {
-  const parts = [`mood: ${mood}`, `scene: ${scene}`];
-  if (energy !== undefined) parts.push(`energy: ${energy}`);
-  if (genre !== undefined) parts.push(`genre: ${genre}`);
-  return parts.join(" ");
+function queryText(mood: string, scene: string): string {
+  return `mood: ${mood} | scene: ${scene}`;
+}
+
+function trackText(t: EmbedTrackInput): string {
+  if (t.lore && t.artist && t.albumTitle) {
+    return buildRichEmbedText({
+      artist: t.artist,
+      albumTitle: t.albumTitle,
+      mood: t.mood,
+      scene: t.scene,
+      energy: t.energy,
+      genre: t.genre,
+      lore: t.lore,
+    });
+  }
+  return [`mood: ${t.mood}`, `scene: ${t.scene}`, `energy: ${t.energy}`, `genre: ${t.genre}`].join(" | ");
 }
 
 /**
@@ -27,12 +44,12 @@ function tagText(mood: string, scene: string, energy?: number, genre?: string): 
  * demo and lets retrieval be unit-tested without a Gemini key.
  */
 export class HashEmbedder implements Embedder {
-  async embedTrack(t: TagFields | TrackCandidate): Promise<number[]> {
-    return this.hash(tagText(t.mood, t.scene, t.energy, t.genre));
+  async embedTrack(t: EmbedTrackInput): Promise<number[]> {
+    return this.hash(trackText(t));
   }
 
   async embedQuery(mood: string, scene: string): Promise<number[]> {
-    return this.hash(tagText(mood, scene));
+    return this.hash(queryText(mood, scene));
   }
 
   private hash(text: string): number[] {

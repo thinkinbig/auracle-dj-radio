@@ -1,10 +1,14 @@
 const DEFAULT_BASE = "https://api.minimax.io";
 
-export interface GenerateInstrumentalInput {
+export interface GenerateMusicInput {
   prompt: string;
   model: string;
   apiKey: string;
   baseUrl?: string;
+  /** Defaults to true (instrumental). */
+  isInstrumental?: boolean;
+  /** When set on a vocal track, passed to MiniMax. Otherwise lyrics_optimizer is used. */
+  lyrics?: string;
 }
 
 interface MiniMaxMusicResponse {
@@ -21,27 +25,37 @@ interface MiniMaxMusicResponse {
   };
 }
 
-export async function generateInstrumental(
-  input: GenerateInstrumentalInput,
+export async function generateMusic(
+  input: GenerateMusicInput,
 ): Promise<{ buffer: Buffer; durationMs?: number }> {
+  const isInstrumental = input.isInstrumental !== false;
   const base = input.baseUrl ?? process.env.MINIMAX_API_BASE ?? DEFAULT_BASE;
+  const body: Record<string, unknown> = {
+    model: input.model,
+    prompt: input.prompt,
+    is_instrumental: isInstrumental,
+    output_format: "hex",
+    audio_setting: {
+      sample_rate: 44100,
+      bitrate: 128000,
+      format: "mp3",
+    },
+  };
+  if (!isInstrumental) {
+    if (input.lyrics) {
+      body.lyrics = input.lyrics;
+    } else {
+      body.lyrics_optimizer = true;
+    }
+  }
+
   const res = await fetch(`${base}/v1/music_generation`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${input.apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: input.model,
-      prompt: input.prompt,
-      is_instrumental: true,
-      output_format: "hex",
-      audio_setting: {
-        sample_rate: 44100,
-        bitrate: 128000,
-        format: "mp3",
-      },
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -49,19 +63,19 @@ export async function generateInstrumental(
     throw new Error(`MiniMax HTTP ${res.status}: ${text.slice(0, 500)}`);
   }
 
-  const body = (await res.json()) as MiniMaxMusicResponse;
-  const code = body.base_resp?.status_code ?? -1;
+  const payload = (await res.json()) as MiniMaxMusicResponse;
+  const code = payload.base_resp?.status_code ?? -1;
   if (code !== 0) {
     throw new Error(
-      `MiniMax error ${code}: ${body.base_resp?.status_msg ?? "unknown"}`,
+      `MiniMax error ${code}: ${payload.base_resp?.status_msg ?? "unknown"}`,
     );
   }
 
-  const hex = body.data?.audio;
+  const hex = payload.data?.audio;
   if (!hex) throw new Error("MiniMax returned no audio data");
 
   return {
     buffer: Buffer.from(hex, "hex"),
-    durationMs: body.extra_info?.music_duration,
+    durationMs: payload.extra_info?.music_duration,
   };
 }

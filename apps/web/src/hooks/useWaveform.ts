@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
-const IDLE_FLOOR = 0.04;
+const IDLE_FLOOR = 0.18;
 const ATTACK_RATE = 0.52;
 const RELEASE_RATE = 0.22;
 const BASE_SCROLL = 0.18;

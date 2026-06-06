@@ -4,8 +4,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import type { Track } from "@auracle/shared";
-import { SEED_TRACKS } from "../db/seed-data.js";
-import { generateInstrumental } from "../music/minimax.js";
+import { loadSeedTracks } from "../db/seed-data.js";
+import { generateMusic } from "../music/minimax.js";
 import { trackToPrompt } from "../music/prompt.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -37,7 +37,7 @@ function parseArgs(argv: string[]): {
     }
   }
 
-  if (all) return { tracks: SEED_TRACKS, skipExisting, dryRun };
+  if (all) return { tracks: loadSeedTracks(), skipExisting, dryRun };
   if (ids.size === 0) {
     console.error(
       "Usage: pnpm generate-tracks -- --track t01 [--track t02 ...] | --all [--force] [--dry-run]",
@@ -45,7 +45,7 @@ function parseArgs(argv: string[]): {
     process.exit(1);
   }
 
-  const tracks = SEED_TRACKS.filter((t) => ids.has(t.id));
+  const tracks = loadSeedTracks().filter((t) => ids.has(t.id));
   const missing = [...ids].filter((id) => !tracks.some((t) => t.id === id));
   if (missing.length) {
     console.error(`Unknown track id(s): ${missing.join(", ")}`);
@@ -88,15 +88,21 @@ async function main(): Promise<void> {
       continue;
     }
 
-    console.log(`[gen]  ${track.id} "${track.title}"`);
+    const mode = track.instrumental ? "instrumental" : "vocal";
+    console.log(`[gen]  ${track.id} "${track.title}" (${mode})`);
     console.log(`       prompt: ${prompt}`);
+    if (!track.instrumental && track.lyrics) {
+      console.log(`       lyrics: ${track.lyrics.slice(0, 80)}…`);
+    }
 
     if (dryRun) continue;
 
-    const { buffer, durationMs } = await generateInstrumental({
+    const { buffer, durationMs } = await generateMusic({
       apiKey,
       model,
       prompt,
+      isInstrumental: track.instrumental,
+      lyrics: track.lyrics,
     });
 
     await mkdir(dirname(outPath), { recursive: true });

@@ -1,25 +1,31 @@
 import { config } from "../config.js";
 import { Db, type TrackRow } from "./index.js";
-import { SEED_TRACKS } from "./seed-data.js";
+import { loadSeedTracks } from "./seed-data.js";
+import { resolveCatalogPath } from "../catalog/manifest.js";
 import { buildSeedEmbedder } from "../gemini/wiring.js";
 
 /**
- * Build the SQLite library. Embeddings are precomputed offline (doc §Step 1)
- * with the SAME embedder the server uses at query time (AURACLE_EMBEDDER):
- * HashEmbedder (768-dim, no key) by default, or gemini-embedding-001 (3072-dim).
- * Re-run after changing the embedder — switching models requires a full rebuild,
- * since hash- and gemini-space vectors are not comparable.
+ * Build the SQLite library from `data/catalog/manifest.json`.
+ * Embeddings use rich text (artist + album + tags + lore) — ADR-0002 Phase 1.
  */
 async function main(): Promise<void> {
   const db = new Db(config.dbPath);
   const embedder = await buildSeedEmbedder();
-  for (const track of SEED_TRACKS) {
+  const tracks = loadSeedTracks();
+
+  for (const track of tracks) {
     const embedding = await embedder.embedTrack(track);
-    const row: TrackRow = { ...track, embedding };
+    const row: TrackRow = {
+      ...track,
+      filePath: resolveCatalogPath(track.filePath),
+      albumCoverPath: resolveCatalogPath(track.albumCoverPath),
+      artistPhotoPath: resolveCatalogPath(track.artistPhotoPath),
+      embedding,
+    };
     db.upsertTrack(row);
   }
   db.close();
-  console.log(`Seeded ${SEED_TRACKS.length} tracks into ${config.dbPath}`);
+  console.log(`Seeded ${tracks.length} tracks into ${config.dbPath}`);
 }
 
 main().catch((err) => {

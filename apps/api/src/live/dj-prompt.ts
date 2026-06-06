@@ -124,9 +124,13 @@ export type CueKind = "opening" | "segue" | "outro";
 
 export interface CueTrack {
   title: string;
+  artist: string;
+  albumTitle: string;
   energy: number;
   tempo: number;
   genre: string;
+  /** One-line lore hint for curator mode only — not a script. */
+  lore?: string;
 }
 
 export interface CueInput {
@@ -147,7 +151,14 @@ export function vibeHint(track: CueTrack): string {
 }
 
 function trackLine(track: CueTrack): string {
-  return `Track: "${track.title}" — vibe: ${vibeHint(track)}.`;
+  return `Track: "${track.title}" by ${track.artist} — vibe: ${vibeHint(track)}.`;
+}
+
+/** Short phrase from lore for curator segues (≤ ~15 words). */
+function loreHint(lore: string): string {
+  const sentence = lore.split(/[.!?]/)[0]?.trim() ?? lore.trim();
+  const words = sentence.split(/\s+/);
+  return words.length > 15 ? `${words.slice(0, 15).join(" ")}…` : sentence;
 }
 
 /**
@@ -165,6 +176,11 @@ export function buildCueText(input: CueInput): string {
       lines.push("Use one complete short sentence (6-12 words); do not answer with one or two words.");
     }
     if (input.now) lines.push(trackLine(input.now));
+    if (input.now?.lore && hostMode !== "minimal" && hostMode !== "hype") {
+      lines.push(
+        `Lore hint (borrow one phrase, ≤15 words, do not read verbatim): "${loreHint(input.now.lore)}".`,
+      );
+    }
     if (hostMode === "curator") {
       lines.push(`Set name "${input.sessionTitle}" — mention once, softly, optional.`);
     }
@@ -187,8 +203,13 @@ export function buildCueText(input: CueInput): string {
   lines.push(`[segue, ${hostMode}, 5-8s]`);
   lines.push("Talk over the intro — music is already playing.");
   if (input.now) lines.push(trackLine(input.now));
+  if (input.now?.lore && hostMode !== "minimal" && hostMode !== "hype") {
+    lines.push(
+      `Lore hint (borrow one phrase, ≤15 words, do not read verbatim): "${loreHint(input.now.lore)}".`,
+    );
+  }
   if (input.next) {
-    lines.push(`Next: "${input.next.title}" — vibe: ${vibeHint(input.next)}. Do not read stats.`);
+    lines.push(`Next: "${input.next.title}" by ${input.next.artist} — vibe: ${vibeHint(input.next)}. Do not read stats.`);
   }
   return lines.join(" ");
 }

@@ -57,6 +57,7 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
   const ai = createGeminiClient();
   let live: Session | undefined;
   let djSpeaking = false;
+  let djSkipped = false; // listener skipped the current voice-over; swallow its remaining audio/transcript
   let producedAudio = false;
   const sessionStartMs = Date.now();
 
@@ -77,12 +78,40 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
     if (!id) return undefined;
     const t = deps.getTrack(id);
     if (!t) return undefined;
-    return { title: t.title, energy: t.energy, tempo: t.tempo, genre: t.genre };
+    return {
+      title: t.title,
+      artist: t.artist,
+      albumTitle: t.albumTitle,
+      energy: t.energy,
+      tempo: t.tempo,
+      genre: t.genre,
+      lore: t.lore,
+    };
   }
 
   function sendCue(trackIndex: number): void {
     clientCued = true;
+    djSkipped = false; // a fresh cue starts a turn we want the listener to hear
     live?.sendRealtimeInput({ text: buildCueFor(trackIndex) });
+  }
+
+  /**
+   * Listener skipped the voice-over: stop forwarding the current turn's audio
+   * and transcript, report it as a normal turn end (not a barge-in, so the UI
+   * returns to playing), and best-effort interrupt Gemini to save tokens. The
+   * interrupt's own `interrupted`/leftover audio is swallowed via djSkipped.
+   */
+  function skipDj(): void {
+    if (!djSpeaking || djSkipped) return;
+    djSkipped = true;
+    djSpeaking = false;
+    transcripts.resetTurn();
+    send({ type: "phase", phase: "dj_turn_end", track_index: state.currentTrackIndex });
+    try {
+      live?.sendClientContent({ turnComplete: false });
+    } catch {
+      /* best-effort interrupt; suppression already protects the client */
+    }
   }
 
   /** Gemini may attach transcription at the message root or under serverContent. */
@@ -99,28 +128,32 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
   const onServerMessage = (msg: LiveServerMessage): void => {
     const gemini = msg as GeminiMsg;
     relayTranscript("user", gemini.inputTranscription);
-    relayTranscript("model", gemini.outputTranscription);
+    if (!djSkipped) relayTranscript("model", gemini.outputTranscription);
 
     const sc = msg.serverContent;
     if (sc) {
       relayTranscript("user", sc.inputTranscription);
-      relayTranscript("model", sc.outputTranscription);
+      if (!djSkipped) {
+        relayTranscript("model", sc.outputTranscription);
 
-      for (const part of sc.modelTurn?.parts ?? []) {
-        const data = part.inlineData?.data;
-        if (!data) continue;
-        if (!djSpeaking) {
-          djSpeaking = true;
-          send({ type: "phase", phase: "dj_turn_start", track_index: state.currentTrackIndex });
+        for (const part of sc.modelTurn?.parts ?? []) {
+          const data = part.inlineData?.data;
+          if (!data) continue;
+          if (!djSpeaking) {
+            djSpeaking = true;
+            send({ type: "phase", phase: "dj_turn_start", track_index: state.currentTrackIndex });
+          }
+          if (socket.readyState === socket.OPEN) socket.send(Buffer.from(data, "base64"));
+          producedAudio = true;
         }
-        if (socket.readyState === socket.OPEN) socket.send(Buffer.from(data, "base64"));
-        producedAudio = true;
+        if (sc.interrupted) send({ type: "phase", phase: "user_barge_in", track_index: state.currentTrackIndex });
       }
-      if (sc.interrupted) send({ type: "phase", phase: "user_barge_in", track_index: state.currentTrackIndex });
       if (sc.turnComplete) {
         transcripts.resetTurn();
         djSpeaking = false;
-        send({ type: "phase", phase: "dj_turn_end", track_index: state.currentTrackIndex });
+        // The skip already emitted dj_turn_end; just clear suppression once the turn drains.
+        if (djSkipped) djSkipped = false;
+        else send({ type: "phase", phase: "dj_turn_end", track_index: state.currentTrackIndex });
       }
     }
     const calls = msg.toolCall?.functionCalls;
@@ -152,6 +185,8 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
     }
     if (parsed.type === "cue_dj") {
       sendCue(parsed.track_index);
+    } else if (parsed.type === "skip_dj") {
+      skipDj();
     }
   }
 

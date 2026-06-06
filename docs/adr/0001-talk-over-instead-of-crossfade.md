@@ -16,4 +16,4 @@ blending tracks.
 ## Consequences
 
 - Manual **skip track** uses a ~0.2s music dip → swap source → fade back in; natural track end stays gapless.
-- **Skip voice-over** interrupts the DJ turn server-side (a `skip_dj` client frame → Gemini `activityStart`/`activityEnd`); the relay reports `dj_turn_end`, not a barge-in, so the UI returns to playing rather than listening.
+- **Skip voice-over** cuts the DJ turn via a `skip_dj` client frame: the relay stops forwarding the turn's audio/transcript, emits `dj_turn_end` (not a barge-in, so the UI returns to playing rather than listening), and best-effort interrupts Gemini with `sendClientContent({ turnComplete: false })` to save tokens. (We can't use `activityStart`/`activityEnd` — those require automatic VAD to be disabled, and the relay runs with default automatic VAD.)

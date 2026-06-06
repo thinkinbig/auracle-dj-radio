@@ -20,6 +20,10 @@ export interface PlaybackState {
   trackId: string;
   trackTitle: string;
   artist: string;
+  albumTitle: string;
+  albumCoverUrl: string;
+  artistPhotoUrl: string;
+  lore: string;
   durationSec: number;
   progressSec: number;
   sessionElapsedSec: number;

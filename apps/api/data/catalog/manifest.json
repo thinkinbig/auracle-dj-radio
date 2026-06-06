@@ -6,6 +6,7 @@
       "persona": "Ambient and lo-fi producer. Every track runs through at least three delay pedals — the name is the signal chain.",
       "punOf": "Lana Del Rey (Del Rey → Del Delay, tape delay pedal)",
       "visualHomage": "2010s sad-girl americana album art: vintage California melancholy, film grain, faded Americana flags, motel neon, queen-of-sadness torch-singer palette — plus visible delay pedal / tape echo motifs instead of roses.",
+      "vocalHomage": "Lana Del Rey-era cinematic alto: breathy noir delivery, slow vibrato, sad-girl americana phrasing — but delay-washed and more ambient/ethereal, as if sung through three tape-echo pedals. Never impersonate a real singer.",
       "photoFile": "a-lana-delay.jpg"
     },
     {
@@ -14,6 +15,7 @@
       "persona": "Chillhop producer for people who fell asleep on the train and missed their stop. Beats so soft they snore in 4/4.",
       "punOf": "Jay-Z (Z → Zzz, asleep at the blueprint)",
       "visualHomage": "Late-90s NYC hip-hop album packaging like The Blueprint era: black-and-gold luxury minimalism, Brooklyn noir, executive cool — but every motif suggests sleep (pillows, bedside lamp, floating Zzz, drooping eyelids). No rapper portrait.",
+      "vocalHomage": "Jay-Z Blueprint-era cool conversational flow: NYC cadence, executive confidence, punchy internal rhymes — but half-asleep delivery, slower BPM, mumble-chillhop diction, yawning between phrases. Never impersonate a real rapper.",
       "photoFile": "a-jay-zzz.jpg"
     },
     {
@@ -22,6 +24,7 @@
       "persona": "Jazztronica and funky commute music — pop hooks so sticky the turnstile beeps in harmony. Still instrumental; no celebrity faces.",
       "punOf": "Justin Bieber (Bieber → Tiger, teen-pop heartthrob + big-cat stripes)",
       "visualHomage": "2010s Justin Bieber album art vocabulary: Purpose-era lavender and soft glow, Believe neon purple-pink, Justice chrome-heart minimalism — merged with bold orange-black tiger-stripe fur and metro turnstile gold. Pop-idol graphic design without any face likeness.",
+      "vocalHomage": "2010s teen-pop male tenor: youthful melodic hooks, R&B glide, sticky chorus phrasing — merged with jazztronica pocket and metro-commute rhythm, tiger-stripe funk in ad-libs. Never impersonate a real pop star.",
       "photoFile": "a-justin-tiger.jpg"
     },
     {
@@ -30,6 +33,7 @@
       "persona": "Nu-disco, house, and garage producer — every drop is 'a cultural moment,' and the compass only points east.",
       "punOf": "Kanye West (West → East on the compass)",
       "visualHomage": "Kanye-era album art vocabulary (Dropout orange, Graduation pastel, Yeezus scarlet) as graphic design language only — bear mascot, bold shapes, ego-scale layout. NEVER a photoreal celebrity face; use mascot, silhouette, or obscured stylized character.",
+      "vocalHomage": "Kanye-era confident baritone: sermon-like delivery, punchy phrasing, autotune-polished hooks on peaks — redirected into nu-disco/house groove with EAST/compass metaphors and disco falsetto lifts. Never impersonate a real voice.",
       "photoFile": "a-kayan-east.jpg",
       "photoSubject": "Stylized fictional producer — NOT a real-person lookalike. Face hidden by oversized graphic shutter shades and dropout-bear mascot hoodie. EAST is the hero: enormous brass compass rose behind him, needle locked on E; repeating east-pointing arrows; eastbound highway sign shapes; sunrise glowing from the east edge. Warm Dropout orange + Yeezus scarlet accents. Kanye-era fashion vibe without copying anyone's face."
     },
@@ -39,6 +43,7 @@
       "persona": "Synthwave composer with a drift-racer alter ego — platinum-blonde pop glamour meets touge night runs.",
       "punOf": "Taylor Swift, specifically her 1989 album era (Swift → Drift)",
       "visualHomage": "2014 Taylor Swift 1989 album era — MUST include several of: thick Polaroid instant-film white border, flock of seagulls in seagull-blue sky, platinum-blonde soft waves, cherry-red lipstick, NYC pop-girl autumn palette, vintage film grain, crop-top and high-waist skirt styling, polaroid-chic daylight glamour. Then merge with touge drift: matte white sports coupe, tire smoke, pink taillights, mountain hairpin.",
+      "vocalHomage": "1989-era bright female pop vocal: crisp enunciation, conversational verses, anthemic chorus lift, mid-range clarity — merged with touge-night adrenaline: breathier on long notes, rush energy on downshifts, racing exhale between lines. Never impersonate a real singer.",
       "photoFile": "a-taylor-drift.jpg",
       "photoSubject": "1989 album-cover portrait: platinum-blonde woman, cherry-red lips, soft waves, thick white Polaroid frame, seagulls, seagull-blue sky. Glamorous blonde mid-drift in white sports coupe — fierce smile, windblown hair, tire smoke on mountain touge. 2014 pop-album daylight. Reads as 1989 cover meets street racing."
     },
@@ -48,6 +53,7 @@
       "persona": "Techno producer who insists the genre is spelled g-a-r-a-g-e. Batch 1 tracks incoming — the kick already moved in.",
       "punOf": "Martin Garrix (Garrix → Garage, EDM mainstage → warehouse techno)",
       "visualHomage": "Martin Garrix festival-poster lion energy redirected into a Berlin warehouse: rolling garage door, strobe haze, acid green laser, industrial concrete — big-room EDM scale but underground techno setting. No DJ face.",
+      "vocalHomage": "EDM mainstage topline energy: anthemic shouts, festival-hook delivery — redirected into warehouse techno: sparser words, industrial grit, monotone chant on drops. Never impersonate a real DJ voice.",
       "photoFile": "a-martin-garage.jpg"
     }
   ],
@@ -199,6 +205,7 @@
       "scene": "commute",
       "filePath": "data/tracks/t07.mp3",
       "introOffsetMs": null,
+      "instrumental": false,
       "lore": "Justin Tiger mapped an automated metro line into a chord progression — each stop syncs, every transfer hits like a chorus you can't unstick."
     },
     {
@@ -225,6 +232,7 @@
       "scene": "gym",
       "filePath": "data/tracks/t09.mp3",
       "introOffsetMs": null,
+      "instrumental": false,
       "lore": "Composed for a friend training for a night marathon — Kayan East calls mile twelve 'a cultural moment' and timed the drop to a Graduation-pastel sunrise over the east river."
     },
     {
@@ -251,6 +259,8 @@
       "scene": "commute",
       "filePath": "data/tracks/t11.mp3",
       "introOffsetMs": null,
+      "instrumental": false,
+      "lyrics": "[Intro]\n(Engine idle, synth arp rising)\nPolaroid light on the rearview glass\nHairpin waiting — let the moment pass\n\n[Verse 1]\nWhite coupe on the touge, seagull-blue above\nCherry-red lips, but I'm not here for love\nI'm here for the downshift, third gear and clean\nFirst hairpin I nailed — best I've ever been\nEvery arp's a heel-toe, every sweep's the smoke\n1989 optimism in a midnight coat\n\n[Pre-Chorus]\nFilter opens like the mountain bends\nBreath gets thin but the rush never ends\n\n[Chorus]\nSkyline drive, skyline drive\nTire smoke catching the blue in the sky\nI'm not fast, I'm precise — that's the drift in my life\nPolaroid flash on a perfect line\nSkyline drive, hold the line\nPop-girl daylight on a touge at night\nSwift was the old me — drift is the proof\nEvery clean corner is the absolute truth\n\n[Verse 2]\nPlatinum hair in the wind, taillights pink\nOne more lap before I let myself think\nThe straight's ahead but I don't want flat\nI'd rather powerslide and take it back\nSeagulls scatter when the tires scream\nThis isn't a dream — it's a racing scheme\n\n[Pre-Chorus]\nFilter opens like the mountain bends\nBreath gets thin but the rush never ends\n\n[Chorus]\nSkyline drive, skyline drive\nTire smoke catching the blue in the sky\nI'm not fast, I'm precise — that's the drift in my life\nPolaroid flash on a perfect line\nSkyline drive, hold the line\nPop-girl daylight on a touge at night\nSwift was the old me — drift is the proof\nEvery clean corner is the absolute truth\n\n[Bridge]\n(Breakdown — breathier, half-spoken)\nMatte white paint, mountain hairpin grace\nOne clean line and I forget the race\nNot about winning — about the line you keep\nExhale on the straight, then dive back deep\n\n[Final Chorus]\nSkyline drive, skyline drive\nTire smoke catching the blue in the sky\nHairpin clean and the Polaroid's gold\nBest story this blonde has ever told\nSkyline drive…\n(Synth fade, engine cool-down)",
       "lore": "Taylor Drift wrote this after her first clean hairpin in the matte white coupe — every arp is a downshift, every filter sweep is tire smoke catching the 1989-blue sky."
     },
     {
@@ -264,6 +274,7 @@
       "scene": "party",
       "filePath": "data/tracks/t12.mp3",
       "introOffsetMs": null,
+      "instrumental": false,
       "lore": "The last track Kayan East finished before sunrise — he called the drop 'interrupting the timeline' in full Yeezus-red confidence and refused to explain further."
     },
     {
@@ -290,6 +301,7 @@
       "scene": "chill",
       "filePath": "data/tracks/t14.mp3",
       "introOffsetMs": null,
+      "instrumental": false,
       "lore": "The cool-down lap on 1989 Drift — Taylor Drift wrote it for when the mountain straightens, the Polaroid light goes gold, and the blonde behind the wheel finally exhales."
     },
     {

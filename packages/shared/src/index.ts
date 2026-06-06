@@ -1,4 +1,5 @@
 export * from "./track.js";
+export * from "./catalog.js";
 export * from "./arc.js";
 export * from "./flow-rules.js";
 export * from "./flow.js";

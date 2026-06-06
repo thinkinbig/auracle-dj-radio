@@ -1,20 +1,30 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { FlowResult, TrackCandidate } from "@auracle/shared";
+import type { FlowResult } from "@auracle/shared";
 import { buildHardRulesText } from "@auracle/shared";
-import type { Track } from "@auracle/shared";
 import { config } from "../config.js";
 import { createGeminiClient } from "../gemini/client.js";
-import type { Embedder } from "./embedder.js";
+import { buildRichEmbedText } from "../catalog/manifest.js";
+import type { Embedder, EmbedTrackInput } from "./embedder.js";
 import type { FlowModel, FlowInput } from "./flow-model.js";
-
-type TagFields = Pick<Track, "mood" | "scene" | "energy" | "genre">;
 
 /** Real embeddings via gemini-embedding-001 (native 3072-dim, no truncation). */
 export class GeminiEmbedder implements Embedder {
   private readonly ai = createGeminiClient();
 
-  async embedTrack(t: TagFields | TrackCandidate): Promise<number[]> {
-    return this.embed(`mood: ${t.mood} scene: ${t.scene} energy: ${t.energy} genre: ${t.genre}`);
+  async embedTrack(t: EmbedTrackInput): Promise<number[]> {
+    const text =
+      t.lore && t.artist && t.albumTitle
+        ? buildRichEmbedText({
+            artist: t.artist,
+            albumTitle: t.albumTitle,
+            mood: t.mood,
+            scene: t.scene,
+            energy: t.energy,
+            genre: t.genre,
+            lore: t.lore,
+          })
+        : `mood: ${t.mood} scene: ${t.scene} energy: ${t.energy} genre: ${t.genre}`;
+    return this.embed(text);
   }
 
   async embedQuery(mood: string, scene: string): Promise<number[]> {

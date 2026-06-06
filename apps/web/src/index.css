@@ -26,7 +26,7 @@
   --on-air-fg: #ffffff;
 
   --wave-stage-active: #ffffff;
-  --wave-stage-idle: rgba(255, 255, 255, 0.08);
+  --wave-stage-idle: rgba(255, 255, 255, 0.22);
   --wave-live-low: rgba(34, 197, 94, 0.22);
   --wave-live-high: #ffffff;
   --wave-play-low: rgba(255, 255, 255, 0.12);

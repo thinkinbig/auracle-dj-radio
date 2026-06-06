@@ -9,8 +9,15 @@ import { useRadioSession } from './hooks/useRadioSession';
 import { DJ_NAME } from './lib/constants';
 
 export default function App() {
-  const { state, analyser, handleStart, handleTogglePause, handleSkipTrack, handleChangeHostMode } =
-    useRadioSession();
+  const {
+    state,
+    analyser,
+    handleStart,
+    handleTogglePause,
+    handleSkipTrack,
+    handleSkipDj,
+    handleChangeHostMode,
+  } = useRadioSession();
   const { isWide } = useLayoutMode();
 
   useEffect(() => {
@@ -18,7 +25,8 @@ export default function App() {
       if (e.target instanceof HTMLInputElement) return;
       if (e.code === 'Space') {
         e.preventDefault();
-        handleTogglePause();
+        if (state.phase === 'idle') void handleStart();
+        else handleTogglePause();
       } else if (e.code === 'ArrowRight' || e.code === 'KeyN') {
         e.preventDefault();
         handleSkipTrack();
@@ -26,7 +34,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleTogglePause, handleSkipTrack]);
+  }, [state.phase, handleStart, handleTogglePause, handleSkipTrack]);
 
   return (
     <AppShell
@@ -39,6 +47,9 @@ export default function App() {
           liveWarning={state.liveWarning}
           hostMode={state.hostMode}
           onChangeHostMode={handleChangeHostMode}
+          onStart={handleStart}
+          albumCoverUrl={state.albumCoverUrl}
+          artistPhotoUrl={state.artistPhotoUrl}
         />
       }
       sheet={
@@ -48,6 +59,10 @@ export default function App() {
           sessionSubtitle={state.sessionSubtitle}
           trackTitle={state.trackTitle}
           artist={state.artist}
+          albumTitle={state.albumTitle}
+          albumCoverUrl={state.albumCoverUrl}
+          artistPhotoUrl={state.artistPhotoUrl}
+          lore={state.lore}
           progressSec={state.progressSec}
           durationSec={state.durationSec}
           transcript={state.transcript}
@@ -70,8 +85,10 @@ export default function App() {
           progressSec={state.progressSec}
           durationSec={state.durationSec}
           hasNextTrack={state.remainingTrackIds.length > 0}
+          onStart={handleStart}
           onTogglePause={handleTogglePause}
           onSkipTrack={handleSkipTrack}
+          onSkipDj={handleSkipDj}
         />
       }
     />

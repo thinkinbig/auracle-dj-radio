@@ -20,11 +20,78 @@
   flex-shrink: 0;
 }
 
+.headerCompact .nowPlaying {
+  margin-top: var(--space-sm);
+}
+
+.headerCompact .meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.startZone {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--space-sm);
+  border-radius: var(--radius-inner);
+  background: var(--transcript-bg);
+  background-image: var(--transcript-dot);
+  background-size: var(--dot-size) var(--dot-size);
+  padding: var(--space-md);
+}
+
+.startBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-inner);
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+.startBtn:hover {
+  transform: scale(1.03);
+}
+
+.startBtn:active {
+  transform: scale(0.98);
+}
+
+.startBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.startIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-control);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 24px rgb(17 24 39 / 0.18);
+}
+
+.startLabel {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
 .title {
   font-size: clamp(22px, 4vw, 28px);
   font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.2;
+  line-height: 1.25;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .meta {
@@ -35,9 +102,77 @@
   letter-spacing: 0.02em;
 }
 
-.trackLine {
+.nowPlaying {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  align-items: flex-start;
+}
+
+.cover {
+  width: 88px;
+  height: 88px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  object-fit: cover;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.15);
+}
+
+.trackInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.trackTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+  word-wrap: break-word;
+}
+
+.trackCredit {
+  margin-top: 6px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.artistPhoto {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
+}
+
+.artistInitial {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--avatar-from), var(--avatar-to));
+}
+
+.creditText {
+  min-width: 0;
+  line-height: 1.35;
+  font-weight: 500;
+  color: #374151;
+}
+
+.lore {
   margin-top: var(--space-sm);
-  font-size: 15px;
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--text-secondary);
 }
 
@@ -129,11 +264,14 @@
   color: var(--text-secondary);
 }
 
+:global([data-layout='split']) .cover {
+  display: none;
+}
+
 /* Stack = phone frame (768–1023) + mobile (<768): one column, mini bar is primary control */
-:global([data-layout='stack']) .trackLine {
+:global([data-layout='stack']) .trackTitle {
   color: var(--text-primary);
-  opacity: 0.72;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 :global([data-layout='stack']) .controls {
@@ -150,7 +288,44 @@
     font-size: clamp(20px, 5.5vw, 26px);
   }
 
-  :global([data-layout='stack']) .trackLine {
+  .cover {
+    width: 72px;
+    height: 72px;
+  }
+
+  .startIcon {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+@media (max-width: 360px) {
+  .nowPlaying {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .trackCredit {
+    align-items: flex-start;
+  }
+}
+
+@media (max-height: 640px) {
+  :global([data-layout='stack']) .headerCompact .nowPlaying {
+    margin-top: var(--space-xs);
+  }
+
+  :global([data-layout='stack']) .cover {
+    width: 64px;
+    height: 64px;
+  }
+
+  :global([data-layout='stack']) .startIcon {
+    width: 56px;
+    height: 56px;
+  }
+
+  :global([data-layout='stack']) .startLabel {
     font-size: 14px;
   }
 }

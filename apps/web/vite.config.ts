@@ -12,6 +12,8 @@ export default defineConfig(() => {
         // ws:true so the Live WebSocket upgrade at /sessions/:id/live is proxied too.
         '/sessions': { target: apiTarget, ws: true },
         '/tracks': apiTarget,
+        '/covers': apiTarget,
+        '/artists': apiTarget,
       },
     },
   };

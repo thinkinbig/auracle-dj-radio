@@ -10,6 +10,11 @@
   overflow: hidden;
 }
 
+:global([data-layout='split']) .root {
+  flex: 1 1 auto;
+  min-height: 120px;
+}
+
 .scroll {
   height: 100%;
   overflow-y: auto;
@@ -47,24 +52,32 @@
 .overlay {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  background: rgba(243, 244, 246, 0.82);
-  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: rgba(243, 244, 246, 0.88);
+  backdrop-filter: blur(4px);
 }
 
 .startBtn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md);
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl);
+  min-width: 160px;
+  min-height: 120px;
   border-radius: var(--radius-inner);
   transition: transform var(--duration-fast) var(--ease-spring);
 }
 
 .startBtn:hover {
-  transform: scale(1.04);
+  transform: scale(1.03);
+}
+
+.startBtn:active {
+  transform: scale(0.98);
 }
 
 .startBtn:focus-visible {
@@ -73,19 +86,21 @@
 }
 
 .startIcon {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   border-radius: var(--radius-control);
   background: var(--btn-primary-bg);
   color: var(--btn-primary-fg);
   display: grid;
   place-items: center;
+  box-shadow: 0 8px 24px rgb(17 24 39 / 0.18);
 }
 
 .startLabel {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
 }
 
 .empty {
@@ -105,9 +120,5 @@
 @media (max-width: 767px) {
   .root {
     margin-top: var(--space-sm);
-  }
-
-  :global([data-layout='stack']) .scroll {
-    min-height: 96px;
   }
 }

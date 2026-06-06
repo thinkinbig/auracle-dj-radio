@@ -15,6 +15,9 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared/src packages/shared/src
 COPY apps/api/src apps/api/src
 COPY apps/api/data/tracks apps/api/data/tracks
+COPY apps/api/data/catalog apps/api/data/catalog
+COPY apps/api/data/covers apps/api/data/covers
+COPY apps/api/data/artists apps/api/data/artists
 
 RUN pnpm --filter @auracle/shared build
 

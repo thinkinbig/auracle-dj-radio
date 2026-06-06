@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useLayoutMode } from '../hooks/useMediaQuery';
 import { formatTime } from '../lib/formatTime';
 import { cn } from '../lib/cn';
 import type { TranscriptLine, UiPhase } from '../types';
@@ -20,8 +21,10 @@ export function TranscriptPanel({
   djName,
   onStart,
 }: TranscriptPanelProps) {
+  const { isWide } = useLayoutMode();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isIdle = phase === 'idle';
+  const showStartOverlay = isIdle && isWide;
 
   useEffect(() => {
     if (!activeId || !scrollRef.current) return;
@@ -60,7 +63,7 @@ export function TranscriptPanel({
         })}
       </div>
 
-      {isIdle && (
+      {showStartOverlay && (
         <div className={styles.overlay}>
           <button type="button" className={styles.startBtn} onClick={onStart} aria-label="Tap to start session">
             <span className={styles.startIcon}>

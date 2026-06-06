@@ -1,19 +1,26 @@
 import Database from "better-sqlite3";
-import type { Track, Energy } from "@auracle/shared";
+import type { Track, Energy, TrackMeta } from "@auracle/shared";
+import { toTrackMeta } from "../catalog/manifest.js";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS tracks (
-  id             TEXT PRIMARY KEY,
-  title          TEXT NOT NULL,
-  artist         TEXT NOT NULL,
-  energy         INTEGER NOT NULL,
-  tempo          INTEGER NOT NULL,
-  genre          TEXT NOT NULL,
-  mood           TEXT NOT NULL,
-  scene          TEXT NOT NULL,
-  file_path      TEXT NOT NULL,
+  id              TEXT PRIMARY KEY,
+  title           TEXT NOT NULL,
+  artist          TEXT NOT NULL,
+  artist_id       TEXT NOT NULL DEFAULT '',
+  album_id        TEXT NOT NULL DEFAULT '',
+  album_title     TEXT NOT NULL DEFAULT '',
+  lore            TEXT NOT NULL DEFAULT '',
+  album_cover_path TEXT NOT NULL DEFAULT '',
+  artist_photo_path TEXT NOT NULL DEFAULT '',
+  energy          INTEGER NOT NULL,
+  tempo           INTEGER NOT NULL,
+  genre           TEXT NOT NULL,
+  mood            TEXT NOT NULL,
+  scene           TEXT NOT NULL,
+  file_path       TEXT NOT NULL,
   intro_offset_ms INTEGER,
-  embedding_json TEXT
+  embedding_json  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS session_events (
@@ -26,6 +33,15 @@ CREATE TABLE IF NOT EXISTS session_events (
 CREATE INDEX IF NOT EXISTS idx_events_session ON session_events(session_id);
 `;
 
+const CATALOG_COLUMNS: Array<{ name: string; ddl: string }> = [
+  { name: "artist_id", ddl: "TEXT NOT NULL DEFAULT ''" },
+  { name: "album_id", ddl: "TEXT NOT NULL DEFAULT ''" },
+  { name: "album_title", ddl: "TEXT NOT NULL DEFAULT ''" },
+  { name: "lore", ddl: "TEXT NOT NULL DEFAULT ''" },
+  { name: "album_cover_path", ddl: "TEXT NOT NULL DEFAULT ''" },
+  { name: "artist_photo_path", ddl: "TEXT NOT NULL DEFAULT ''" },
+];
+
 /** A track plus its stored embedding vector (kept out of the shared Track type). */
 export interface TrackRow extends Track {
   embedding: number[] | null;
@@ -35,6 +51,12 @@ interface RawTrackRow {
   id: string;
   title: string;
   artist: string;
+  artist_id: string;
+  album_id: string;
+  album_title: string;
+  lore: string;
+  album_cover_path: string;
+  artist_photo_path: string;
   energy: number;
   tempo: number;
   genre: string;
@@ -52,22 +74,47 @@ export class Db {
     this.db = new Database(path);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA);
+    this.migrateCatalogColumns();
+  }
+
+  private migrateCatalogColumns(): void {
+    const existing = new Set(
+      (this.db.prepare(`PRAGMA table_info(tracks)`).all() as Array<{ name: string }>).map((c) => c.name),
+    );
+    for (const col of CATALOG_COLUMNS) {
+      if (!existing.has(col.name)) {
+        this.db.exec(`ALTER TABLE tracks ADD COLUMN ${col.name} ${col.ddl}`);
+      }
+    }
   }
 
   upsertTrack(t: TrackRow): void {
     this.db
       .prepare(
-        `INSERT INTO tracks (id, title, artist, energy, tempo, genre, mood, scene, file_path, intro_offset_ms, embedding_json)
-         VALUES (@id, @title, @artist, @energy, @tempo, @genre, @mood, @scene, @file_path, @intro_offset_ms, @embedding_json)
+        `INSERT INTO tracks (
+           id, title, artist, artist_id, album_id, album_title, lore, album_cover_path, artist_photo_path,
+           energy, tempo, genre, mood, scene, file_path, intro_offset_ms, embedding_json
+         )
+         VALUES (
+           @id, @title, @artist, @artist_id, @album_id, @album_title, @lore, @album_cover_path, @artist_photo_path,
+           @energy, @tempo, @genre, @mood, @scene, @file_path, @intro_offset_ms, @embedding_json
+         )
          ON CONFLICT(id) DO UPDATE SET
-           title=@title, artist=@artist, energy=@energy, tempo=@tempo, genre=@genre,
-           mood=@mood, scene=@scene, file_path=@file_path, intro_offset_ms=@intro_offset_ms,
-           embedding_json=@embedding_json`,
+           title=@title, artist=@artist, artist_id=@artist_id, album_id=@album_id,
+           album_title=@album_title, lore=@lore, album_cover_path=@album_cover_path, artist_photo_path=@artist_photo_path,
+           energy=@energy, tempo=@tempo, genre=@genre, mood=@mood, scene=@scene,
+           file_path=@file_path, intro_offset_ms=@intro_offset_ms, embedding_json=@embedding_json`,
       )
       .run({
         id: t.id,
         title: t.title,
         artist: t.artist,
+        artist_id: t.artistId,
+        album_id: t.albumId,
+        album_title: t.albumTitle,
+        lore: t.lore,
+        album_cover_path: t.albumCoverPath,
+        artist_photo_path: t.artistPhotoPath,
         energy: t.energy,
         tempo: t.tempo,
         genre: t.genre,
@@ -89,6 +136,11 @@ export class Db {
     return row ? rowToTrack(row) : undefined;
   }
 
+  getTrackMeta(id: string): TrackMeta | undefined {
+    const track = this.getTrack(id);
+    return track ? toTrackMeta(track) : undefined;
+  }
+
   recordEvent(sessionId: string, eventType: string, payload: unknown): void {
     this.db
       .prepare(`INSERT INTO session_events (session_id, ts, event_type, payload_json) VALUES (?, ?, ?, ?)`)
@@ -105,6 +157,12 @@ function rowToTrack(row: RawTrackRow): TrackRow {
     id: row.id,
     title: row.title,
     artist: row.artist,
+    artistId: row.artist_id ?? "",
+    albumId: row.album_id ?? "",
+    albumTitle: row.album_title ?? "",
+    lore: row.lore ?? "",
+    albumCoverPath: row.album_cover_path ?? "",
+    artistPhotoPath: row.artist_photo_path ?? "",
     energy: row.energy as Energy,
     tempo: row.tempo,
     genre: row.genre,

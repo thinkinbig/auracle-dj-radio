@@ -137,9 +137,8 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
 
   app.get("/tracks/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const track = ctx.db.getTrack(id);
-    if (!track) return reply.code(404).send({ error: "track not found" });
-    const { embedding: _embedding, ...meta } = track;
+    const meta = ctx.db.getTrackMeta(id);
+    if (!meta) return reply.code(404).send({ error: "track not found" });
     return meta;
   });
 

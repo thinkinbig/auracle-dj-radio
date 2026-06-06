@@ -4,7 +4,7 @@ import { useBarCount } from '../hooks/useBarCount';
 import { formatTime } from '../lib/formatTime';
 import { cn } from '../lib/cn';
 import type { UiPhase } from '../types';
-import { IconPause, IconPlay, IconSkipNext } from './Icons';
+import { IconPause, IconPlay, IconSkipNext, IconSkipVoice } from './Icons';
 import styles from './MiniControlBar.module.css';
 
 interface MiniControlBarProps {
@@ -12,8 +12,10 @@ interface MiniControlBarProps {
   progressSec: number;
   durationSec: number;
   hasNextTrack: boolean;
+  onStart: () => void;
   onTogglePause: () => void;
   onSkipTrack: () => void;
+  onSkipDj: () => void;
 }
 
 export function MiniControlBar({
@@ -21,14 +23,17 @@ export function MiniControlBar({
   progressSec,
   durationSec,
   hasNextTrack,
+  onStart,
   onTogglePause,
   onSkipTrack,
+  onSkipDj,
 }: MiniControlBarProps) {
   const waveRef = useRef<HTMLDivElement>(null);
   const barCount = useBarCount(waveRef, 5, 32, 160);
   const isPaused = phase === 'paused';
-  const notReady = phase === 'idle' || phase === 'curating';
-  const skipDisabled = notReady || !hasNextTrack;
+  const isIdle = phase === 'idle';
+  const isCurating = phase === 'curating';
+  const skipDisabled = isIdle || isCurating || !hasNextTrack;
   const pct = durationSec > 0 ? Math.min(100, (progressSec / durationSec) * 100) : 0;
 
   return (
@@ -50,6 +55,17 @@ export function MiniControlBar({
 
       <time className={styles.timeEnd}>{formatTime(durationSec)}</time>
 
+      {phase === 'speaking' && (
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={onSkipDj}
+          aria-label="Skip voice-over"
+        >
+          <IconSkipVoice size={16} />
+        </button>
+      )}
+
       <button
         type="button"
         className={styles.btn}
@@ -63,11 +79,11 @@ export function MiniControlBar({
       <button
         type="button"
         className={styles.btn}
-        onClick={onTogglePause}
-        disabled={notReady}
-        aria-label={isPaused || notReady ? 'Play' : 'Pause'}
+        onClick={isIdle ? onStart : onTogglePause}
+        disabled={isCurating}
+        aria-label={isIdle || isPaused ? 'Start session' : 'Pause'}
       >
-        {isPaused || notReady ? <IconPlay size={16} /> : <IconPause size={16} />}
+        {isIdle || isPaused ? <IconPlay size={16} /> : <IconPause size={16} />}
       </button>
     </footer>
   );

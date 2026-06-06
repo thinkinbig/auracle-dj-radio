@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HostMode } from '@auracle/shared';
+import { useLayoutMode } from '../hooks/useMediaQuery';
 import { formatTime } from '../lib/formatTime';
 import { cn } from '../lib/cn';
 import type { UiPhase } from '../types';
 import styles from './StageHeader.module.css';
 import { StageWaveform } from './StageWaveform';
+import { IconPlay } from './Icons';
 
 interface StageHeaderProps {
   djName: string;
@@ -14,6 +16,9 @@ interface StageHeaderProps {
   liveWarning: string | null;
   hostMode: HostMode;
   onChangeHostMode: (hostMode: HostMode) => void;
+  onStart?: () => void;
+  albumCoverUrl?: string;
+  artistPhotoUrl?: string;
 }
 
 const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
@@ -49,11 +54,17 @@ export function StageHeader({
   liveWarning,
   hostMode,
   onChangeHostMode,
+  onStart,
+  albumCoverUrl,
+  artistPhotoUrl,
 }: StageHeaderProps) {
+  const { isWide } = useLayoutMode();
   const status = statusLabel(phase);
   const onAir = phase !== 'idle';
   const isPaused = phase === 'paused';
   const hostModeDisabled = phase === 'idle' || phase === 'curating';
+  const showStageArt = isWide && Boolean(albumCoverUrl);
+  const canStartFromStage = showStageArt && phase === 'idle' && Boolean(onStart);
   const mountedRef = useRef(false);
   const [modeToast, setModeToast] = useState<string | null>(null);
 
@@ -128,7 +139,49 @@ export function StageHeader({
         </p>
       )}
 
-      <StageWaveform phase={phase} analyser={analyser} />
+      {showStageArt ? (
+        <div className={styles.artArea}>
+          {canStartFromStage ? (
+            <button
+              type="button"
+              className={styles.artStartBtn}
+              onClick={onStart}
+              aria-label="Tap to start session"
+            >
+              <div className={styles.artStack}>
+                <img className={styles.albumCover} src={albumCoverUrl} alt="" />
+                {artistPhotoUrl && (
+                  <img
+                    className={styles.artistBadge}
+                    src={artistPhotoUrl}
+                    alt=""
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  />
+                )}
+                <span className={styles.artPlayOverlay} aria-hidden>
+                  <span className={styles.artPlayIcon}>
+                    <IconPlay size={24} />
+                  </span>
+                </span>
+              </div>
+            </button>
+          ) : (
+            <div className={styles.artStack}>
+              <img className={styles.albumCover} src={albumCoverUrl} alt="" />
+              {artistPhotoUrl && (
+                <img
+                  className={styles.artistBadge}
+                  src={artistPhotoUrl}
+                  alt=""
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <StageWaveform phase={phase} analyser={analyser} />
+      )}
     </header>
   );
 }

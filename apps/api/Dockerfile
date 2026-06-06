@@ -34,8 +34,11 @@ WORKDIR /app
 
 COPY --from=builder /bundle .
 
-# Bake in pre-generated demo tracks (read-only audio content)
+# Bake in pre-generated demo tracks, catalog manifest, and album covers
 COPY apps/api/data/tracks ./data/tracks/
+COPY apps/api/data/catalog ./data/catalog/
+COPY apps/api/data/covers ./data/covers/
+COPY apps/api/data/artists ./data/artists/
 
 COPY apps/api/entrypoint-common.sh /entrypoint-common.sh
 COPY apps/api/entrypoint.sh /entrypoint.sh

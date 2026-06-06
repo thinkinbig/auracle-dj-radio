@@ -7,7 +7,9 @@ import type { ReplanParams, ReplanOutcome } from "../session/replan-service.js";
 
 export interface LiveToolRunnerDeps {
   recordEvent(sessionId: string, eventType: string, payload: Record<string, unknown>): void;
-  getTrack(id: string): { title: string; energy: number; tempo: number; genre: string } | undefined;
+  getTrack(id: string):
+    | { title: string; artist: string; albumTitle: string; energy: number; tempo: number; genre: string; lore: string }
+    | undefined;
   memory: MemoryClient;
   replan(state: SessionState, params: ReplanParams): Promise<ReplanOutcome>;
 }
