@@ -11,7 +11,10 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "dev": "pnpm --filter @auracle/api dev",
-    "dev:web": "pnpm --filter @auracle/web dev"
+    "dev:web": "pnpm --filter @auracle/web dev",
+    "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build qdrant api",
+    "docker:prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build",
+    "docker:down": "docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.prod.yml down"
   },
   "devDependencies": {
     "typescript": "^5.6.0"

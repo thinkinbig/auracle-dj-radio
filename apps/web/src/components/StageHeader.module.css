@@ -18,6 +18,11 @@
   max-height: min(200px, 25vh);
 }
 
+:global([data-layout='stack']) .root {
+  max-height: min(240px, 32%);
+  min-height: 136px;
+}
+
 .top {
   display: flex;
   align-items: center;
@@ -93,5 +98,32 @@
   }
   50% {
     opacity: 0.65;
+  }
+}
+
+@media (max-width: 767px) {
+  :global([data-layout='stack']) .root {
+    max-height: 32dvh;
+    min-height: 128px;
+    padding: calc(var(--space-sm) + env(safe-area-inset-top, 0px)) var(--space-md) var(--space-sm);
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+
+  .name {
+    font-size: 24px;
+  }
+
+  .timer {
+    font-size: 13px;
+  }
+
+  .status {
+    margin-top: var(--space-xs);
+    font-size: 12px;
   }
 }

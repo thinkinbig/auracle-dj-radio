@@ -92,3 +92,22 @@
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+:global([data-layout='stack']) .empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-lg);
+}
+
+@media (max-width: 767px) {
+  .root {
+    margin-top: var(--space-sm);
+  }
+
+  :global([data-layout='stack']) .scroll {
+    min-height: 96px;
+  }
+}

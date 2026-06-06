@@ -38,6 +38,8 @@ export function MiniControlBar({ phase, progressSec, durationSec, onTogglePause 
         })}
       </div>
 
+      <time className={styles.timeEnd}>{formatTime(durationSec)}</time>
+
       <button
         type="button"
         className={styles.btn}

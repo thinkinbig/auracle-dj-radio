@@ -33,3 +33,10 @@
   transition: background var(--duration-fast) var(--ease-out);
   will-change: transform;
 }
+
+@media (max-width: 767px) {
+  .root {
+    height: 52px;
+    padding-top: var(--space-sm);
+  }
+}

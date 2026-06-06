@@ -7,13 +7,13 @@ import { useEffect, useRef, type RefObject } from 'react';
 export function useWaveform(
   containerRef: RefObject<HTMLElement | null>,
   active: boolean,
+  barCount: number,
   analyser?: AnalyserNode | null
 ) {
   const rafRef = useRef<number>(0);
   const stateRef = useRef({
     targets: new Float32Array(0),
     current: new Float32Array(0),
-    envelope: [] as number[],
   });
 
   useEffect(() => {
@@ -26,18 +26,12 @@ export function useWaveform(
     const n = bars.length;
     if (n === 0) return;
 
-    // Reuse arrays if bar count unchanged
     if (stateRef.current.targets.length !== n) {
       stateRef.current.targets = new Float32Array(n).fill(0.05);
       stateRef.current.current = new Float32Array(n).fill(0.05);
-      // Gaussian envelope: center bars peak higher, matching natural audio
-      stateRef.current.envelope = Array.from({ length: n }, (_, i) => {
-        const x = (i / (n - 1)) * 2 - 1;
-        return Math.exp(-x * x * 1.2);
-      });
     }
 
-    const { targets, current, envelope } = stateRef.current;
+    const { targets, current } = stateRef.current;
     let frameCount = 0;
 
     const tick = () => {
@@ -64,7 +58,7 @@ export function useWaveform(
         analyser.getByteFrequencyData(data);
         const step = Math.floor(data.length / n);
         bars.forEach((bar, i) => {
-          targets[i] = (data[i * step] / 255) * envelope[i];
+          targets[i] = data[i * step] / 255;
           current[i] += (targets[i] - current[i]) * 0.3;
           bar.style.transform = `scaleY(${Math.max(0.04, current[i]).toFixed(3)})`;
         });
@@ -72,7 +66,7 @@ export function useWaveform(
         // Mock: stochastic target updates with smooth interpolation
         if (frameCount % 6 === 0) {
           bars.forEach((_, i) => {
-            targets[i] = (0.08 + Math.random() * 0.88) * envelope[i];
+            targets[i] = 0.08 + Math.random() * 0.88;
           });
         }
         bars.forEach((bar, i) => {
@@ -86,5 +80,5 @@ export function useWaveform(
 
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [active, analyser, containerRef]);
+  }, [active, analyser, barCount, containerRef]);
 }

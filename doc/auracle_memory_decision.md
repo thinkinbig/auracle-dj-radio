@@ -24,7 +24,7 @@
 | 答辩 / 离线 demo | 依赖 mem0.ai 可用性 | 记忆读写不依赖第三方 SaaS |
 | 数据主权 | 偏好文本在 mem0 云 | 向量 + history 全在本地 |
 | 评估可复现 | 外部黑盒 | 可导出 Qdrant volume + history.db |
-| 运维成本 | 零 | 多一个 Qdrant 容器（`docker compose up -d qdrant`） |
+| 运维成本 | 零 | 多一个 Qdrant 容器（`pnpm docker:dev`） |
 | 与 Auracle 栈一致 | 需单独 `MEM0_API_KEY` | 复用已有 Gemini key 与 embed 模型 |
 
 **未采用 mem0 官方 Docker server 全家桶**（Postgres + Neo4j + dashboard）：与 Demo「单 Fastify 进程、不用 PostgreSQL」冲突；进程内 OSS + Qdrant 足够。
@@ -40,10 +40,10 @@
 ## 本地启动
 
 ```bash
-# 1. Qdrant（向量库，持久化到 ./data/qdrant）
-docker compose up -d qdrant
+# 1. Qdrant + API（Docker；向量库持久化在 qdrant_data volume）
+pnpm docker:dev
 
-# 2. API（mem0 OSS 在进程内初始化）
+# 2. 本地 API 进程（mem0 OSS 在进程内初始化）
 pnpm dev
 ```
 

@@ -1,30 +1,31 @@
+# Base stack — shared service definitions. No host ports; use an overlay:
+#   dev:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d qdrant api
+#   prod: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
 services:
 
-  # ── Vector DB (mem0 OSS persistence) ─────────────────────────
   qdrant:
-    image: qdrant/qdrant:v1.18.2
+    build:
+      context: ./ops/qdrant
+      dockerfile: Dockerfile
+    image: auracle-qdrant:local
     restart: unless-stopped
-    ports:
-      - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:6333/healthz"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:6333/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
-  # ── Fastify API + DJ logic ────────────────────────────────────
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
-    ports:
-      - "3000:3000"
-    env_file: .env
+    env_file: .env.docker
     environment:
-      # Override .env paths to Docker-managed volumes
       QDRANT_URL: http://qdrant:6333
       AURACLE_DB_PATH: /data/auracle.sqlite
       AURACLE_MEM0_HISTORY_DB: /data/mem0/history.db
@@ -34,20 +35,17 @@ services:
       qdrant:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 20s
 
-  # ── React frontend (nginx + API proxy) ───────────────────────
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
-    ports:
-      - "5173:80"
     depends_on:
       api:
         condition: service_healthy

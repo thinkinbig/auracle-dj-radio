@@ -16,7 +16,7 @@ export function StageWaveform({ phase }: StageWaveformProps) {
   const live = phase === 'speaking' || phase === 'listening';
   const active = live || phase === 'playing';
 
-  useWaveform(barsRef, active);
+  useWaveform(barsRef, active, barCount);
 
   return (
     <div

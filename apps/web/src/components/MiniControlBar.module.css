@@ -22,6 +22,16 @@
   flex-shrink: 0;
 }
 
+.timeEnd {
+  display: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  width: 36px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
 .wave {
   flex: 1;
   display: grid;
@@ -69,4 +79,30 @@
 .btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+:global([data-layout='stack']) .timeEnd {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .root {
+    min-height: 56px;
+    padding: 10px calc(var(--space-md) + env(safe-area-inset-right, 0px))
+      calc(10px + env(safe-area-inset-bottom, 0px))
+      calc(var(--space-md) + env(safe-area-inset-left, 0px));
+  }
+
+  :global([data-layout='stack']) .wave {
+    height: 32px;
+  }
+
+  :global([data-layout='stack']) .barActive {
+    height: 18px;
+  }
+
+  :global([data-layout='stack']) .btn {
+    width: 48px;
+    height: 48px;
+  }
 }

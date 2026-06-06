@@ -39,8 +39,10 @@ export function AppShell({ stage, sheet, queue, miniBar }: AppShellProps) {
           </>
         ) : (
           <>
-            {stage}
-            {sheet}
+            <div className={styles.stackBody}>
+              {stage}
+              {sheet}
+            </div>
             <div className={styles.stackMini}>{miniBar}</div>
           </>
         )}

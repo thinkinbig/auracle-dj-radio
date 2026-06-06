@@ -102,3 +102,29 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
+
+/* Stack = phone frame (768–1023) + mobile (<768): one column, mini bar is primary control */
+:global([data-layout='stack']) .trackLine {
+  color: var(--text-primary);
+  opacity: 0.72;
+  font-weight: 500;
+}
+
+:global([data-layout='stack']) .controls {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .root {
+    padding: var(--space-md) var(--space-md) var(--space-xs);
+    border-radius: 20px 20px 0 0;
+  }
+
+  .title {
+    font-size: clamp(20px, 5.5vw, 26px);
+  }
+
+  :global([data-layout='stack']) .trackLine {
+    font-size: 14px;
+  }
+}

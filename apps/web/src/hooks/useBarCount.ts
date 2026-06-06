@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from 'react';
+import { useLayoutEffect, useState, type RefObject } from 'react';
 
 /** Bar count from container width so waveforms fill horizontal space. */
 export function useBarCount(
@@ -9,7 +9,7 @@ export function useBarCount(
 ): number {
   const [count, setCount] = useState(min);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
 

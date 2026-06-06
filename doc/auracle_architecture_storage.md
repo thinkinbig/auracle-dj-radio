@@ -100,7 +100,7 @@ Live 模型 env：`GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview`（见 `aurac
 | 用户偏好 | **mem0 OSS**（进程内）+ **Qdrant** | `userId` + `metadata.run_id` |
 | Live 音频 | 不存 | 实时流 |
 
-**不需要 PostgreSQL。** mem0 向量走 Qdrant（`docker compose up -d qdrant`）；history 走 SQLite 文件。
+**不需要 PostgreSQL。** mem0 向量走 Qdrant（`pnpm docker:dev` 或 `pnpm docker:prod`）；history 走 SQLite 文件。
 
 ```sql
 -- tracks: id, title, artist, energy, tempo, genre, mood, embedding_json, file_path, intro_offset_ms NULL

@@ -1,0 +1,6 @@
+# Prod / demo overlay — only web is published; api and qdrant stay on the internal network.
+
+services:
+  web:
+    ports:
+      - "${WEB_PORT:-8080}:80"
