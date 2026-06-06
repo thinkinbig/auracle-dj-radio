@@ -9,6 +9,7 @@ import type {
 import type { ApiContext } from "../context.js";
 import { createPlan } from "../flow/plan.js";
 import { applyReplan } from "../session/replan-service.js";
+import { attachLiveRelay } from "../live/relay.js";
 
 export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
   app.post("/sessions", async (req, reply) => {
@@ -23,7 +24,9 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
     };
     const condition: Condition = body.condition ?? "C";
 
-    const { result, violations, candidatesById } = await createPlan(ctx.planDeps, intent);
+    // Condition C reads cross-session preferences into the plan and the DJ prompt; A/B don't.
+    const mem0Context = condition === "C" ? await ctx.memory.recall(`${intent.mood} ${intent.scene}`) : "";
+    const { result, violations, candidatesById } = await createPlan(ctx.planDeps, intent, mem0Context);
     const state = ctx.store.create({
       intent,
       condition,
@@ -32,7 +35,7 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
       arc: result.arc,
       tracklist: result.tracklist,
       candidatesById,
-      mem0Context: "",
+      mem0Context,
     });
     ctx.db.recordEvent(state.id, "session_created", {
       intent,
@@ -50,6 +53,17 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
       live_ws_url: `/sessions/${state.id}/live`,
     };
     return res;
+  });
+
+  app.get("/sessions/:id/live", { websocket: true }, (socket, req) => {
+    const { id } = req.params as { id: string };
+    const state = ctx.store.get(id);
+    if (!state) {
+      socket.send(JSON.stringify({ type: "error", message: "session not found" }));
+      socket.close();
+      return;
+    }
+    void attachLiveRelay(socket, state, ctx);
   });
 
   app.get("/sessions/:id", async (req, reply) => {

@@ -1,6 +1,9 @@
 /** Cosine similarity of two equal-length vectors. Returns 0 for degenerate input. */
 export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) return 0;
+  if (a.length !== b.length) {
+    throw new Error(`cosineSimilarity: dimension mismatch (${a.length} vs ${b.length})`);
+  }
+  if (a.length === 0) return 0;
   let dot = 0;
   let na = 0;
   let nb = 0;

@@ -118,7 +118,7 @@ Live 模型 env：`GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview`（见 `aurac
 ## 向量检索（Step 1）
 
 - Fastify 内 TS 余弦相似度，500 首 < 50ms
-- **Embedding 模型**：`gemini-embedding-001`（768 维），离线预计算写入 SQLite；运行时对 query 调同模型 embed → 余弦 Top-K
+- **Embedding 模型**：`gemini-embedding-001`（native 3072 维，不截断），离线预计算写入 SQLite；运行时对 query 调同模型 embed → 余弦 Top-K。离线/测试用 HashEmbedder（768 维，确定性，无需 key）——两者向量空间不同，切换须重建索引
 - 换模型须全量重建索引；Demo 期间曲库固定，一次性建库即可
 
 ---
@@ -129,9 +129,9 @@ Live 模型 env：`GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview`（见 `aurac
 import { Memory } from "mem0ai/oss";
 
 const memory = new Memory({
-  embedder: { provider: "google", config: { apiKey: GEMINI_API_KEY, model: "gemini-embedding-001", embeddingDims: 768 } },
+  embedder: { provider: "google", config: { apiKey: GEMINI_API_KEY, model: "gemini-embedding-001" } }, // native 3072
   llm: { provider: "google", config: { apiKey: GEMINI_API_KEY, model: "gemini-2.5-flash" } },
-  vectorStore: { provider: "qdrant", config: { url: QDRANT_URL, collectionName: "auracle_memories", dimension: 768 } },
+  vectorStore: { provider: "qdrant", config: { url: QDRANT_URL, collectionName: "auracle_memories", dimension: 3072 } },
   historyDbPath: AURACLE_MEM0_HISTORY_DB,
 });
 // userId: "auracle_user", metadata.run_id: session_id

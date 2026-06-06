@@ -3,7 +3,7 @@ import { buildContext } from "./context.js";
 import { buildServer } from "./server.js";
 
 const ctx = await buildContext();
-const app = buildServer(ctx);
+const app = await buildServer(ctx);
 
 try {
   await app.listen({ port: config.port, host: "0.0.0.0" });

@@ -14,10 +14,12 @@
   },
   "dependencies": {
     "@auracle/shared": "workspace:*",
+    "@fastify/websocket": "^11.2.0",
     "@google/genai": "^2.8.0",
     "better-sqlite3": "^11.6.0",
     "dotenv": "^16.4.5",
     "fastify": "^5.1.0",
+    "mem0ai": "^3.0.6",
     "zod": "^3.23.8"
   },
   "devDependencies": {

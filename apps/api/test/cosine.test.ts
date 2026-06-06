@@ -10,8 +10,11 @@ describe("cosineSimilarity", () => {
     expect(cosineSimilarity([1, 0], [0, 1])).toBeCloseTo(0);
   });
 
-  it("returns 0 on length mismatch or empty input", () => {
-    expect(cosineSimilarity([1, 2], [1])).toBe(0);
+  it("throws on length mismatch", () => {
+    expect(() => cosineSimilarity([1, 2], [1])).toThrow(/dimension mismatch/);
+  });
+
+  it("returns 0 for empty input", () => {
     expect(cosineSimilarity([], [])).toBe(0);
   });
 });

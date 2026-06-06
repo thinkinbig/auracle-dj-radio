@@ -2,7 +2,7 @@
 # mem0 logic runs in-process inside apps/api; this stack is just Qdrant.
 services:
   qdrant:
-    image: qdrant/qdrant:v1.13.2
+    image: qdrant/qdrant:v1.18.2
     ports:
       - "6333:6333"
     volumes:

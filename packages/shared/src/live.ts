@@ -23,4 +23,5 @@ export type ServerMessage =
   | { type: "transcript"; role: "user" | "model"; text: string }
   | { type: "phase"; phase: Phase; track_index: number }
   | { type: "tracklist_updated"; remaining: FlowTrackRef[] }
+  | { type: "intent"; intent: Intent }
   | { type: "error"; message: string };

@@ -11,7 +11,7 @@
 | 长期记忆 | **mem0 OSS**（`mem0ai/oss`），内嵌于 `apps/api`，**不走 mem0 cloud** |
 | 向量持久化 | **Qdrant**（本地 Docker 单容器，`./data/qdrant` volume） |
 | 变更审计 | mem0 内置 **SQLite history**（`AURACLE_MEM0_HISTORY_DB`） |
-| LLM / Embedder | 复用 **`GEMINI_API_KEY`**：`gemini-2.5-flash` 抽取 + `gemini-embedding-001`（768 维） |
+| LLM / Embedder | 复用 **`GEMINI_API_KEY`**：`gemini-2.5-flash` 抽取 + `gemini-embedding-001`（**native 3072 维**，不截断） |
 | DJ 风格进化 | **固定 system prompt**（不写回 prompt）；不用 LangMem procedural memory |
 | 框架 | **无 LangChain**；Fastify + `@google/genai` + `mem0ai/oss` |
 | Session 边界 | `run_id` = `session_id`（写入 `metadata.run_id`） |
@@ -88,7 +88,7 @@ export const memory = new Memory({
     config: {
       apiKey: process.env.GEMINI_API_KEY!,
       model: process.env.GEMINI_EMBED_MODEL ?? "gemini-embedding-001",
-      embeddingDims: 768,
+      // omit embeddingDims → use gemini-embedding-001 native 3072 dims
     },
   },
   llm: {
@@ -103,7 +103,7 @@ export const memory = new Memory({
     config: {
       url: process.env.QDRANT_URL ?? "http://localhost:6333",
       collectionName: "auracle_memories",
-      dimension: 768,
+      dimension: 3072,
     },
   },
   historyDbPath: process.env.AURACLE_MEM0_HISTORY_DB ?? "./data/mem0/history.db",
@@ -122,7 +122,7 @@ await memory.add("用户偏好 lo-fi，不喜欢高能量 EDM", {
 |------|------|------|
 | `GEMINI_API_KEY` | — | mem0 LLM + embedder 共用 |
 | `GEMINI_FLOW_MODEL` | `gemini-2.5-flash` | mem0 记忆抽取 |
-| `GEMINI_EMBED_MODEL` | `gemini-embedding-001` | mem0 向量（768 维，与曲库 embed 一致） |
+| `GEMINI_EMBED_MODEL` | `gemini-embedding-001` | mem0 向量（native 3072 维，与曲库 gemini embed 同口径） |
 | `QDRANT_URL` | `http://localhost:6333` | 本地 Qdrant |
 | `AURACLE_MEM0_HISTORY_DB` | `./data/mem0/history.db` | mem0 变更审计 |
 

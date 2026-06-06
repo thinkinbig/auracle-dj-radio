@@ -53,6 +53,14 @@ export async function applyReplan(
     violations,
   });
 
+  // A successful mood shift is a cross-session preference signal — Condition C only.
+  if (state.condition === "C") {
+    await ctx.memory.remember(
+      `During a ${state.intent.scene} session the user shifted the mood to "${params.mood}" (${params.energy_delta ?? "same"} energy).`,
+      state.id,
+    );
+  }
+
   return { replanned: true, remaining: appended };
 }
 

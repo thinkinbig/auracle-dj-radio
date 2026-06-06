@@ -5,11 +5,13 @@ import { HashEmbedder, type Embedder } from "./flow/embedder.js";
 import { HeuristicFlowModel } from "./flow/heuristic-flow.js";
 import type { FlowModel } from "./flow/flow-model.js";
 import type { PlanDeps } from "./flow/plan.js";
+import { createMemoryClient, type MemoryClient } from "./memory/client.js";
 
 export interface ApiContext {
   db: Db;
   store: SessionStore;
   planDeps: PlanDeps;
+  memory: MemoryClient;
 }
 
 /**
@@ -22,10 +24,10 @@ export async function buildContext(): Promise<ApiContext> {
   const embedder = await selectEmbedder();
   const flowModel = await selectFlowModel();
   const planDeps: PlanDeps = { embedder, flowModel, tracks: () => db.allTracks() };
-  return { db, store: new SessionStore(), planDeps };
+  return { db, store: new SessionStore(), planDeps, memory: createMemoryClient() };
 }
 
-async function selectEmbedder(): Promise<Embedder> {
+export async function selectEmbedder(): Promise<Embedder> {
   if (config.embedder === "gemini" && config.geminiApiKey) {
     const { GeminiEmbedder } = await import("./flow/gemini.js");
     return new GeminiEmbedder();

@@ -20,7 +20,7 @@ export interface PlanResult {
 }
 
 /** Initial session plan: Step 1 retrieval → Step 2 Flow over a fresh 8-track arc. */
-export async function createPlan(deps: PlanDeps, intent: SessionIntent): Promise<PlanResult> {
+export async function createPlan(deps: PlanDeps, intent: SessionIntent, memories = ""): Promise<PlanResult> {
   const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
     mood: intent.mood,
     scene: intent.scene,
@@ -28,7 +28,7 @@ export async function createPlan(deps: PlanDeps, intent: SessionIntent): Promise
   });
   return runFlow(deps.flowModel, {
     intent,
-    memories: "",
+    memories,
     played: [],
     lastPlayedEnergy: null,
     remainingSlots: FULL_SESSION_LENGTH,

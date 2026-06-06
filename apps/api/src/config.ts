@@ -16,6 +16,8 @@ export interface Config {
   embedModel: string;
   /** "hash" (deterministic, offline) or "gemini" (real embeddings). */
   embedder: "hash" | "gemini";
+  qdrantUrl: string;
+  mem0HistoryDb: string;
 }
 
 export const config: Config = {
@@ -26,4 +28,6 @@ export const config: Config = {
   liveModel: process.env.GEMINI_LIVE_MODEL ?? "gemini-3.1-flash-live-preview",
   embedModel: process.env.GEMINI_EMBED_MODEL ?? "gemini-embedding-001",
   embedder: process.env.AURACLE_EMBEDDER === "gemini" ? "gemini" : "hash",
+  qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6333",
+  mem0HistoryDb: process.env.AURACLE_MEM0_HISTORY_DB ?? resolve(here, "../../../data/mem0/history.db"),
 };
