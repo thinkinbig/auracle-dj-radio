@@ -120,3 +120,4 @@ Demo 只连 **Fastify :3000**：
 
 - 协议：`auracle_api_protocol.md`  
 - 架构：`auracle_architecture_storage.md`
+- UI：`auracle_ui_design.md`

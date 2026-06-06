@@ -1,0 +1,91 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--page-bg);
+  padding: var(--space-md);
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--stage-bg);
+  width: 100%;
+  height: min(100dvh, var(--frame-max-height));
+}
+
+.shellMobile {
+  max-width: none;
+  min-height: 100dvh;
+  height: 100dvh;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.shellFrame {
+  max-width: var(--frame-max-width);
+  min-height: min(100dvh, var(--frame-max-height));
+  border-radius: var(--frame-radius);
+  box-shadow: var(--frame-shadow);
+}
+
+.shellSplit {
+  max-width: var(--split-max-width);
+  width: 100%;
+  height: min(100dvh, 720px);
+  border-radius: var(--frame-radius);
+  box-shadow: var(--frame-shadow);
+  background: var(--page-bg);
+  padding: var(--split-gap);
+  gap: var(--split-gap);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.2fr);
+  gap: var(--split-gap);
+  flex: 1;
+  min-height: 0;
+}
+
+.stageCol {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: var(--radius-inner);
+  overflow: hidden;
+  background: var(--stage-bg);
+  background-image: var(--stage-bg-gradient), var(--dot-grid);
+  background-size: auto, var(--dot-size) var(--dot-size);
+}
+
+.contentCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-height: 0;
+  min-width: 0;
+}
+
+.miniWide {
+  flex-shrink: 0;
+}
+
+.stackMini {
+  margin-top: auto;
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding: 0;
+    align-items: stretch;
+  }
+}
+
+@media (min-width: 1440px) {
+  .shellSplit {
+    max-width: var(--split-max-width);
+  }
+}

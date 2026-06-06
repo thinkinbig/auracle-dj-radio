@@ -1,0 +1,10 @@
+**/.git
+**/node_modules
+**/dist
+**/.env
+**/apps/api/auracle.sqlite*
+**/data/qdrant
+**/data/mem0
+**/.codegraph
+**/doc
+**/README.md

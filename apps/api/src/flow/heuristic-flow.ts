@@ -27,13 +27,35 @@ export class HeuristicFlowModel implements FlowModel {
     });
 
     const initial = input.lastPlayedEnergy === null;
+    const arc: FlowResult["arc"] = initial ? "build" : "wind_down";
+    const vol = seriesVolume(input.intent);
+    const showName = titleCase(`${input.intent.mood} ${input.intent.scene}`);
     return {
-      session_title: titleCase(`${input.intent.mood} ${input.intent.scene}`),
-      session_subtitle: `${input.intent.duration_min} min`,
-      arc: initial ? "build" : "wind_down",
+      session_title: `${showName}, vol. ${vol}`,
+      session_subtitle: `${input.intent.duration_min} min · ${arcLabel(arc)}`,
+      arc,
       tracklist,
     };
   }
+}
+
+const ARC_LABELS: Record<FlowResult["arc"], string> = {
+  warm_up: "warming up",
+  build: "building",
+  peak: "peak energy",
+  wind_down: "winds down",
+};
+
+function arcLabel(arc: FlowResult["arc"]): string {
+  return ARC_LABELS[arc];
+}
+
+/** Stable 1–9 volume number per session intent (demo heuristic for "vol. N"). */
+function seriesVolume(intent: FlowInput["intent"]): number {
+  const key = `${intent.mood}:${intent.scene}:${intent.duration_min}`;
+  let h = 0;
+  for (const c of key) h = (h * 31 + c.charCodeAt(0)) % 997;
+  return (h % 9) + 1;
 }
 
 /** Per-slot target energy: full arc from ARC_BANDS, replan = glide to wind-down (2). */

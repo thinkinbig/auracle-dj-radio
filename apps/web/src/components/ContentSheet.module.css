@@ -1,0 +1,104 @@
+.root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  box-shadow: var(--shadow-sheet);
+  padding: var(--space-lg) var(--space-md) var(--space-sm);
+  overflow: hidden;
+}
+
+:global([data-layout='split']) .root {
+  border-radius: var(--radius-inner);
+  box-shadow: none;
+  padding: var(--space-lg);
+}
+
+.header {
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: clamp(22px, 4vw, 28px);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.meta {
+  margin-top: var(--space-xs);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.trackLine {
+  margin-top: var(--space-sm);
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  flex-shrink: 0;
+}
+
+.controlBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast);
+}
+
+.controlBtn:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.controlBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.controlBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.progress {
+  flex: 1;
+  min-width: 0;
+}
+
+.progressTrack {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--progress-track);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--progress-fill);
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+
+.progressTimes {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}

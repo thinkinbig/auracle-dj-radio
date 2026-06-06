@@ -10,7 +10,8 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "dev": "pnpm --filter @auracle/api dev"
+    "dev": "pnpm --filter @auracle/api dev",
+    "dev:web": "pnpm --filter @auracle/web dev"
   },
   "devDependencies": {
     "typescript": "^5.6.0"

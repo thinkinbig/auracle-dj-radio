@@ -56,6 +56,9 @@ const FLOW_SCHEMA = {
 };
 
 const SYSTEM_INSTRUCTION = `You are a professional radio session curator. Order candidate tracks into an energy arc.
+Always output session_title, session_subtitle, and reason fields in English.
+session_title MUST name the show and include a volume number, e.g. "Quiet Hours, vol. 3".
+session_subtitle MUST be duration + arc feel, e.g. "45 min · winds down".
 Energy is an integer 1-5. For a full 8-track session: warm-up (1-2) → build (3-4) → peak (5-6) → wind-down (7-8).
 When replanning remaining slots, glide smoothly from the last played energy down to a wind-down floor of 2; do NOT restart the full arc.
 Hard rules: ${buildHardRulesText()}.

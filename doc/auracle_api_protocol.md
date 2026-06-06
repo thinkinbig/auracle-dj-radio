@@ -188,7 +188,7 @@ tool mood_change → flow.replan(session, intent) → session_events
 
 - [ ] WS client + PCM capture/playback  
 - [ ] Web Audio crossfade  
-- [ ] Session UI + transcript  
+- [ ] Session UI + transcript（见 `auracle_ui_design.md`）
 
 ---
 
