@@ -1,6 +1,8 @@
 node_modules/
 dist/
-data/
+/data/
+apps/api/data/tracks/
+apps/api/data/mem0/
 *.tsbuildinfo
 .env
 *.sqlite

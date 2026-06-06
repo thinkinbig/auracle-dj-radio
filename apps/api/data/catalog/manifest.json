@@ -1,0 +1,322 @@
+{
+  "artists": [
+    {
+      "id": "a-lana-delay",
+      "name": "Lana Del Delay",
+      "persona": "Ambient and lo-fi producer. Every track runs through at least three delay pedals — the name is the signal chain.",
+      "punOf": "Lana Del Rey (Del Rey → Del Delay, tape delay pedal)",
+      "visualHomage": "2010s sad-girl americana album art: vintage California melancholy, film grain, faded Americana flags, motel neon, queen-of-sadness torch-singer palette — plus visible delay pedal / tape echo motifs instead of roses.",
+      "photoFile": "a-lana-delay.jpg"
+    },
+    {
+      "id": "a-jay-zzz",
+      "name": "Jay-Zzz",
+      "persona": "Chillhop producer for people who fell asleep on the train and missed their stop. Beats so soft they snore in 4/4.",
+      "punOf": "Jay-Z (Z → Zzz, asleep at the blueprint)",
+      "visualHomage": "Late-90s NYC hip-hop album packaging like The Blueprint era: black-and-gold luxury minimalism, Brooklyn noir, executive cool — but every motif suggests sleep (pillows, bedside lamp, floating Zzz, drooping eyelids). No rapper portrait.",
+      "photoFile": "a-jay-zzz.jpg"
+    },
+    {
+      "id": "a-justin-tiger",
+      "name": "Justin Tiger",
+      "persona": "Jazztronica and funky commute music — pop hooks so sticky the turnstile beeps in harmony. Still instrumental; no celebrity faces.",
+      "punOf": "Justin Bieber (Bieber → Tiger, teen-pop heartthrob + big-cat stripes)",
+      "visualHomage": "2010s Justin Bieber album art vocabulary: Purpose-era lavender and soft glow, Believe neon purple-pink, Justice chrome-heart minimalism — merged with bold orange-black tiger-stripe fur and metro turnstile gold. Pop-idol graphic design without any face likeness.",
+      "photoFile": "a-justin-tiger.jpg"
+    },
+    {
+      "id": "a-kayan-east",
+      "name": "Kayan East",
+      "persona": "Nu-disco, house, and garage producer — every drop is 'a cultural moment,' and the compass only points east.",
+      "punOf": "Kanye West (West → East on the compass)",
+      "visualHomage": "Kanye-era album art vocabulary (Dropout orange, Graduation pastel, Yeezus scarlet) as graphic design language only — bear mascot, bold shapes, ego-scale layout. NEVER a photoreal celebrity face; use mascot, silhouette, or obscured stylized character.",
+      "photoFile": "a-kayan-east.jpg",
+      "photoSubject": "Stylized fictional producer — NOT a real-person lookalike. Face hidden by oversized graphic shutter shades and dropout-bear mascot hoodie. EAST is the hero: enormous brass compass rose behind him, needle locked on E; repeating east-pointing arrows; eastbound highway sign shapes; sunrise glowing from the east edge. Warm Dropout orange + Yeezus scarlet accents. Kanye-era fashion vibe without copying anyone's face."
+    },
+    {
+      "id": "a-taylor-drift",
+      "name": "Taylor Drift",
+      "persona": "Synthwave composer with a drift-racer alter ego — platinum-blonde pop glamour meets touge night runs.",
+      "punOf": "Taylor Swift, specifically her 1989 album era (Swift → Drift)",
+      "visualHomage": "2014 Taylor Swift 1989 album era — MUST include several of: thick Polaroid instant-film white border, flock of seagulls in seagull-blue sky, platinum-blonde soft waves, cherry-red lipstick, NYC pop-girl autumn palette, vintage film grain, crop-top and high-waist skirt styling, polaroid-chic daylight glamour. Then merge with touge drift: matte white sports coupe, tire smoke, pink taillights, mountain hairpin.",
+      "photoFile": "a-taylor-drift.jpg",
+      "photoSubject": "1989 album-cover portrait: platinum-blonde woman, cherry-red lips, soft waves, thick white Polaroid frame, seagulls, seagull-blue sky. Glamorous blonde mid-drift in white sports coupe — fierce smile, windblown hair, tire smoke on mountain touge. 2014 pop-album daylight. Reads as 1989 cover meets street racing."
+    },
+    {
+      "id": "a-martin-garage",
+      "name": "Martin Garage",
+      "persona": "Techno producer who insists the genre is spelled g-a-r-a-g-e. Batch 1 tracks incoming — the kick already moved in.",
+      "punOf": "Martin Garrix (Garrix → Garage, EDM mainstage → warehouse techno)",
+      "visualHomage": "Martin Garrix festival-poster lion energy redirected into a Berlin warehouse: rolling garage door, strobe haze, acid green laser, industrial concrete — big-room EDM scale but underground techno setting. No DJ face.",
+      "photoFile": "a-martin-garage.jpg"
+    }
+  ],
+  "albums": [
+    {
+      "id": "alb-lana-delay-midnight",
+      "artistId": "a-lana-delay",
+      "title": "Born to Delay",
+      "concept": "Tape hiss, lantern glow, and infinite feedback — Lana Del Delay's slowest ride home.",
+      "coverFile": "alb-lana-delay-midnight.jpg",
+      "coverSubject": "Echo Lana Del Rey Born to Die cover DNA: faded Americana flag texture, vintage California melancholy, soft film grain, highway twilight — but swap every rose and flower for glowing tape-delay pedals, coiled echo cables, and rack-mount DELAY units. Lantern glow instead of pop glamour. Born to DIE → Born to DELAY pun must read visually."
+    },
+    {
+      "id": "alb-jay-zzz-nap",
+      "artistId": "a-jay-zzz",
+      "title": "The Blueprint Nap",
+      "concept": "Jay-Zzz's study-session classic — one beat, zero alarms, four bars then repeat.",
+      "coverFile": "alb-jay-zzz-nap.jpg",
+      "coverSubject": "Echo Jay-Z The Blueprint cover: cobalt blueprint drafting grid and technical paper texture filling the square, black-and-gold luxury framing — but every line droops into floating Zzz, pillow silhouettes, bedside lamp glow, and drooping eyelids. Hustle replaced by nap. Blueprint → Blueprint NAP pun obvious. No rapper portrait."
+    },
+    {
+      "id": "alb-justin-tiger-suit",
+      "artistId": "a-justin-tiger",
+      "title": "Suit & Stripes",
+      "concept": "Justin Tiger's jazztronica commute — tiger-stripe funk over pop-sized hooks, pocket so deep the turnstile nods along.",
+      "coverFile": "alb-justin-tiger-suit.jpg",
+      "coverSubject": "Echo Justin Bieber Purpose cover: soft lavender-pink gradient haze and minimal teen-pop blur — but bold orange-black TIGER stripes slash through the frame and metro turnstile gold. Chrome-heart motif subtly becomes tiger claw. BIEBER pop idol → TIGER stripes pun foreground. No celebrity face."
+    },
+    {
+      "id": "alb-east-coast",
+      "artistId": "a-kayan-east",
+      "title": "East of the Bass",
+      "concept": "Garage subs and deep-house corridors — Kayan East takes the College Dropout warmth underground, bass pointing east.",
+      "coverFile": "alb-east-coast.jpg",
+      "coverSubject": "Echo Kanye College Dropout cover: warm orange-brown palette, dropout bear mascot posed like the source album — but bear wears a compass badge locked on EAST. UK garage subwoofers and concrete corridor beneath. Eastbound chevrons on floor. WEST → EAST pun dominates. No human face."
+    },
+    {
+      "id": "alb-kayan-neon",
+      "artistId": "a-kayan-east",
+      "title": "Neon District",
+      "concept": "Kayan East's dancefloor gospel — Graduation pastels crashed into peak-hour house, every sign says EAST.",
+      "coverFile": "alb-kayan-neon.jpg",
+      "coverSubject": "Echo Kanye Graduation cover: pastel dorm-sky sunset gradient and collegiate bear-graduate silhouette energy from the source — but sun rises from EAST horizon only, giant compass and east arrows over neon nightclub skyline. Campus replaced by peak-hour rave. WEST → EAST pun dominates. No celebrity face."
+    },
+    {
+      "id": "alb-taylor-drift",
+      "artistId": "a-taylor-drift",
+      "title": "1989 Drift",
+      "concept": "Taylor Drift's instrumental night-run — the 1989 album Polaroid optimism powerslides into touge. Seagull-blue skies, synthwave downshifts, zero verses.",
+      "coverFile": "alb-taylor-drift.jpg",
+      "coverSubject": "Echo Taylor Swift 1989 cover layout: thick white Polaroid instant-film border dominates — inside the window, matte white sports coupe mid-powerslide on touge with tire smoke instead of a portrait. Seagulls and seagull-blue sky beyond the frame. SWIFT pop portrait → DRIFT racing pun. Soft 2014 film grain."
+    },
+    {
+      "id": "alb-martin-garage",
+      "artistId": "a-martin-garage",
+      "title": "Animals Inst.",
+      "concept": "Martin Garage's Animals-era techno manifesto — instrumentals only, four-on-the-floor tenancy, no pets except sub-bass.",
+      "coverFile": "alb-martin-garage.jpg",
+      "coverSubject": "Echo Martin Garrix Animals cover: bold black-orange graffiti central plus-lion icon like the source — but icon becomes a rolling GARAGE door with warehouse strobe haze and Berlin concrete behind it. GARRIX mainstage lion → GARAGE warehouse pun. Acid green laser. No DJ face."
+    }
+  ],
+  "tracks": [
+    {
+      "id": "t01",
+      "albumId": "alb-lana-delay-midnight",
+      "title": "Paper Lanterns",
+      "energy": 1,
+      "tempo": 62,
+      "genre": "ambient",
+      "mood": "calm",
+      "scene": "study",
+      "filePath": "data/tracks/t01.mp3",
+      "introOffsetMs": null,
+      "lore": "Lana Del Delay taped crackling lantern footage from a Kyoto alley and built the pad around that loop — then ran it through delay until the lanterns echoed tomorrow."
+    },
+    {
+      "id": "t02",
+      "albumId": "alb-lana-delay-midnight",
+      "title": "Soft Static",
+      "energy": 1,
+      "tempo": 68,
+      "genre": "lo-fi",
+      "mood": "mellow",
+      "scene": "study",
+      "filePath": "data/tracks/t02.mp3",
+      "introOffsetMs": null,
+      "lore": "Recorded on a dying cassette deck; Lana Del Delay says the hiss is a feature — 'static is just delay that gave up on arriving.'"
+    },
+    {
+      "id": "t03",
+      "albumId": "alb-lana-delay-midnight",
+      "title": "Morning Steam",
+      "energy": 2,
+      "tempo": 74,
+      "genre": "downtempo",
+      "mood": "warm",
+      "scene": "focus",
+      "filePath": "data/tracks/t03.mp3",
+      "introOffsetMs": null,
+      "lore": "Written while waiting for kettle steam to clear the window — the first chord lands three seconds late on purpose."
+    },
+    {
+      "id": "t04",
+      "albumId": "alb-jay-zzz-nap",
+      "title": "Quiet Desk",
+      "energy": 2,
+      "tempo": 80,
+      "genre": "chillhop",
+      "mood": "focused",
+      "scene": "study",
+      "filePath": "data/tracks/t04.mp3",
+      "introOffsetMs": null,
+      "lore": "Jay-Zzz mixed this at whisper volume — liner notes say 'if you remember this track, you weren't the target audience.'"
+    },
+    {
+      "id": "t05",
+      "albumId": "alb-lana-delay-midnight",
+      "title": "Tide Pool",
+      "energy": 2,
+      "tempo": 84,
+      "genre": "ambient",
+      "mood": "calm",
+      "scene": "chill",
+      "filePath": "data/tracks/t05.mp3",
+      "introOffsetMs": null,
+      "lore": "Field recordings from a tide pool at dawn; Lana Del Delay delayed each bubble until the tide came back twice."
+    },
+    {
+      "id": "t06",
+      "albumId": "alb-lana-delay-midnight",
+      "title": "Glass Garden",
+      "energy": 3,
+      "tempo": 92,
+      "genre": "downtempo",
+      "mood": "warm",
+      "scene": "focus",
+      "filePath": "data/tracks/t06.mp3",
+      "introOffsetMs": null,
+      "lore": "Mallet hits sampled from wind chimes on a porch — still the 'uptempo' track on Born to Delay, which tells you everything."
+    },
+    {
+      "id": "t07",
+      "albumId": "alb-justin-tiger-suit",
+      "title": "Neon Commute",
+      "energy": 3,
+      "tempo": 98,
+      "genre": "jazztronica",
+      "mood": "uplifting",
+      "scene": "commute",
+      "filePath": "data/tracks/t07.mp3",
+      "introOffsetMs": null,
+      "lore": "Justin Tiger mapped an automated metro line into a chord progression — each stop syncs, every transfer hits like a chorus you can't unstick."
+    },
+    {
+      "id": "t08",
+      "albumId": "alb-east-coast",
+      "title": "City Pulse",
+      "energy": 3,
+      "tempo": 104,
+      "genre": "deep-house",
+      "mood": "focused",
+      "scene": "focus",
+      "filePath": "data/tracks/t08.mp3",
+      "introOffsetMs": null,
+      "lore": "Built from a kick recorded in a parking garage; Kayan East sampled the College Dropout bear mascot energy into the sub — the reverb tail answers from the eastbound lane."
+    },
+    {
+      "id": "t09",
+      "albumId": "alb-kayan-neon",
+      "title": "Run Lights",
+      "energy": 4,
+      "tempo": 112,
+      "genre": "nu-disco",
+      "mood": "uplifting",
+      "scene": "gym",
+      "filePath": "data/tracks/t09.mp3",
+      "introOffsetMs": null,
+      "lore": "Composed for a friend training for a night marathon — Kayan East calls mile twelve 'a cultural moment' and timed the drop to a Graduation-pastel sunrise over the east river."
+    },
+    {
+      "id": "t10",
+      "albumId": "alb-kayan-neon",
+      "title": "Open Road",
+      "energy": 4,
+      "tempo": 116,
+      "genre": "house",
+      "mood": "energetic",
+      "scene": "gym",
+      "filePath": "data/tracks/t10.mp3",
+      "introOffsetMs": null,
+      "lore": "Kayan East imagined headlights on an empty highway where every sign points EAST — the filter sweep is the first curve past the neon district."
+    },
+    {
+      "id": "t11",
+      "albumId": "alb-taylor-drift",
+      "title": "Skyline Drive",
+      "energy": 4,
+      "tempo": 120,
+      "genre": "synthwave",
+      "mood": "energetic",
+      "scene": "commute",
+      "filePath": "data/tracks/t11.mp3",
+      "introOffsetMs": null,
+      "lore": "Taylor Drift wrote this after her first clean hairpin in the matte white coupe — every arp is a downshift, every filter sweep is tire smoke catching the 1989-blue sky."
+    },
+    {
+      "id": "t12",
+      "albumId": "alb-kayan-neon",
+      "title": "Peak Hour",
+      "energy": 5,
+      "tempo": 124,
+      "genre": "house",
+      "mood": "euphoric",
+      "scene": "party",
+      "filePath": "data/tracks/t12.mp3",
+      "introOffsetMs": null,
+      "lore": "The last track Kayan East finished before sunrise — he called the drop 'interrupting the timeline' in full Yeezus-red confidence and refused to explain further."
+    },
+    {
+      "id": "t13",
+      "albumId": "alb-kayan-neon",
+      "title": "Full Send",
+      "energy": 5,
+      "tempo": 128,
+      "genre": "nu-disco",
+      "mood": "euphoric",
+      "scene": "party",
+      "filePath": "data/tracks/t13.mp3",
+      "introOffsetMs": null,
+      "lore": "A deliberate excess of everything that worked on Neon District — Kayan East calls it the receipt; the dancefloor calls it mandatory eastbound peak hour."
+    },
+    {
+      "id": "t14",
+      "albumId": "alb-taylor-drift",
+      "title": "Afterglow",
+      "energy": 3,
+      "tempo": 100,
+      "genre": "synthwave",
+      "mood": "warm",
+      "scene": "chill",
+      "filePath": "data/tracks/t14.mp3",
+      "introOffsetMs": null,
+      "lore": "The cool-down lap on 1989 Drift — Taylor Drift wrote it for when the mountain straightens, the Polaroid light goes gold, and the blonde behind the wheel finally exhales."
+    },
+    {
+      "id": "t15",
+      "albumId": "alb-east-coast",
+      "title": "Cooldown",
+      "energy": 2,
+      "tempo": 82,
+      "genre": "future-garage",
+      "mood": "mellow",
+      "scene": "chill",
+      "filePath": "data/tracks/t15.mp3",
+      "introOffsetMs": null,
+      "lore": "Inspired by opening a window after cooking — Kayan East kept the shuffle slow, like air finally finding the east-facing room."
+    },
+    {
+      "id": "t16",
+      "albumId": "alb-lana-delay-midnight",
+      "title": "Last Light",
+      "energy": 1,
+      "tempo": 66,
+      "genre": "downtempo",
+      "mood": "calm",
+      "scene": "chill",
+      "filePath": "data/tracks/t16.mp3",
+      "introOffsetMs": null,
+      "lore": "Lana Del Delay's closing sketch — one sustained note held until the bus reaches the depot, still echoing after everyone left."
+    }
+  ]
+}
