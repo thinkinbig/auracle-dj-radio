@@ -27,15 +27,19 @@ Gemini 协议可参考 [thinkinbig/rt_llm_proxy](https://github.com/thinkinbig/r
 git clone https://github.com/thinkinbig/auracle-dj-radio.git
 cd auracle-dj-radio
 
+# 曲库 mp3 走 Git LFS（首次 clone 需已安装 git-lfs）
+git lfs install
+git lfs pull
+
 cp .env.example .env          # GEMINI_API_KEY；本地 pnpm dev 与 Docker 共用
 
 pnpm docker:dev               # qdrant + api（6333 / **3001**，api 容器内 tsx 热更新）
 pnpm install
-pnpm dev:web:docker           # web :5173 → Docker api :3001
+pnpm dev:web                  # web :5173 → Docker api :3001
 
 # 或全本机（与 Docker api 可并行，端口不冲突）：
 pnpm dev                      # api :3000（宿主机 tsx watch，需单独起 qdrant）
-pnpm dev:web                  # web :5173 → localhost:3000
+pnpm dev:web:local            # web :5173 → localhost:3000
 ```
 
 ### Docker 全栈（答辩 / 单机部署）
