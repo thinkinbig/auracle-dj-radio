@@ -1,0 +1,9 @@
+# Auracle local infra — mem0 OSS vector persistence only.
+# mem0 logic runs in-process inside apps/api; this stack is just Qdrant.
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./data/qdrant:/qdrant/storage
