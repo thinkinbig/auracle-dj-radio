@@ -10,6 +10,8 @@ export interface CreateSessionResponse {
   session_subtitle: string;
   tracklist: FlowTrackRef[];
   mem0_context: string;
+  /** False when Condition C starts but Qdrant is down — eval integrity signal. */
+  mem0_available: boolean;
   live_ws_url: string;
 }
 

@@ -12,6 +12,8 @@ const COLLECTION = "auracle_memories";
  */
 export interface MemoryClient {
   readonly enabled: boolean;
+  /** True once the backing store has failed and all ops are silently no-oped. */
+  readonly degraded: boolean;
   /** Recalled facts as a short bullet list, or "" if none / unavailable. */
   recall(query: string): Promise<string>;
   /** Extract and persist a preference fact for future sessions. */
@@ -20,6 +22,7 @@ export interface MemoryClient {
 
 class NoopMemory implements MemoryClient {
   readonly enabled = false;
+  readonly degraded = false;
   async recall(): Promise<string> {
     return "";
   }
@@ -30,6 +33,10 @@ class Mem0Memory implements MemoryClient {
   readonly enabled = true;
   private memory: Memory | undefined;
   private broken = false;
+
+  get degraded(): boolean {
+    return this.broken;
+  }
 
   private async client(): Promise<Memory> {
     if (!this.memory) {

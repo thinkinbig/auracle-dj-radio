@@ -9,7 +9,7 @@ import type {
 import type { ApiContext } from "../context.js";
 import { createPlan } from "../flow/plan.js";
 import { applyReplan } from "../session/replan-service.js";
-import { attachLiveRelay } from "../live/relay.js";
+import { attachLiveRelay, type RelayDeps } from "../live/relay.js";
 
 export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
   app.post("/sessions", async (req, reply) => {
@@ -44,12 +44,17 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
       tracklist: result.tracklist,
     });
 
+    if (condition === "C" && ctx.memory.degraded) {
+      app.log.warn("[mem0] Condition C session started with degraded memory — eval integrity affected");
+    }
+
     const res: CreateSessionResponse = {
       session_id: state.id,
       session_title: state.title,
       session_subtitle: state.subtitle,
       tracklist: state.tracklist,
       mem0_context: state.mem0Context,
+      mem0_available: ctx.memory.enabled && !ctx.memory.degraded,
       live_ws_url: `/sessions/${state.id}/live`,
     };
     return res;
@@ -63,7 +68,13 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
       socket.close();
       return;
     }
-    void attachLiveRelay(socket, state, ctx);
+    const relayDeps: RelayDeps = {
+      recordEvent: (sid, type, payload) => ctx.db.recordEvent(sid, type, payload),
+      getTrack: (id) => ctx.db.getTrack(id),
+      memory: ctx.memory,
+      replan: (s, params) => applyReplan(ctx, s, params),
+    };
+    void attachLiveRelay(socket, state, relayDeps);
   });
 
   app.get("/sessions/:id", async (req, reply) => {

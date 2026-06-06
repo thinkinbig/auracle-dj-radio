@@ -9,10 +9,17 @@ import {
 import type { WebSocket } from "@fastify/websocket";
 import type { ClientMessage, Intent, ServerMessage } from "@auracle/shared";
 import { config } from "../config.js";
-import type { ApiContext } from "../context.js";
+import type { MemoryClient } from "../memory/client.js";
 import type { SessionState } from "../session/store.js";
-import { applyReplan } from "../session/replan-service.js";
+import type { ReplanParams, ReplanOutcome } from "../session/replan-service.js";
 import { buildCueText, buildSystemInstruction, DJ_TOOLS, type CueInput, type CueTrack } from "./dj-prompt.js";
+
+export interface RelayDeps {
+  recordEvent(sessionId: string, eventType: string, payload: Record<string, unknown>): void;
+  getTrack(id: string): { title: string; energy: number; tempo: number; genre: string } | undefined;
+  memory: MemoryClient;
+  replan(state: SessionState, params: ReplanParams): Promise<ReplanOutcome>;
+}
 
 const INPUT_MIME = "audio/pcm;rate=16000"; // browser mic, s16le mono 16kHz
 
@@ -21,7 +28,7 @@ const INPUT_MIME = "audio/pcm;rate=16000"; // browser mic, s16le mono 16kHz
  * the connection. Audio is relayed as raw binary both ways; transcripts, phase,
  * tool effects and errors are JSON frames (doc/auracle_api_protocol.md §Live).
  */
-export async function attachLiveRelay(socket: WebSocket, state: SessionState, ctx: ApiContext): Promise<void> {
+export async function attachLiveRelay(socket: WebSocket, state: SessionState, deps: RelayDeps): Promise<void> {
   const send = (msg: ServerMessage): void => {
     if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(msg));
   };
@@ -78,33 +85,33 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, ct
     switch (call.name) {
       case "skip_track": {
         const intent: Intent = { type: "skip_track" };
-        ctx.db.recordEvent(state.id, "skip_track", {});
+        deps.recordEvent(state.id, "skip_track", {});
         send({ type: "intent", intent });
         return { ok: true };
       }
       case "pause_playback": {
         const action = args.action === "resume" ? "resume" : "pause";
         const intent: Intent = { type: "pause_playback", action };
-        ctx.db.recordEvent(state.id, "pause_playback", { action });
+        deps.recordEvent(state.id, "pause_playback", { action });
         send({ type: "intent", intent });
         return { ok: true, action };
       }
       case "record_preference": {
         const fact = String(args.fact ?? "");
-        ctx.db.recordEvent(state.id, "record_preference", { fact });
+        deps.recordEvent(state.id, "record_preference", { fact });
         send({ type: "intent", intent: { type: "record_preference", fact } });
         // Only Condition C persists to mem0 (A/B keep the tool but no-op the write).
-        if (state.condition === "C") await ctx.memory.remember(fact, state.id);
+        if (state.condition === "C") await deps.memory.remember(fact, state.id);
         return { ok: true };
       }
       case "mood_change": {
         const mood = String(args.mood ?? state.intent.mood);
         const energy_delta = (args.energy_delta as "lighter" | "heavier" | "same") ?? "same";
         send({ type: "intent", intent: { type: "mood_change", mood, energy_delta } });
-        const outcome = await applyReplan(ctx, state, { mood, energy_delta });
+        const outcome = await deps.replan(state, { mood, energy_delta });
         send({ type: "tracklist_updated", remaining: outcome.remaining });
         const next = outcome.remaining[0];
-        const nextTrack = next ? ctx.db.getTrack(next.id) : undefined;
+        const nextTrack = next ? deps.getTrack(next.id) : undefined;
         return {
           ok: outcome.replanned,
           session_title: state.title,
@@ -186,7 +193,7 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, ct
 
   function toCueTrack(id: string | undefined): CueTrack | undefined {
     if (!id) return undefined;
-    const t = ctx.db.getTrack(id);
+    const t = deps.getTrack(id);
     if (!t) return undefined;
     return { title: t.title, energy: t.energy, tempo: t.tempo, genre: t.genre };
   }

@@ -18,7 +18,7 @@ async function buildCtx(): Promise<ApiContext> {
     db.upsertTrack({ ...t, embedding: await embedder.embedTrack(t) });
   }
   const planDeps: PlanDeps = { embedder, flowModel: new HeuristicFlowModel(), tracks: () => db.allTracks() };
-  const memory = { enabled: false, recall: async () => "", remember: async () => {} };
+  const memory = { enabled: false, degraded: false, recall: async () => "", remember: async () => {} };
   return { db, store: new SessionStore(), planDeps, memory };
 }
 
