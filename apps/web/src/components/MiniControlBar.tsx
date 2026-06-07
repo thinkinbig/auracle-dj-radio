@@ -11,12 +11,13 @@ import {
   isPaused,
   playbackProgressPct,
 } from '../lib/playbackSelectors';
-import { IconPause, IconPlay, IconSkipNext, IconSkipVoice } from './Icons';
+import { IconMic, IconPause, IconPlay, IconSkipNext, IconSkipVoice } from './Icons';
 import styles from './MiniControlBar.module.css';
 
 export function MiniControlBar() {
   const state = useRadioState();
-  const { handleStart, handleTogglePause, handleSkipTrack, handleSkipDj } = useRadioActions();
+  const { handleStart, handleTogglePause, handleSkipTrack, handleSkipDj, handleContinue } =
+    useRadioActions();
   const waveRef = useRef<HTMLDivElement>(null);
   const barCount = useBarCount(waveRef, 5, 32, 160);
   const paused = isPaused(state.phase);
@@ -55,15 +56,27 @@ export function MiniControlBar() {
         </button>
       )}
 
-      <button
-        type="button"
-        className={styles.btn}
-        onClick={handleSkipTrack}
-        disabled={skipDisabled}
-        aria-label="Next track"
-      >
-        <IconSkipNext size={16} />
-      </button>
+      {state.inBreak ? (
+        <button
+          type="button"
+          className={styles.continueBtn}
+          onClick={handleContinue}
+          aria-label="Continue to next track"
+        >
+          {state.phase === 'listening' ? <IconMic size={14} /> : null}
+          Continue
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={handleSkipTrack}
+          disabled={skipDisabled}
+          aria-label="Next track"
+        >
+          <IconSkipNext size={16} />
+        </button>
+      )}
 
       <button
         type="button"

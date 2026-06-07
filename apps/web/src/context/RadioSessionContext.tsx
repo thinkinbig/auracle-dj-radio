@@ -8,6 +8,7 @@ export interface RadioActions {
   handleTogglePause: () => void;
   handleSkipTrack: () => void;
   handleSkipDj: () => void;
+  handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
 }
 
@@ -29,6 +30,7 @@ export function RadioSessionProvider({ children }: { children: ReactNode }) {
       handleTogglePause: session.handleTogglePause,
       handleSkipTrack: session.handleSkipTrack,
       handleSkipDj: session.handleSkipDj,
+      handleContinue: session.handleContinue,
       handleChangeHostMode: session.handleChangeHostMode,
     },
   };

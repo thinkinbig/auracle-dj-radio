@@ -17,7 +17,7 @@ export type Intent =
 
 /** Client → server WS messages (JSON frames; audio is sent as raw binary). */
 export type ClientMessage =
-  | { type: "cue_dj"; track_index: number }
+  | { type: "cue_dj"; track_index: number; kind?: "break" | "outro" }
   | { type: "skip_dj" }
   | { type: "ping" };
 

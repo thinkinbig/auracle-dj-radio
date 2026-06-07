@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import {
   musicVolume,
   shouldPlayMusic,
+  TALK_WINDOW,
 } from '../../lib/playbackCoordinator';
 import { postSessionEvent } from '../../lib/sessionApi';
 import type { PlaybackState } from '../../types';
@@ -21,6 +22,9 @@ interface TrackPlaybackInput {
 export function useTrackPlayback({ refs, state, opening }: TrackPlaybackInput): void {
   const { openingReleased, armForTrack } = opening;
   const prevPhaseRef = useRef(state.phase);
+  // Track index we've already fired an end-of-track cue for, so the final-seconds
+  // trigger runs once per track (ADR-0004).
+  const cuedTrackRef = useRef(-1);
 
   const applyPlaybackPolicy = useCallback(() => {
     const bus = refs.audioBusRef.current;
@@ -38,13 +42,40 @@ export function useTrackPlayback({ refs, state, opening }: TrackPlaybackInput): 
     else if (shouldPlayMusic(policy)) void audio.play().catch(() => {});
   }, [refs, openingReleased]);
 
+  // Final-seconds talk break: the DJ wraps over the track tail, then a listening
+  // window opens (ADR-0004). The window — not `ended` — drives the advance.
+  const maybeTriggerBreak = useCallback(
+    (audio: HTMLAudioElement) => {
+      const s = refs.stateRef.current;
+      if (s.inBreak || s.phase !== 'playing') return;
+      if (cuedTrackRef.current === s.currentTrackIndex) return;
+      const dur = audio.duration;
+      if (!Number.isFinite(dur) || dur <= 0) return;
+      if (audio.currentTime < dur - TALK_WINDOW.leadSec) return;
+
+      cuedTrackRef.current = s.currentTrackIndex;
+      const hasNext = s.remainingTrackIds.length > 0;
+      // Only a track with a successor opens a window; the final track just plays
+      // out under the outro.
+      if (hasNext) refs.dispatchRef.current({ type: 'enter_break' });
+      refs.liveRef.current?.send({
+        type: 'cue_dj',
+        track_index: s.currentTrackIndex,
+        kind: hasNext ? 'break' : 'outro',
+      });
+    },
+    [refs],
+  );
+
   useEffect(() => {
     const audio = refs.audioRef.current ?? (refs.audioRef.current = new Audio());
-    const onTime = () =>
+    const onTime = () => {
       refs.dispatchRef.current({
         type: 'progress',
         progressSec: Math.floor(audio.currentTime),
       });
+      maybeTriggerBreak(audio);
+    };
     const onMeta = () =>
       refs.dispatchRef.current({
         type: 'duration',
@@ -55,6 +86,12 @@ export function useTrackPlayback({ refs, state, opening }: TrackPlaybackInput): 
         refs.skipGuardRef.current = false;
         return;
       }
+      // In a break where the DJ actually engaged (phase moved off 'playing'),
+      // the listening window owns the advance. If the DJ never started by the
+      // time the track ends (Live down / demo fallback), advance normally rather
+      // than stalling until the hard cap.
+      const s = refs.stateRef.current;
+      if (s.inBreak && s.phase !== 'playing') return;
       refs.dispatchRef.current({ type: 'advance' });
     };
     audio.addEventListener('timeupdate', onTime);
@@ -66,7 +103,7 @@ export function useTrackPlayback({ refs, state, opening }: TrackPlaybackInput): 
       audio.removeEventListener('ended', onEnded);
       audio.pause();
     };
-  }, [refs]);
+  }, [refs, maybeTriggerBreak]);
 
   useEffect(() => {
     if (!state.sessionId) return;
@@ -75,7 +112,8 @@ export function useTrackPlayback({ refs, state, opening }: TrackPlaybackInput): 
     armForTrack(state.currentTrackIndex);
 
     postSessionEvent(state.sessionId, 'track_started', { track_id: state.trackId });
-    refs.liveRef.current?.send({ type: 'cue_dj', track_index: state.currentTrackIndex });
+    // No start-of-track cue: the DJ now speaks at the END of each track (ADR-0004).
+    // Track 0's opening greeting is auto-cued by the relay on connect.
 
     const audio = refs.audioRef.current;
     if (audio) {

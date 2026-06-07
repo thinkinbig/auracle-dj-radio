@@ -9,6 +9,20 @@ export const MUSIC_VOLUME = {
   full: 1,
 } as const;
 
+/** End-of-track talk break tuning (ADR-0004). Numbers are tunable during testing. */
+export const TALK_WINDOW = {
+  /** DJ starts the break this many seconds before the track ends (talk-over). */
+  leadSec: 10,
+  /** Silence timeout for the first listening window. */
+  openMs: 5_000,
+  /** Silence timeout for follow-up windows after a DJ reply. */
+  followMs: 3_000,
+  /** Hard cap on total break duration — force-advance past this. */
+  hardCapMs: 30_000,
+  /** Force-advance after this many user turns in one break. */
+  maxUserTurns: 3,
+} as const;
+
 export interface PlaybackPolicyInput {
   phase: UiPhase;
   currentTrackIndex: number;

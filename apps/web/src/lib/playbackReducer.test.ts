@@ -48,4 +48,42 @@ describe('playbackReducer', () => {
     const next = playbackReducer(base, { type: 'set_host_mode', hostMode: 'hype' });
     expect(next.hostMode).toBe('hype');
   });
+
+  it('opens the listening window when a DJ turn ends during a break (ADR-0004)', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const inBreak = playbackReducer(base, { type: 'enter_break' });
+    expect(inBreak.inBreak).toBe(true);
+    const speaking = playbackReducer(inBreak, { type: 'server_phase', phase: 'dj_turn_start' });
+    expect(speaking.phase).toBe('speaking');
+    const listening = playbackReducer(speaking, { type: 'server_phase', phase: 'dj_turn_end' });
+    expect(listening.phase).toBe('listening');
+  });
+
+  it('clears the break on advance', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const inBreak = playbackReducer(base, { type: 'enter_break' });
+    const advanced = playbackReducer(inBreak, { type: 'advance' });
+    expect(advanced.inBreak).toBe(false);
+    expect(advanced.currentTrackIndex).toBe(1);
+  });
+
+  it('counts a fresh user utterance once, not per streamed chunk', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const first = playbackReducer(base, { type: 'transcript', role: 'user', text: 'make it' });
+    const streamed = playbackReducer(first, { type: 'transcript', role: 'user', text: 'make it calmer' });
+    expect(streamed.userUtteranceCount).toBe(1);
+    // A model reply then a new user line counts as a second utterance.
+    const reply = playbackReducer(streamed, { type: 'transcript', role: 'model', text: 'Sure' });
+    const second = playbackReducer(reply, { type: 'transcript', role: 'user', text: 'actually skip' });
+    expect(second.userUtteranceCount).toBe(2);
+  });
 });

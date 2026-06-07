@@ -13,6 +13,7 @@ export type PlaybackAction =
   | { type: 'toggle_pause' }
   | { type: 'set_playback'; paused: boolean }
   | { type: 'advance' }
+  | { type: 'enter_break' }
   | { type: 'transcript'; role: 'user' | 'model'; text: string }
   | { type: 'server_phase'; phase: Phase }
   | { type: 'tracklist_updated'; remainingIds: string[] }
@@ -43,6 +44,8 @@ export function createInitialPlaybackState(): PlaybackState {
     remainingTrackIds: DEMO_SESSION.tracklist.slice(1).map((t) => t.id),
     currentTrackIndex: 0,
     liveWsUrl: null,
+    inBreak: false,
+    userUtteranceCount: 0,
   };
 }
 
@@ -66,11 +69,12 @@ export function updateTranscript(
 function advanceTrack(state: PlaybackState): PlaybackState {
   const nextId = state.remainingTrackIds[0];
   if (!nextId) {
-    return { ...state, phase: 'idle', progressSec: state.durationSec };
+    return { ...state, phase: 'idle', progressSec: state.durationSec, inBreak: false };
   }
   const meta = getTrackMeta(nextId);
   return {
     ...state,
+    inBreak: false,
     phase: 'playing',
     trackId: nextId,
     trackTitle: meta.title,
@@ -121,6 +125,8 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         remainingTrackIds: action.session.tracklist.slice(1).map((t) => t.id),
         currentTrackIndex: 0,
         liveWsUrl: action.session.live_ws_url,
+        inBreak: false,
+        userUtteranceCount: 0,
       };
     }
     case 'transcript': {
@@ -132,16 +138,29 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         action.text,
         state.sessionElapsedSec,
       );
-      return { ...state, transcript: lines, activeTranscriptId: activeId };
+      // A new user line (activeId changed) is one fresh utterance — drives the
+      // talk-window silence/turn cap (ADR-0004).
+      const newUserUtterance = action.role === 'user' && activeId !== state.activeTranscriptId;
+      return {
+        ...state,
+        transcript: lines,
+        activeTranscriptId: activeId,
+        userUtteranceCount: state.userUtteranceCount + (newUserUtterance ? 1 : 0),
+      };
     }
+    case 'enter_break':
+      return state.inBreak ? state : { ...state, inBreak: true };
     case 'server_phase': {
       if (state.phase === 'paused') return state;
       const next = mapServerPhase(action.phase);
       if (!next) return state;
+      // During a break, a DJ turn ending opens the listening window instead of
+      // resuming playback (ADR-0004).
+      const phase = action.phase === 'dj_turn_end' && state.inBreak ? 'listening' : next;
       const finalize = action.phase === 'dj_turn_end' || action.phase === 'user_barge_in';
       return {
         ...state,
-        phase: next,
+        phase,
         activeTranscriptId: finalize ? null : state.activeTranscriptId,
       };
     }

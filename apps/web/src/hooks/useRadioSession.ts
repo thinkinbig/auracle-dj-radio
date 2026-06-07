@@ -11,6 +11,7 @@ import { useOpeningGate } from './radio/useOpeningGate';
 import { useRadioHandlers } from './radio/useRadioHandlers';
 import { useSessionClock } from './radio/useSessionClock';
 import { useSessionRefs } from './radio/useSessionRefs';
+import { useTalkWindow } from './radio/useTalkWindow';
 import { useTrackPlayback } from './radio/useTrackPlayback';
 
 export interface RadioSession {
@@ -20,6 +21,7 @@ export interface RadioSession {
   handleTogglePause: () => void;
   handleSkipTrack: () => void;
   handleSkipDj: () => void;
+  handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
 }
 
@@ -50,6 +52,7 @@ export function useRadioSession(): RadioSession {
   });
 
   useMicStream(refs, state.sessionId);
+  useTalkWindow(refs, state.phase, state.inBreak, state.userUtteranceCount);
   useSessionClock(state.phase, dispatch);
 
   const handlers = useRadioHandlers({ refs, dispatch, opening, setAnalyser });

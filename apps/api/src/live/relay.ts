@@ -12,7 +12,7 @@ import { createGeminiClient } from "../gemini/client.js";
 import { allowGeminiDial, recordGeminiDial, recordGeminiStreamFault } from "../gemini/guard.js";
 import type { SessionState } from "../session/store.js";
 import type { ReplanParams, ReplanOutcome } from "../session/replan-service.js";
-import { buildCueText, buildSystemInstruction, DJ_TOOLS, type CueInput, type CueTrack } from "./dj-prompt.js";
+import { buildCueText, buildSystemInstruction, DJ_TOOLS, type CueInput, type CueKind, type CueTrack } from "./dj-prompt.js";
 import { LiveToolRunner, type LiveToolRunnerDeps } from "./tool-runner.js";
 import { type TranscriptionChunk, TranscriptAccumulator } from "./transcript.js";
 
@@ -66,9 +66,10 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
   const preConnect: Array<{ raw: Buffer; isBinary: boolean }> = [];
   const transcripts = new TranscriptAccumulator();
 
-  function buildCueFor(trackIndex: number): string {
+  function buildCueFor(trackIndex: number, kindOverride?: CueKind): string {
     const total = state.tracklist.length;
-    const kind: CueInput["kind"] = trackIndex <= 0 ? "opening" : trackIndex >= total - 1 ? "outro" : "segue";
+    const kind: CueInput["kind"] =
+      kindOverride ?? (trackIndex <= 0 ? "opening" : trackIndex >= total - 1 ? "outro" : "segue");
     const now = toCueTrack(state.tracklist[trackIndex]?.id);
     const next = toCueTrack(state.tracklist[trackIndex + 1]?.id);
     return buildCueText({ kind, hostMode: state.hostMode, sessionTitle: state.title, now, next });
@@ -89,10 +90,10 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
     };
   }
 
-  function sendCue(trackIndex: number): void {
+  function sendCue(trackIndex: number, kind?: CueKind): void {
     clientCued = true;
     djSkipped = false; // a fresh cue starts a turn we want the listener to hear
-    live?.sendRealtimeInput({ text: buildCueFor(trackIndex) });
+    live?.sendRealtimeInput({ text: buildCueFor(trackIndex, kind) });
   }
 
   /**
@@ -184,7 +185,7 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
       return;
     }
     if (parsed.type === "cue_dj") {
-      sendCue(parsed.track_index);
+      sendCue(parsed.track_index, parsed.kind);
     } else if (parsed.type === "skip_dj") {
       skipDj();
     }

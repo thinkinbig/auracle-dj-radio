@@ -10,14 +10,14 @@ import {
   isPaused,
   playbackProgressPct,
 } from '../lib/playbackSelectors';
-import { IconPause, IconPlay, IconSkipNext } from './Icons';
+import { IconMic, IconPause, IconPlay, IconSkipNext } from './Icons';
 import { TranscriptPanel } from './TranscriptPanel';
 import { cn } from '../lib/cn';
 import styles from './ContentSheet.module.css';
 
 export function ContentSheet() {
   const state = useRadioState();
-  const { handleStart, handleTogglePause, handleSkipTrack } = useRadioActions();
+  const { handleStart, handleTogglePause, handleSkipTrack, handleContinue } = useRadioActions();
   const { isWide } = useLayoutMode();
   const paused = isPaused(state.phase);
   const idle = isIdle(state.phase);
@@ -91,15 +91,27 @@ export function ContentSheet() {
           {idle || paused ? <IconPlay size={18} /> : <IconPause size={18} />}
         </button>
 
-        <button
-          type="button"
-          className={styles.skipBtn}
-          onClick={handleSkipTrack}
-          disabled={skipDisabled}
-          aria-label="Next track"
-        >
-          <IconSkipNext size={18} />
-        </button>
+        {state.inBreak ? (
+          <button
+            type="button"
+            className={styles.continueBtn}
+            onClick={handleContinue}
+            aria-label="Continue to next track"
+          >
+            {state.phase === 'listening' ? <IconMic size={15} /> : null}
+            Continue
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={styles.skipBtn}
+            onClick={handleSkipTrack}
+            disabled={skipDisabled}
+            aria-label="Next track"
+          >
+            <IconSkipNext size={18} />
+          </button>
+        )}
 
         <div className={styles.progress}>
           <div className={styles.progressTrack}>

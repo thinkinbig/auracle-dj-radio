@@ -81,6 +81,26 @@
   cursor: not-allowed;
 }
 
+.continueBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.continueBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
 :global([data-layout='stack']) .timeEnd {
   display: block;
 }

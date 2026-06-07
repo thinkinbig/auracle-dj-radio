@@ -13,6 +13,7 @@ export interface RadioHandlers {
   handleTogglePause: () => void;
   handleSkipTrack: () => void;
   handleSkipDj: () => void;
+  handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
 }
 
@@ -47,8 +48,21 @@ export function useRadioHandlers({
   }, [refs, dispatch, setAnalyser]);
 
   const handleTogglePause = useCallback(() => {
+    // Pausing during a talk break closes the window (mic off via the listening
+    // gate) and advances, landing paused on the next track (ADR-0004).
+    if (refs.stateRef.current.inBreak) {
+      refs.dispatchRef.current({ type: 'advance' });
+      refs.dispatchRef.current({ type: 'set_playback', paused: true });
+      return;
+    }
     dispatch({ type: 'toggle_pause' });
-  }, [dispatch]);
+  }, [refs, dispatch]);
+
+  // "Continue ▶": end the talk break now and move to the next track.
+  const handleContinue = useCallback(() => {
+    if (!refs.stateRef.current.inBreak) return;
+    refs.dispatchRef.current({ type: 'advance' });
+  }, [refs]);
 
   const handleSkipTrack = useCallback(() => {
     const s = refs.stateRef.current;
@@ -86,6 +100,7 @@ export function useRadioHandlers({
     handleTogglePause,
     handleSkipTrack,
     handleSkipDj,
+    handleContinue,
     handleChangeHostMode,
   };
 }

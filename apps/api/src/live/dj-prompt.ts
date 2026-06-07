@@ -117,7 +117,7 @@ ${context}
 Listener intent: mood=${input.mood}, scene=${input.scene}.`;
 }
 
-export type CueKind = "opening" | "segue" | "outro";
+export type CueKind = "opening" | "segue" | "outro" | "break";
 
 export interface CueTrack {
   title: string;
@@ -185,9 +185,23 @@ export function buildCueText(input: CueInput): string {
     return lines.join(" ");
   }
 
+  if (kind === "break") {
+    // End-of-track talk break (ADR-0004): the just-played track is `now`, the
+    // upcoming one is `next`. Invite a change, then stop — a listening window
+    // opens for the user's reply.
+    lines.push(`[break, ${hostMode}, 4-7s]`);
+    lines.push("The current track is ending. Wrap it, tease what's next, and invite the listener to keep this energy or change it up.");
+    if (input.now) lines.push(`Just played: "${input.now.title}" by ${input.now.artist}.`);
+    if (input.next) {
+      lines.push(`Next: "${input.next.title}" by ${input.next.artist} — vibe: ${vibeHint(input.next)}. Do not read stats.`);
+    }
+    lines.push("End by asking if they want a change, then stop and wait — do not keep talking.");
+    return lines.join(" ");
+  }
+
   if (kind === "outro") {
     lines.push(`[outro, ${hostMode}, closing]`);
-    lines.push("Talk over the intro — music is already playing.");
+    lines.push("The set is ending as this last track plays out.");
     lines.push(`Last track of "${input.sessionTitle}".`);
     if (input.now) lines.push(trackLine(input.now));
     return lines.join(" ");

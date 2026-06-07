@@ -248,6 +248,30 @@
   cursor: not-allowed;
 }
 
+.continueBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.continueBtn:hover {
+  transform: scale(1.03);
+}
+
+.continueBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
 .progress {
   flex: 1;
   min-width: 0;

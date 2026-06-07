@@ -170,6 +170,10 @@ function rowToTrack(row: RawTrackRow): TrackRow {
     scene: row.scene,
     filePath: row.file_path,
     introOffsetMs: row.intro_offset_ms,
+    // The DB layer doesn't persist `instrumental` (catalog/manifest is the source
+    // of truth for generation); runtime never branches on it, so default to the
+    // documented `true`.
+    instrumental: true,
     embedding: row.embedding_json ? (JSON.parse(row.embedding_json) as number[]) : null,
   };
 }
