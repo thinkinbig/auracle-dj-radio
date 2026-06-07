@@ -97,6 +97,21 @@
   letter-spacing: 0.01em;
 }
 
+.skeletonTitle {
+  max-width: 100%;
+}
+
+.skeletonMeta {
+  margin-top: var(--space-xs);
+  max-width: 100%;
+}
+
+.skeletonCredit {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .title {
   font-size: clamp(22px, 4vw, 28px);
   font-weight: 700;
@@ -270,6 +285,39 @@
 .continueBtn:focus-visible {
   outline: none;
   box-shadow: var(--ring);
+}
+
+.talkBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background var(--duration-fast), color var(--duration-fast), transform var(--duration-fast) var(--ease-out);
+}
+
+.talkBtn:hover {
+  background: var(--transcript-bg);
+  color: var(--text-primary);
+}
+
+.talkBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.talkBtnActive {
+  background: var(--accent-live);
+  color: #fff;
+  transform: scale(1.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .talkBtnActive {
+    transform: none;
+  }
 }
 
 .progress {

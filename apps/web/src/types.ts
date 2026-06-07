@@ -34,6 +34,8 @@ export interface PlaybackState {
   liveWsUrl: string | null;
   /** True during an end-of-track talk break (DJ wrap + listening window) — ADR-0004. */
   inBreak: boolean;
+  /** True while the user is holding the Talk button (push-to-talk). */
+  isTalking: boolean;
   /** Count of distinct user utterances; drives the talk-window silence/turn cap. */
   userUtteranceCount: number;
 }

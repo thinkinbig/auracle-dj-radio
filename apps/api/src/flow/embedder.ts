@@ -3,10 +3,10 @@ import { buildRichEmbedText } from "../catalog/manifest.js";
 
 const EMBED_DIM = 768;
 
-/** Fields used for catalog embedding (Phase 1 rich text). */
+/** Fields used for catalog embedding (audio clip + metadata fallback). */
 export type EmbedTrackInput = Pick<
   Track,
-  "artist" | "albumTitle" | "mood" | "scene" | "energy" | "genre" | "lore"
+  "filePath" | "artist" | "albumTitle" | "mood" | "scene" | "energy" | "genre" | "lore"
 > &
   Partial<Pick<TrackCandidate, "mood" | "scene" | "energy" | "genre">>;
 
@@ -19,8 +19,14 @@ export interface Embedder {
   embedQuery(mood: string, scene: string): Promise<number[]>;
 }
 
+/** Retrieval query text — mood/scene are listener feel + doing (SessionIntent). */
+export function formatEmbedQuery(mood: string, scene: string): string {
+  return `task: search result | query: feel: ${mood} | doing: ${scene}`;
+}
+
 function queryText(mood: string, scene: string): string {
-  return `mood: ${mood} | scene: ${scene}`;
+  // Hash embedder: keep mood/scene tokens so offline vectors overlap track metadata.
+  return `${formatEmbedQuery(mood, scene)} | mood: ${mood} | scene: ${scene}`;
 }
 
 function trackText(t: EmbedTrackInput): string {

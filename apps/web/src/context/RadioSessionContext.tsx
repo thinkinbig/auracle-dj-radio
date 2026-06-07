@@ -1,15 +1,17 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import type { HostMode } from '@auracle/shared';
+import type { HostMode, SessionIntent } from '@auracle/shared';
 import { useRadioSession } from '../hooks/useRadioSession';
 import type { PlaybackState } from '../types';
 
 export interface RadioActions {
-  handleStart: () => Promise<void>;
+  handleStart: (intent: SessionIntent) => Promise<void>;
   handleTogglePause: () => void;
   handleSkipTrack: () => void;
   handleSkipDj: () => void;
   handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
+  handleTalkStart: () => void;
+  handleTalkEnd: () => void;
 }
 
 interface RadioSessionContextValue {
@@ -32,6 +34,8 @@ export function RadioSessionProvider({ children }: { children: ReactNode }) {
       handleSkipDj: session.handleSkipDj,
       handleContinue: session.handleContinue,
       handleChangeHostMode: session.handleChangeHostMode,
+      handleTalkStart: session.handleTalkStart,
+      handleTalkEnd: session.handleTalkEnd,
     },
   };
   return <RadioSessionContext.Provider value={value}>{children}</RadioSessionContext.Provider>;

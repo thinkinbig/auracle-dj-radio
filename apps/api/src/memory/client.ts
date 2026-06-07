@@ -44,7 +44,7 @@ class Mem0Memory implements MemoryClient {
     if (!this.memory) {
       const { Memory } = await import("mem0ai/oss");
       this.memory = new Memory({
-        embedder: { provider: "google", config: { apiKey: config.geminiApiKey!, model: config.embedModel } },
+        embedder: { provider: "google", config: { apiKey: config.geminiApiKey!, model: config.mem0EmbedModel } },
         llm: { provider: "google", config: { apiKey: config.geminiApiKey!, model: config.flowModel } },
         vectorStore: { provider: "qdrant", config: { url: config.qdrantUrl, collectionName: COLLECTION, dimension: 3072 } },
         historyDbPath: config.mem0HistoryDb,

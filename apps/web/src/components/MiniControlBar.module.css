@@ -81,6 +81,11 @@
   cursor: not-allowed;
 }
 
+.btnTalkActive {
+  background: var(--accent-live);
+  color: #fff;
+}
+
 .continueBtn {
   display: inline-flex;
   align-items: center;

@@ -42,6 +42,8 @@ pnpm dev                      # api :3000（宿主机 tsx watch，需单独起 q
 pnpm dev:web:local            # web :5173 → localhost:3000
 ```
 
+**音频 embedding 建库**（`AURACLE_EMBEDDER=gemini pnpm --filter @auracle/api seed`）在 Node 里按 MP3 帧截取前 180s，**无需 ffmpeg**。运行时检索只用文本 query。
+
 ### Docker 全栈（答辩 / 单机部署）
 
 ```bash

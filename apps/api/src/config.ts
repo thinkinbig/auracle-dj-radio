@@ -21,7 +21,10 @@ export interface Config {
   geminiApiKey: string | undefined;
   flowModel: string;
   liveModel: string;
+  /** Catalog retrieval (gemini-embedding-2 audio-native). */
   embedModel: string;
+  /** mem0 preference vectors — separate index from catalog (ADR-0002). */
+  mem0EmbedModel: string;
   /** "hash" (deterministic, offline) or "gemini" (real embeddings). */
   embedder: "hash" | "gemini";
   qdrantUrl: string;
@@ -40,7 +43,8 @@ export const config: Config = {
   geminiApiKey: process.env.GEMINI_API_KEY || undefined,
   flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
   liveModel: process.env.GEMINI_LIVE_MODEL ?? "gemini-3.1-flash-live-preview",
-  embedModel: process.env.GEMINI_EMBED_MODEL ?? "gemini-embedding-001",
+  embedModel: process.env.GEMINI_EMBED_MODEL ?? "gemini-embedding-2",
+  mem0EmbedModel: process.env.GEMINI_MEM0_EMBED_MODEL ?? "gemini-embedding-001",
   embedder: process.env.AURACLE_EMBEDDER === "gemini" ? "gemini" : "hash",
   qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6333",
   mem0HistoryDb: process.env.AURACLE_MEM0_HISTORY_DB ?? resolve(here, "../../../data/mem0/history.db"),

@@ -14,9 +14,11 @@ export type PlaybackAction =
   | { type: 'set_playback'; paused: boolean }
   | { type: 'advance' }
   | { type: 'enter_break' }
+  | { type: 'start_talk' }
+  | { type: 'stop_talk' }
   | { type: 'transcript'; role: 'user' | 'model'; text: string }
-  | { type: 'server_phase'; phase: Phase }
-  | { type: 'tracklist_updated'; remainingIds: string[] }
+  | { type: 'server_phase'; phase: Phase; trackIndex?: number }
+  | { type: 'tracklist_updated'; remainingIds: string[]; sessionTitle?: string; sessionSubtitle?: string }
   | { type: 'set_host_mode'; hostMode: CreateSessionResponse['host_mode'] };
 
 export function createInitialPlaybackState(): PlaybackState {
@@ -45,6 +47,7 @@ export function createInitialPlaybackState(): PlaybackState {
     currentTrackIndex: 0,
     liveWsUrl: null,
     inBreak: false,
+    isTalking: false,
     userUtteranceCount: 0,
   };
 }
@@ -69,12 +72,13 @@ export function updateTranscript(
 function advanceTrack(state: PlaybackState): PlaybackState {
   const nextId = state.remainingTrackIds[0];
   if (!nextId) {
-    return { ...state, phase: 'idle', progressSec: state.durationSec, inBreak: false };
+    return { ...state, phase: 'idle', progressSec: state.durationSec, inBreak: false, isTalking: false };
   }
   const meta = getTrackMeta(nextId);
   return {
     ...state,
     inBreak: false,
+    isTalking: false,
     phase: 'playing',
     trackId: nextId,
     trackTitle: meta.title,
@@ -126,6 +130,7 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         currentTrackIndex: 0,
         liveWsUrl: action.session.live_ws_url,
         inBreak: false,
+        isTalking: false,
         userUtteranceCount: 0,
       };
     }
@@ -150,8 +155,17 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
     }
     case 'enter_break':
       return state.inBreak ? state : { ...state, inBreak: true };
+    case 'start_talk':
+      if (state.phase === 'idle' || state.phase === 'curating' || state.phase === 'paused') return state;
+      return { ...state, isTalking: true };
+    case 'stop_talk':
+      return { ...state, isTalking: false };
     case 'server_phase': {
       if (state.phase === 'paused') return state;
+      // A phase frame stamped with an older Playhead is a stale DJ turn (e.g. the
+      // listener skipped mid-turn) — drop it so it can't poison the new track's
+      // phase and silence its Cue (CONTEXT: Playhead fence).
+      if (action.trackIndex !== undefined && action.trackIndex < state.currentTrackIndex) return state;
       const next = mapServerPhase(action.phase);
       if (!next) return state;
       // During a break, a DJ turn ending opens the listening window instead of
@@ -165,7 +179,12 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
       };
     }
     case 'tracklist_updated':
-      return { ...state, remainingTrackIds: action.remainingIds };
+      return {
+        ...state,
+        remainingTrackIds: action.remainingIds,
+        sessionTitle: action.sessionTitle ?? state.sessionTitle,
+        sessionSubtitle: action.sessionSubtitle ?? state.sessionSubtitle,
+      };
     case 'set_host_mode':
       return { ...state, hostMode: action.hostMode };
     case 'tick':

@@ -14,7 +14,8 @@ export function useMicStream(refs: SessionRefs, sessionId: string | null): void 
     let cancelled = false;
     let mic: MicCapture | null = null;
     startMicCapture((pcm) => {
-      if (refs.stateRef.current.phase === 'listening') refs.liveRef.current?.sendAudio(pcm);
+      const s = refs.stateRef.current;
+      if (s.phase === 'listening' || s.isTalking) refs.liveRef.current?.sendAudio(pcm);
     })
       .then((capture) => {
         if (cancelled) capture.stop();

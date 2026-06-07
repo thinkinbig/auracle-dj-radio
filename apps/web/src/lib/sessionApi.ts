@@ -1,12 +1,12 @@
-import type { CreateSessionResponse, HostMode } from '@auracle/shared';
+import type { CreateSessionResponse, HostMode, SessionIntent } from '@auracle/shared';
 import { DEMO_SESSION } from '../mock/demoData';
 
-export async function createSession(): Promise<CreateSessionResponse> {
+export async function createSession(intent: SessionIntent): Promise<CreateSessionResponse> {
   try {
     const res = await fetch('/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mood: 'calm', scene: 'study', duration_min: 25 }),
+      body: JSON.stringify(intent),
     });
     if (res.ok) return (await res.json()) as CreateSessionResponse;
   } catch {

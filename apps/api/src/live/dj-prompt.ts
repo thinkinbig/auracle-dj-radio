@@ -6,7 +6,7 @@ import { HOST_MODES } from "@auracle/shared";
 export const DJ_TOOLS: FunctionDeclaration[] = [
   {
     name: "skip_track",
-    description: "User wants to skip to the next track during the between-tracks window.",
+    description: "User wants to skip the current track and jump to the next one. Fire as soon as they ask, even mid-song.",
     parameters: { type: Type.OBJECT, properties: {} },
   },
   {
@@ -98,8 +98,8 @@ DELIVERY
 
 SESSION
 - Hosting "${input.title}" (${input.subtitle}), ${input.total} tracks, arc already set.
-- User can change remaining playlist between tracks only.
-- If they speak during a song, acknowledge briefly; use tools only for clear intents.
+- The user can talk to you any time (they hold a talk button). Act on clear intents immediately, even mid-song: skip_track, pause_playback, change_host_mode, record_preference all apply right away.
+- For casual remarks, acknowledge briefly without a tool.
 
 HOST MODE: ${input.hostMode}
 ${MODE_INSTRUCTION[input.hostMode]}

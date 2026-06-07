@@ -17,6 +17,10 @@ export interface SessionState {
   /** Energy of each planned track, by id — used to seed replan. */
   energyById: Map<string, number>;
   mem0Context: string;
+  /** True once the background LLM plan refine has replaced the provisional arc. */
+  planRefined: boolean;
+  /** Live relay subscribers, notified when the refine lands (replayed if late). */
+  refineListeners: Set<() => void>;
 }
 
 /** In-memory session state machine (doc: Demo 不持久化 plan). */
@@ -51,9 +55,36 @@ export class SessionStore {
       playedTrackIds: [],
       energyById,
       mem0Context: params.mem0Context,
+      planRefined: false,
+      refineListeners: new Set(),
     };
     this.sessions.set(state.id, state);
     return state;
+  }
+
+  /**
+   * Apply the background plan refine: mark the session refined and notify any
+   * subscribed relay so it can push the upgraded tracklist to the client.
+   */
+  markRefined(state: SessionState): void {
+    state.planRefined = true;
+    for (const listener of [...state.refineListeners]) listener();
+  }
+
+  /**
+   * Subscribe to the plan refine. If it already happened, the listener fires
+   * immediately (covers a relay that attaches after the refine). Returns an
+   * unsubscribe to call on socket close.
+   */
+  subscribeRefine(state: SessionState, listener: () => void): () => void {
+    if (state.planRefined) {
+      listener();
+      return () => {};
+    }
+    state.refineListeners.add(listener);
+    return () => {
+      state.refineListeners.delete(listener);
+    };
   }
 
   get(id: string): SessionState | undefined {

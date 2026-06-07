@@ -1,5 +1,5 @@
 import { useReducer, useState } from 'react';
-import type { HostMode } from '@auracle/shared';
+import type { HostMode, SessionIntent } from '@auracle/shared';
 import {
   createInitialPlaybackState,
   playbackReducer,
@@ -17,12 +17,14 @@ import { useTrackPlayback } from './radio/useTrackPlayback';
 export interface RadioSession {
   state: PlaybackState;
   analyser: AnalyserNode | null;
-  handleStart: () => Promise<void>;
+  handleStart: (intent: SessionIntent) => Promise<void>;
   handleTogglePause: () => void;
   handleSkipTrack: () => void;
   handleSkipDj: () => void;
   handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
+  handleTalkStart: () => void;
+  handleTalkEnd: () => void;
 }
 
 /** Composes radio effect hooks around a single playback reducer. */
@@ -60,6 +62,13 @@ export function useRadioSession(): RadioSession {
   return {
     state,
     analyser,
-    ...handlers,
+    handleStart: handlers.handleStart,
+    handleTogglePause: handlers.handleTogglePause,
+    handleSkipTrack: handlers.handleSkipTrack,
+    handleSkipDj: handlers.handleSkipDj,
+    handleContinue: handlers.handleContinue,
+    handleChangeHostMode: handlers.handleChangeHostMode,
+    handleTalkStart: handlers.handleTalkStart,
+    handleTalkEnd: handlers.handleTalkEnd,
   };
 }

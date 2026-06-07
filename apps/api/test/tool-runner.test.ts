@@ -62,6 +62,34 @@ describe("LiveToolRunner", () => {
     });
   });
 
+  it("mood_change acks immediately without awaiting the slow replan", async () => {
+    const send = vi.fn();
+    let resolveReplan!: (o: { replanned: boolean; remaining: [] }) => void;
+    const replan = vi.fn(
+      () => new Promise<{ replanned: boolean; remaining: [] }>((r) => (resolveReplan = r)),
+    );
+    const runner = new LiveToolRunner(mockState(), {
+      recordEvent: vi.fn(),
+      getTrack: () => undefined,
+      memory: { enabled: false, degraded: false, recall: async () => "", remember: async () => {} },
+      replan,
+    }, send);
+
+    // The tool response resolves now, while replan is still pending (hot/cold split).
+    const res = await runner.run({ name: "mood_change", args: { mood: "darker" } });
+    expect(res).toMatchObject({ ok: true });
+    expect(replan).toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith({
+      type: "intent",
+      intent: { type: "mood_change", mood: "darker", energy_delta: "same" },
+    });
+    // The new arc is pushed only once replan lands, off the tool-response path.
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ type: "tracklist_updated" }));
+    resolveReplan({ replanned: true, remaining: [] });
+    await Promise.resolve();
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: "tracklist_updated" }));
+  });
+
   it("change_host_mode rejects invalid mode", async () => {
     const runner = new LiveToolRunner(mockState(), {
       recordEvent: vi.fn(),

@@ -1,23 +1,25 @@
 import { useEffect, useRef } from 'react';
-import { useRadioActions, useRadioState } from '../context/RadioSessionContext';
-import { useLayoutMode } from '../hooks/useMediaQuery';
+import { useRadioState } from '../context/RadioSessionContext';
 import { formatTime } from '../lib/formatTime';
 import { cn } from '../lib/cn';
-import { isCurating, isIdle } from '../lib/playbackSelectors';
-import { IconPlay } from './Icons';
+import { isCurating } from '../lib/playbackSelectors';
+import { Skeleton } from './Skeleton';
 import styles from './TranscriptPanel.module.css';
 
 interface TranscriptPanelProps {
   djName: string;
 }
 
+const SKELETON_LINES = [
+  { metaW: '28%', bodyW: '92%' },
+  { metaW: '22%', bodyW: '78%' },
+  { metaW: '26%', bodyW: '85%' },
+] as const;
+
 export function TranscriptPanel({ djName }: TranscriptPanelProps) {
   const state = useRadioState();
-  const { handleStart } = useRadioActions();
-  const { isWide } = useLayoutMode();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const idle = isIdle(state.phase);
-  const showStartOverlay = idle && isWide;
+  const curating = isCurating(state.phase);
 
   useEffect(() => {
     if (!state.activeTranscriptId || !scrollRef.current) return;
@@ -26,13 +28,22 @@ export function TranscriptPanel({ djName }: TranscriptPanelProps) {
   }, [state.activeTranscriptId]);
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} aria-busy={curating || undefined}>
       <div ref={scrollRef} className={styles.scroll}>
-        {state.transcript.length === 0 && !idle && (
-          <p className={styles.empty}>
-            {isCurating(state.phase) ? 'Curating your session…' : 'Waiting for DJ…'}
-          </p>
-        )}
+        {curating && state.transcript.length === 0 ? (
+          <div className={styles.skeletonList} aria-hidden>
+            {SKELETON_LINES.map((line, i) => (
+              <div key={i} className={styles.skeletonLine}>
+                <Skeleton variant="text" height={12} width={line.metaW} />
+                <Skeleton variant="text" height={16} width={line.bodyW} className={styles.skeletonBody} />
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {!curating && state.transcript.length === 0 ? (
+          <p className={styles.empty}>Waiting for DJ…</p>
+        ) : null}
 
         {state.transcript.map((line) => {
           const isActive = line.id === state.activeTranscriptId;
@@ -59,22 +70,6 @@ export function TranscriptPanel({ djName }: TranscriptPanelProps) {
           );
         })}
       </div>
-
-      {showStartOverlay && (
-        <div className={styles.overlay}>
-          <button
-            type="button"
-            className={styles.startBtn}
-            onClick={() => void handleStart()}
-            aria-label="Tap to start session"
-          >
-            <span className={styles.startIcon}>
-              <IconPlay size={28} />
-            </span>
-            <span className={styles.startLabel}>Tap to start</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

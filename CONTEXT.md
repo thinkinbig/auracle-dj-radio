@@ -39,11 +39,21 @@ Cutting the current DJ turn short while the current track keeps playing.
 Distinct from **skip track** — it drops the talk, not the song.
 _Avoid_: mute DJ, skip DJ.
 
+**Playhead**:
+The pointer to the track that is *now*. The browser owns it (it holds the
+audio element, so it alone knows real position, end, and the moment of a
+**skip track**); it advances by exactly one slot on each **skip track** or
+natural end. Every **DJ turn** is stamped with the playhead value at the
+**Cue** that started it, so a turn for an earlier track can never act on a
+later one. The relay keeps a mirror of the playhead for replanning only.
+_Avoid_: current index, cursor, position.
+
 ## Relationships
 
 - A **Track** beginning playback triggers one **Cue**, which produces one **DJ turn** that **talk-overs** that track's intro.
 - During a **DJ turn** the music is **ducked**; the turn ends on completion, a **barge-in**, or a **skip voice-over**, after which the music returns to full.
 - A **Skip track** ends the current track (cutting any in-flight **DJ turn**) and begins the next, which **Cues** its own **DJ turn**.
+- The **Playhead** is single-writer (browser); the relay mirrors it. A **DJ turn** stamped with an older **Playhead** than the current one is stale and dropped.
 
 ## Example dialogue
 

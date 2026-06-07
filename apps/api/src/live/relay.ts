@@ -1,31 +1,25 @@
-import {
-  Modality,
-  type FunctionCall,
-  type FunctionResponse,
-  type LiveServerMessage,
-  type Session,
-} from "@google/genai";
+import type { FunctionCall, FunctionResponse } from "@google/genai";
 import type { WebSocket } from "@fastify/websocket";
 import type { ClientMessage, ServerMessage } from "@auracle/shared";
 import { config } from "../config.js";
-import { createGeminiClient } from "../gemini/client.js";
-import { allowGeminiDial, recordGeminiDial, recordGeminiStreamFault } from "../gemini/guard.js";
+import { allowGeminiDial, recordGeminiDial } from "../gemini/guard.js";
 import type { SessionState } from "../session/store.js";
 import type { ReplanParams, ReplanOutcome } from "../session/replan-service.js";
-import { buildCueText, buildSystemInstruction, DJ_TOOLS, type CueInput, type CueKind, type CueTrack } from "./dj-prompt.js";
 import { LiveToolRunner, type LiveToolRunnerDeps } from "./tool-runner.js";
-import { type TranscriptionChunk, TranscriptAccumulator } from "./transcript.js";
+import { LiveVoiceChannel } from "./voice-channel.js";
 
 export interface RelayDeps extends LiveToolRunnerDeps {
   replan(state: SessionState, params: ReplanParams): Promise<ReplanOutcome>;
+  /** Subscribe to the background plan refine; fires (or replays) when the LLM arc lands. */
+  subscribeRefine(state: SessionState, listener: () => void): () => void;
 }
 
-const INPUT_MIME = "audio/pcm;rate=16000"; // browser mic, s16le mono 16kHz
-
 /**
- * Bridge one browser WebSocket to one Gemini Live session for the lifetime of
- * the connection. Audio is relayed as raw binary both ways; transcripts, phase,
- * tool effects and errors are JSON frames (doc/auracle_api_protocol.md §Live).
+ * Bridge one browser WebSocket to one Gemini Live session for the lifetime of the
+ * connection. This is the thin orchestrator: the HOT path (mic/DJ audio, phase,
+ * transcript, cue/skip) lives in {@link LiveVoiceChannel}; the COLD path (tool
+ * effects — replan/mem0/db) runs off the media loop via `runToolsCold` and returns
+ * its result to Gemini only when ready (doc/auracle_api_protocol.md §Live).
  */
 export async function attachLiveRelay(socket: WebSocket, state: SessionState, deps: RelayDeps): Promise<void> {
   const send = (msg: ServerMessage): void => {
@@ -54,120 +48,34 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
   }
 
   const tools = new LiveToolRunner(state, deps, send);
-  const ai = createGeminiClient();
-  let live: Session | undefined;
-  let djSpeaking = false;
-  let djSkipped = false; // listener skipped the current voice-over; swallow its remaining audio/transcript
-  let producedAudio = false;
-  const sessionStartMs = Date.now();
+
+  // COLD path: a Gemini tool call runs off the media loop; its result returns to
+  // Gemini through the voice channel when ready, so audio is never blocked on
+  // replan/mem0/db (CONTEXT: hot/cold split).
+  const runToolsCold = (calls: FunctionCall[]): void => {
+    void (async () => {
+      const responses: FunctionResponse[] = [];
+      for (const call of calls) {
+        responses.push({ id: call.id, name: call.name, response: await tools.run(call) });
+      }
+      voice.sendToolResponse(responses);
+    })();
+  };
+
+  // HOT path: the Gemini Live media session.
+  const voice = new LiveVoiceChannel(state, deps, {
+    sendFrame: send,
+    sendAudio: (pcm) => {
+      if (socket.readyState === socket.OPEN) socket.send(pcm);
+    },
+    onToolCall: runToolsCold,
+    onClosed: () => {
+      if (socket.readyState === socket.OPEN) socket.close();
+    },
+  });
 
   let ready = false;
-  let clientCued = false;
   const preConnect: Array<{ raw: Buffer; isBinary: boolean }> = [];
-  const transcripts = new TranscriptAccumulator();
-
-  function buildCueFor(trackIndex: number, kindOverride?: CueKind): string {
-    const total = state.tracklist.length;
-    const kind: CueInput["kind"] =
-      kindOverride ?? (trackIndex <= 0 ? "opening" : trackIndex >= total - 1 ? "outro" : "segue");
-    const now = toCueTrack(state.tracklist[trackIndex]?.id);
-    const next = toCueTrack(state.tracklist[trackIndex + 1]?.id);
-    return buildCueText({ kind, hostMode: state.hostMode, sessionTitle: state.title, now, next });
-  }
-
-  function toCueTrack(id: string | undefined): CueTrack | undefined {
-    if (!id) return undefined;
-    const t = deps.getTrack(id);
-    if (!t) return undefined;
-    return {
-      title: t.title,
-      artist: t.artist,
-      albumTitle: t.albumTitle,
-      energy: t.energy,
-      tempo: t.tempo,
-      genre: t.genre,
-      lore: t.lore,
-    };
-  }
-
-  function sendCue(trackIndex: number, kind?: CueKind): void {
-    clientCued = true;
-    djSkipped = false; // a fresh cue starts a turn we want the listener to hear
-    live?.sendRealtimeInput({ text: buildCueFor(trackIndex, kind) });
-  }
-
-  /**
-   * Listener skipped the voice-over: stop forwarding the current turn's audio
-   * and transcript, report it as a normal turn end (not a barge-in, so the UI
-   * returns to playing), and best-effort interrupt Gemini to save tokens. The
-   * interrupt's own `interrupted`/leftover audio is swallowed via djSkipped.
-   */
-  function skipDj(): void {
-    if (!djSpeaking || djSkipped) return;
-    djSkipped = true;
-    djSpeaking = false;
-    transcripts.resetTurn();
-    send({ type: "phase", phase: "dj_turn_end", track_index: state.currentTrackIndex });
-    try {
-      live?.sendClientContent({ turnComplete: false });
-    } catch {
-      /* best-effort interrupt; suppression already protects the client */
-    }
-  }
-
-  /** Gemini may attach transcription at the message root or under serverContent. */
-  type GeminiMsg = LiveServerMessage & {
-    inputTranscription?: TranscriptionChunk;
-    outputTranscription?: TranscriptionChunk;
-  };
-
-  function relayTranscript(role: "user" | "model", chunk: TranscriptionChunk | undefined): void {
-    const text = transcripts.ingest(role, chunk);
-    if (text) send({ type: "transcript", role, text });
-  }
-
-  const onServerMessage = (msg: LiveServerMessage): void => {
-    const gemini = msg as GeminiMsg;
-    relayTranscript("user", gemini.inputTranscription);
-    if (!djSkipped) relayTranscript("model", gemini.outputTranscription);
-
-    const sc = msg.serverContent;
-    if (sc) {
-      relayTranscript("user", sc.inputTranscription);
-      if (!djSkipped) {
-        relayTranscript("model", sc.outputTranscription);
-
-        for (const part of sc.modelTurn?.parts ?? []) {
-          const data = part.inlineData?.data;
-          if (!data) continue;
-          if (!djSpeaking) {
-            djSpeaking = true;
-            send({ type: "phase", phase: "dj_turn_start", track_index: state.currentTrackIndex });
-          }
-          if (socket.readyState === socket.OPEN) socket.send(Buffer.from(data, "base64"));
-          producedAudio = true;
-        }
-        if (sc.interrupted) send({ type: "phase", phase: "user_barge_in", track_index: state.currentTrackIndex });
-      }
-      if (sc.turnComplete) {
-        transcripts.resetTurn();
-        djSpeaking = false;
-        // The skip already emitted dj_turn_end; just clear suppression once the turn drains.
-        if (djSkipped) djSkipped = false;
-        else send({ type: "phase", phase: "dj_turn_end", track_index: state.currentTrackIndex });
-      }
-    }
-    const calls = msg.toolCall?.functionCalls;
-    if (calls?.length) void handleToolCalls(calls);
-  };
-
-  async function handleToolCalls(calls: FunctionCall[]): Promise<void> {
-    const responses: FunctionResponse[] = [];
-    for (const call of calls) {
-      responses.push({ id: call.id, name: call.name, response: await tools.run(call) });
-    }
-    live?.sendToolResponse({ functionResponses: responses });
-  }
 
   function dispatch(raw: Buffer, isBinary: boolean): void {
     if (!ready) {
@@ -175,7 +83,7 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
       return;
     }
     if (isBinary) {
-      live?.sendRealtimeInput({ audio: { data: raw.toString("base64"), mimeType: INPUT_MIME } });
+      voice.sendMicAudio(raw);
       return;
     }
     let parsed: ClientMessage;
@@ -185,45 +93,34 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
       return;
     }
     if (parsed.type === "cue_dj") {
-      sendCue(parsed.track_index, parsed.kind);
+      voice.cue(parsed.track_index, parsed.kind);
     } else if (parsed.type === "skip_dj") {
-      skipDj();
+      voice.skip();
+    } else if (parsed.type === "now_playing") {
+      // Mirror the browser-owned Playhead so replan/tracklist target the right track.
+      state.currentTrackIndex = parsed.track_index;
     }
   }
 
+  // Background plan refine (provisional → real Flow arc): push the upgraded
+  // tracklist + revealed session title once it lands (replayed if already done).
+  const unsubscribeRefine = deps.subscribeRefine(state, () => {
+    send({
+      type: "tracklist_updated",
+      remaining: state.tracklist.slice(state.currentTrackIndex + 1),
+      session_title: state.title,
+      session_subtitle: state.subtitle,
+    });
+  });
+
   socket.on("message", (raw: Buffer, isBinary: boolean) => dispatch(raw, isBinary));
-  socket.on("close", () => live?.close());
+  socket.on("close", () => {
+    unsubscribeRefine();
+    voice.close();
+  });
 
   try {
-    live = await ai.live.connect({
-      model: config.liveModel,
-      config: {
-        responseModalities: [Modality.AUDIO],
-        systemInstruction: buildSystemInstruction({
-          title: state.title,
-          subtitle: state.subtitle,
-          total: state.tracklist.length,
-          mem0Context: state.mem0Context,
-          condition: state.condition,
-          hostMode: state.hostMode,
-          mood: state.intent.mood,
-          scene: state.intent.scene,
-        }),
-        tools: [{ functionDeclarations: DJ_TOOLS }],
-        inputAudioTranscription: {},
-        outputAudioTranscription: {},
-      },
-      callbacks: {
-        onmessage: onServerMessage,
-        onerror: (e) => {
-          recordGeminiStreamFault(sessionStartMs, producedAudio, e);
-          send({ type: "error", message: e.message || "Gemini Live error" });
-        },
-        onclose: () => {
-          if (socket.readyState === socket.OPEN) socket.close();
-        },
-      },
-    });
+    await voice.connect();
     recordGeminiDial(null);
   } catch (err) {
     recordGeminiDial(err);
@@ -237,5 +134,5 @@ export async function attachLiveRelay(socket: WebSocket, state: SessionState, de
   preConnect.length = 0;
 
   // StrictMode remounts can drop the opening cue_dj; ensure the current track is cued once Live is up.
-  if (!clientCued) sendCue(state.currentTrackIndex);
+  if (!voice.hasCued) voice.cue(state.currentTrackIndex);
 }

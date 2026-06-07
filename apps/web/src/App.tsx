@@ -2,15 +2,17 @@ import { useEffect } from 'react';
 import { AppShell } from './components/AppShell';
 import { ContentSheet } from './components/ContentSheet';
 import { MiniControlBar } from './components/MiniControlBar';
+import { OnboardingPage } from './components/OnboardingPage';
 import { StageHeader } from './components/StageHeader';
 import { TrackQueue } from './components/TrackQueue';
 import { RadioSessionProvider, useRadioActions, useRadioState } from './context/RadioSessionContext';
 import { useLayoutMode } from './hooks/useMediaQuery';
+import { isIdle } from './lib/playbackSelectors';
 import { loadTrackCatalog } from './lib/trackCatalog';
 
 function AppContent() {
   const state = useRadioState();
-  const { handleStart, handleTogglePause, handleSkipTrack } = useRadioActions();
+  const { handleTogglePause, handleSkipTrack } = useRadioActions();
   const { isWide } = useLayoutMode();
 
   useEffect(() => {
@@ -22,8 +24,8 @@ function AppContent() {
       if (e.target instanceof HTMLInputElement) return;
       if (e.code === 'Space') {
         e.preventDefault();
-        if (state.phase === 'idle') void handleStart();
-        else handleTogglePause();
+        if (state.phase === 'idle') return;
+        handleTogglePause();
       } else if (e.code === 'ArrowRight' || e.code === 'KeyN') {
         e.preventDefault();
         handleSkipTrack();
@@ -31,7 +33,9 @@ function AppContent() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [state.phase, handleStart, handleTogglePause, handleSkipTrack]);
+  }, [state.phase, handleTogglePause, handleSkipTrack]);
+
+  if (isIdle(state.phase)) return <OnboardingPage />;
 
   return (
     <AppShell

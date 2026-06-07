@@ -42,22 +42,26 @@ export class LiveToolRunner {
         const fact = String(args.fact ?? "");
         this.deps.recordEvent(this.state.id, "record_preference", { fact });
         this.send({ type: "intent", intent: { type: "record_preference", fact } });
-        if (this.state.condition === "C") await this.deps.memory.remember(fact, this.state.id);
+        // mem0 write is cold IO — never block the tool response on it (hot/cold).
+        if (this.state.condition === "C") void this.deps.memory.remember(fact, this.state.id);
         return { ok: true };
       }
       case "mood_change": {
         const mood = String(args.mood ?? this.state.intent.mood);
         const energy_delta = (args.energy_delta as "lighter" | "heavier" | "same") ?? "same";
         this.send({ type: "intent", intent: { type: "mood_change", mood, energy_delta } });
-        const outcome = await this.deps.replan(this.state, { mood, energy_delta });
-        this.send({ type: "tracklist_updated", remaining: outcome.remaining });
-        const next = outcome.remaining[0];
-        const nextTrack = next ? this.deps.getTrack(next.id) : undefined;
-        return {
-          ok: outcome.replanned,
-          session_title: this.state.title,
-          next_track: nextTrack?.title ?? null,
-        };
+        // Replan is the slow Flow LLM call. Run it on the bypass and push the new
+        // arc when it lands; the tool response returns now so the DJ keeps talking
+        // (hot/cold split; ack-only — the new track is described at its own Cue).
+        void this.deps.replan(this.state, { mood, energy_delta }).then((outcome) => {
+          this.send({
+            type: "tracklist_updated",
+            remaining: outcome.remaining,
+            session_title: this.state.title,
+            session_subtitle: this.state.subtitle,
+          });
+        });
+        return { ok: true, note: "Adjusting the next tracks now — keep talking, don't wait for the list." };
       }
       case "change_host_mode": {
         const nextMode = parseHostMode(args.host_mode);

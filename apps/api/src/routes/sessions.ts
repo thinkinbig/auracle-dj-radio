@@ -10,9 +10,11 @@ import type {
 import { parseHostMode } from "@auracle/shared";
 import type { ApiContext } from "../context.js";
 import { toTrackMeta, tracksWithAssets } from "../catalog/manifest.js";
-import { createPlanCached } from "../flow/plan.js";
+import { FULL_SESSION_LENGTH } from "@auracle/shared";
+import { createPlanCached, createProvisionalPlan, peekPlanCache } from "../flow/plan.js";
 import { applyReplan } from "../session/replan-service.js";
 import { attachLiveRelay, type RelayDeps } from "../live/relay.js";
+import type { SessionState } from "../session/store.js";
 
 export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
   app.post("/sessions", async (req, reply) => {
@@ -29,23 +31,50 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
 
     // Condition C reads cross-session preferences into the plan and the DJ prompt; A/B don't.
     const mem0Context = condition === "C" ? await ctx.memory.recall(`${intent.mood} ${intent.scene}`) : "";
-    const { result, violations, candidatesById } = await createPlanCached(ctx.planDeps, intent, mem0Context);
-    const state = ctx.store.create({
-      intent,
-      condition,
-      title: result.session_title,
-      subtitle: result.session_subtitle,
-      arc: result.arc,
-      tracklist: result.tracklist,
-      candidatesById,
-      mem0Context,
-    });
-    ctx.db.recordEvent(state.id, "session_created", {
-      intent,
-      condition,
-      violations,
-      tracklist: result.tracklist,
-    });
+
+    // Fast path: a previously cached clean plan is instant — return it whole, no refine.
+    const cached = peekPlanCache(intent, mem0Context);
+    let state: SessionState;
+    if (cached) {
+      state = ctx.store.create({
+        intent,
+        condition,
+        title: cached.result.session_title,
+        subtitle: cached.result.session_subtitle,
+        arc: cached.result.arc,
+        tracklist: cached.result.tracklist,
+        candidatesById: cached.candidatesById,
+        mem0Context,
+      });
+      ctx.db.recordEvent(state.id, "session_created", {
+        intent,
+        condition,
+        violations: cached.violations,
+        tracklist: cached.result.tracklist,
+        cached: true,
+      });
+    } else {
+      // Cache miss: return a deterministic provisional arc now so playback starts
+      // immediately, then refine tracks 2..N with the real Flow in the background.
+      const provisional = await createProvisionalPlan(ctx.planDeps, intent);
+      state = ctx.store.create({
+        intent,
+        condition,
+        title: provisional.result.session_title,
+        subtitle: provisional.result.session_subtitle,
+        arc: provisional.result.arc,
+        tracklist: provisional.result.tracklist,
+        candidatesById: provisional.candidatesById,
+        mem0Context,
+      });
+      ctx.db.recordEvent(state.id, "session_created", {
+        intent,
+        condition,
+        tracklist: provisional.result.tracklist,
+        provisional: true,
+      });
+      void refinePlanInBackground(ctx, app, state, intent, mem0Context);
+    }
 
     if (condition === "C" && ctx.memory.degraded) {
       app.log.warn("[mem0] Condition C session started with degraded memory — eval integrity affected");
@@ -77,6 +106,7 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
       getTrack: (id) => ctx.db.getTrack(id),
       memory: ctx.memory,
       replan: (s, params) => applyReplan(ctx, s, params),
+      subscribeRefine: (s, listener) => ctx.store.subscribeRefine(s, listener),
     };
     void attachLiveRelay(socket, state, relayDeps);
   });
@@ -105,11 +135,8 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
     const body = (req.body ?? {}) as { event_type?: string; payload?: Record<string, unknown> };
     if (!body.event_type) return reply.code(400).send({ error: "event_type is required" });
 
-    // track_started advances the playback pointer; other events are just logged.
-    const trackId = body.payload?.track_id;
-    if (body.event_type === "track_started" && typeof trackId === "string") {
-      ctx.store.markStarted(state, trackId);
-    }
+    // Append-only analytics log. The Playhead is owned by the browser and mirrored
+    // to the relay over the live socket (CONTEXT: Playhead), not via this endpoint.
     ctx.db.recordEvent(id, body.event_type, body.payload ?? {});
     return { ok: true, current_track_index: state.currentTrackIndex };
   });
@@ -159,4 +186,35 @@ export function registerRoutes(app: FastifyInstance, ctx: ApiContext): void {
     reply.header("cache-control", "public, max-age=31536000, immutable");
     return reply.type("audio/mpeg").send(createReadStream(track.filePath));
   });
+}
+
+/**
+ * Background plan refine: run the real Flow (and populate the cache), then graft
+ * the LLM arc onto the already-playing provisional track 1 and notify the live
+ * relay. On failure the provisional arc stays in place — playback is unaffected.
+ */
+async function refinePlanInBackground(
+  ctx: ApiContext,
+  app: FastifyInstance,
+  state: SessionState,
+  intent: SessionIntent,
+  mem0Context: string,
+): Promise<void> {
+  try {
+    const full = await createPlanCached(ctx.planDeps, intent, mem0Context);
+    const playingId = state.tracklist[state.currentTrackIndex]?.id;
+    const keepCount = FULL_SESSION_LENGTH - (state.currentTrackIndex + 1);
+    const newRefs = full.result.tracklist.filter((r) => r.id !== playingId).slice(0, keepCount);
+    const appended = ctx.store.replaceRemaining(state, newRefs, full.candidatesById);
+    if (full.result.session_title) state.title = full.result.session_title;
+    if (full.result.session_subtitle) state.subtitle = full.result.session_subtitle;
+    ctx.store.markRefined(state);
+    ctx.db.recordEvent(state.id, "plan_refined", {
+      violations: full.violations,
+      tracklist: state.tracklist,
+      appended: appended.map((r) => r.id),
+    });
+  } catch (err) {
+    app.log.warn(`[plan] background refine failed; keeping provisional arc: ${(err as Error).message}`);
+  }
 }

@@ -48,6 +48,6 @@ export function statusLabel(phase: UiPhase): { text: string; live: boolean } {
     case 'paused':
       return { text: 'Paused', live: false };
     default:
-      return { text: 'Tap to start', live: false };
+      return { text: 'Set your vibe', live: false };
   }
 }

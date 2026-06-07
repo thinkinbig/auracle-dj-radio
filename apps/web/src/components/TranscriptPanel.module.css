@@ -103,6 +103,22 @@
   letter-spacing: 0.01em;
 }
 
+.skeletonList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.skeletonLine {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skeletonBody {
+  max-width: 100%;
+}
+
 .empty {
   font-size: 12px;
   color: var(--text-secondary);

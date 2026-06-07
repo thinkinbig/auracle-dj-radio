@@ -19,12 +19,14 @@ export type Intent =
 export type ClientMessage =
   | { type: "cue_dj"; track_index: number; kind?: "break" | "outro" }
   | { type: "skip_dj" }
+  // The browser owns the Playhead; this mirrors it to the relay (CONTEXT: Playhead).
+  | { type: "now_playing"; track_index: number }
   | { type: "ping" };
 
 /** Server → client WS messages (JSON frames; DJ audio is sent as raw binary). */
 export type ServerMessage =
   | { type: "transcript"; role: "user" | "model"; text: string }
   | { type: "phase"; phase: Phase; track_index: number }
-  | { type: "tracklist_updated"; remaining: FlowTrackRef[] }
+  | { type: "tracklist_updated"; remaining: FlowTrackRef[]; session_title?: string; session_subtitle?: string }
   | { type: "intent"; intent: Intent }
   | { type: "error"; message: string; circuit_state?: string; retry_after_sec?: number };

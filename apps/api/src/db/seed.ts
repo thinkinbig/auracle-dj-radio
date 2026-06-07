@@ -6,7 +6,7 @@ import { buildSeedEmbedder } from "../gemini/wiring.js";
 
 /**
  * Build the SQLite library from `data/catalog/manifest.json`.
- * Embeddings use rich text (artist + album + tags + lore) — ADR-0002 Phase 1.
+ * Embeddings use first 180s of each mp3 via gemini-embedding-2 — ADR-0002 Phase 2.
  */
 async function main(): Promise<void> {
   const db = new Db(config.dbPath);
@@ -14,10 +14,11 @@ async function main(): Promise<void> {
   const tracks = loadSeedTracks();
 
   for (const track of tracks) {
-    const embedding = await embedder.embedTrack(track);
+    const filePath = resolveCatalogPath(track.filePath);
+    const embedding = await embedder.embedTrack({ ...track, filePath });
     const row: TrackRow = {
       ...track,
-      filePath: resolveCatalogPath(track.filePath),
+      filePath,
       albumCoverPath: resolveCatalogPath(track.albumCoverPath),
       artistPhotoPath: resolveCatalogPath(track.artistPhotoPath),
       embedding,

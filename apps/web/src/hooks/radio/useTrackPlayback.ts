@@ -112,6 +112,10 @@ export function useTrackPlayback({ refs, state, opening }: TrackPlaybackInput): 
     armForTrack(state.currentTrackIndex);
 
     postSessionEvent(state.sessionId, 'track_started', { track_id: state.trackId });
+    // The browser owns the Playhead; mirror it to the relay over the live socket so
+    // cues/replan target the right track (CONTEXT: Playhead). The event above is
+    // analytics only and no longer moves the server pointer.
+    refs.liveRef.current?.send({ type: 'now_playing', track_index: state.currentTrackIndex });
     // No start-of-track cue: the DJ now speaks at the END of each track (ADR-0004).
     // Track 0's opening greeting is auto-cued by the relay on connect.
 

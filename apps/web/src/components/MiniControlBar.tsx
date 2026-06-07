@@ -16,7 +16,7 @@ import styles from './MiniControlBar.module.css';
 
 export function MiniControlBar() {
   const state = useRadioState();
-  const { handleStart, handleTogglePause, handleSkipTrack, handleSkipDj, handleContinue } =
+  const { handleTogglePause, handleSkipTrack, handleSkipDj, handleContinue, handleTalkStart, handleTalkEnd } =
     useRadioActions();
   const waveRef = useRef<HTMLDivElement>(null);
   const barCount = useBarCount(waveRef, 5, 32, 160);
@@ -78,12 +78,26 @@ export function MiniControlBar() {
         </button>
       )}
 
+      {!idle && !curating && !state.inBreak && (
+        <button
+          type="button"
+          className={cn(styles.btn, state.isTalking && styles.btnTalkActive)}
+          onPointerDown={handleTalkStart}
+          onPointerUp={handleTalkEnd}
+          onPointerLeave={handleTalkEnd}
+          aria-label="Hold to talk to DJ"
+          aria-pressed={state.isTalking}
+        >
+          <IconMic size={16} />
+        </button>
+      )}
+
       <button
         type="button"
         className={styles.btn}
-        onClick={idle ? () => void handleStart() : handleTogglePause}
-        disabled={curating}
-        aria-label={idle || paused ? 'Start session' : 'Pause'}
+        onClick={idle ? undefined : handleTogglePause}
+        disabled={curating || idle}
+        aria-label={idle ? 'Start from onboarding' : paused ? 'Resume' : 'Pause'}
       >
         {idle || paused ? <IconPlay size={16} /> : <IconPause size={16} />}
       </button>

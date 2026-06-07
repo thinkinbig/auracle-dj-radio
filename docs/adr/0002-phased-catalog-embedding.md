@@ -1,17 +1,12 @@
 # Phased catalog embedding: rich text first, then audio-native
 
-Track retrieval currently embeds tag strings only (`mood`, `scene`, `energy`,
-`genre`) via `gemini-embedding-001`. The expanded catalog adds **Lore**,
-**Artist** persona, and **Album** metadata — plus optional **Album cover**
-images and mp3 files suitable for multimodal embedding.
+Track retrieval embeds the **first 180 seconds** of each mp3 with
+`gemini-embedding-2`. Runtime mood/scene queries embed as **text** (with
+`task: search result | query: …`) and retrieve against **audio** vectors
+(cross-modal).
 
-We will embed in two phases:
-
-1. **Rich text** — concatenate artist, album, tags, and lore; embed with
-   `gemini-embedding-001` (or text mode of `gemini-embedding-2`). Ship first;
-   cheap to rebuild; keeps offline tests workable.
-2. **Audio-native** — embed each mp3 with `gemini-embedding-2`; runtime mood/scene
-   queries embed as **text** and retrieve against **audio** vectors (cross-modal).
+Phase 1 (rich text via `gemini-embedding-001`) shipped for catalog expansion;
+Phase 2 (audio-native) is now the default catalog embed path.
 
 **Album cover** embeddings are deferred (UI-only for now). **mem0** user-preference
 vectors stay on `gemini-embedding-001` — catalog and memory indexes are separate

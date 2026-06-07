@@ -1,0 +1,47 @@
+.block {
+  display: block;
+  background: #e5e7eb;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.circle {
+  border-radius: 50%;
+}
+
+.text {
+  border-radius: 4px;
+}
+
+.rect {
+  border-radius: 12px;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block::after {
+    animation: none;
+    opacity: 0.35;
+    transform: none;
+  }
+}

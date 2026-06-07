@@ -62,6 +62,31 @@ describe('playbackReducer', () => {
     expect(listening.phase).toBe('listening');
   });
 
+  it('drops a stale DJ-turn phase frame from an earlier Playhead (skip mid-turn)', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    // Skip to track 1 while track 0's DJ turn is still draining.
+    const advanced = playbackReducer(base, { type: 'advance' });
+    expect(advanced.currentTrackIndex).toBe(1);
+    expect(advanced.phase).toBe('playing');
+    // The old turn's dj_turn_start (stamped index 0) must NOT flip track 1 to speaking.
+    const fenced = playbackReducer(advanced, {
+      type: 'server_phase',
+      phase: 'dj_turn_start',
+      trackIndex: 0,
+    });
+    expect(fenced.phase).toBe('playing');
+    // The new track's own turn (index 1) is honoured.
+    const live = playbackReducer(advanced, {
+      type: 'server_phase',
+      phase: 'dj_turn_start',
+      trackIndex: 1,
+    });
+    expect(live.phase).toBe('speaking');
+  });
+
   it('clears the break on advance', () => {
     const base = playbackReducer(createInitialPlaybackState(), {
       type: 'start',

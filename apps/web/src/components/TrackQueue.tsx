@@ -1,29 +1,56 @@
 import { useRadioState } from '../context/RadioSessionContext';
-import { useTrackMeta } from '../hooks/useTrackCatalog';
+import { useCatalogLoaded, useTrackMeta } from '../hooks/useTrackCatalog';
 import { cn } from '../lib/cn';
+import { Skeleton } from './Skeleton';
 import styles from './TrackQueue.module.css';
+
+function TrackQueueSkeletonItem({ current }: { current?: boolean }) {
+  return (
+    <div className={cn(styles.item, current && styles.itemCurrent)}>
+      <Skeleton variant="text" width={20} height={12} className={styles.indexSkeleton} />
+      <div className={styles.skeletonText}>
+        <Skeleton variant="text" height={14} width="78%" />
+        <Skeleton variant="text" height={12} width="52%" className={styles.skeletonArtist} />
+      </div>
+    </div>
+  );
+}
 
 export function TrackQueue() {
   const state = useRadioState();
+  const catalogLoaded = useCatalogLoaded();
   const current = useTrackMeta(state.trackId);
 
   return (
-    <aside className={styles.root} aria-label="Up next">
+    <aside className={styles.root} aria-label="Up next" aria-busy={!catalogLoaded || undefined}>
       <h3 className={styles.heading}>Up next</h3>
 
-      <div className={cn(styles.item, styles.itemCurrent)}>
-        <span className={styles.index}>▶</span>
-        <div>
-          <p className={styles.title}>{current.title}</p>
-          <p className={styles.artist}>{current.artist}</p>
-        </div>
-      </div>
+      {!catalogLoaded ? (
+        <>
+          <TrackQueueSkeletonItem current />
+          <div className={styles.list}>
+            {state.remainingTrackIds.slice(0, 4).map((id) => (
+              <TrackQueueSkeletonItem key={id} />
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className={cn(styles.item, styles.itemCurrent)}>
+            <span className={styles.index}>▶</span>
+            <div>
+              <p className={styles.title}>{current.title}</p>
+              <p className={styles.artist}>{current.artist}</p>
+            </div>
+          </div>
 
-      <ul className={styles.list}>
-        {state.remainingTrackIds.map((id, i) => (
-          <TrackQueueItem key={id} id={id} index={i + 2} />
-        ))}
-      </ul>
+          <ul className={styles.list}>
+            {state.remainingTrackIds.map((id, i) => (
+              <TrackQueueItem key={id} id={id} index={i + 2} />
+            ))}
+          </ul>
+        </>
+      )}
     </aside>
   );
 }

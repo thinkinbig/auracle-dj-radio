@@ -61,3 +61,17 @@ ends with the outro and **no window**.
 - Defaults (tune during testing): `LEAD`=10s, `T_open`=5s, `T_follow`=3s,
   cap=30s/3 turns. Pause during a window = treat as Continue (close window, mic
   off) then `paused`.
+
+## Amendment (2026-06-07): skip restores a per-track Cue
+
+The "no start-of-track cue" rule above holds only for the *natural* transition,
+where the end-of-track **break** already gave the DJ a turn. A **skip track**
+bypasses the break entirely, so under the original rule the skipped-to track
+played in silence — which contradicts `CONTEXT.md` ("after a skip track the next
+song still gets its own **Cue**") and the listener's expectation that Next makes
+the DJ talk.
+
+A manual skip now sends `cue_dj` for the new track (kind omitted; the relay picks
+**segue** mid-set or **outro** on the last track). The DJ talks over the new
+track's intro — a talk-over per ADR-0001, **not** an end-of-track break: no
+listening window opens. Rapid skips interrupt the prior segue via `skip_dj`.
