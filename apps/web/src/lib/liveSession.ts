@@ -1,4 +1,4 @@
-import type { ClientMessage, Phase, ServerMessage } from '@auracle/shared';
+import type { ClientMessage, ServerMessage } from '@auracle/shared';
 
 export interface LiveSessionHandle {
   /** Send a JSON client frame; buffered until the socket opens. */
@@ -67,19 +67,4 @@ export function connectLiveSession(
       }
     },
   };
-}
-
-export function mapServerPhase(phase: Phase): 'speaking' | 'listening' | 'playing' | null {
-  switch (phase) {
-    case 'dj_turn_start':
-      return 'speaking';
-    case 'dj_turn_end':
-      return 'playing';
-    case 'user_barge_in':
-      return 'listening';
-    case 'user_barge_end':
-      return 'speaking';
-    default:
-      return null;
-  }
 }

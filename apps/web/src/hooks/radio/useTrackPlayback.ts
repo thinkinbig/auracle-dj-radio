@@ -5,12 +5,16 @@ import {
   TALK_WINDOW,
 } from '../../lib/playbackCoordinator';
 import { postSessionEvent } from '../../lib/sessionApi';
+import type { RadioCommands } from '../../lib/radioCommands';
 import type { PlaybackState } from '../../types';
 import type { OpeningGateControls } from './useOpeningGate';
-import type { SessionRefs } from './sessionRefs';
+import type { AudioRefs, LiveRefs, StoreRefs } from './sessionRefs';
 
 interface TrackPlaybackInput {
-  refs: SessionRefs;
+  store: StoreRefs;
+  audio: AudioRefs;
+  live: LiveRefs;
+  commands: RadioCommands;
   state: Pick<
     PlaybackState,
     'phase' | 'currentTrackIndex' | 'sessionId' | 'trackId' | 'remainingTrackIds'
@@ -19,18 +23,20 @@ interface TrackPlaybackInput {
 }
 
 /** Music element listeners, per-track loading, duck policy, and pause/resume DJ sync. */
-export function useTrackPlayback({ refs, state, opening }: TrackPlaybackInput): void {
+export function useTrackPlayback({ store, audio, live, commands, state, opening }: TrackPlaybackInput): void {
   const { openingReleased, armForTrack } = opening;
   const prevPhaseRef = useRef(state.phase);
   // Track index we've already fired an end-of-track cue for, so the final-seconds
   // trigger runs once per track (ADR-0004).
   const cuedTrackRef = useRef(-1);
+  // Private to this hook: the hidden element that prefetches the next track's audio.
+  const preloadRef = useRef<HTMLAudioElement | null>(null);
 
   const applyPlaybackPolicy = useCallback(() => {
-    const bus = refs.audioBusRef.current;
-    const audio = refs.audioRef.current;
-    const s = refs.stateRef.current;
-    if (!bus || !audio) return;
+    const bus = audio.audioBusRef.current;
+    const el = audio.audioRef.current;
+    const s = store.stateRef.current;
+    if (!bus || !el) return;
 
     const policy = {
       phase: s.phase,
@@ -38,72 +44,65 @@ export function useTrackPlayback({ refs, state, opening }: TrackPlaybackInput): 
       openingReleased,
     };
     bus.setMusicVolume(musicVolume(policy));
-    if (s.phase === 'paused') audio.pause();
-    else if (shouldPlayMusic(policy)) void audio.play().catch(() => {});
-  }, [refs, openingReleased]);
+    if (s.phase === 'paused') el.pause();
+    else if (shouldPlayMusic(policy)) void el.play().catch(() => {});
+  }, [store, audio, openingReleased]);
 
   // Final-seconds talk break: the DJ wraps over the track tail, then a listening
   // window opens (ADR-0004). The window — not `ended` — drives the advance.
   const maybeTriggerBreak = useCallback(
-    (audio: HTMLAudioElement) => {
-      const s = refs.stateRef.current;
+    (el: HTMLAudioElement) => {
+      const s = store.stateRef.current;
       if (s.inBreak || s.phase !== 'playing') return;
       if (cuedTrackRef.current === s.currentTrackIndex) return;
-      const dur = audio.duration;
+      const dur = el.duration;
       if (!Number.isFinite(dur) || dur <= 0) return;
-      if (audio.currentTime < dur - TALK_WINDOW.leadSec) return;
+      if (el.currentTime < dur - TALK_WINDOW.leadSec) return;
 
       cuedTrackRef.current = s.currentTrackIndex;
       const hasNext = s.remainingTrackIds.length > 0;
       // Only a track with a successor opens a window; the final track just plays
       // out under the outro.
-      if (hasNext) refs.dispatchRef.current({ type: 'enter_break' });
-      refs.liveRef.current?.send({
-        type: 'cue_dj',
-        track_index: s.currentTrackIndex,
-        kind: hasNext ? 'break' : 'outro',
-      });
+      if (hasNext) store.dispatchRef.current({ type: 'enter_break' });
+      commands.cueTrack(s.currentTrackIndex, hasNext ? 'break' : 'outro');
     },
-    [refs],
+    [store, commands],
   );
 
   useEffect(() => {
-    const audio = refs.audioRef.current ?? (refs.audioRef.current = new Audio());
+    const el = audio.audioRef.current ?? (audio.audioRef.current = new Audio());
     const onTime = () => {
-      refs.dispatchRef.current({
+      store.dispatchRef.current({
         type: 'progress',
-        progressSec: Math.floor(audio.currentTime),
+        progressSec: Math.floor(el.currentTime),
       });
-      maybeTriggerBreak(audio);
+      maybeTriggerBreak(el);
     };
     const onMeta = () =>
-      refs.dispatchRef.current({
+      store.dispatchRef.current({
         type: 'duration',
-        durationSec: Math.floor(audio.duration),
+        durationSec: Math.floor(el.duration),
       });
     const onEnded = () => {
-      if (refs.skipGuardRef.current) {
-        refs.skipGuardRef.current = false;
-        return;
-      }
+      if (commands.consumeSkipGuard()) return;
       // In a break where the DJ actually engaged (phase moved off 'playing'),
       // the listening window owns the advance. If the DJ never started by the
       // time the track ends (Live down / demo fallback), advance normally rather
       // than stalling until the hard cap.
-      const s = refs.stateRef.current;
+      const s = store.stateRef.current;
       if (s.inBreak && s.phase !== 'playing') return;
-      refs.dispatchRef.current({ type: 'advance' });
+      store.dispatchRef.current({ type: 'advance' });
     };
-    audio.addEventListener('timeupdate', onTime);
-    audio.addEventListener('loadedmetadata', onMeta);
-    audio.addEventListener('ended', onEnded);
+    el.addEventListener('timeupdate', onTime);
+    el.addEventListener('loadedmetadata', onMeta);
+    el.addEventListener('ended', onEnded);
     return () => {
-      audio.removeEventListener('timeupdate', onTime);
-      audio.removeEventListener('loadedmetadata', onMeta);
-      audio.removeEventListener('ended', onEnded);
-      audio.pause();
+      el.removeEventListener('timeupdate', onTime);
+      el.removeEventListener('loadedmetadata', onMeta);
+      el.removeEventListener('ended', onEnded);
+      el.pause();
     };
-  }, [refs, maybeTriggerBreak]);
+  }, [store, audio, commands, maybeTriggerBreak]);
 
   useEffect(() => {
     if (!state.sessionId) return;
@@ -115,30 +114,30 @@ export function useTrackPlayback({ refs, state, opening }: TrackPlaybackInput): 
     // The browser owns the Playhead; mirror it to the relay over the live socket so
     // cues/replan target the right track (CONTEXT: Playhead). The event above is
     // analytics only and no longer moves the server pointer.
-    refs.liveRef.current?.send({ type: 'now_playing', track_index: state.currentTrackIndex });
+    live.liveRef.current?.send({ type: 'now_playing', track_index: state.currentTrackIndex });
     // No start-of-track cue: the DJ now speaks at the END of each track (ADR-0004).
     // Track 0's opening greeting is auto-cued by the relay on connect.
 
-    const audio = refs.audioRef.current;
-    if (audio) {
-      audio.preload = 'auto';
-      audio.src = `/tracks/${state.trackId}/audio`;
-      audio.load();
-      audio.pause();
-      audio.currentTime = 0;
-      if (!isOpening) void audio.play().catch(() => {});
+    const el = audio.audioRef.current;
+    if (el) {
+      el.preload = 'auto';
+      el.src = `/tracks/${state.trackId}/audio`;
+      el.load();
+      el.pause();
+      el.currentTime = 0;
+      if (!isOpening) void el.play().catch(() => {});
     }
 
     const nextId = state.remainingTrackIds[0];
     if (nextId) {
-      const pre = refs.preloadRef.current ?? (refs.preloadRef.current = new Audio());
+      const pre = preloadRef.current ?? (preloadRef.current = new Audio());
       pre.preload = 'auto';
       pre.src = `/tracks/${nextId}/audio`;
     }
-
-    return () => refs.openingRef.current?.dispose();
   }, [
-    refs,
+    store,
+    audio,
+    live,
     state.sessionId,
     state.currentTrackIndex,
     state.trackId,
@@ -153,9 +152,9 @@ export function useTrackPlayback({ refs, state, opening }: TrackPlaybackInput): 
   useEffect(() => {
     const prev = prevPhaseRef.current;
     prevPhaseRef.current = state.phase;
-    const bus = refs.audioBusRef.current;
+    const bus = audio.audioBusRef.current;
     if (!bus) return;
     if (state.phase === 'paused' && prev !== 'paused') bus.skipDj();
     else if (prev === 'paused' && state.phase !== 'paused') bus.resumeDj();
-  }, [refs, state.phase]);
+  }, [audio, state.phase]);
 }

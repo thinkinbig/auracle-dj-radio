@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialPlaybackState, playbackReducer, updateTranscript } from './playbackReducer';
+import { createInitialPlaybackState, mapServerPhase, playbackReducer, updateTranscript } from './playbackReducer';
 import { DEMO_SESSION } from '../mock/demoData';
+
+describe('mapServerPhase', () => {
+  it('maps live phases to UI phases', () => {
+    expect(mapServerPhase('dj_turn_start')).toBe('speaking');
+    expect(mapServerPhase('dj_turn_end')).toBe('playing');
+    expect(mapServerPhase('user_barge_in')).toBe('listening');
+    expect(mapServerPhase('user_barge_end')).toBe('speaking');
+  });
+});
 
 describe('playbackReducer', () => {
   it('starts session in opening phase', () => {

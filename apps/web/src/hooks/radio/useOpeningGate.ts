@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { createOpeningController } from '../../lib/openingController';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createOpeningController, type OpeningController } from '../../lib/openingController';
 import { MUSIC_VOLUME } from '../../lib/playbackCoordinator';
-import type { SessionRefs } from './sessionRefs';
+import type { AudioRefs, StoreRefs } from './sessionRefs';
 
 export interface OpeningGateControls {
   openingReleased: boolean;
@@ -9,37 +9,36 @@ export interface OpeningGateControls {
   armForTrack: (trackIndex: number) => void;
 }
 
-export function useOpeningGate(refs: SessionRefs): OpeningGateControls {
+export function useOpeningGate(store: StoreRefs, audio: AudioRefs): OpeningGateControls {
   const [openingReleased, setOpeningReleased] = useState(true);
+  // Owned here: the opening controller (gate + fallback timer) lives and dies with this hook.
+  const openingRef = useRef<OpeningController | null>(null);
 
   const notifyOpeningReleased = useCallback(() => {
     setOpeningReleased(true);
-    const bus = refs.audioBusRef.current;
-    const s = refs.stateRef.current;
+    const bus = audio.audioBusRef.current;
+    const s = store.stateRef.current;
     if (bus && s.currentTrackIndex === 0) bus.setMusicVolume(MUSIC_VOLUME.full, 0);
-    const audio = refs.audioRef.current;
-    if (audio && s.phase !== 'paused' && s.phase !== 'idle' && s.phase !== 'curating') {
-      void audio.play().catch(() => {});
+    const el = audio.audioRef.current;
+    if (el && s.phase !== 'paused' && s.phase !== 'idle' && s.phase !== 'curating') {
+      void el.play().catch(() => {});
     }
-  }, [refs]);
+  }, [store, audio]);
 
   useEffect(() => {
-    refs.openingRef.current = createOpeningController(notifyOpeningReleased);
-    return () => refs.openingRef.current?.dispose();
-  }, [refs, notifyOpeningReleased]);
+    openingRef.current = createOpeningController(notifyOpeningReleased);
+    return () => openingRef.current?.dispose();
+  }, [notifyOpeningReleased]);
 
   const releaseOpening = useCallback(() => {
-    refs.openingRef.current?.release();
-  }, [refs]);
+    openingRef.current?.release();
+  }, []);
 
-  const armForTrack = useCallback(
-    (trackIndex: number) => {
-      if (trackIndex === 0) setOpeningReleased(false);
-      else setOpeningReleased(true);
-      refs.openingRef.current?.armForTrack(trackIndex);
-    },
-    [refs],
-  );
+  const armForTrack = useCallback((trackIndex: number) => {
+    if (trackIndex === 0) setOpeningReleased(false);
+    else setOpeningReleased(true);
+    openingRef.current?.armForTrack(trackIndex);
+  }, []);
 
   return { openingReleased, releaseOpening, armForTrack };
 }

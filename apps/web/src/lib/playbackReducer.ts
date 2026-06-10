@@ -1,5 +1,4 @@
 import type { CreateSessionResponse, Phase } from '@auracle/shared';
-import { mapServerPhase } from './liveSession';
 import { getTrackMeta } from './trackCatalog';
 import { DEMO_SESSION } from '../mock/demoData';
 import type { PlaybackState, TranscriptLine, UiPhase } from '../types';
@@ -95,6 +94,26 @@ function advanceTrack(state: PlaybackState): PlaybackState {
 }
 
 const SESSION_CLOCK_PHASES: UiPhase[] = ['playing', 'speaking', 'listening', 'opening'];
+
+/**
+ * Map a relay phase frame to the UiPhase it produces in isolation. Context-dependent
+ * overrides (break → listening) and the Playhead fence live in the `server_phase`
+ * case below; `null` means the frame carries no UiPhase of its own.
+ */
+export function mapServerPhase(phase: Phase): 'speaking' | 'listening' | 'playing' | null {
+  switch (phase) {
+    case 'dj_turn_start':
+      return 'speaking';
+    case 'dj_turn_end':
+      return 'playing';
+    case 'user_barge_in':
+      return 'listening';
+    case 'user_barge_end':
+      return 'speaking';
+    default:
+      return null;
+  }
+}
 
 export function playbackReducer(state: PlaybackState, action: PlaybackAction): PlaybackState {
   switch (action.type) {

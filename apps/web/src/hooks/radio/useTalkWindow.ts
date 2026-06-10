@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { TALK_WINDOW } from '../../lib/playbackCoordinator';
 import type { UiPhase } from '../../types';
-import type { SessionRefs } from './sessionRefs';
+import type { StoreRefs } from './sessionRefs';
 
 /**
  * Owns the end-of-track listening window (ADR-0004). While `inBreak`:
@@ -13,7 +13,7 @@ import type { SessionRefs } from './sessionRefs';
  *   an over-talking DJ can never stall the radio.
  */
 export function useTalkWindow(
-  refs: SessionRefs,
+  store: StoreRefs,
   phase: UiPhase,
   inBreak: boolean,
   userUtteranceCount: number,
@@ -32,14 +32,14 @@ export function useTalkWindow(
 
   const advance = useCallback(() => {
     clearSilence();
-    refs.dispatchRef.current({ type: 'advance' });
-  }, [refs, clearSilence]);
+    store.dispatchRef.current({ type: 'advance' });
+  }, [store, clearSilence]);
 
   // Break lifecycle: reset counters and arm the hard cap.
   useEffect(() => {
     if (!inBreak) return;
     opensInBreak.current = 0;
-    turnBaseline.current = refs.stateRef.current.userUtteranceCount;
+    turnBaseline.current = store.stateRef.current.userUtteranceCount;
     capTimer.current = window.setTimeout(advance, TALK_WINDOW.hardCapMs);
     return () => {
       if (capTimer.current !== null) {
@@ -47,7 +47,7 @@ export function useTalkWindow(
         capTimer.current = null;
       }
     };
-  }, [inBreak, advance, refs]);
+  }, [inBreak, advance, store]);
 
   // Window lifecycle: a silence timer runs only while the listening window is open.
   useEffect(() => {

@@ -1,14 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { connectLiveSession, mapServerPhase } from './liveSession';
+import { connectLiveSession } from './liveSession';
 
-describe('mapServerPhase', () => {
-  it('maps live phases to UI phases', () => {
-    expect(mapServerPhase('dj_turn_start')).toBe('speaking');
-    expect(mapServerPhase('dj_turn_end')).toBe('playing');
-    expect(mapServerPhase('user_barge_in')).toBe('listening');
-    expect(mapServerPhase('user_barge_end')).toBe('speaking');
-  });
-
+describe('connectLiveSession', () => {
   it('invokes onClose when websocket closes', () => {
     class MockWebSocket {
       static CONNECTING = 0;
