@@ -23,7 +23,13 @@ export function useMicStream(
     let mic: MicCapture | null = null;
     startMicCapture((pcm) => {
       const s = store.stateRef.current;
-      if (s.phase === 'listening' || s.isTalking) live.liveRef.current?.sendAudio(pcm);
+      // Open mic while music plays (hands-free talk via Gemini VAD) and during the
+      // end-of-track window. Stay muted while the DJ speaks — on speakers an open
+      // mic would feed the DJ's own voice back and trigger a self-interrupt loop;
+      // deliberate barge-in over the DJ stays on hold-to-talk (isTalking).
+      if (s.phase === 'playing' || s.phase === 'listening' || s.isTalking) {
+        live.liveRef.current?.sendAudio(pcm);
+      }
     })
       .then((capture) => {
         if (cancelled) {

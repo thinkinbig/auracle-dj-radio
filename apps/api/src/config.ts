@@ -21,6 +21,8 @@ export interface Config {
   geminiApiKey: string | undefined;
   flowModel: string;
   liveModel: string;
+  /** Prebuilt Gemini Live voice for the DJ — pinned so it never drifts between turns. */
+  liveVoice: string;
   /** Catalog retrieval (gemini-embedding-2 audio-native). */
   embedModel: string;
   /** mem0 preference vectors — separate index from catalog (ADR-0002). */
@@ -43,6 +45,7 @@ export const config: Config = {
   geminiApiKey: process.env.GEMINI_API_KEY || undefined,
   flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
   liveModel: process.env.GEMINI_LIVE_MODEL ?? "gemini-3.1-flash-live-preview",
+  liveVoice: process.env.GEMINI_LIVE_VOICE ?? "Puck",
   embedModel: process.env.GEMINI_EMBED_MODEL ?? "gemini-embedding-2",
   mem0EmbedModel: process.env.GEMINI_MEM0_EMBED_MODEL ?? "gemini-embedding-001",
   embedder: process.env.AURACLE_EMBEDDER === "gemini" ? "gemini" : "hash",
