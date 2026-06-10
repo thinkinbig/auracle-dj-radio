@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HostMode } from '@auracle/shared';
-import { useRadioActions, useRadioAnalyser, useRadioState } from '../context/RadioSessionContext';
+import {
+  useRadioActions,
+  useRadioAnalyser,
+  useRadioMicAnalyser,
+  useRadioState,
+} from '../context/RadioSessionContext';
 import { useLayoutMode } from '../hooks/useMediaQuery';
 import { formatTime } from '../lib/formatTime';
 import { cn } from '../lib/cn';
@@ -22,6 +27,7 @@ const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
 export function StageHeader() {
   const state = useRadioState();
   const analyser = useRadioAnalyser();
+  const micAnalyser = useRadioMicAnalyser();
   const { handleChangeHostMode } = useRadioActions();
   const { isWide } = useLayoutMode();
   const status = statusLabel(state.phase);
@@ -103,7 +109,7 @@ export function StageHeader() {
         </p>
       )}
 
-      {showStageArt ? (
+      {showStageArt && (
         <div className={styles.artArea}>
           <div className={styles.artStack}>
             <img className={styles.albumCover} src={state.albumCoverUrl} alt="" />
@@ -117,9 +123,14 @@ export function StageHeader() {
             )}
           </div>
         </div>
-      ) : (
-        <StageWaveform phase={state.phase} analyser={analyser} />
       )}
+      {/* The waveform always renders so the stage shows a live visualizer; on wide
+          layouts it sits as a glowing strip beneath the album art. */}
+      <StageWaveform
+        phase={state.phase}
+        analyser={state.isTalking ? micAnalyser : analyser}
+        talking={state.isTalking}
+      />
     </header>
   );
 }

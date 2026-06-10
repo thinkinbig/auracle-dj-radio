@@ -179,6 +179,10 @@ export class LiveVoiceChannel {
           this.produced = true;
         }
         if (sc.interrupted) {
+          // Gemini abandoned this turn because the user spoke. Clear djSpeaking so
+          // the NEXT turn's first audio frame re-emits dj_turn_start — otherwise the
+          // DJ never visibly/ducks-wise starts again for the rest of the session.
+          this.djSpeaking = false;
           this.hooks.sendFrame({ type: "phase", phase: "user_barge_in", track_index: this.cueIndex });
         }
       }

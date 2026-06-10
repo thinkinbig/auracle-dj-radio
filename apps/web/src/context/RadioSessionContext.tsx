@@ -17,6 +17,7 @@ export interface RadioActions {
 interface RadioSessionContextValue {
   state: PlaybackState;
   analyser: AnalyserNode | null;
+  micAnalyser: AnalyserNode | null;
   actions: RadioActions;
 }
 
@@ -27,6 +28,7 @@ export function RadioSessionProvider({ children }: { children: ReactNode }) {
   const value: RadioSessionContextValue = {
     state: session.state,
     analyser: session.analyser,
+    micAnalyser: session.micAnalyser,
     actions: {
       handleStart: session.handleStart,
       handleTogglePause: session.handleTogglePause,
@@ -55,6 +57,10 @@ export function useRadioState(): PlaybackState {
 
 export function useRadioAnalyser(): AnalyserNode | null {
   return useRadioSessionContext().analyser;
+}
+
+export function useRadioMicAnalyser(): AnalyserNode | null {
+  return useRadioSessionContext().micAnalyser;
 }
 
 export function useRadioActions(): RadioActions {

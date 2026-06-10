@@ -9,21 +9,23 @@ import styles from './StageWaveform.module.css';
 interface StageWaveformProps {
   phase: UiPhase;
   analyser: AnalyserNode | null;
+  /** Listener holds the floor: drive the bars from the mic and force the live look. */
+  talking?: boolean;
 }
 
-export function StageWaveform({ phase, analyser }: StageWaveformProps) {
+export function StageWaveform({ phase, analyser, talking = false }: StageWaveformProps) {
   const barsRef = useRef<HTMLDivElement>(null);
   const barCount = useBarCount(barsRef, 4, 28, 120);
-  const live = phase === 'speaking' || phase === 'listening';
-  const playing = phase === 'playing';
-  const mode = live ? 'live' : playing ? 'playing' : 'idle';
+  const live = !talking && (phase === 'speaking' || phase === 'listening');
+  const playing = !talking && phase === 'playing';
+  const mode = talking || live ? 'live' : playing ? 'playing' : 'idle';
 
   useWaveform(barsRef, mode, barCount, analyser);
 
   return (
     <div
       ref={barsRef}
-      className={cn(styles.root, live && styles.live, playing && styles.playing)}
+      className={cn(styles.root, talking && styles.talking, live && styles.live, playing && styles.playing)}
       style={{ '--bar-count': barCount } as CSSProperties}
       aria-hidden
     >

@@ -122,6 +122,8 @@ export function createAudioBus(): AudioBus {
 }
 
 export interface MicCapture {
+  /** Mic-input spectrum, for driving the waveform while the listener holds the floor. */
+  getAnalyser(): AnalyserNode;
   stop(): void;
 }
 
@@ -136,6 +138,14 @@ export async function startMicCapture(onPcm: (pcm: ArrayBuffer) => void): Promis
   const processor = ctx.createScriptProcessor(MIC_FRAME, 1, 1);
   const mute = ctx.createGain();
   mute.gain.value = 0;
+
+  // Tap the raw mic for the waveform (matches the master bus analyser so the bars
+  // look consistent when the source switches to the mic). A read-only sink — it
+  // needs no downstream connection.
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 256;
+  analyser.smoothingTimeConstant = 0.55;
+  source.connect(analyser);
 
   processor.onaudioprocess = (e) => {
     const input = e.inputBuffer.getChannelData(0);
@@ -152,9 +162,13 @@ export async function startMicCapture(onPcm: (pcm: ArrayBuffer) => void): Promis
   mute.connect(ctx.destination);
 
   return {
+    getAnalyser() {
+      return analyser;
+    },
     stop() {
       processor.disconnect();
       source.disconnect();
+      analyser.disconnect();
       mute.disconnect();
       stream.getTracks().forEach((t) => t.stop());
       void ctx.close();

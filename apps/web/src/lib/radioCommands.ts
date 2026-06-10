@@ -91,13 +91,20 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
     startTalk(): void {
       const s = deps.getState();
       if (s.phase === 'idle' || s.phase === 'curating' || s.phase === 'paused' || s.isTalking) return;
-      deps.getBus()?.setMusicVolume(0.15, 0.2);
+      // Take the floor like Siri: silence any in-flight DJ voice instantly (local,
+      // zero round-trip). The music cut + restore is owned by the duck policy,
+      // which now reads isTalking — so a mid-hold phase frame can't undo it.
+      deps.getBus()?.skipDj();
       deps.dispatch({ type: 'start_talk' });
     },
 
     endTalk(): void {
       if (!deps.getState().isTalking) return;
-      deps.getBus()?.setMusicVolume(1.0, 0.4);
+      // Lift the startTalk suppression here, paired with the gesture — don't wait
+      // for a server dj_turn_start to resumeDj (after a barge-in that frame may
+      // never come, which would mute the DJ for the rest of the session). Music
+      // restore is the duck policy's job once isTalking clears.
+      deps.getBus()?.resumeDj();
       deps.dispatch({ type: 'stop_talk' });
     },
 

@@ -45,10 +45,30 @@
   --bar-energy: 0.04;
 }
 
+/* Live / talking states glow green so the visualizer reads clearly on OLED black. */
+.live,
+.talking {
+  filter: drop-shadow(0 0 6px var(--accent-live-pulse));
+  transition: filter var(--duration-fast) var(--ease-out);
+}
+
+.talking {
+  filter: drop-shadow(0 0 12px var(--accent-live-pulse));
+}
+
 .live .bar {
   background: linear-gradient(
     to top,
     var(--wave-live-low) 0%,
+    var(--wave-live-high) calc(var(--bar-energy) * 100%)
+  );
+}
+
+/* Holding the floor: a bolder, fully-saturated green base so it's unmistakably "you". */
+.talking .bar {
+  background: linear-gradient(
+    to top,
+    var(--accent-live) 0%,
     var(--wave-live-high) calc(var(--bar-energy) * 100%)
   );
 }

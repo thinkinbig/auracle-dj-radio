@@ -27,6 +27,8 @@ export interface PlaybackPolicyInput {
   phase: UiPhase;
   currentTrackIndex: number;
   openingReleased: boolean;
+  /** Listener holds the floor (hold-to-talk): music gets fully out of the way. */
+  isTalking?: boolean;
 }
 
 /** Opening track 0: music preloads but stays silent until openingReleased. */
@@ -37,6 +39,9 @@ export function isOpeningBlocked(input: PlaybackPolicyInput): boolean {
 /** Music gain for talk-over duck vs opening silence vs full playback. */
 export function musicVolume(input: PlaybackPolicyInput): number {
   if (isOpeningBlocked(input)) return MUSIC_VOLUME.silent;
+  // The listener took the floor: cut music entirely so it's a clean voice
+  // channel (Siri-style), overriding the gentler talk-over duck.
+  if (input.isTalking) return MUSIC_VOLUME.silent;
   if (input.phase === 'speaking' || input.phase === 'listening') return MUSIC_VOLUME.duck;
   return MUSIC_VOLUME.full;
 }

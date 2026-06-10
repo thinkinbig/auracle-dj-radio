@@ -18,6 +18,8 @@ import { useTrackPlayback } from './radio/useTrackPlayback';
 export interface RadioSession {
   state: PlaybackState;
   analyser: AnalyserNode | null;
+  /** Mic-input spectrum, used by the waveform while the listener holds the floor. */
+  micAnalyser: AnalyserNode | null;
   handleStart: (intent: SessionIntent) => Promise<void>;
   handleTogglePause: () => void;
   handleSkipTrack: () => void;
@@ -32,6 +34,7 @@ export interface RadioSession {
 export function useRadioSession(): RadioSession {
   const [state, dispatch] = useReducer(playbackReducer, undefined, createInitialPlaybackState);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
   const { store, audio, live } = useSessionRefs(state, dispatch);
 
   const opening = useOpeningGate(store, audio);
@@ -48,6 +51,7 @@ export function useRadioSession(): RadioSession {
       sessionId: state.sessionId,
       trackId: state.trackId,
       remainingTrackIds: state.remainingTrackIds,
+      isTalking: state.isTalking,
     },
     opening,
   });
@@ -61,7 +65,7 @@ export function useRadioSession(): RadioSession {
     opening,
   });
 
-  useMicStream(store, live, state.sessionId);
+  useMicStream(store, live, state.sessionId, setMicAnalyser);
   useTalkWindow(store, state.phase, state.inBreak, state.userUtteranceCount);
   useSessionClock(state.phase, dispatch);
 
@@ -70,6 +74,7 @@ export function useRadioSession(): RadioSession {
   return {
     state,
     analyser,
+    micAnalyser,
     handleStart: handlers.handleStart,
     handleTogglePause: handlers.handleTogglePause,
     handleSkipTrack: handlers.handleSkipTrack,

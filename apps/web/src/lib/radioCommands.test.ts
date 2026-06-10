@@ -8,7 +8,7 @@ import type { PlaybackState } from '../types';
 type Effect =
   | { ch: 'socket'; msg: ClientMessage }
   | { ch: 'dispatch'; action: PlaybackAction }
-  | { ch: 'bus'; call: 'skipDj' | 'duck' | 'restore' }
+  | { ch: 'bus'; call: 'skipDj' | 'resumeDj' | 'duck' | 'restore' }
   | { ch: 'audio'; call: 'pause' }
   | { ch: 'opening'; call: 'release' };
 
@@ -28,6 +28,7 @@ function harness(state: Partial<PlaybackState>) {
     dispatch: (action) => log.push({ ch: 'dispatch', action }),
     getBus: () => ({
       skipDj: () => log.push({ ch: 'bus', call: 'skipDj' }),
+      resumeDj: () => log.push({ ch: 'bus', call: 'resumeDj' }),
       setMusicVolume: (v: number) =>
         log.push({ ch: 'bus', call: v < 1 ? 'duck' : 'restore' }),
     }) as never,
@@ -102,18 +103,20 @@ describe('radioCommands.skipVoiceOver', () => {
 });
 
 describe('radioCommands.talk', () => {
-  it('ducks on start and restores on end', () => {
+  it('silences the DJ and marks talking on start; music is the duck policy\'s job', () => {
     const { commands, log } = harness({ phase: 'playing', isTalking: false });
     commands.startTalk();
     expect(log).toEqual([
-      { ch: 'bus', call: 'duck' },
+      { ch: 'bus', call: 'skipDj' },
       { ch: 'dispatch', action: { type: 'start_talk' } },
     ]);
 
+    // endTalk lifts the DJ suppression (paired with the gesture) and clears the
+    // talking flag; the policy restores the music level.
     const ending = harness({ isTalking: true });
     ending.commands.endTalk();
     expect(ending.log).toEqual([
-      { ch: 'bus', call: 'restore' },
+      { ch: 'bus', call: 'resumeDj' },
       { ch: 'dispatch', action: { type: 'stop_talk' } },
     ]);
   });

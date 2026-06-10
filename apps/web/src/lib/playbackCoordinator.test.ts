@@ -20,4 +20,11 @@ describe('playbackCoordinator', () => {
     expect(musicVolume(input)).toBe(MUSIC_VOLUME.full);
     expect(shouldPlayMusic(input)).toBe(true);
   });
+
+  it('cuts music to silent while the listener holds the floor, over the duck', () => {
+    const input = { phase: 'playing' as const, currentTrackIndex: 1, openingReleased: true, isTalking: true };
+    expect(musicVolume(input)).toBe(MUSIC_VOLUME.silent);
+    // The element keeps playing (gain 0) so it resumes instantly on release.
+    expect(shouldPlayMusic(input)).toBe(true);
+  });
 });

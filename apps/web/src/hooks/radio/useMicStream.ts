@@ -7,8 +7,16 @@ import type { LiveRefs, StoreRefs } from './sessionRefs';
  * acquired once per session (permission prompt), but PCM is only forwarded to
  * the Live socket while the listening window is open — mic is muted otherwise,
  * which boundary-gates the tools for free and avoids DJ-voice echo feedback.
+ *
+ * Surfaces the mic's spectrum analyser via `onAnalyser` so the waveform can
+ * switch to it while the listener holds the floor (null when the stream ends).
  */
-export function useMicStream(store: StoreRefs, live: LiveRefs, sessionId: string | null): void {
+export function useMicStream(
+  store: StoreRefs,
+  live: LiveRefs,
+  sessionId: string | null,
+  onAnalyser: (analyser: AnalyserNode | null) => void,
+): void {
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
@@ -18,13 +26,18 @@ export function useMicStream(store: StoreRefs, live: LiveRefs, sessionId: string
       if (s.phase === 'listening' || s.isTalking) live.liveRef.current?.sendAudio(pcm);
     })
       .then((capture) => {
-        if (cancelled) capture.stop();
-        else mic = capture;
+        if (cancelled) {
+          capture.stop();
+          return;
+        }
+        mic = capture;
+        onAnalyser(capture.getAnalyser());
       })
       .catch((err) => console.error('[mic]', err));
     return () => {
       cancelled = true;
       mic?.stop();
+      onAnalyser(null);
     };
-  }, [store, live, sessionId]);
+  }, [store, live, sessionId, onAnalyser]);
 }
