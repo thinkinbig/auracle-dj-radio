@@ -206,13 +206,20 @@
 
 .artStack {
   position: relative;
-  width: min(200px, 80%);
+  /* Height-driven square: fill the space artArea actually gives us (capped at
+     200px) so a short card shrinks the cover instead of letting a fixed 200px
+     overflow upward onto the Host-mode pills. */
+  height: 100%;
+  width: auto;
+  aspect-ratio: 1;
+  max-width: min(200px, 80%);
+  max-height: 200px;
   overflow: visible;
 }
 
 .albumCover {
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   border-radius: var(--radius-inner);
   object-fit: cover;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.7);

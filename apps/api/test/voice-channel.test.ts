@@ -3,6 +3,11 @@ import type { LiveServerMessage } from "@google/genai";
 import { LiveVoiceChannel, type VoiceChannelHooks } from "../src/live/voice-channel.js";
 import type { SessionState } from "../src/session/store.js";
 
+const liveConnect = vi.fn(async (_opts: { config: { speechConfig?: unknown } }) => ({ close: vi.fn() }));
+vi.mock("../src/gemini/client.js", () => ({
+  createGeminiClient: () => ({ live: { connect: liveConnect } }),
+}));
+
 function mockState(): SessionState {
   return {
     id: "s1",
@@ -78,6 +83,17 @@ describe("LiveVoiceChannel (hot path)", () => {
     vc.handleServerMessage(audioMsg("AAAA"));
 
     expect(hooks.sendFrame).toHaveBeenCalledWith({ type: "phase", phase: "dj_turn_start", track_index: 1 });
+  });
+
+  it("pins the DJ voice so it never drifts between turns", async () => {
+    const vc = new LiveVoiceChannel(mockState(), { getTrack: () => undefined }, mockHooks());
+
+    await vc.connect();
+
+    const cfg = liveConnect.mock.calls[0]![0];
+    expect(cfg.config.speechConfig).toEqual({
+      voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } },
+    });
   });
 
   it("suppresses the rest of a skipped voice-over", () => {

@@ -1,5 +1,7 @@
 import {
+  EndSensitivity,
   Modality,
+  StartSensitivity,
   type FunctionResponse,
   type LiveServerMessage,
   type Session,
@@ -92,6 +94,20 @@ export class LiveVoiceChannel {
       model: config.liveModel,
       config: {
         responseModalities: [Modality.AUDIO],
+        // Pin the voice so the DJ never drifts between the opening monologue and
+        // conversational replies (native-audio Live varies it when left unset).
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: config.liveVoice } } },
+        // Gemini's own VAD decides when the listener is speaking. LOW start
+        // sensitivity rejects music/room bleed (the mic is open during playback).
+        // LOW end sensitivity + an explicit silence window keep the DJ from cutting
+        // in on a mid-sentence pause (END_HIGH did exactly that).
+        realtimeInputConfig: {
+          automaticActivityDetection: {
+            startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_LOW,
+            endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+            silenceDurationMs: 1000,
+          },
+        },
         systemInstruction: buildSystemInstruction({
           title: this.state.title,
           subtitle: this.state.subtitle,
