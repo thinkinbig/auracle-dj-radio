@@ -1,7 +1,7 @@
 import { config } from "./config.js";
 import { CatalogDb, type TrackRow } from "./catalog-db.js";
 import { resolveCatalogPath, tracksWithAssets } from "./catalog/manifest.js";
-import { buildEmbedder } from "./wiring.js";
+import { buildSeedEmbedder } from "./wiring.js";
 
 /**
  * Build the catalog SQLite from `<catalogDataDir>/catalog/manifest.json`.
@@ -10,7 +10,7 @@ import { buildEmbedder } from "./wiring.js";
  */
 async function main(): Promise<void> {
   const db = new CatalogDb(config.dbPath);
-  const embedder = buildEmbedder();
+  const embedder = buildSeedEmbedder();
   const tracks = tracksWithAssets();
 
   for (const track of tracks) {

@@ -12,10 +12,21 @@ export interface Config {
   eventsDbPath: string;
   /** Base URL of the music-engine HTTP service (catalog retrieval + planning). */
   musicEngineUrl: string;
+  /** mem0 cross-session memory (degrades to no-op when absent). */
+  geminiApiKey: string | undefined;
+  flowModel: string;
+  mem0EmbedModel: string;
+  qdrantUrl: string;
+  mem0HistoryDb: string;
 }
 
 export const config: Config = {
   port: Number(process.env.MEMORY_SERVICE_PORT ?? 3020),
   eventsDbPath: process.env.MEMORY_EVENTS_DB_PATH ?? resolve(here, "../auracle-events.sqlite"),
   musicEngineUrl: process.env.MUSIC_ENGINE_URL ?? "http://localhost:3010",
+  geminiApiKey: process.env.GEMINI_API_KEY || undefined,
+  flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
+  mem0EmbedModel: process.env.GEMINI_MEM0_EMBED_MODEL ?? "gemini-embedding-001",
+  qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6333",
+  mem0HistoryDb: process.env.AURACLE_MEM0_HISTORY_DB ?? resolve(here, "../mem0-history.db"),
 };

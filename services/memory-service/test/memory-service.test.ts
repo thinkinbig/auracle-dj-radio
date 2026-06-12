@@ -11,6 +11,7 @@ import type {
   PlanTracklistRequest,
   SearchCatalogRequest,
 } from "../src/music-engine-client.js";
+import type { MemoryClient } from "../src/memory/client.js";
 import { buildServer } from "../src/server.js";
 
 function candidate(id: string, energy: Energy): TrackCandidate {
@@ -42,6 +43,16 @@ class FakeMusicEngine implements MusicEngineClient {
   }
 }
 
+/** No cross-session memory in tests — keep them hermetic (no Gemini/Qdrant). */
+const noopMemory: MemoryClient = {
+  enabled: false,
+  degraded: false,
+  async recall() {
+    return "";
+  },
+  async remember() {},
+};
+
 let app: ReturnType<typeof buildServer>;
 let events: EventsDb;
 let music: FakeMusicEngine;
@@ -50,7 +61,7 @@ beforeAll(async () => {
   const dbPath = join(mkdtempSync(join(tmpdir(), "memory-service-")), "events.sqlite");
   events = new EventsDb(dbPath);
   music = new FakeMusicEngine();
-  app = buildServer({ store: new SessionStore(), events, music });
+  app = buildServer({ store: new SessionStore(), events, music, memory: noopMemory });
   await app.ready();
 });
 

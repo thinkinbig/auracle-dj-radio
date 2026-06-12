@@ -7,4 +7,5 @@ apps/api/data/mem0/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.db
 .DS_Store

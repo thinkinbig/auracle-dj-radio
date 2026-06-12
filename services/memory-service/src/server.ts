@@ -3,11 +3,13 @@ import type { Condition, SessionIntent } from "@auracle/shared";
 import { EventsDb } from "./events-db.js";
 import { SessionStore } from "./session/store.js";
 import type { MusicEngineClient } from "./music-engine-client.js";
+import type { MemoryClient } from "./memory/client.js";
 
 export interface MemoryServiceDeps {
   store: SessionStore;
   events: EventsDb;
   music: MusicEngineClient;
+  memory: MemoryClient;
 }
 
 function parseIntent(raw: unknown): SessionIntent | undefined {
@@ -22,7 +24,7 @@ function parseIntent(raw: unknown): SessionIntent | undefined {
  * service up in isolation — the live path stays on the apps/api relay until Phase 3.
  */
 export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
-  const { store, events, music } = deps;
+  const { store, events, music, memory } = deps;
   const app = Fastify({ logger: true });
 
   app.get("/health", async () => ({ ok: true }));
@@ -33,8 +35,9 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
     if (!intent) return reply.code(400).send({ error: "mood and scene are required" });
     const condition: Condition = body.condition ?? "C";
 
-    // mem0 recall is wired in 2b; A/B (and 2a) carry no cross-session context.
-    const mem0Context = "";
+    // Cross-session memory only feeds the experimental arm (condition "C");
+    // A/B carry no prior context. mem0 degrades to "" when the stack is absent.
+    const mem0Context = condition === "C" ? await memory.recall(`${intent.mood} ${intent.scene}`) : "";
 
     const plan = await music.planTracklist({ intent, mode: "full", memories: mem0Context });
     const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
