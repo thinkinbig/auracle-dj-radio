@@ -1,6 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "services/*"
 allowBuilds:
   '@google/genai': true
   better-sqlite3: true
