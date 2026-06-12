@@ -4,6 +4,7 @@ import { EventsDb } from "./events-db.js";
 import { SessionStore } from "./session/store.js";
 import type { MusicEngineClient } from "./music-engine-client.js";
 import type { MemoryClient } from "./memory/client.js";
+import { buildRegistration } from "./dj/registration.js";
 
 export interface MemoryServiceDeps {
   store: SessionStore;
@@ -66,6 +67,17 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
       tracklist: state.tracklist,
       mem0_context: state.mem0Context,
     };
+  });
+
+  // Pre-baked Gemini registration contract for the proxy (Phase 3 consumer):
+  // fully-assembled systemInstruction + tools + openingCue. Internal, never the browser.
+  app.get("/sessions/:id/registration", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const state = store.get(id);
+    if (!state) return reply.code(404).send({ error: "session not found" });
+    const openingId = state.tracklist[0]?.id;
+    const openingTrack = openingId ? await music.getTrack(openingId) : undefined;
+    return buildRegistration(state, openingTrack);
   });
 
   app.get("/sessions/:id", async (req, reply) => {

@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Energy, FlowTrackRef, TrackCandidate } from "@auracle/shared";
+import type { Energy, FlowTrackRef, TrackCandidate, TrackMeta } from "@auracle/shared";
 import { EventsDb } from "../src/events-db.js";
 import { SessionStore } from "../src/session/store.js";
 import type {
@@ -38,8 +38,26 @@ class FakeMusicEngine implements MusicEngineClient {
   async searchCatalog(_req: SearchCatalogRequest): Promise<{ candidates: TrackCandidate[] }> {
     return { candidates: [candidate("a", 1)] };
   }
-  async getTrack(): Promise<undefined> {
-    return undefined;
+  async getTrack(id: string): Promise<TrackMeta | undefined> {
+    if (id !== "a") return undefined;
+    return {
+      id: "a",
+      title: "Opening Track",
+      artist: "Test Artist",
+      artistId: "ar1",
+      albumId: "al1",
+      albumTitle: "Test Album",
+      albumCoverUrl: "/covers/a.jpg",
+      artistPhotoUrl: "/artists/ar1.jpg",
+      lore: "A gentle opener.",
+      energy: 1,
+      tempo: 70,
+      genre: "ambient",
+      mood: "calm",
+      scene: "studying",
+      filePath: "data/audio/a.mp3",
+      introOffsetMs: null,
+    };
   }
 }
 
@@ -105,6 +123,32 @@ describe("memory-service /sessions", () => {
     expect(body.remaining.map((t) => t.id)).toEqual(["b", "c"]);
 
     const missing = await app.inject({ method: "GET", url: "/sessions/nope" });
+    expect(missing.statusCode).toBe(404);
+  });
+
+  it("serves a pre-baked registration contract, 404 for unknown", async () => {
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying" },
+    });
+    const { session_id, session_title } = created.json<{ session_id: string; session_title: string }>();
+
+    const res = await app.inject({ method: "GET", url: `/sessions/${session_id}/registration` });
+    expect(res.statusCode).toBe(200);
+    const reg = res.json<{ systemInstruction: string; tools: { name: string }[]; openingCue: string }>();
+    expect(reg.systemInstruction).toContain(session_title);
+    expect(reg.tools.map((t) => t.name)).toEqual([
+      "skip_track",
+      "mood_change",
+      "change_host_mode",
+      "pause_playback",
+      "record_preference",
+    ]);
+    expect(reg.openingCue).toContain("[opening");
+    expect(reg.openingCue).toContain("Opening Track");
+
+    const missing = await app.inject({ method: "GET", url: "/sessions/nope/registration" });
     expect(missing.statusCode).toBe(404);
   });
 });
