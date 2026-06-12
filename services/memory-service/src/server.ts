@@ -1,0 +1,85 @@
+import Fastify, { type FastifyInstance } from "fastify";
+import type { Condition, SessionIntent } from "@auracle/shared";
+import { EventsDb } from "./events-db.js";
+import { SessionStore } from "./session/store.js";
+import type { MusicEngineClient } from "./music-engine-client.js";
+
+export interface MemoryServiceDeps {
+  store: SessionStore;
+  events: EventsDb;
+  music: MusicEngineClient;
+}
+
+function parseIntent(raw: unknown): SessionIntent | undefined {
+  const b = (raw ?? {}) as Partial<SessionIntent>;
+  if (!b.mood || !b.scene) return undefined;
+  return { mood: b.mood, scene: b.scene, duration_min: b.duration_min ?? 25 };
+}
+
+/**
+ * Memory-service: the stateful orchestrator. Owns session state + the analytics
+ * event log; sources tracklists from music-engine over HTTP. Phase 2a stands the
+ * service up in isolation — the live path stays on the apps/api relay until Phase 3.
+ */
+export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
+  const { store, events, music } = deps;
+  const app = Fastify({ logger: true });
+
+  app.get("/health", async () => ({ ok: true }));
+
+  app.post("/sessions", async (req, reply) => {
+    const body = (req.body ?? {}) as Partial<SessionIntent> & { condition?: Condition };
+    const intent = parseIntent(body);
+    if (!intent) return reply.code(400).send({ error: "mood and scene are required" });
+    const condition: Condition = body.condition ?? "C";
+
+    // mem0 recall is wired in 2b; A/B (and 2a) carry no cross-session context.
+    const mem0Context = "";
+
+    const plan = await music.planTracklist({ intent, mode: "full", memories: mem0Context });
+    const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
+    const state = store.create({
+      intent,
+      condition,
+      title: plan.result.session_title,
+      subtitle: plan.result.session_subtitle,
+      arc: plan.result.arc,
+      tracklist: plan.result.tracklist,
+      candidatesById,
+      mem0Context,
+    });
+    events.recordEvent(state.id, "session_created", {
+      intent,
+      condition,
+      tracklist: plan.result.tracklist,
+    });
+
+    return {
+      session_id: state.id,
+      session_title: state.title,
+      session_subtitle: state.subtitle,
+      host_mode: state.hostMode,
+      current_track_index: state.currentTrackIndex,
+      tracklist: state.tracklist,
+      mem0_context: state.mem0Context,
+    };
+  });
+
+  app.get("/sessions/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const state = store.get(id);
+    if (!state) return reply.code(404).send({ error: "session not found" });
+    return {
+      session_id: state.id,
+      session_title: state.title,
+      session_subtitle: state.subtitle,
+      host_mode: state.hostMode,
+      current_track_index: state.currentTrackIndex,
+      tracklist: state.tracklist,
+      remaining: store.remaining(state),
+      mem0_context: state.mem0Context,
+    };
+  });
+
+  return app;
+}

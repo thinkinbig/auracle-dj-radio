@@ -91,6 +91,34 @@ importers:
 
   packages/shared: {}
 
+  services/memory-service:
+    dependencies:
+      '@auracle/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      better-sqlite3:
+        specifier: ^11.6.0
+        version: 11.10.0
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      fastify:
+        specifier: ^5.1.0
+        version: 5.8.5
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.11
+        version: 7.6.13
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.19
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.4
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.19)
+
   services/music-engine:
     dependencies:
       '@auracle/shared':
