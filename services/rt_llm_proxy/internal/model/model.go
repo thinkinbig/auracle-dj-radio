@@ -67,6 +67,23 @@ type Transcriber interface {
 	RecvTranscript() (Transcript, error)
 }
 
+// TurnPhase is a DJ-turn boundary derived from the provider stream. Phase is one
+// of "dj_turn_start" (the model began emitting audio for a turn), "dj_turn_end"
+// (the turn completed), or "user_barge_in" (the model abandoned its turn because
+// the user spoke). The orchestrator-agnostic proxy forwards these so the browser
+// can drive its turn choreography (ducking, opening gate, talk window) without
+// the model's continuous media stream surfacing turn boundaries.
+type TurnPhase struct {
+	Phase string
+}
+
+// Phaser is an optional Model capability: providers that surface turn boundaries
+// implement RecvPhase. The Bridge type-asserts to this to forward phase frames to
+// the browser data channel, mirroring Transcriber.
+type Phaser interface {
+	RecvPhase() (TurnPhase, error)
+}
+
 // Interrupter is an optional Model capability: providers that support VAD-based
 // barge-in implement it. It gathers all three interruption methods that used to
 // be split across Model and Transcriber, so capability resolution has a single

@@ -12,7 +12,7 @@ const app = buildServer({
   music: new HttpMusicEngineClient(config.musicEngineUrl),
   memory: createMemoryClient(),
   proxy: new HttpProxyClient(config.proxyUrl),
-  proxyPublicUrl: config.proxyUrl,
+  proxyPublicUrl: config.proxyPublicUrl,
 });
 
 app

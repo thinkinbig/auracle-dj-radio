@@ -6,7 +6,6 @@ import {
 } from '../lib/playbackReducer';
 import type { PlaybackState } from '../types';
 import { useLiveConnection } from './radio/useLiveConnection';
-import { useMicStream } from './radio/useMicStream';
 import { useOpeningGate } from './radio/useOpeningGate';
 import { useRadioCommands } from './radio/useRadioCommands';
 import { useRadioHandlers } from './radio/useRadioHandlers';
@@ -38,12 +37,11 @@ export function useRadioSession(): RadioSession {
   const { store, audio, live } = useSessionRefs(state, dispatch);
 
   const opening = useOpeningGate(store, audio);
-  const commands = useRadioCommands(store, audio, live, opening);
+  const commands = useRadioCommands(store, audio, opening);
 
   useTrackPlayback({
     store,
     audio,
-    live,
     commands,
     state: {
       phase: state.phase,
@@ -61,11 +59,15 @@ export function useRadioSession(): RadioSession {
     audio,
     live,
     commands,
-    liveWsUrl: state.liveWsUrl,
+    proxyUrl: state.proxyUrl,
+    sessionId: state.sessionId,
+    token: state.token,
+    phase: state.phase,
+    isTalking: state.isTalking,
     opening,
+    setMicAnalyser,
   });
 
-  useMicStream(store, live, state.sessionId, setMicAnalyser);
   useTalkWindow(store, state.phase, state.inBreak, state.userUtteranceCount);
   useSessionClock(state.phase, dispatch);
 

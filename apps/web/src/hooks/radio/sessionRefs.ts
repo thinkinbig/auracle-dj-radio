@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject } from 'react';
 import type { AudioBus } from '../../lib/liveAudio';
-import type { LiveSessionHandle } from '../../lib/liveSession';
+import type { LiveRtcHandle } from '../../lib/liveSessionRtc';
 import type { PlaybackAction } from '../../lib/playbackReducer';
 import type { PlaybackState } from '../../types';
 
@@ -16,9 +16,9 @@ export interface AudioRefs {
   audioBusRef: MutableRefObject<AudioBus | null>;
 }
 
-/** Transport: the live WebSocket handle to the relay. */
+/** Transport: the WebRTC session handle to the proxy. */
 export interface LiveRefs {
-  liveRef: MutableRefObject<LiveSessionHandle | null>;
+  liveRef: MutableRefObject<LiveRtcHandle | null>;
 }
 
 /** The three imperative seams, grouped by plane; hooks take only the ones they need. */

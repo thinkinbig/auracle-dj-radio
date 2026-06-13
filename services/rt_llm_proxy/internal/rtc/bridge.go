@@ -449,11 +449,14 @@ func (h *Hub) Serve(offerSDP string, m model.Model, info SessionInfo) (string, e
 			sess.rec.Record("user", string(msg.Data))
 			_ = m.SendText(string(msg.Data))
 		})
-		if caps.Transcriber != nil || caps.Tools != nil {
+		if caps.Transcriber != nil || caps.Tools != nil || caps.Phaser != nil {
 			start := func() {
 				if caps.Transcriber != nil {
 					replayOnce.Do(func() { sendReplay(dc, info.Replay) })
 					h.wg.Go(func() { forwardTranscripts(scope.mediaCtx(), dc, caps.Transcriber, sess) })
+				}
+				if caps.Phaser != nil {
+					h.wg.Go(func() { forwardPhases(scope.mediaCtx(), dc, caps.Phaser) })
 				}
 				if caps.Tools != nil {
 					if info.ToolBackend != nil {
@@ -652,6 +655,35 @@ func forwardTranscripts(ctx context.Context, dc textSender, t model.Transcriber,
 		}
 		if err := dc.SendText(dcproto.Encode(line)); err != nil {
 			log.Printf("rtc: transcript send: %v", err)
+			return
+		}
+	}
+}
+
+// forwardPhases relays DJ-turn boundaries to the browser as ui_events
+// ({type:"phase",...}), so the front-end can drive its turn choreography
+// (ducking, opening gate, talk window) over a continuous media stream. track_index
+// is a placeholder — the proxy does not own the playhead; the browser uses its own
+// current track. Exits when the model closes (RecvPhase errors).
+func forwardPhases(ctx context.Context, dc textSender, p model.Phaser) {
+	for {
+		ph, err := p.RecvPhase()
+		if err != nil {
+			return
+		}
+		event, err := json.Marshal(map[string]any{"type": "phase", "phase": ph.Phase, "track_index": 0})
+		if err != nil {
+			continue
+		}
+		for dc.ReadyState() != webrtc.DataChannelStateOpen {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(50 * time.Millisecond):
+			}
+		}
+		if err := dc.SendText(dcproto.EncodeUIEvent(event)); err != nil {
+			log.Printf("rtc: phase send: %v", err)
 			return
 		}
 	}

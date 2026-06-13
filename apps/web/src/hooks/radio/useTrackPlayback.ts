@@ -4,16 +4,15 @@ import {
   shouldPlayMusic,
   TALK_WINDOW,
 } from '../../lib/playbackCoordinator';
-import { postSessionEvent } from '../../lib/sessionApi';
+import { postNowPlaying, postSessionEvent } from '../../lib/sessionApi';
 import type { RadioCommands } from '../../lib/radioCommands';
 import type { PlaybackState } from '../../types';
 import type { OpeningGateControls } from './useOpeningGate';
-import type { AudioRefs, LiveRefs, StoreRefs } from './sessionRefs';
+import type { AudioRefs, StoreRefs } from './sessionRefs';
 
 interface TrackPlaybackInput {
   store: StoreRefs;
   audio: AudioRefs;
-  live: LiveRefs;
   commands: RadioCommands;
   state: Pick<
     PlaybackState,
@@ -23,7 +22,7 @@ interface TrackPlaybackInput {
 }
 
 /** Music element listeners, per-track loading, duck policy, and pause/resume DJ sync. */
-export function useTrackPlayback({ store, audio, live, commands, state, opening }: TrackPlaybackInput): void {
+export function useTrackPlayback({ store, audio, commands, state, opening }: TrackPlaybackInput): void {
   const { openingReleased, armForTrack } = opening;
   const prevPhaseRef = useRef(state.phase);
   // Track index we've already fired an end-of-track cue for, so the final-seconds
@@ -67,7 +66,7 @@ export function useTrackPlayback({ store, audio, live, commands, state, opening 
       // Only a track with a successor opens a window; the final track just plays
       // out under the outro.
       if (hasNext) store.dispatchRef.current({ type: 'enter_break' });
-      commands.cueTrack(s.currentTrackIndex, hasNext ? 'break' : 'outro');
+      commands.cueTrack(hasNext ? 'break' : 'outro');
     },
     [store, commands],
   );
@@ -114,12 +113,12 @@ export function useTrackPlayback({ store, audio, live, commands, state, opening 
     armForTrack(state.currentTrackIndex);
 
     postSessionEvent(state.sessionId, 'track_started', { track_id: state.trackId });
-    // The browser owns the Playhead; mirror it to the relay over the live socket so
+    // The browser owns the Playhead; mirror it to memory-service over HTTP so
     // cues/replan target the right track (CONTEXT: Playhead). The event above is
     // analytics only and no longer moves the server pointer.
-    live.liveRef.current?.send({ type: 'now_playing', track_index: state.currentTrackIndex });
+    postNowPlaying(state.sessionId, state.trackId);
     // No start-of-track cue: the DJ now speaks at the END of each track (ADR-0004).
-    // Track 0's opening greeting is auto-cued by the relay on connect.
+    // Track 0's opening greeting is auto-cued by the proxy on connect.
 
     const el = audio.audioRef.current;
     if (el) {
@@ -140,7 +139,6 @@ export function useTrackPlayback({ store, audio, live, commands, state, opening 
   }, [
     store,
     audio,
-    live,
     state.sessionId,
     state.currentTrackIndex,
     state.trackId,

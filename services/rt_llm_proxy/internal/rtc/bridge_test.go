@@ -388,6 +388,35 @@ func TestForwardTranscriptsRecordsAndSends(t *testing.T) {
 	}
 }
 
+type fakePhaser struct {
+	phases []model.TurnPhase
+	i      int
+}
+
+func (f *fakePhaser) RecvPhase() (model.TurnPhase, error) {
+	if f.i >= len(f.phases) {
+		return model.TurnPhase{}, io.EOF
+	}
+	p := f.phases[f.i]
+	f.i++
+	return p, nil
+}
+
+func TestForwardPhasesEncodesUIEvents(t *testing.T) {
+	sender := &fakeTextSender{state: webrtc.DataChannelStateOpen}
+	p := &fakePhaser{phases: []model.TurnPhase{{Phase: "dj_turn_start"}, {Phase: "dj_turn_end"}}}
+	forwardPhases(context.Background(), sender, p)
+	if sender.count() != 2 {
+		t.Fatalf("want 2 sends, got %d", sender.count())
+	}
+	if !strings.Contains(sender.sent[0], `"type":"ui_event"`) || !strings.Contains(sender.sent[0], "dj_turn_start") {
+		t.Fatalf("first phase not encoded as ui_event: %s", sender.sent[0])
+	}
+	if !strings.Contains(sender.sent[1], "dj_turn_end") {
+		t.Fatalf("second phase missing: %s", sender.sent[1])
+	}
+}
+
 func TestForwardToolCallsEncodesAndSends(t *testing.T) {
 	sender := &fakeTextSender{state: webrtc.DataChannelStateOpen}
 	td := &fakeToolDispatcher{calls: []model.ToolCall{{ID: "a", Name: "play", Args: json.RawMessage(`{}`)}}}

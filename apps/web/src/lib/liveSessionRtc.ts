@@ -18,6 +18,8 @@ export interface LiveRtcHandlers {
   onMessage(msg: ServerMessage): void;
   /** The DJ's remote audio (Opus) — attach to an <audio> element / audio bus. */
   onRemoteStream(stream: MediaStream): void;
+  /** The captured mic stream — tap it for the waveform analyser. */
+  onLocalStream?(stream: MediaStream): void;
   /** Fires once the peer connection reaches "connected". */
   onOpen?(): void;
   /** Fires on remote close, connection failure, or close(). */
@@ -27,6 +29,11 @@ export interface LiveRtcHandlers {
 export interface LiveRtcHandle {
   /** Send raw user text to the model over the data channel. */
   sendText(text: string): void;
+  /**
+   * Gate the mic track without renegotiating: the WebRTC port of the relay-era
+   * phase-gated PCM mute (anti-echo while the DJ speaks on speakers).
+   */
+  setMicEnabled(on: boolean): void;
   close(): void;
 }
 
@@ -54,6 +61,7 @@ export async function connectLiveSessionRtc(
   const localStream = await navigator.mediaDevices.getUserMedia({
     audio: opts.deviceId ? { ...MIC_CONSTRAINTS, deviceId: { exact: opts.deviceId } } : MIC_CONSTRAINTS,
   });
+  handlers.onLocalStream?.(localStream);
 
   const pc = new RTCPeerConnection({}); // no ICE servers — host candidates only
   const dc = pc.createDataChannel('data', { ordered: true });
@@ -119,6 +127,9 @@ export async function connectLiveSessionRtc(
   return {
     sendText(text) {
       if (dc.readyState === 'open') dc.send(text);
+    },
+    setMicEnabled(on) {
+      for (const track of localStream.getAudioTracks()) track.enabled = on;
     },
     close: cleanup,
   };

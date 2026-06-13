@@ -14,6 +14,12 @@ export interface Config {
   musicEngineUrl: string;
   /** Base URL of the media proxy (rt_llm_proxy) memory-service registers sessions with. */
   proxyUrl: string;
+  /**
+   * Proxy base URL handed to the browser for its WebRTC SDP offer. Defaults to the
+   * same-origin "/proxy" path (Vite dev-proxy / prod reverse-proxy → the real proxy),
+   * so no CORS is needed; distinct from proxyUrl (the server→proxy registration URL).
+   */
+  proxyPublicUrl: string;
   /** mem0 cross-session memory (degrades to no-op when absent). */
   geminiApiKey: string | undefined;
   flowModel: string;
@@ -27,6 +33,7 @@ export const config: Config = {
   eventsDbPath: process.env.MEMORY_EVENTS_DB_PATH ?? resolve(here, "../auracle-events.sqlite"),
   musicEngineUrl: process.env.MUSIC_ENGINE_URL ?? "http://localhost:3010",
   proxyUrl: process.env.PROXY_URL ?? "http://localhost:8080",
+  proxyPublicUrl: process.env.PROXY_PUBLIC_URL ?? "/proxy",
   geminiApiKey: process.env.GEMINI_API_KEY || undefined,
   flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
   mem0EmbedModel: process.env.GEMINI_MEM0_EMBED_MODEL ?? "gemini-embedding-001",

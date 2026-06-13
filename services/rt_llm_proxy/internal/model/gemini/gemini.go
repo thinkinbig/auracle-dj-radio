@@ -168,6 +168,12 @@ type Gemini struct {
 	modelBuf      strings.Builder
 	interruptedCh chan struct{}       // Signals user speech interruption from server
 	toolCallCh    chan model.ToolCall // server tool calls; nil when no tools declared
+	phaseCh       chan model.TurnPhase // DJ-turn boundaries derived from serverContent
+
+	// djSpeaking tracks whether a DJ turn is in flight, so a turn's first audio
+	// part emits dj_turn_start exactly once and turnComplete emits dj_turn_end.
+	// Touched only by readLoop.
+	djSpeaking bool
 
 	// openingCue is sent once on setupComplete (readLoop-only after construction).
 	openingCue string
@@ -178,6 +184,7 @@ var (
 	_ model.Transcriber     = (*Gemini)(nil)
 	_ model.ContextRestorer = (*Gemini)(nil)
 	_ model.ToolDispatcher  = (*Gemini)(nil)
+	_ model.Phaser          = (*Gemini)(nil)
 )
 
 // EnvVAD returns the default VAD settings: enabled unless VAD_ENABLED=false,
@@ -251,6 +258,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*Gemini, error) {
 		recvCh: make(chan []int16, 64), textCh: make(chan model.Transcript, 64),
 		interruptedCh: make(chan struct{}, 1),
 		toolCallCh:    make(chan model.ToolCall, 8),
+		phaseCh:       make(chan model.TurnPhase, 8),
 		openingCue:    cfg.OpeningCue,
 	}
 
@@ -464,6 +472,52 @@ func (g *Gemini) emitText(role, text string) {
 	}
 }
 
+func (g *Gemini) emitPhase(phase string) {
+	select {
+	case g.phaseCh <- model.TurnPhase{Phase: phase}:
+	case <-g.ctx.Done():
+	}
+}
+
+// The DJ-turn phase state machine, mirroring the relay's voice-channel logic:
+// dj_turn_start fires once on the first audio of a turn, dj_turn_end on turn
+// completion, user_barge_in when the user speaks over the DJ. djSpeaking gates
+// them so there are no phantom ends and start fires exactly once per turn.
+
+func (g *Gemini) markDJTurnStart() {
+	if !g.djSpeaking {
+		g.djSpeaking = true
+		g.emitPhase("dj_turn_start")
+	}
+}
+
+func (g *Gemini) markDJTurnEnd() {
+	if g.djSpeaking {
+		g.djSpeaking = false
+		g.emitPhase("dj_turn_end")
+	}
+}
+
+func (g *Gemini) markBargeIn() {
+	if g.djSpeaking {
+		g.djSpeaking = false
+		g.emitPhase("user_barge_in")
+	}
+}
+
+// RecvPhase implements model.Phaser: blocks for the next DJ-turn boundary.
+func (g *Gemini) RecvPhase() (model.TurnPhase, error) {
+	select {
+	case <-g.ctx.Done():
+		return model.TurnPhase{}, io.EOF
+	case p, ok := <-g.phaseCh:
+		if !ok {
+			return model.TurnPhase{}, io.EOF
+		}
+		return p, nil
+	}
+}
+
 // inlineAudioToModelPCM turns one inline-data audio part into mono s16 at 48kHz
 // (Model contract). Wire format is s16le; native rate comes from the part MIME.
 func inlineAudioToModelPCM(raw []byte, mime string) []int16 {
@@ -476,6 +530,7 @@ func (g *Gemini) readLoop() {
 	defer close(g.textCh)
 	defer close(g.interruptedCh)
 	defer close(g.toolCallCh)
+	defer close(g.phaseCh)
 	first := true
 	for {
 		_, data, err := g.conn.Read(g.ctx)
@@ -508,30 +563,35 @@ func (g *Gemini) readLoop() {
 		}
 		g.handleTranscription("user", msg.ServerContent.InputTranscription)
 		g.handleTranscription("model", msg.ServerContent.OutputTranscription)
+		// The user spoke over the DJ: Gemini abandons the turn. End the DJ turn as a
+		// barge-in so the browser returns to listening (mirrors the relay).
 		if msg.ServerContent.Interrupted {
 			g.signalInterrupted()
+			g.markBargeIn()
+		}
+		// dj_turn_start on the first audio part of a turn, before queueing audio.
+		if mt := msg.ServerContent.ModelTurn; mt != nil {
+			for _, part := range mt.Parts {
+				if part.InlineData == nil || part.InlineData.Data == "" {
+					continue
+				}
+				g.markDJTurnStart()
+				raw, err := base64.StdEncoding.DecodeString(part.InlineData.Data)
+				if err != nil {
+					continue
+				}
+				samples := inlineAudioToModelPCM(raw, part.InlineData.MimeType)
+				select {
+				case g.recvCh <- samples:
+				case <-g.ctx.Done():
+					return
+				}
+			}
 		}
 		if msg.ServerContent.TurnComplete {
 			g.userBuf.Reset()
 			g.modelBuf.Reset()
-		}
-		if msg.ServerContent.ModelTurn == nil {
-			continue
-		}
-		for _, part := range msg.ServerContent.ModelTurn.Parts {
-			if part.InlineData == nil || part.InlineData.Data == "" {
-				continue
-			}
-			raw, err := base64.StdEncoding.DecodeString(part.InlineData.Data)
-			if err != nil {
-				continue
-			}
-			samples := inlineAudioToModelPCM(raw, part.InlineData.MimeType)
-			select {
-			case g.recvCh <- samples:
-			case <-g.ctx.Done():
-				return
-			}
+			g.markDJTurnEnd()
 		}
 	}
 }

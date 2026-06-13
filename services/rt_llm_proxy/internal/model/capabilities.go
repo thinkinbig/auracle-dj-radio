@@ -11,6 +11,7 @@ type Capabilities struct {
 	Transcriber Transcriber     // non-nil: surfaces STT to forward to the data channel
 	Tools       ToolDispatcher  // non-nil: supports function calling
 	Interrupter Interrupter     // non-nil: supports AND has enabled VAD barge-in
+	Phaser      Phaser          // non-nil: surfaces DJ-turn phase boundaries
 }
 
 // Resolve discovers a model's optional capabilities. Interrupter is resolved
@@ -22,6 +23,7 @@ func Resolve(m Model) Capabilities {
 	c.Restorer, _ = m.(ContextRestorer)
 	c.Transcriber, _ = m.(Transcriber)
 	c.Tools, _ = m.(ToolDispatcher)
+	c.Phaser, _ = m.(Phaser)
 	if it, ok := m.(Interrupter); ok && it.SupportsInterruption() {
 		c.Interrupter = it
 	}

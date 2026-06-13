@@ -16,6 +16,6 @@ export const DEMO_SESSION: CreateSessionResponse = {
     { id: 't08', flow_position: 8, reason: 'Soft landing' },
   ],
   mem0_context: '',
-  mem0_available: true,
-  live_ws_url: '/sessions/demo-session/live',
+  proxy_url: '',
+  token: '',
 };

@@ -301,6 +301,62 @@ describe("memory-service orchestration", () => {
     expect(unknown.statusCode).toBe(400);
   });
 
+  it("cue builds an end-of-track break and pushes it via Lane-3 inject_text", async () => {
+    const id = await createSession("C");
+    const before = proxy.injectCalls.length;
+    const res = await app.inject({ method: "POST", url: `/sessions/${id}/cue`, payload: { kind: "break" } });
+    expect(res.statusCode).toBe(200);
+    expect(proxy.injectCalls.length).toBe(before + 1);
+    const pushed = proxy.injectCalls.at(-1)!;
+    expect(pushed.sessionId).toBe(id);
+    expect(pushed.payload.inject_text).toContain("[break");
+    expect(pushed.payload.inject_text).toContain("Opening Track");
+
+    const missing = await app.inject({ method: "POST", url: "/sessions/nope/cue", payload: { kind: "break" } });
+    expect(missing.statusCode).toBe(404);
+  });
+
+  it("host-mode (UI pill) updates state, logs it, and nudges the DJ once per change", async () => {
+    const id = await createSession("C");
+    const beforeEvents = events.countEvents(id);
+    const beforeInjects = proxy.injectCalls.length;
+
+    const res = await app.inject({ method: "POST", url: `/sessions/${id}/host-mode`, payload: { host_mode: "hype" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json<{ host_mode: string; changed: boolean }>()).toMatchObject({ host_mode: "hype", changed: true });
+    expect(events.countEvents(id)).toBe(beforeEvents + 1);
+    expect(proxy.injectCalls.length).toBe(beforeInjects + 1);
+    expect(proxy.injectCalls.at(-1)!.payload.inject_text).toContain("hype");
+    expect((await app.inject({ method: "GET", url: `/sessions/${id}` })).json<{ host_mode: string }>().host_mode).toBe("hype");
+
+    // Re-applying the same mode is a no-op: no event, no nudge.
+    const again = await app.inject({ method: "POST", url: `/sessions/${id}/host-mode`, payload: { host_mode: "hype" } });
+    expect(again.json<{ changed: boolean }>().changed).toBe(false);
+    expect(events.countEvents(id)).toBe(beforeEvents + 1);
+    expect(proxy.injectCalls.length).toBe(beforeInjects + 1);
+
+    const bad = await app.inject({ method: "POST", url: `/sessions/${id}/host-mode`, payload: { host_mode: "nope" } });
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it("events records a client analytics event, 400/404 on bad input", async () => {
+    const id = await createSession("C");
+    const before = events.countEvents(id);
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${id}/events`,
+      payload: { event_type: "track_started", payload: { track_id: "a" } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(events.countEvents(id)).toBe(before + 1);
+
+    const noType = await app.inject({ method: "POST", url: `/sessions/${id}/events`, payload: { payload: {} } });
+    expect(noType.statusCode).toBe(400);
+
+    const missing = await app.inject({ method: "POST", url: "/sessions/nope/events", payload: { event_type: "x" } });
+    expect(missing.statusCode).toBe(404);
+  });
+
   it("rejects unknown tools and missing sessions", async () => {
     const id = await createSession("C");
     const unknown = await app.inject({ method: "POST", url: `/sessions/${id}/tool`, payload: { name: "frobnicate" } });

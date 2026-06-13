@@ -31,7 +31,9 @@ export interface PlaybackState {
   activeTranscriptId: string | null;
   remainingTrackIds: string[];
   currentTrackIndex: number;
-  liveWsUrl: string | null;
+  /** Proxy base URL + token for the browser↔proxy WebRTC session (null in demo fallback). */
+  proxyUrl: string | null;
+  token: string | null;
   /** True during an end-of-track talk break (DJ wrap + listening window) — ADR-0004. */
   inBreak: boolean;
   /** True while the user is holding the Talk button (push-to-talk). */

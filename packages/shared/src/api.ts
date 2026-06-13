@@ -12,9 +12,10 @@ export interface CreateSessionResponse {
   host_mode: HostMode;
   tracklist: FlowTrackRef[];
   mem0_context: string;
-  /** False when Condition C starts but Qdrant is down — eval integrity signal. */
-  mem0_available: boolean;
-  live_ws_url: string;
+  /** Proxy base URL the browser POSTs its WebRTC SDP offer to. */
+  proxy_url: string;
+  /** Per-session token, sent as X-Session-Token on the offer. */
+  token: string;
 }
 
 /** Response of GET /sessions/:id. */

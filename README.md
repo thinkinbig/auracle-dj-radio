@@ -33,13 +33,15 @@ git lfs pull
 
 cp .env.example .env          # GEMINI_API_KEY；本地 pnpm dev 与 Docker 共用
 
-pnpm docker:dev               # qdrant + api（6333 / **3001**，api 容器内 tsx 热更新）
 pnpm install
-pnpm dev:web                  # web :5173 → Docker api :3001
 
-# 或全本机（与 Docker api 可并行，端口不冲突）：
-pnpm dev                      # api :3000（宿主机 tsx watch，需单独起 qdrant）
-pnpm dev:web:local            # web :5173 → localhost:3000
+# 全本机一条命令：api(3000)+music-engine(3010)+memory-service(3020)+proxy(:8090, go run)+web(:5173)
+# 从根 .env 读出 GEMINI_API_KEY 注入 Go proxy；Ctrl-C 整组退出。端口可 override（PROXY_PORT 等）。
+pnpm dev                      # → http://localhost:5173
+
+# 或仅 web 接 Docker api（配合 pnpm docker:dev 起 qdrant + api :3001）：
+pnpm docker:dev               # qdrant + api（6333 / **3001**，容器内 tsx 热更新）
+pnpm dev:web                  # web :5173 → Docker api :3001
 ```
 
 **音频 embedding 建库**（`AURACLE_EMBEDDER=gemini pnpm --filter @auracle/api seed`）在 Node 里按 MP3 帧截取前 180s，**无需 ffmpeg**。运行时检索只用文本 query。

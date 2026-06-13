@@ -1,5 +1,5 @@
 import { Type, type FunctionDeclaration } from "@google/genai";
-import type { Condition, HostMode } from "@auracle/shared";
+import type { Condition, HostMode, TrackMeta } from "@auracle/shared";
 import { HOST_MODES } from "@auracle/shared";
 
 /** Function declarations sent once at Live setup (doc §4). Same set for A/B/C. */
@@ -136,6 +136,20 @@ export interface CueInput {
   sessionTitle: string;
   now?: CueTrack;
   next?: CueTrack;
+}
+
+/** Project track metadata down to the subset a cue needs. */
+export function toCueTrack(meta: TrackMeta | undefined): CueTrack | undefined {
+  if (!meta) return undefined;
+  return {
+    title: meta.title,
+    artist: meta.artist,
+    albumTitle: meta.albumTitle,
+    energy: meta.energy,
+    tempo: meta.tempo,
+    genre: meta.genre,
+    lore: meta.lore,
+  };
 }
 
 /** Natural-language vibe from track metadata — never speak raw BPM or energy numbers. */

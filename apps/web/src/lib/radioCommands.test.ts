@@ -1,12 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import type { ClientMessage } from '@auracle/shared';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRadioCommands, type RadioCommandDeps } from './radioCommands';
+import { postCue } from './sessionApi';
 import type { PlaybackAction } from './playbackReducer';
 import type { PlaybackState } from '../types';
 
+vi.mock('./sessionApi', () => ({ postCue: vi.fn() }));
+
 /** A single ordered log of every effect the command surface produces, across channels. */
 type Effect =
-  | { ch: 'socket'; msg: ClientMessage }
   | { ch: 'dispatch'; action: PlaybackAction }
   | { ch: 'bus'; call: 'skipDj' | 'resumeDj' | 'duck' | 'restore' }
   | { ch: 'audio'; call: 'pause' }
@@ -32,39 +33,31 @@ function harness(state: Partial<PlaybackState>) {
       setMusicVolume: (v: number) =>
         log.push({ ch: 'bus', call: v < 1 ? 'duck' : 'restore' }),
     }) as never,
-    getSocket: () => ({ send: (msg: ClientMessage) => log.push({ ch: 'socket', msg }) }) as never,
     getAudio: () => ({ pause: () => log.push({ ch: 'audio', call: 'pause' }) }) as never,
     releaseOpening: () => log.push({ ch: 'opening', call: 'release' }),
   };
   return { commands: createRadioCommands(deps), log };
 }
 
+beforeEach(() => vi.mocked(postCue).mockClear());
+
 describe('radioCommands.skipTrack', () => {
-  it('cuts the DJ turn before advancing, then cues the next track', () => {
+  it('cuts the DJ turn locally before advancing; no segue cue (the new track breaks at its own end)', () => {
     const { commands, log } = harness({ phase: 'speaking', currentTrackIndex: 1 });
     expect(commands.skipTrack()).toBe(true);
 
-    // The load-bearing order: stop the in-flight turn, advance the Playhead, then
-    // cue the next track (whose index is the pre-advance snapshot + 1).
+    // The load-bearing order: stop the in-flight turn (local duck), then advance.
     const tags = log.map((e) =>
-      e.ch === 'socket' ? `socket:${e.msg.type}` : e.ch === 'dispatch' ? `dispatch:${e.action.type}` : `${e.ch}:${e.call}`,
+      e.ch === 'dispatch' ? `dispatch:${e.action.type}` : `${e.ch}:${e.call}`,
     );
-    expect(tags).toEqual([
-      'audio:pause',
-      'bus:skipDj',
-      'socket:skip_dj',
-      'dispatch:advance',
-      'socket:cue_dj',
-    ]);
-    const cue = log.find((e) => e.ch === 'socket' && e.msg.type === 'cue_dj');
-    expect(cue).toMatchObject({ msg: { track_index: 2, kind: undefined } });
+    expect(tags).toEqual(['audio:pause', 'bus:skipDj', 'dispatch:advance']);
+    expect(postCue).not.toHaveBeenCalled();
   });
 
   it('skips a non-speaking track without cutting a DJ turn', () => {
     const { commands, log } = harness({ phase: 'playing' });
     expect(commands.skipTrack()).toBe(true);
     expect(log.some((e) => e.ch === 'bus' && e.call === 'skipDj')).toBe(false);
-    expect(log.some((e) => e.ch === 'socket' && e.msg.type === 'skip_dj')).toBe(false);
     expect(log.some((e) => e.ch === 'dispatch' && e.action.type === 'advance')).toBe(true);
   });
 
@@ -90,11 +83,25 @@ describe('radioCommands.skipTrack', () => {
   });
 });
 
+describe('radioCommands.cueTrack', () => {
+  it('asks memory-service to push the cue for the active session', () => {
+    const { commands } = harness({ sessionId: 's1' });
+    commands.cueTrack('break');
+    expect(postCue).toHaveBeenCalledWith('s1', 'break');
+  });
+
+  it('is a no-op without a session', () => {
+    const { commands } = harness({ sessionId: null });
+    commands.cueTrack('outro');
+    expect(postCue).not.toHaveBeenCalled();
+  });
+});
+
 describe('radioCommands.skipVoiceOver', () => {
-  it('cuts the turn only while the DJ is speaking', () => {
+  it('cuts the turn locally only while the DJ is speaking', () => {
     const speaking = harness({ phase: 'speaking' });
     speaking.commands.skipVoiceOver();
-    expect(speaking.log.map((e) => (e.ch === 'socket' ? e.msg.type : e.ch))).toEqual(['bus', 'skip_dj']);
+    expect(speaking.log).toEqual([{ ch: 'bus', call: 'skipDj' }]);
 
     const playing = harness({ phase: 'playing' });
     playing.commands.skipVoiceOver();

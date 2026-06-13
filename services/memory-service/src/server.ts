@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Condition, SessionIntent } from "@auracle/shared";
+import { parseHostMode } from "@auracle/shared";
 import { EventsDb } from "./events-db.js";
 import { SessionStore } from "./session/store.js";
 import type { MusicEngineClient } from "./music-engine-client.js";
@@ -8,6 +9,7 @@ import type { MemoryClient } from "./memory/client.js";
 import type { ProxyClient } from "./proxy-client.js";
 import { buildRegistration } from "./dj/registration.js";
 import { runTool, type ToolCall } from "./session/tool-runner.js";
+import { buildAndPushCue } from "./session/cue.js";
 import type { OrchestrationDeps } from "./session/replan.js";
 
 export interface MemoryServiceDeps {
@@ -155,6 +157,51 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
     }
 
     return { current_track_index: state.currentTrackIndex, remaining: store.remaining(state) };
+  });
+
+  // End-of-track talk break (ADR-0004): the browser fires this near a track's tail
+  // and the DJ speaks the break/outro, pushed via Lane-3 inject_text. Replaces the
+  // relay's server-side cue — the browser owns the playhead.
+  app.post("/sessions/:id/cue", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const state = store.get(id);
+    if (!state) return reply.code(404).send({ error: "session not found" });
+    const { kind } = (req.body ?? {}) as { kind?: string };
+    const cueKind = kind === "outro" ? "outro" : "break";
+    await buildAndPushCue(orchestration, state, cueKind);
+    return { ok: true };
+  });
+
+  // UI pill (Lane 2): the listener flips the host mode. Update state, log it, and
+  // nudge the DJ to adopt the new style on its next line (the DJ-tool path is
+  // separate). Only nudges when the mode actually changed.
+  app.post("/sessions/:id/host-mode", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const state = store.get(id);
+    if (!state) return reply.code(404).send({ error: "session not found" });
+    const { host_mode } = (req.body ?? {}) as { host_mode?: unknown };
+    const nextMode = parseHostMode(host_mode);
+    if (!nextMode) return reply.code(400).send({ error: "host_mode is required" });
+    const previous = state.hostMode;
+    const changed = nextMode !== previous;
+    if (changed) {
+      state.hostMode = nextMode;
+      events.recordEvent(id, "change_host_mode", { host_mode: nextMode, previous, source: "ui" });
+      await proxy.inject(id, {
+        inject_text: `[host mode → ${nextMode}] Adopt this speaking style from your next line; don't announce the switch. Playlist unchanged.`,
+      });
+    }
+    return { ok: true, host_mode: nextMode, previous, changed };
+  });
+
+  // Browser analytics parity: record a client-side event into the session log.
+  app.post("/sessions/:id/events", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!store.get(id)) return reply.code(404).send({ error: "session not found" });
+    const { event_type, payload } = (req.body ?? {}) as { event_type?: string; payload?: unknown };
+    if (!event_type) return reply.code(400).send({ error: "event_type is required" });
+    events.recordEvent(id, event_type, payload ?? {});
+    return { ok: true };
   });
 
   return app;

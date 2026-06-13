@@ -1,20 +1,19 @@
-import type { ClientMessage } from '@auracle/shared';
 import type { AudioBus } from './liveAudio';
-import type { LiveSessionHandle } from './liveSession';
+import { postCue } from './sessionApi';
 import type { PlaybackAction } from './playbackReducer';
 import type { PlaybackState } from '../types';
 
-type CueKind = Extract<ClientMessage, { type: 'cue_dj' }>['kind'];
+/** End-of-track cue kinds the browser can request (memory-service builds the text). */
+type CueKind = 'break' | 'outro';
 
 /**
  * Everything the command surface needs from the live session, read lazily so a
- * single long-lived instance can be created before the bus/socket exist.
+ * single long-lived instance can be created before the bus exists.
  */
 export interface RadioCommandDeps {
   getState(): PlaybackState;
   dispatch(action: PlaybackAction): void;
   getBus(): AudioBus | null;
-  getSocket(): LiveSessionHandle | null;
   getAudio(): HTMLAudioElement | null;
   /** Unblock the silent opening track so its music can play (CONTEXT: Playhead/opening). */
   releaseOpening(): void;
@@ -22,15 +21,15 @@ export interface RadioCommandDeps {
 
 /**
  * The single owner of outbound DJ-turn commands. Each verb sequences the data
- * plane (AudioBus duck/skip), the transport (relay frames), and the control
- * plane (reducer) in the one order that keeps them consistent — so a caller says
- * what it wants (Cue, Skip track, Skip voice-over, talk-over) without re-deriving
- * the order at every site. Inbound phase frames are NOT handled here.
+ * plane (AudioBus duck/skip), the orchestrator (memory-service HTTP cue), and the
+ * control plane (reducer) in the one order that keeps them consistent — so a
+ * caller says what it wants (Cue, Skip track, Skip voice-over, talk-over) without
+ * re-deriving the order at every site. Inbound phase frames are NOT handled here.
  */
 export interface RadioCommands {
-  /** Tell the DJ to talk over `trackIndex` (relay picks segue/outro unless overridden). */
-  cueTrack(trackIndex: number, kind?: CueKind): void;
-  /** Skip track: cut any in-flight DJ turn, advance the Playhead, Cue the next track. Returns whether a skip occurred. */
+  /** Ask memory-service to push an end-of-track DJ cue (it targets the mirrored playhead). */
+  cueTrack(kind: CueKind): void;
+  /** Skip track: cut any in-flight DJ turn and advance the Playhead. Returns whether a skip occurred. */
   skipTrack(): boolean;
   /** Skip voice-over: cut the current DJ turn but keep the track playing. */
   skipVoiceOver(): void;
@@ -47,14 +46,16 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
   // mistaken for a natural track end that would double-advance.
   let skipGuard = false;
 
-  function cueTrack(trackIndex: number, kind?: CueKind): void {
-    deps.getSocket()?.send({ type: 'cue_dj', track_index: trackIndex, kind });
+  function cueTrack(kind: CueKind): void {
+    const id = deps.getState().sessionId;
+    if (id) postCue(id, kind);
   }
 
-  /** Cut the current DJ turn's audio locally and tell the relay to stop forwarding it. */
+  // Cut the current DJ turn locally by ducking the DJ gain. There is no control
+  // frame to the proxy: the WebRTC DJ stream is continuous, and non-tool-result
+  // text on the data channel would be heard by the model as user speech.
   function cutDjTurn(): void {
     deps.getBus()?.skipDj();
-    deps.getSocket()?.send({ type: 'skip_dj' });
   }
 
   return {
@@ -68,18 +69,12 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
       skipGuard = true;
       deps.getAudio()?.pause();
       if (s.currentTrackIndex === 0) deps.releaseOpening();
-      // Skipping mid voice-over: interrupt the DJ turn (saves Gemini tokens). Its
-      // drained phase frames are dropped by the Playhead fence once advance moves
-      // the pointer.
+      // Skipping mid voice-over: duck the DJ locally. now_playing (from
+      // useTrackPlayback's track-change effect) mirrors the new pointer to
+      // memory-service; the new track gets its own end-of-track break cue later.
       if (s.phase === 'speaking') cutDjTurn();
 
       deps.dispatch({ type: 'advance' });
-      // The skipped-to track gets its own Cue — the DJ talks over its intro
-      // (segue), since skipping bypasses the end-of-track break (CONTEXT: a Skip
-      // track Cues its own DJ turn; amends ADR-0004). Kind omitted → the relay
-      // picks segue vs outro by position. now_playing (from useTrackPlayback)
-      // mirrors the pointer.
-      cueTrack(s.currentTrackIndex + 1);
       return true;
     },
 

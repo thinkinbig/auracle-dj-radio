@@ -1,7 +1,7 @@
 import type { FunctionDeclaration } from "@google/genai";
 import type { TrackMeta } from "@auracle/shared";
 import type { SessionState } from "../session/store.js";
-import { buildCueText, buildSystemInstruction, DJ_TOOLS, type CueTrack } from "./prompt.js";
+import { buildCueText, buildSystemInstruction, DJ_TOOLS, toCueTrack } from "./prompt.js";
 
 /**
  * The pre-baked registration contract memory-service hands the proxy at session
@@ -13,19 +13,6 @@ export interface Registration {
   systemInstruction: string;
   tools: FunctionDeclaration[];
   openingCue: string;
-}
-
-function toCueTrack(meta: TrackMeta | undefined): CueTrack | undefined {
-  if (!meta) return undefined;
-  return {
-    title: meta.title,
-    artist: meta.artist,
-    albumTitle: meta.albumTitle,
-    energy: meta.energy,
-    tempo: meta.tempo,
-    genre: meta.genre,
-    lore: meta.lore,
-  };
 }
 
 /** Build the registration artifacts for `state`; `openingTrack` is track-0 metadata. */
