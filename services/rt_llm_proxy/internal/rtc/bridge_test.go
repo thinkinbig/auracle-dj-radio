@@ -477,6 +477,71 @@ func TestForwardToolCallsServerStillRepliesOnBackendError(t *testing.T) {
 	}
 }
 
+type fakeInjectModel struct {
+	mu    sync.Mutex
+	texts []string
+}
+
+func (m *fakeInjectModel) SendAudio([]int16) error { return nil }
+func (m *fakeInjectModel) SendText(t string) error {
+	m.mu.Lock()
+	m.texts = append(m.texts, t)
+	m.mu.Unlock()
+	return nil
+}
+func (m *fakeInjectModel) Recv() ([]int16, error) { return nil, io.EOF }
+func (m *fakeInjectModel) Close() error           { return nil }
+
+func injectableSession(id identity.SessionID, m model.Model, dc textSender) *session {
+	s := &session{id: id, model: m, rec: transcript.NewRecorder(0, nil, 256, transcript.SessionMeta{}, transcript.NopListener{})}
+	if dc != nil {
+		s.setDataChannel(dc)
+	}
+	return s
+}
+
+func TestHubInjectPushesTextAndUIEvents(t *testing.T) {
+	h := newTestHub()
+	m := &fakeInjectModel{}
+	sender := &fakeTextSender{state: webrtc.DataChannelStateOpen}
+	h.add(injectableSession("s1", m, sender))
+
+	if !h.Inject("s1", "the set just shifted darker", []json.RawMessage{json.RawMessage(`{"type":"tracklist_updated"}`)}) {
+		t.Fatal("inject into a live session must report a hit")
+	}
+	if len(m.texts) != 1 || m.texts[0] != "the set just shifted darker" {
+		t.Fatalf("model texts = %v", m.texts)
+	}
+	if sender.count() != 1 || !strings.Contains(sender.sent[0], `"ui_event"`) || !strings.Contains(sender.sent[0], "tracklist_updated") {
+		t.Fatalf("ui event not pushed: %v", sender.sent)
+	}
+}
+
+func TestHubInjectMissReturnsFalse(t *testing.T) {
+	h := newTestHub()
+	if h.Inject("nope", "x", nil) {
+		t.Fatal("inject into an unknown session must report a miss")
+	}
+}
+
+func TestHubInjectDropsUIEventsWhenChannelClosed(t *testing.T) {
+	h := newTestHub()
+	m := &fakeInjectModel{}
+	sender := &fakeTextSender{state: webrtc.DataChannelStateClosed}
+	h.add(injectableSession("s1", m, sender))
+
+	if !h.Inject("s1", "nudge", []json.RawMessage{json.RawMessage(`{"type":"x"}`)}) {
+		t.Fatal("hit expected")
+	}
+	// The text nudge still reaches the model even when the data channel is not open.
+	if len(m.texts) != 1 {
+		t.Fatalf("model texts = %v", m.texts)
+	}
+	if sender.count() != 0 {
+		t.Fatalf("ui events must be dropped on a non-open channel: %v", sender.sent)
+	}
+}
+
 func TestReadInboundLoopSkipsEmptyAndForwards(t *testing.T) {
 	pkts := []*rtp.Packet{
 		{Payload: nil},             // empty -> skipped

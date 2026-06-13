@@ -1,7 +1,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Energy, FlowTrackRef, TrackCandidate, TrackMeta } from "@auracle/shared";
 import { EventsDb } from "../src/events-db.js";
 import { SessionStore } from "../src/session/store.js";
@@ -12,7 +12,7 @@ import type {
   SearchCatalogRequest,
 } from "../src/music-engine-client.js";
 import type { MemoryClient } from "../src/memory/client.js";
-import type { ProxyClient } from "../src/proxy-client.js";
+import type { InjectPayload, ProxyClient } from "../src/proxy-client.js";
 import type { Registration } from "../src/dj/registration.js";
 import { buildServer } from "../src/server.js";
 
@@ -79,11 +79,15 @@ class RecordingMemory implements MemoryClient {
   }
 }
 
-/** Captures the registration pushed to the proxy at session creation. */
+/** Captures the registration push (session creation) and Lane-3 inject calls. */
 class FakeProxyClient implements ProxyClient {
   calls: { sessionId: string; token: string; reg: Registration }[] = [];
+  injectCalls: { sessionId: string; payload: InjectPayload }[] = [];
   async register(sessionId: string, token: string, reg: Registration): Promise<void> {
     this.calls.push({ sessionId, token, reg });
+  }
+  async inject(sessionId: string, payload: InjectPayload): Promise<void> {
+    this.injectCalls.push({ sessionId, payload });
   }
 }
 
@@ -225,26 +229,38 @@ describe("memory-service orchestration", () => {
     expect(snap.json<{ host_mode: string }>().host_mode).toBe("hype");
   });
 
-  it("mood_change replans remaining slots via music-engine and writes a C preference", async () => {
+  it("mood_change acks immediately and pushes tracklist_updated via Lane 3", async () => {
     const id = await createSession("C");
-    const before = memory.facts.length;
+    const beforeFacts = memory.facts.length;
+    const beforeInjects = proxy.injectCalls.length;
     const res = await app.inject({
       method: "POST",
       url: `/sessions/${id}/tool`,
       payload: { name: "mood_change", args: { mood: "darker", energy_delta: "heavier" } },
     });
     expect(res.statusCode).toBe(200);
-    const env = res.json<{ gemini_result: { ok: boolean }; ui_events: { type: string; remaining?: { id: string }[] }[] }>();
+    const env = res.json<{ gemini_result: { ok: boolean }; ui_events: { type: string }[] }>();
     expect(env.gemini_result.ok).toBe(true);
-    const updated = env.ui_events.find((e) => e.type === "tracklist_updated");
-    expect(updated?.remaining?.map((r) => r.id)).toEqual(["d", "e"]);
+    // The slow tracklist no longer rides the synchronous tool response — only the
+    // intent ack does; the new list arrives later over Lane 3.
+    expect(env.ui_events.some((e) => e.type === "intent")).toBe(true);
+    expect(env.ui_events.some((e) => e.type === "tracklist_updated")).toBe(false);
+
+    await vi.waitFor(() => expect(proxy.injectCalls.length).toBe(beforeInjects + 1));
+    const pushed = proxy.injectCalls.at(-1)!;
+    expect(pushed.sessionId).toBe(id);
+    const updated = pushed.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
+      | { remaining: { id: string }[] }
+      | undefined;
+    expect(updated?.remaining.map((r) => r.id)).toEqual(["d", "e"]);
     expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
-    expect(memory.facts.length).toBe(before + 1);
+    expect(memory.facts.length).toBe(beforeFacts + 1);
     expect(memory.facts.at(-1)).toContain("darker");
   });
 
-  it("condition A pins the playlist (mood_change does not replan)", async () => {
+  it("condition A pins the playlist (mood_change neither replans nor injects)", async () => {
     const id = await createSession("A");
+    const beforeInjects = proxy.injectCalls.length;
     const res = await app.inject({
       method: "POST",
       url: `/sessions/${id}/tool`,
@@ -252,6 +268,9 @@ describe("memory-service orchestration", () => {
     });
     const env = res.json<{ ui_events: { type: string }[] }>();
     expect(env.ui_events.some((e) => e.type === "tracklist_updated")).toBe(false);
+    // Let the fire-and-forget background task settle, then confirm it was a noop.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(proxy.injectCalls.length).toBe(beforeInjects);
   });
 
   it("record_preference persists only for condition C", async () => {

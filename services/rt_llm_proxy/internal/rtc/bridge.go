@@ -67,6 +67,46 @@ type session struct {
 	createdAt time.Time
 	rec       *transcript.Recorder
 	cleanup   func()
+	// model is the live provider session, used by Lane-3 inject to nudge the DJ.
+	// Set at construction; SendText is safe to call concurrently.
+	model model.Model
+	// mu guards dc, which is only set once the browser's data channel is up.
+	mu sync.Mutex
+	dc textSender
+}
+
+// setDataChannel records the live data channel so Lane-3 inject can push ui
+// events to the browser. Called from the pion OnDataChannel goroutine.
+func (s *session) setDataChannel(dc textSender) {
+	s.mu.Lock()
+	s.dc = dc
+	s.mu.Unlock()
+}
+
+// inject is the Lane-3 async push into a live session: an optional text nudge to
+// the model (so the DJ reacts) plus ui events to the browser. Best-effort — ui
+// events are dropped if the data channel is not open yet.
+func (s *session) inject(injectText string, uiEvents []json.RawMessage) {
+	if injectText != "" && s.model != nil {
+		if err := s.model.SendText(injectText); err != nil {
+			log.Printf("rtc: inject text session=%s: %v", s.id, err)
+		}
+	}
+	s.mu.Lock()
+	dc := s.dc
+	s.mu.Unlock()
+	if dc == nil {
+		return
+	}
+	for _, ev := range uiEvents {
+		if dc.ReadyState() != webrtc.DataChannelStateOpen {
+			return
+		}
+		if err := dc.SendText(dcproto.EncodeUIEvent(ev)); err != nil {
+			log.Printf("rtc: inject ui event session=%s: %v", s.id, err)
+			return
+		}
+	}
 }
 
 // NewHub builds the pion API with a custom MediaEngine (Opus + our fmtp) and
@@ -151,6 +191,21 @@ func (h *Hub) Count() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return len(h.conns)
+}
+
+// Inject pushes an async business update (Lane 3) into a live session: an
+// optional text nudge to the model plus ui events to the browser. It reports
+// whether a live session with that id exists; a miss is normal (the session may
+// have ended before the async work landed).
+func (h *Hub) Inject(id identity.SessionID, injectText string, uiEvents []json.RawMessage) bool {
+	h.mu.Lock()
+	s, ok := h.conns[id]
+	h.mu.Unlock()
+	if !ok {
+		return false
+	}
+	s.inject(injectText, uiEvents)
+	return true
 }
 
 // Resume returns transcript lines whose seq is greater than afterSeq for a
@@ -326,6 +381,7 @@ func (h *Hub) Serve(offerSDP string, m model.Model, info SessionInfo) (string, e
 		userID:    info.UserID,
 		provider:  info.Provider,
 		createdAt: started,
+		model:     m,
 		rec: transcript.NewRecorder(
 			info.StartSeq,
 			info.InitialHistory,
@@ -377,6 +433,7 @@ func (h *Hub) Serve(offerSDP string, m model.Model, info SessionInfo) (string, e
 	// tool-calls -> browser.
 	var replayOnce sync.Once
 	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+		sess.setDataChannel(dc) // enable Lane-3 inject to push ui events here
 		dc.OnMessage(func(msg webrtc.DataChannelMessage) {
 			if !msg.IsString {
 				return

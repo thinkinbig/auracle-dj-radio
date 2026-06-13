@@ -2,6 +2,7 @@ import type { FlowTrackRef } from "@auracle/shared";
 import type { EventsDb } from "../events-db.js";
 import type { MemoryClient } from "../memory/client.js";
 import type { MusicEngineClient } from "../music-engine-client.js";
+import type { ProxyClient } from "../proxy-client.js";
 import type { SessionState, SessionStore } from "./store.js";
 
 /** Dependencies shared by the orchestration handlers (replan + tool dispatch). */
@@ -10,6 +11,7 @@ export interface OrchestrationDeps {
   events: EventsDb;
   memory: MemoryClient;
   music: MusicEngineClient;
+  proxy: ProxyClient;
 }
 
 export interface ReplanParams {
@@ -71,6 +73,38 @@ export async function applyReplan(
   }
 
   return { replanned: true, remaining: appended };
+}
+
+/**
+ * Background mood replan (Lane 3): run the slow Flow-LLM replan and, if the
+ * tracklist changed, push `tracklist_updated` to the live session via the proxy.
+ * Fire-and-forget from `mood_change` — the DJ already acked, so the conversation
+ * never waits on this (see perf-first-start). A failure (replan or push) records
+ * a `replan_failed` event rather than surfacing to the already-returned tool call.
+ */
+export async function replanAndPush(
+  deps: OrchestrationDeps,
+  state: SessionState,
+  params: ReplanParams,
+): Promise<void> {
+  try {
+    const outcome = await applyReplan(deps, state, params);
+    if (!outcome.replanned) return;
+    await deps.proxy.inject(state.id, {
+      ui_events: [
+        {
+          type: "tracklist_updated",
+          remaining: outcome.remaining,
+          session_title: state.title,
+          session_subtitle: state.subtitle,
+        },
+      ],
+    });
+  } catch (err) {
+    deps.events.recordEvent(state.id, "replan_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 /** Shift the glide seed by the requested energy delta, clamped to 1–5. */

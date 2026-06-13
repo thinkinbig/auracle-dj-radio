@@ -1,7 +1,7 @@
 import type { ServerMessage } from "@auracle/shared";
 import { parseHostMode } from "@auracle/shared";
 import type { SessionState } from "./store.js";
-import { applyReplan, type OrchestrationDeps } from "./replan.js";
+import { replanAndPush, type OrchestrationDeps } from "./replan.js";
 
 /** Gemini function call forwarded from the proxy (Lane 1). */
 export interface ToolCall {
@@ -75,28 +75,16 @@ export async function runTool(
     case "mood_change": {
       const mood = String(args.mood ?? state.intent.mood);
       const energy_delta = (args.energy_delta as "lighter" | "heavier" | "same") ?? "same";
-      const ui_events: ServerMessage[] = [
-        { type: "intent", intent: { type: "mood_change", mood, energy_delta } },
-      ];
-      // Phase 2 runs the replan inline and returns tracklist_updated in this same
-      // envelope. Phase 3 splits it: ack here (Lane 1) + async tracklist_updated
-      // pushed via the proxy when the slow Flow LLM lands (Lane 3), so the DJ never
-      // waits on the replan (see perf-first-start / refactor-three-services).
-      const outcome = await applyReplan(deps, state, { mood, energy_delta });
-      if (outcome.replanned) {
-        ui_events.push({
-          type: "tracklist_updated",
-          remaining: outcome.remaining,
-          session_title: state.title,
-          session_subtitle: state.subtitle,
-        });
-      }
+      // Ack now (Lane 1) and run the slow Flow-LLM replan in the background; the
+      // new tracklist is pushed via the proxy (Lane 3) when it lands, so the DJ
+      // never waits on the replan (see perf-first-start / refactor-three-services).
+      void replanAndPush(deps, state, { mood, energy_delta });
       return {
         gemini_result: {
           ok: true,
           note: "Adjusting the next tracks now — keep talking, don't wait for the list.",
         },
-        ui_events,
+        ui_events: [{ type: "intent", intent: { type: "mood_change", mood, energy_delta } }],
       };
     }
     default:

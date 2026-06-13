@@ -9,3 +9,4 @@ apps/api/data/mem0/
 *.sqlite-wal
 *.db
 .DS_Store
+.codegraph/

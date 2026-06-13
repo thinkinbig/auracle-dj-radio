@@ -33,7 +33,7 @@ function parseIntent(raw: unknown): SessionIntent | undefined {
  */
 export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
   const { store, events, music, memory, proxy, proxyPublicUrl } = deps;
-  const orchestration: OrchestrationDeps = { store, events, memory, music };
+  const orchestration: OrchestrationDeps = { store, events, memory, music, proxy };
   const app = Fastify({ logger: true });
 
   app.get("/health", async () => ({ ok: true }));

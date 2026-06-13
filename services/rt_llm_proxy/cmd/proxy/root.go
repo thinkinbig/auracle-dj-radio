@@ -110,6 +110,7 @@ func runProxy(cfg runConfig) error {
 
 	mux := http.NewServeMux()
 	mux.Handle("POST /session/{id}/register", &offer.RegisterHandler{Registry: registry})
+	mux.Handle("POST /session/{id}/inject", &offer.InjectHandler{Injector: hub})
 	mux.Handle("/demo/", http.StripPrefix("/demo/", http.FileServer(http.Dir("demo"))))
 	mux.Handle("/", offerHandler)
 	srv := &http.Server{Addr: cfg.Addr, Handler: mux}
