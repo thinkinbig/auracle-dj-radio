@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Condition, SessionIntent } from "@auracle/shared";
 import { EventsDb } from "./events-db.js";
 import { SessionStore } from "./session/store.js";
 import type { MusicEngineClient } from "./music-engine-client.js";
 import type { MemoryClient } from "./memory/client.js";
+import type { ProxyClient } from "./proxy-client.js";
 import { buildRegistration } from "./dj/registration.js";
 import { runTool, type ToolCall } from "./session/tool-runner.js";
 import type { OrchestrationDeps } from "./session/replan.js";
@@ -13,6 +15,9 @@ export interface MemoryServiceDeps {
   events: EventsDb;
   music: MusicEngineClient;
   memory: MemoryClient;
+  proxy: ProxyClient;
+  /** Public base URL of the proxy handed to the browser for the SDP offer. */
+  proxyPublicUrl: string;
 }
 
 function parseIntent(raw: unknown): SessionIntent | undefined {
@@ -27,7 +32,7 @@ function parseIntent(raw: unknown): SessionIntent | undefined {
  * service up in isolation — the live path stays on the apps/api relay until Phase 3.
  */
 export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
-  const { store, events, music, memory } = deps;
+  const { store, events, music, memory, proxy, proxyPublicUrl } = deps;
   const orchestration: OrchestrationDeps = { store, events, memory, music };
   const app = Fastify({ logger: true });
 
@@ -61,6 +66,19 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
       tracklist: plan.result.tracklist,
     });
 
+    // Push the pre-baked registration to the proxy before the browser connects
+    // (proxy assembles no prompts). Best-effort: a proxy hiccup must not lose the
+    // session/analytics — the browser still gets proxy_url and can retry/connect.
+    const openingId = state.tracklist[0]?.id;
+    const openingTrack = openingId ? await music.getTrack(openingId) : undefined;
+    const registration = buildRegistration(state, openingTrack);
+    const token = randomUUID();
+    try {
+      await proxy.register(state.id, token, registration);
+    } catch (err) {
+      app.log.warn({ err: (err as Error).message, sessionId: state.id }, "proxy register failed");
+    }
+
     return {
       session_id: state.id,
       session_title: state.title,
@@ -69,6 +87,8 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
       current_track_index: state.currentTrackIndex,
       tracklist: state.tracklist,
       mem0_context: state.mem0Context,
+      proxy_url: proxyPublicUrl,
+      token,
     };
   });
 

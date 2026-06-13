@@ -12,6 +12,8 @@ export interface Config {
   eventsDbPath: string;
   /** Base URL of the music-engine HTTP service (catalog retrieval + planning). */
   musicEngineUrl: string;
+  /** Base URL of the media proxy (rt_llm_proxy) memory-service registers sessions with. */
+  proxyUrl: string;
   /** mem0 cross-session memory (degrades to no-op when absent). */
   geminiApiKey: string | undefined;
   flowModel: string;
@@ -24,6 +26,7 @@ export const config: Config = {
   port: Number(process.env.MEMORY_SERVICE_PORT ?? 3020),
   eventsDbPath: process.env.MEMORY_EVENTS_DB_PATH ?? resolve(here, "../auracle-events.sqlite"),
   musicEngineUrl: process.env.MUSIC_ENGINE_URL ?? "http://localhost:3010",
+  proxyUrl: process.env.PROXY_URL ?? "http://localhost:8080",
   geminiApiKey: process.env.GEMINI_API_KEY || undefined,
   flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
   mem0EmbedModel: process.env.GEMINI_MEM0_EMBED_MODEL ?? "gemini-embedding-001",

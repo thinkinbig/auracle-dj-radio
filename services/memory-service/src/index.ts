@@ -3,6 +3,7 @@ import { EventsDb } from "./events-db.js";
 import { SessionStore } from "./session/store.js";
 import { HttpMusicEngineClient } from "./music-engine-client.js";
 import { createMemoryClient } from "./memory/client.js";
+import { HttpProxyClient } from "./proxy-client.js";
 import { buildServer } from "./server.js";
 
 const app = buildServer({
@@ -10,6 +11,8 @@ const app = buildServer({
   events: new EventsDb(config.eventsDbPath),
   music: new HttpMusicEngineClient(config.musicEngineUrl),
   memory: createMemoryClient(),
+  proxy: new HttpProxyClient(config.proxyUrl),
+  proxyPublicUrl: config.proxyUrl,
 });
 
 app

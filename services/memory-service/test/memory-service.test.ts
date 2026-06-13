@@ -12,6 +12,8 @@ import type {
   SearchCatalogRequest,
 } from "../src/music-engine-client.js";
 import type { MemoryClient } from "../src/memory/client.js";
+import type { ProxyClient } from "../src/proxy-client.js";
+import type { Registration } from "../src/dj/registration.js";
 import { buildServer } from "../src/server.js";
 
 function candidate(id: string, energy: Energy): TrackCandidate {
@@ -77,17 +79,34 @@ class RecordingMemory implements MemoryClient {
   }
 }
 
+/** Captures the registration pushed to the proxy at session creation. */
+class FakeProxyClient implements ProxyClient {
+  calls: { sessionId: string; token: string; reg: Registration }[] = [];
+  async register(sessionId: string, token: string, reg: Registration): Promise<void> {
+    this.calls.push({ sessionId, token, reg });
+  }
+}
+
 let app: ReturnType<typeof buildServer>;
 let events: EventsDb;
 let music: FakeMusicEngine;
 let memory: RecordingMemory;
+let proxy: FakeProxyClient;
 
 beforeAll(async () => {
   const dbPath = join(mkdtempSync(join(tmpdir(), "memory-service-")), "events.sqlite");
   events = new EventsDb(dbPath);
   music = new FakeMusicEngine();
   memory = new RecordingMemory();
-  app = buildServer({ store: new SessionStore(), events, music, memory });
+  proxy = new FakeProxyClient();
+  app = buildServer({
+    store: new SessionStore(),
+    events,
+    music,
+    memory,
+    proxy,
+    proxyPublicUrl: "http://proxy.test",
+  });
   await app.ready();
 });
 
@@ -109,6 +128,25 @@ describe("memory-service /sessions", () => {
     expect(body.host_mode).toBeTruthy();
     expect(music.planCalls).toHaveLength(1);
     expect(events.countEvents(body.session_id)).toBe(1);
+  });
+
+  it("pushes the registration to the proxy and returns proxy_url + token", async () => {
+    const before = proxy.calls.length;
+    const res = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "C" },
+    });
+    const body = res.json<{ session_id: string; proxy_url: string; token: string }>();
+    expect(body.proxy_url).toBe("http://proxy.test");
+    expect(body.token).toBeTruthy();
+
+    expect(proxy.calls.length).toBe(before + 1);
+    const pushed = proxy.calls.at(-1)!;
+    expect(pushed.sessionId).toBe(body.session_id);
+    expect(pushed.token).toBe(body.token);
+    expect(pushed.reg.systemInstruction).toContain("Fake Set, vol. 1");
+    expect(pushed.reg.tools.map((t) => t.name)).toContain("skip_track");
   });
 
   it("rejects a session missing mood/scene", async () => {
