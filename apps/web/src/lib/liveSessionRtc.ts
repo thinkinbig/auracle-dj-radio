@@ -1,0 +1,125 @@
+import type { ServerMessage } from '@auracle/shared';
+import { decodeServerFrame } from './rtcProtocol';
+
+export interface LiveRtcOptions {
+  /** Proxy base URL (memory-service POST /sessions → proxy_url). */
+  proxyUrl: string;
+  /** Orchestrator-minted session id; the proxy adopts it via X-Session-ID. */
+  sessionId: string;
+  /** Registration token; sent for proxy-side auth (not yet verified server-side). */
+  token?: string;
+  /** Provider query param; the live DJ is gemini. */
+  model?: string;
+  /** Optional explicit mic device id. */
+  deviceId?: string;
+}
+
+export interface LiveRtcHandlers {
+  onMessage(msg: ServerMessage): void;
+  /** The DJ's remote audio (Opus) — attach to an <audio> element / audio bus. */
+  onRemoteStream(stream: MediaStream): void;
+  /** Fires once the peer connection reaches "connected". */
+  onOpen?(): void;
+  /** Fires on remote close, connection failure, or close(). */
+  onClose?(): void;
+}
+
+export interface LiveRtcHandle {
+  /** Send raw user text to the model over the data channel. */
+  sendText(text: string): void;
+  close(): void;
+}
+
+const MIC_CONSTRAINTS: MediaTrackConstraints = {
+  channelCount: 1,
+  echoCancellation: true,
+  noiseSuppression: true,
+};
+
+function offerUrl(proxyUrl: string, model: string): string {
+  return `${proxyUrl.replace(/\/$/, '')}/?model=${encodeURIComponent(model)}`;
+}
+
+/**
+ * Establish the live DJ session directly with the proxy over WebRTC. The
+ * memory-service is never in the media path: it has already pushed the session
+ * registration, so the proxy adopts `sessionId` from X-Session-ID and assembles
+ * the Gemini contract (refactor-three-services: push context, direct media).
+ */
+export async function connectLiveSessionRtc(
+  opts: LiveRtcOptions,
+  handlers: LiveRtcHandlers,
+): Promise<LiveRtcHandle> {
+  const model = opts.model ?? 'gemini';
+  const localStream = await navigator.mediaDevices.getUserMedia({
+    audio: opts.deviceId ? { ...MIC_CONSTRAINTS, deviceId: { exact: opts.deviceId } } : MIC_CONSTRAINTS,
+  });
+
+  const pc = new RTCPeerConnection({}); // no ICE servers — host candidates only
+  const dc = pc.createDataChannel('data', { ordered: true });
+
+  let closed = false;
+  const cleanup = () => {
+    if (closed) return;
+    closed = true;
+    try {
+      dc.close();
+    } catch {
+      /* already closed */
+    }
+    try {
+      pc.close();
+    } catch {
+      /* already closed */
+    }
+    localStream.getTracks().forEach((t) => t.stop());
+    handlers.onClose?.();
+  };
+
+  pc.addEventListener('connectionstatechange', () => {
+    if (pc.connectionState === 'connected') handlers.onOpen?.();
+    else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') cleanup();
+  });
+  pc.addEventListener('track', (evt) => {
+    const stream = evt.streams[0];
+    if (stream) handlers.onRemoteStream(stream);
+  });
+  dc.addEventListener('message', (e) => {
+    const raw = typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data as ArrayBuffer);
+    const msg = decodeServerFrame(raw);
+    if (msg) handlers.onMessage(msg);
+  });
+
+  for (const track of localStream.getTracks()) pc.addTrack(track, localStream);
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/sdp',
+    'X-Session-ID': opts.sessionId,
+  };
+  if (opts.token) headers['X-Session-Token'] = opts.token;
+
+  let resp: Response;
+  try {
+    resp = await fetch(offerUrl(opts.proxyUrl, model), { method: 'POST', headers, body: offer.sdp ?? '' });
+  } catch (err) {
+    cleanup();
+    throw err;
+  }
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => '');
+    cleanup();
+    throw new Error(`proxy offer ${resp.status}: ${detail}`);
+  }
+  const answer = await resp.text();
+  await pc.setRemoteDescription({ type: 'answer', sdp: answer });
+
+  return {
+    sendText(text) {
+      if (dc.readyState === 'open') dc.send(text);
+    },
+    close: cleanup,
+  };
+}
