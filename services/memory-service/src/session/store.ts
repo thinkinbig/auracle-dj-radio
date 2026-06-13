@@ -21,6 +21,8 @@ export interface SessionState {
   planRefined: boolean;
   /** Async-push subscribers (Lane 3), notified when the refine lands (replayed if late). */
   refineListeners: Set<() => void>;
+  /** Set when skip_track fires; cleared by the next now_playing to time the skip round trip. */
+  pendingSkipAtMs?: number;
 }
 
 /** In-memory session state machine. Memory-service is the sole owner of session state. */

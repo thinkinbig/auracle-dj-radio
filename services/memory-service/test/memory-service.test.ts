@@ -18,12 +18,15 @@ function candidate(id: string, energy: Energy): TrackCandidate {
   return { id, energy, tempo: 90 + energy * 5, genre: `g${id}`, mood: "calm", scene: "studying" };
 }
 
-/** Canned music-engine: a fixed 3-track plan, regardless of request. */
+/** Canned music-engine: full → a,b,c; replan → d,e (distinct so replan is visible). */
 class FakeMusicEngine implements MusicEngineClient {
   planCalls: PlanTracklistRequest[] = [];
   async planTracklist(req: PlanTracklistRequest): Promise<PlanResponse> {
     this.planCalls.push(req);
-    const candidates = [candidate("a", 1), candidate("b", 3), candidate("c", 5)];
+    const candidates =
+      req.mode === "replan"
+        ? [candidate("d", 2), candidate("e", 4)]
+        : [candidate("a", 1), candidate("b", 3), candidate("c", 5)];
     const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({
       id: c.id,
       flow_position: i + 1,
@@ -61,25 +64,30 @@ class FakeMusicEngine implements MusicEngineClient {
   }
 }
 
-/** No cross-session memory in tests — keep them hermetic (no Gemini/Qdrant). */
-const noopMemory: MemoryClient = {
-  enabled: false,
-  degraded: false,
-  async recall() {
+/** Records remember() calls so condition-C writes are assertable; recall stays empty. */
+class RecordingMemory implements MemoryClient {
+  readonly enabled = true;
+  readonly degraded = false;
+  facts: string[] = [];
+  async recall(): Promise<string> {
     return "";
-  },
-  async remember() {},
-};
+  }
+  async remember(fact: string): Promise<void> {
+    this.facts.push(fact);
+  }
+}
 
 let app: ReturnType<typeof buildServer>;
 let events: EventsDb;
 let music: FakeMusicEngine;
+let memory: RecordingMemory;
 
 beforeAll(async () => {
   const dbPath = join(mkdtempSync(join(tmpdir(), "memory-service-")), "events.sqlite");
   events = new EventsDb(dbPath);
   music = new FakeMusicEngine();
-  app = buildServer({ store: new SessionStore(), events, music, memory: noopMemory });
+  memory = new RecordingMemory();
+  app = buildServer({ store: new SessionStore(), events, music, memory });
   await app.ready();
 });
 
@@ -149,6 +157,99 @@ describe("memory-service /sessions", () => {
     expect(reg.openingCue).toContain("Opening Track");
 
     const missing = await app.inject({ method: "GET", url: "/sessions/nope/registration" });
+    expect(missing.statusCode).toBe(404);
+  });
+});
+
+describe("memory-service orchestration", () => {
+  async function createSession(condition = "C"): Promise<string> {
+    const res = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition },
+    });
+    return res.json<{ session_id: string }>().session_id;
+  }
+
+  it("change_host_mode updates state and returns the Lane-1 envelope", async () => {
+    const id = await createSession();
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${id}/tool`,
+      payload: { name: "change_host_mode", args: { host_mode: "hype" } },
+    });
+    expect(res.statusCode).toBe(200);
+    const env = res.json<{ gemini_result: { host_mode: string; changed: boolean }; ui_events: { type: string; intent: { type: string; host_mode: string } }[] }>();
+    expect(env.gemini_result).toMatchObject({ host_mode: "hype", changed: true });
+    expect(env.ui_events[0]).toMatchObject({ type: "intent", intent: { type: "host_mode_changed", host_mode: "hype" } });
+
+    const snap = await app.inject({ method: "GET", url: `/sessions/${id}` });
+    expect(snap.json<{ host_mode: string }>().host_mode).toBe("hype");
+  });
+
+  it("mood_change replans remaining slots via music-engine and writes a C preference", async () => {
+    const id = await createSession("C");
+    const before = memory.facts.length;
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${id}/tool`,
+      payload: { name: "mood_change", args: { mood: "darker", energy_delta: "heavier" } },
+    });
+    expect(res.statusCode).toBe(200);
+    const env = res.json<{ gemini_result: { ok: boolean }; ui_events: { type: string; remaining?: { id: string }[] }[] }>();
+    expect(env.gemini_result.ok).toBe(true);
+    const updated = env.ui_events.find((e) => e.type === "tracklist_updated");
+    expect(updated?.remaining?.map((r) => r.id)).toEqual(["d", "e"]);
+    expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
+    expect(memory.facts.length).toBe(before + 1);
+    expect(memory.facts.at(-1)).toContain("darker");
+  });
+
+  it("condition A pins the playlist (mood_change does not replan)", async () => {
+    const id = await createSession("A");
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${id}/tool`,
+      payload: { name: "mood_change", args: { mood: "darker" } },
+    });
+    const env = res.json<{ ui_events: { type: string }[] }>();
+    expect(env.ui_events.some((e) => e.type === "tracklist_updated")).toBe(false);
+  });
+
+  it("record_preference persists only for condition C", async () => {
+    const idC = await createSession("C");
+    const beforeC = memory.facts.length;
+    await app.inject({ method: "POST", url: `/sessions/${idC}/tool`, payload: { name: "record_preference", args: { fact: "loves vinyl crackle" } } });
+    expect(memory.facts.length).toBe(beforeC + 1);
+
+    const idB = await createSession("B");
+    const beforeB = memory.facts.length;
+    await app.inject({ method: "POST", url: `/sessions/${idB}/tool`, payload: { name: "record_preference", args: { fact: "ignored" } } });
+    expect(memory.facts.length).toBe(beforeB);
+  });
+
+  it("now_playing mirrors the playhead and times the skip round trip", async () => {
+    const id = await createSession("C");
+    expect(events.countEvents(id)).toBe(1); // session_created
+
+    await app.inject({ method: "POST", url: `/sessions/${id}/tool`, payload: { name: "skip_track" } });
+    expect(events.countEvents(id)).toBe(2); // + skip_track
+
+    const res = await app.inject({ method: "POST", url: `/sessions/${id}/now_playing`, payload: { track_id: "b" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json<{ current_track_index: number }>().current_track_index).toBe(1);
+    expect(events.countEvents(id)).toBe(3); // + skip_latency
+
+    const unknown = await app.inject({ method: "POST", url: `/sessions/${id}/now_playing`, payload: { track_id: "zzz" } });
+    expect(unknown.statusCode).toBe(400);
+  });
+
+  it("rejects unknown tools and missing sessions", async () => {
+    const id = await createSession("C");
+    const unknown = await app.inject({ method: "POST", url: `/sessions/${id}/tool`, payload: { name: "frobnicate" } });
+    expect(unknown.json<{ gemini_result: { ok: boolean } }>().gemini_result.ok).toBe(false);
+
+    const missing = await app.inject({ method: "POST", url: "/sessions/nope/tool", payload: { name: "skip_track" } });
     expect(missing.statusCode).toBe(404);
   });
 });

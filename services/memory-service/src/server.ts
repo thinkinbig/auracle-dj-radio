@@ -5,6 +5,8 @@ import { SessionStore } from "./session/store.js";
 import type { MusicEngineClient } from "./music-engine-client.js";
 import type { MemoryClient } from "./memory/client.js";
 import { buildRegistration } from "./dj/registration.js";
+import { runTool, type ToolCall } from "./session/tool-runner.js";
+import type { OrchestrationDeps } from "./session/replan.js";
 
 export interface MemoryServiceDeps {
   store: SessionStore;
@@ -26,6 +28,7 @@ function parseIntent(raw: unknown): SessionIntent | undefined {
  */
 export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
   const { store, events, music, memory } = deps;
+  const orchestration: OrchestrationDeps = { store, events, memory, music };
   const app = Fastify({ logger: true });
 
   app.get("/health", async () => ({ ok: true }));
@@ -94,6 +97,44 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
       remaining: store.remaining(state),
       mem0_context: state.mem0Context,
     };
+  });
+
+  // Lane 1: the proxy forwards a Gemini function call here; we run the side-effect
+  // and return { gemini_result (→ Gemini), ui_events (→ browser data channel) }.
+  app.post("/sessions/:id/tool", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const state = store.get(id);
+    if (!state) return reply.code(404).send({ error: "session not found" });
+    const body = (req.body ?? {}) as Partial<ToolCall>;
+    if (!body.name) return reply.code(400).send({ error: "tool name is required" });
+    return runTool(orchestration, state, { name: body.name, args: body.args });
+  });
+
+  // Playhead mirror (Lane 2): the browser is the sole playhead writer and reports
+  // which track started; we mirror it so replan/cues target the right slot. Also
+  // closes the skip round-trip timer (skip_track → browser advance → here).
+  app.post("/sessions/:id/now_playing", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const state = store.get(id);
+    if (!state) return reply.code(404).send({ error: "session not found" });
+    const { track_id } = (req.body ?? {}) as { track_id?: string };
+    if (!track_id) return reply.code(400).send({ error: "track_id is required" });
+
+    const prevIndex = state.currentTrackIndex;
+    if (!store.markStarted(state, track_id)) return reply.code(400).send({ error: "unknown track_id" });
+
+    if (state.pendingSkipAtMs != null && state.currentTrackIndex !== prevIndex) {
+      const ms = Date.now() - state.pendingSkipAtMs;
+      events.recordEvent(state.id, "skip_latency", {
+        ms,
+        from_index: prevIndex,
+        to_index: state.currentTrackIndex,
+      });
+      state.pendingSkipAtMs = undefined;
+      app.log.info({ sessionId: state.id, ms }, "skip round-trip latency");
+    }
+
+    return { current_track_index: state.currentTrackIndex, remaining: store.remaining(state) };
   });
 
   return app;
