@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@auracle/shared": "workspace:*",
-    "@fastify/websocket": "^11.2.0",
     "@fontsource/dejavu-sans": "^5.2.5",
     "@google/genai": "^2.8.0",
     "better-sqlite3": "^11.6.0",

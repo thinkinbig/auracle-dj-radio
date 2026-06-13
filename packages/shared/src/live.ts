@@ -2,10 +2,11 @@ import type { FlowTrackRef } from "./flow.js";
 import type { HostMode } from "./host-mode.js";
 
 /**
- * Live WS protocol (doc/auracle_api_protocol.md §Live WebSocket).
- * Defined now so api/web share one contract; the relay is built in a later slice.
+ * Live session protocol. Inbound frames (ServerMessage) cross the browser↔proxy
+ * WebRTC data channel (decoded by web/rtcProtocol); client→server control now goes
+ * over HTTP to memory-service, so there is no ClientMessage type.
  */
-export type Phase = "dj_turn_start" | "dj_turn_end" | "user_barge_in" | "user_barge_end";
+export type Phase = "dj_turn_start" | "dj_turn_end" | "user_barge_in";
 
 /** Between-track DJ intents surfaced by Gemini Live function calling. */
 export type Intent =
@@ -15,15 +16,7 @@ export type Intent =
   | { type: "pause_playback"; action: "pause" | "resume" }
   | { type: "record_preference"; fact: string };
 
-/** Client → server WS messages (JSON frames; audio is sent as raw binary). */
-export type ClientMessage =
-  | { type: "cue_dj"; track_index: number; kind?: "break" | "outro" }
-  | { type: "skip_dj" }
-  // The browser owns the Playhead; this mirrors it to the relay (CONTEXT: Playhead).
-  | { type: "now_playing"; track_index: number }
-  | { type: "ping" };
-
-/** Server → client WS messages (JSON frames; DJ audio is sent as raw binary). */
+/** Server → client frames (decoded from the WebRTC data channel; DJ audio is the media track). */
 export type ServerMessage =
   | { type: "transcript"; role: "user" | "model"; text: string }
   | { type: "phase"; phase: Phase; track_index: number }

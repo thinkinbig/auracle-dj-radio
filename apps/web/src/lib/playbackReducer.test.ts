@@ -7,7 +7,6 @@ describe('mapServerPhase', () => {
     expect(mapServerPhase('dj_turn_start')).toBe('speaking');
     expect(mapServerPhase('dj_turn_end')).toBe('playing');
     expect(mapServerPhase('user_barge_in')).toBe('listening');
-    expect(mapServerPhase('user_barge_end')).toBe('speaking');
   });
 });
 

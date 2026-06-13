@@ -109,8 +109,6 @@ export function mapServerPhase(phase: Phase): 'speaking' | 'listening' | 'playin
       return 'playing';
     case 'user_barge_in':
       return 'listening';
-    case 'user_barge_end':
-      return 'speaking';
     default:
       return null;
   }
