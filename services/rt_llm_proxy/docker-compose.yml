@@ -1,0 +1,22 @@
+# Minimal stack: proxy only (no Redis rate limiting, no Kafka side-channel).
+# Optional overlays — same pattern for each:
+#   docker compose -f docker-compose.yml -f docker-compose.redis.yml up --build
+#   docker compose -f docker-compose.yml -f docker-compose.kafka.yml up --build
+#   docker compose -f docker-compose.yml -f docker-compose.redis-kafka.yml up --build
+services:
+  proxy:
+    build:
+      context: .
+      args:
+        GOPROXY: ${GOPROXY:-https://goproxy.io,direct}
+    image: rt-llm-proxy:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env or the shell}
+    command:
+      - -addr
+      - :8080

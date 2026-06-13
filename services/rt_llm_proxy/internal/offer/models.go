@@ -1,0 +1,115 @@
+package offer
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/thinkinbig/rt-llm-proxy/internal/model"
+	"github.com/thinkinbig/rt-llm-proxy/internal/model/cascade"
+	"github.com/thinkinbig/rt-llm-proxy/internal/model/cascade/asr"
+	"github.com/thinkinbig/rt-llm-proxy/internal/model/cascade/llm"
+	"github.com/thinkinbig/rt-llm-proxy/internal/model/cascade/tts"
+	"github.com/thinkinbig/rt-llm-proxy/internal/model/cascade/turndetect"
+	"github.com/thinkinbig/rt-llm-proxy/internal/model/doubao"
+	"github.com/thinkinbig/rt-llm-proxy/internal/model/gemini"
+	"github.com/thinkinbig/rt-llm-proxy/internal/model/loopback"
+)
+
+// CascadeConfig holds the self-hosted service URLs for the cascade pipeline.
+// Populated from CLI flags and passed in at startup.
+type CascadeConfig struct {
+	WhisperURL    string // streaming ASR WebSocket endpoint (RealtimeSTT sidecar)
+	LLMURL        string // vLLM base URL
+	LLMModel      string // model name served by vLLM
+	TTSURL        string // xtts-streaming-server base URL
+	TTSSpeaker    string // XTTS studio speaker name (empty = first available)
+	TTSLang       string // XTTS language code (e.g. "en", "zh-cn")
+	TurnDetectURL string // turn-detect sidecar (empty = fire immediately)
+	System        string // system prompt
+}
+
+// ProdModelFactory connects real provider adapters for production wiring.
+// Gemini and Doubao carry per-deployment behavior (persona, voice, ASR tuning)
+// resolved at startup from flags and the config file; credentials still come
+// from the environment inside each adapter.
+type ProdModelFactory struct {
+	Cascade CascadeConfig
+	Gemini  gemini.Config
+	Doubao  doubao.Config
+}
+
+func (f ProdModelFactory) New(ctx context.Context, provider string, history []model.RestoredTurn, params model.SessionParams) (model.Model, error) {
+	switch provider {
+	case "doubao":
+		cfg := f.Doubao
+		cfg.SystemRole = joinSystem(cfg.SystemRole, params.SystemSuffix)
+		return doubao.NewWithConfig(ctx, cfg, history)
+	case "loopback":
+		return loopback.New(), nil
+	case "cascade":
+		asrStage, err := asr.NewWhisper(f.Cascade.WhisperURL)
+		if err != nil {
+			return nil, err
+		}
+		ttsStage, err := tts.NewXTTSStream(f.Cascade.TTSURL, f.Cascade.TTSSpeaker, f.Cascade.TTSLang)
+		if err != nil {
+			asrStage.Close()
+			return nil, err
+		}
+		var td cascade.TurnDetector = cascade.NopTurnDetector{}
+		if f.Cascade.TurnDetectURL != "" {
+			td = turndetect.NewHTTP(f.Cascade.TurnDetectURL)
+		}
+		return cascade.New(ctx, cascade.Config{
+			ASR:        asrStage,
+			LLM:        llm.New(f.Cascade.LLMURL, f.Cascade.LLMModel),
+			TTS:        ttsStage,
+			TurnDetect: td,
+			System:     joinSystem(f.Cascade.System, params.SystemSuffix),
+		})
+	default:
+		cfg := f.Gemini
+		if params.SystemInstruction != "" {
+			// Pre-baked registration: full override, proxy assembles nothing.
+			cfg.SystemPrompt = params.SystemInstruction
+		} else {
+			cfg.SystemPrompt = joinSystem(cfg.SystemPrompt, params.SystemSuffix)
+		}
+		if len(params.Tools) > 0 {
+			cfg.Tools = geminiTools(params.Tools)
+		}
+		cfg.OpeningCue = params.OpeningCue
+		return gemini.NewWithConfig(ctx, cfg)
+	}
+}
+
+// geminiTools converts the provider-agnostic session tool specs into Gemini
+// functionDeclarations. A spec whose Parameters is not a JSON object is declared
+// without parameters rather than failing the session.
+func geminiTools(specs []model.ToolSpec) []gemini.FunctionDeclaration {
+	out := make([]gemini.FunctionDeclaration, 0, len(specs))
+	for _, s := range specs {
+		fd := gemini.FunctionDeclaration{Name: s.Name, Description: s.Description}
+		if len(s.Parameters) > 0 {
+			var params map[string]any
+			if err := json.Unmarshal(s.Parameters, &params); err == nil {
+				fd.Parameters = params
+			}
+		}
+		out = append(out, fd)
+	}
+	return out
+}
+
+// joinSystem appends a per-session suffix to a base system prompt, separated by a
+// blank line. Either side may be empty.
+func joinSystem(base, suffix string) string {
+	switch {
+	case suffix == "":
+		return base
+	case base == "":
+		return suffix
+	default:
+		return base + "\n\n" + suffix
+	}
+}
