@@ -406,6 +406,77 @@ func TestForwardToolCallsStopsWhenChannelClosed(t *testing.T) {
 	}
 }
 
+type recordingToolDispatcher struct {
+	calls   []model.ToolCall
+	i       int
+	results []model.ToolResult
+}
+
+func (f *recordingToolDispatcher) RecvToolCall() (model.ToolCall, error) {
+	if f.i >= len(f.calls) {
+		return model.ToolCall{}, io.EOF
+	}
+	c := f.calls[f.i]
+	f.i++
+	return c, nil
+}
+
+func (f *recordingToolDispatcher) SendToolResult(r model.ToolResult) error {
+	f.results = append(f.results, r)
+	return nil
+}
+
+type fakeToolBackend struct {
+	sessionIDs []identity.SessionID
+	outcome    ToolOutcome
+	err        error
+}
+
+func (b *fakeToolBackend) RunTool(_ context.Context, id identity.SessionID, _ model.ToolCall) (ToolOutcome, error) {
+	b.sessionIDs = append(b.sessionIDs, id)
+	if b.err != nil {
+		return ToolOutcome{}, b.err
+	}
+	return b.outcome, nil
+}
+
+func TestForwardToolCallsServerReturnsResultAndPushesUIEvents(t *testing.T) {
+	sender := &fakeTextSender{state: webrtc.DataChannelStateOpen}
+	td := &recordingToolDispatcher{calls: []model.ToolCall{{ID: "a", Name: "skip_track", Args: json.RawMessage(`{}`)}}}
+	backend := &fakeToolBackend{outcome: ToolOutcome{
+		GeminiResult: json.RawMessage(`{"ok":true}`),
+		UIEvents:     []json.RawMessage{json.RawMessage(`{"type":"skip"}`)},
+	}}
+
+	forwardToolCallsServer(context.Background(), sender, td, backend, "sess-1")
+
+	if len(backend.sessionIDs) != 1 || backend.sessionIDs[0] != "sess-1" {
+		t.Fatalf("backend session ids = %v, want [sess-1]", backend.sessionIDs)
+	}
+	if len(td.results) != 1 || td.results[0].ID != "a" || !strings.Contains(string(td.results[0].Response), `"ok":true`) {
+		t.Fatalf("tool result = %+v", td.results)
+	}
+	if sender.count() != 1 || !strings.Contains(sender.sent[0], `"ui_event"`) || !strings.Contains(sender.sent[0], `"skip"`) {
+		t.Fatalf("ui event not pushed: %v", sender.sent)
+	}
+}
+
+func TestForwardToolCallsServerStillRepliesOnBackendError(t *testing.T) {
+	sender := &fakeTextSender{state: webrtc.DataChannelStateOpen}
+	td := &recordingToolDispatcher{calls: []model.ToolCall{{ID: "a", Name: "skip_track"}}}
+	backend := &fakeToolBackend{err: errors.New("backend down")}
+
+	forwardToolCallsServer(context.Background(), sender, td, backend, "sess-1")
+
+	// The model must always get a result so it does not hang waiting on the reply.
+	if len(td.results) != 1 || !strings.Contains(string(td.results[0].Response), `"ok":false`) {
+		t.Fatalf("expected an error stub result, got %+v", td.results)
+	}
+	if sender.count() != 0 {
+		t.Fatalf("no ui events expected on backend error: %v", sender.sent)
+	}
+}
+
 func TestReadInboundLoopSkipsEmptyAndForwards(t *testing.T) {
 	pkts := []*rtp.Packet{
 		{Payload: nil},             // empty -> skipped

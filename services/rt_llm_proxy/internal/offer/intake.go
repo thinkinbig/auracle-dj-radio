@@ -36,9 +36,13 @@ type Intake struct {
 	// Registry holds pre-baked session contracts pushed by the orchestrator
 	// (memory-service) before connect; nil disables push registration.
 	Registry *Registry
-	Guard    *modelcb.Manager
-	Hub      MediaHub
-	Models   ModelFactory
+	// ToolBackend runs model tool calls server-side (Lane 1). It is wired onto a
+	// session only when that session was pre-registered, since the backend is
+	// keyed by the orchestrator's session id. nil keeps tools browser-side.
+	ToolBackend rtc.ToolBackend
+	Guard       *modelcb.Manager
+	Hub         MediaHub
+	Models      ModelFactory
 	Replay   ReplayConfig
 	Observer ReplayObserver
 }
@@ -201,6 +205,15 @@ func (in *Intake) ServeOffer(req IntakeRequest) IntakeResult {
 		Provider:  provider,
 	}
 
+	// Server-side (Lane 1) tool handling applies only to registered sessions:
+	// the backend POSTs to the orchestrator's session, which exists only because
+	// the orchestrator pushed the registration. Unregistered sessions keep the
+	// browser-side tool path.
+	var toolBackend rtc.ToolBackend
+	if registration != nil {
+		toolBackend = in.ToolBackend
+	}
+
 	served = true
 	answer, err := in.Hub.Serve(string(req.OfferSDP), m, rtc.SessionInfo{
 		ID:             replay.SessionID,
@@ -211,6 +224,7 @@ func (in *Intake) ServeOffer(req IntakeRequest) IntakeResult {
 		Replay:         replay.ReplayLines,
 		Transcript:     sidechannel.Tap(in.Publisher, sessionMeta),
 		StreamFaultAt:  streamFaultBinder(in.Guard, provider),
+		ToolBackend:    toolBackend,
 	})
 	if err != nil {
 		log.Printf("rtc serve: %v", err)

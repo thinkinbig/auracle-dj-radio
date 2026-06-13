@@ -85,12 +85,14 @@ func TestIntakeAdoptsRegisteredSession(t *testing.T) {
 		Tools:             []model.ToolSpec{{Name: "skip_track"}},
 	})
 	factory := &fakeFactory{m: &fakeModel{}}
+	hub := &fakeHub{}
 	in := Intake{
-		Limiter:  ratelimit.New("", 0, time.Minute),
-		Guard:    modelcb.New(modelcb.Config{}, nil),
-		Registry: reg,
-		Models:   factory,
-		Hub:      &fakeHub{},
+		Limiter:     ratelimit.New("", 0, time.Minute),
+		Guard:       modelcb.New(modelcb.Config{}, nil),
+		Registry:    reg,
+		ToolBackend: stubToolBackend{},
+		Models:      factory,
+		Hub:         hub,
 	}
 
 	res := in.ServeOffer(IntakeRequest{
@@ -112,6 +114,35 @@ func TestIntakeAdoptsRegisteredSession(t *testing.T) {
 	}
 	if len(p.Tools) != 1 || p.Tools[0].Name != "skip_track" {
 		t.Fatalf("params tools = %+v", p.Tools)
+	}
+	// A registered session forwards tools server-side (Lane 1).
+	if hub.lastInfo.ToolBackend == nil {
+		t.Fatal("registered session must carry the tool backend")
+	}
+}
+
+func TestIntakeUnregisteredSessionKeepsToolsBrowserSide(t *testing.T) {
+	hub := &fakeHub{}
+	in := Intake{
+		Limiter:     ratelimit.New("", 0, time.Minute),
+		Guard:       modelcb.New(modelcb.Config{}, nil),
+		Registry:    NewRegistry(time.Hour), // empty: this offer matches nothing
+		ToolBackend: stubToolBackend{},       // configured, but must not apply
+		Models:      &fakeFactory{m: &fakeModel{}},
+		Hub:         hub,
+	}
+
+	res := in.ServeOffer(IntakeRequest{
+		ClientIP: "1.2.3.4",
+		Model:    "gemini",
+		OfferSDP: []byte("sdp"),
+		// no X-Session-ID: a plain (e.g. demo) offer
+	})
+	if res.Status != 200 {
+		t.Fatalf("status = %d body=%q", res.Status, res.Body)
+	}
+	if hub.lastInfo.ToolBackend != nil {
+		t.Fatal("unregistered session must keep tools browser-side (no backend)")
 	}
 }
 

@@ -25,6 +25,10 @@ type runConfig struct {
 	ReplayTimeout time.Duration
 	ReplayLimit   int
 
+	// MemoryServiceURL is the orchestrator base URL for server-side (Lane 1) tool
+	// forwarding. Empty keeps model tool calls on the browser-side path.
+	MemoryServiceURL string
+
 	ModelCBEnable bool
 	ModelCB       modelCBConfigArgs
 
@@ -71,6 +75,7 @@ func parseFlags() (runConfig, map[string]bool, string) {
 	replayURL := flag.String("replay-url", "", "replay-index service base URL (enables cross-node reconnect replay when set)")
 	replayTimeout := flag.Duration("replay-timeout", 300*time.Millisecond, "replay timeout budget when -replay-url is set")
 	replayLimit := flag.Int("replay-limit", 100, "max replay transcript lines on reconnect")
+	memoryServiceURL := flag.String("memory-service", "", "memory-service base URL for server-side (Lane 1) tool forwarding (empty = browser-side tools)")
 	modelCBEnable := flag.Bool("model-cb", true, "enable model connect circuit breaker")
 	modelCBOpenAfter := flag.Int("model-cb-open-after", 5, "consecutive failures before opening model circuit")
 	modelCBOpenFor := flag.Duration("model-cb-open-for", 30*time.Second, "open-state duration for transient model failures")
@@ -107,9 +112,10 @@ func parseFlags() (runConfig, map[string]bool, string) {
 		SidechannelMode: *scMode,
 		KafkaBrokers:    *kafkaBrokers,
 		KafkaTopic:      *kafkaTopic,
-		ReplayURL:       *replayURL,
-		ReplayTimeout:   *replayTimeout,
-		ReplayLimit:     *replayLimit,
+		ReplayURL:        *replayURL,
+		ReplayTimeout:    *replayTimeout,
+		ReplayLimit:      *replayLimit,
+		MemoryServiceURL: *memoryServiceURL,
 		ModelCBEnable:   *modelCBEnable,
 		ModelCB: modelCBConfigArgs{
 			OpenAfter:       *modelCBOpenAfter,

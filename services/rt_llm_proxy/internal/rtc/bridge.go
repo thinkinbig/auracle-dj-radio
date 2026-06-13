@@ -10,6 +10,7 @@ package rtc
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"sync"
 	"time"
@@ -228,6 +229,26 @@ type SessionInfo struct {
 	// It returns a reporter for early provider stream faults (see
 	// modelcb.EarlyFaultWindow). nil disables reporting (e.g. loopback).
 	StreamFaultAt func(sessionStart time.Time) func(producedAudio bool, err error)
+	// ToolBackend, when set, makes the proxy run model tool calls server-side
+	// (Lane 1: forward to the orchestrator) instead of relaying them to the
+	// browser. Set only for sessions the orchestrator pre-registered, since the
+	// backend is keyed by this session id.
+	ToolBackend ToolBackend
+}
+
+// ToolOutcome is the result of running a model tool call out-of-process: the
+// function result the model consumes, plus zero or more ui events for the
+// browser data channel.
+type ToolOutcome struct {
+	GeminiResult json.RawMessage
+	UIEvents     []json.RawMessage
+}
+
+// ToolBackend executes a model tool call against the orchestrator
+// (memory-service) over the network. It is the Lane-1 server-side alternative
+// to relaying tool calls to the browser; the proxy never inspects the payloads.
+type ToolBackend interface {
+	RunTool(ctx context.Context, sessionID identity.SessionID, call model.ToolCall) (ToolOutcome, error)
 }
 
 type sampleWriter interface {
@@ -378,7 +399,13 @@ func (h *Hub) Serve(offerSDP string, m model.Model, info SessionInfo) (string, e
 					h.wg.Go(func() { forwardTranscripts(scope.mediaCtx(), dc, caps.Transcriber, sess) })
 				}
 				if caps.Tools != nil {
-					h.wg.Go(func() { forwardToolCalls(scope.mediaCtx(), dc, caps.Tools) })
+					if info.ToolBackend != nil {
+						h.wg.Go(func() {
+							forwardToolCallsServer(scope.mediaCtx(), dc, caps.Tools, info.ToolBackend, info.ID)
+						})
+					} else {
+						h.wg.Go(func() { forwardToolCalls(scope.mediaCtx(), dc, caps.Tools) })
+					}
 				}
 			}
 			if dc.ReadyState() == webrtc.DataChannelStateOpen {
@@ -604,6 +631,53 @@ func forwardToolCalls(ctx context.Context, dc textSender, td model.ToolDispatche
 		}
 	}
 }
+
+// forwardToolCallsServer runs model tool calls server-side (Lane 1): each call
+// is executed by the orchestrator backend, the function result is returned to
+// the model, and any ui events are pushed to the browser data channel. The
+// model is always given a result (an error stub on backend failure) so it never
+// hangs waiting on a function reply. Exits when the model closes (RecvToolCall
+// errors) or a result send fails.
+func forwardToolCallsServer(ctx context.Context, dc textSender, td model.ToolDispatcher, backend ToolBackend, sessionID identity.SessionID) {
+	for {
+		call, err := td.RecvToolCall()
+		if err != nil {
+			return
+		}
+		outcome, err := backend.RunTool(ctx, sessionID, call)
+		if err != nil {
+			log.Printf("rtc: tool backend session=%s tool=%s: %v", sessionID, call.Name, err)
+			outcome = ToolOutcome{GeminiResult: toolErrorResult}
+		}
+		result := outcome.GeminiResult
+		if len(result) == 0 {
+			result = emptyResult
+		}
+		if err := td.SendToolResult(model.ToolResult{ID: call.ID, Name: call.Name, Response: result}); err != nil {
+			log.Printf("rtc: tool result session=%s: %v", sessionID, err)
+			return
+		}
+		for _, ev := range outcome.UIEvents {
+			if dc.ReadyState() != webrtc.DataChannelStateOpen {
+				break
+			}
+			if err := dc.SendText(dcproto.EncodeUIEvent(ev)); err != nil {
+				log.Printf("rtc: ui event session=%s: %v", sessionID, err)
+				break
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+	}
+}
+
+var (
+	emptyResult     = json.RawMessage(`{}`)
+	toolErrorResult = json.RawMessage(`{"ok":false,"error":"orchestrator unavailable"}`)
+)
 
 // restoredTurns maps recorded transcript lines to the provider-agnostic
 // RestoredTurn turns a model.ContextRestorer accepts on reconnect.

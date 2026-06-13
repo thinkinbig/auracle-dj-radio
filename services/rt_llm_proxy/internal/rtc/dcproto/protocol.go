@@ -5,6 +5,9 @@
 //   - transcript line (outbound): bare {"seq","role","text"}, NO type tag — the
 //     browser keys it by the presence of role+text.
 //   - tool call (outbound):       {"type":"tool_call","id","name","args"}.
+//   - ui event (outbound):        {"type":"ui_event","event":{...}} — business
+//     side-effects (e.g. skip/tracklist_updated) the orchestrator emitted when a
+//     tool ran server-side; the browser keys on the inner event's own "type".
 //   - tool result (inbound):      {"type":"tool_result","id","name","response"}.
 //   - user text (inbound):        anything else — plain text or any other JSON.
 //
@@ -22,6 +25,7 @@ import (
 const (
 	typeToolCall   = "tool_call"
 	typeToolResult = "tool_result"
+	typeUIEvent    = "ui_event"
 )
 
 // Encode renders a transcript line as the data-channel string the browser
@@ -41,6 +45,19 @@ type toolCallEnvelope struct {
 // EncodeToolCall renders a model tool call as a tagged tool_call message.
 func EncodeToolCall(c model.ToolCall) string {
 	b, _ := json.Marshal(toolCallEnvelope{Type: typeToolCall, ID: c.ID, Name: c.Name, Args: c.Args})
+	return string(b)
+}
+
+type uiEventEnvelope struct {
+	Type  string          `json:"type"`
+	Event json.RawMessage `json:"event"`
+}
+
+// EncodeUIEvent wraps an orchestrator-produced ui event as a tagged ui_event
+// message. The event payload is forwarded verbatim (it carries its own inner
+// "type"), so the browser handles new event kinds without a proxy change.
+func EncodeUIEvent(event json.RawMessage) string {
+	b, _ := json.Marshal(uiEventEnvelope{Type: typeUIEvent, Event: event})
 	return string(b)
 }
 

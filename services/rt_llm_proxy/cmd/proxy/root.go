@@ -56,12 +56,21 @@ func runProxy(cfg runConfig) error {
 	// here until the matching offer arrives.
 	registry := offer.NewRegistry(10 * time.Minute)
 
+	// Server-side (Lane 1) tool forwarding: configured only when the orchestrator
+	// URL is set, otherwise model tool calls stay on the browser-side path.
+	var toolBackend rtc.ToolBackend
+	if cfg.MemoryServiceURL != "" {
+		toolBackend = offer.NewHTTPToolBackend(cfg.MemoryServiceURL)
+		log.Printf("server-side tool forwarding -> %s", cfg.MemoryServiceURL)
+	}
+
 	offerHandler := offer.HandlerFields{
 		Limiter:    limiter,
 		Auth:       authn,
 		Publisher:   publisher,
 		ReplayIndex: replayIndex,
 		Registry:    registry,
+		ToolBackend: toolBackend,
 		Guard:       breakers,
 		Hub:        hub,
 		Models: offer.ProdModelFactory{

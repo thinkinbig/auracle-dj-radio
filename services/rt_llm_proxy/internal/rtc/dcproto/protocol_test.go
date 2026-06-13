@@ -30,6 +30,14 @@ func TestEncodeToolCallTagged(t *testing.T) {
 	}
 }
 
+func TestEncodeUIEventTaggedAndVerbatim(t *testing.T) {
+	got := EncodeUIEvent(json.RawMessage(`{"type":"skip","index":2}`))
+	want := `{"type":"ui_event","event":{"type":"skip","index":2}}`
+	if got != want {
+		t.Fatalf("EncodeUIEvent = %s, want %s", got, want)
+	}
+}
+
 func TestDecodeToolResult(t *testing.T) {
 	res, ok := Decode([]byte(`{"type":"tool_result","id":"c1","name":"get_weather","response":{"temp":"25C"}}`))
 	if !ok {

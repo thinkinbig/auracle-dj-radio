@@ -57,22 +57,32 @@ func (f *fakeFactory) New(ctx context.Context, _ string, history []model.Restore
 }
 
 type fakeHub struct {
-	serveN int
-	err    error
+	serveN   int
+	err      error
+	lastInfo rtc.SessionInfo
 	// resume* configure a memory_hit on Resume (zero values = miss, the default).
 	resumeFull []transcript.Line
 	resumeSeq  uint64
 	resumeOK   bool
 }
 
-func (h *fakeHub) Serve(_ string, m model.Model, _ rtc.SessionInfo) (string, error) {
+func (h *fakeHub) Serve(_ string, m model.Model, info rtc.SessionInfo) (string, error) {
 	h.serveN++
+	h.lastInfo = info
 	if h.err != nil {
 		// Serve owns m: it closes it on every error return (see Hub.Serve doc).
 		m.Close()
 		return "", h.err
 	}
 	return "v=0", nil
+}
+
+// stubToolBackend is a non-nil rtc.ToolBackend for asserting the Lane-1 wiring
+// gate; ServeOffer never invokes it (that happens in the media goroutine).
+type stubToolBackend struct{}
+
+func (stubToolBackend) RunTool(context.Context, identity.SessionID, model.ToolCall) (rtc.ToolOutcome, error) {
+	return rtc.ToolOutcome{}, nil
 }
 
 func (h *fakeHub) SessionState(identity.SessionID, identity.UserID) (string, uint64, bool) {

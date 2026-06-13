@@ -11,6 +11,7 @@ import (
 	"github.com/thinkinbig/rt-llm-proxy/internal/metrics"
 	"github.com/thinkinbig/rt-llm-proxy/internal/modelcb"
 	"github.com/thinkinbig/rt-llm-proxy/internal/ratelimit"
+	"github.com/thinkinbig/rt-llm-proxy/internal/rtc"
 	"github.com/thinkinbig/rt-llm-proxy/internal/sidechannel"
 )
 
@@ -109,6 +110,7 @@ type HandlerFields struct {
 	ReplayIndex Replayer
 	Memory      MemoryProvider
 	Registry    *Registry
+	ToolBackend rtc.ToolBackend
 	Guard       *modelcb.Manager
 	Hub         MediaHub
 	Models      ModelFactory
@@ -125,6 +127,7 @@ func (f HandlerFields) Build() *Handler {
 		ReplayIndex: f.ReplayIndex,
 		Memory:      f.Memory,
 		Registry:    f.Registry,
+		ToolBackend: f.ToolBackend,
 		Guard:       f.Guard,
 		Hub:       f.Hub,
 		Models:    f.Models,
