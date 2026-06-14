@@ -8,6 +8,8 @@ export interface RetrieveInput {
   scene: string;
   excludeIds?: Set<string>;
   limit?: number;
+  /** Energy-level skip weights (1–5 → 0–0.7): penalises tracks at energies the user often skips. */
+  energyWeights?: Partial<Record<number, number>>;
 }
 
 export interface Scored<T> {
@@ -23,16 +25,28 @@ export async function retrieveCandidates(
 ): Promise<TrackCandidate[]> {
   const query = await embedder.embedQuery(input.mood, input.scene);
   const pool = input.excludeIds ? tracks.filter((t) => !input.excludeIds!.has(t.id)) : tracks;
-  const ranked = topK(query, pool, (t) => t.embedding, input.limit ?? 24);
+  const weights = input.energyWeights;
+  const adjust =
+    weights && Object.keys(weights).length > 0
+      ? (t: TrackRow, score: number) => score * (1 - (weights[t.energy] ?? 0))
+      : undefined;
+  const ranked = topK(query, pool, (t) => t.embedding, input.limit ?? 24, adjust);
   return ranked.map((s) => toCandidate(s.item));
 }
 
-function topK<T>(query: number[], items: T[], vectorOf: (item: T) => number[] | null, k: number): Scored<T>[] {
+function topK<T>(
+  query: number[],
+  items: T[],
+  vectorOf: (item: T) => number[] | null,
+  k: number,
+  adjust?: (item: T, score: number) => number,
+): Scored<T>[] {
   const scored: Scored<T>[] = [];
   for (const item of items) {
     const v = vectorOf(item);
     if (!v) continue;
-    scored.push({ item, score: cosineSimilarity(query, v) });
+    const raw = cosineSimilarity(query, v);
+    scored.push({ item, score: adjust ? adjust(item, raw) : raw });
   }
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, k);

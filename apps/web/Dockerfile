@@ -26,4 +26,12 @@ FROM nginx:1.27-alpine AS runner
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 
+# Catalog + media baked in so nginx serves them statically (api+web merge).
+# Run `pnpm --filter @auracle/catalog export-catalog` after editing the manifest.
+COPY packages/catalog/data/catalog/tracks.json /usr/share/nginx/html/catalog/tracks.json
+COPY packages/catalog/data/catalog/track       /usr/share/nginx/html/catalog/track
+COPY packages/catalog/data/tracks              /usr/share/nginx/html/media/tracks
+COPY packages/catalog/data/covers              /usr/share/nginx/html/covers
+COPY packages/catalog/data/artists             /usr/share/nginx/html/artists
+
 EXPOSE 80

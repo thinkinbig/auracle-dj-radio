@@ -1,0 +1,26 @@
+{
+  "name": "@auracle/catalog",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/manifest.js",
+  "types": "./dist/manifest.d.ts",
+  "exports": {
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "default": "./dist/manifest.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "export-catalog": "tsx src/export-catalog.ts"
+  },
+  "dependencies": {
+    "@auracle/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.2"
+  }
+}

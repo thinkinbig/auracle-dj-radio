@@ -1,15 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { CatalogManifest, Track, TrackMeta } from "@auracle/shared";
-import { config } from "../config.js";
 
-// Catalog assets (manifest + tracks/covers/artists) live under config.catalogDataDir
-// (@auracle/catalog → packages/catalog/data). Paths in the manifest are relative to its parent.
-const catalogRoot = dirname(config.catalogDataDir);
+const catalogRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Default manifest path (`<catalogDataDir>/catalog/manifest.json`). */
+/** Default manifest path (`packages/catalog/data/catalog/manifest.json`). */
 export function defaultManifestPath(): string {
-  return resolve(config.catalogDataDir, "catalog/manifest.json");
+  return resolve(catalogRoot, "data/catalog/manifest.json");
 }
 
 export function loadCatalogManifest(path = defaultManifestPath()): CatalogManifest {
@@ -99,7 +97,7 @@ export function toTrackMeta(track: Track): TrackMeta {
   };
 }
 
-/** Rich text for catalog embedding (ADR-0002). */
+/** Rich text for Phase 1 catalog embedding (ADR-0002). */
 export function buildRichEmbedText(track: Pick<Track, "artist" | "albumTitle" | "mood" | "scene" | "energy" | "genre" | "lore">): string {
   return [
     `artist: ${track.artist}`,

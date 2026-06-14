@@ -29,8 +29,11 @@ export interface PlanResult {
  */
 const planCache = new Map<string, PlanResult>();
 
-function planKey(intent: SessionIntent, memories: string): string {
-  return [intent.mood, intent.scene, intent.duration_min, memories].join(" ");
+function planKey(intent: SessionIntent, memories: string, energyWeights?: Partial<Record<number, number>>): string {
+  const w = energyWeights && Object.keys(energyWeights).length > 0
+    ? Object.entries(energyWeights).sort(([a], [b]) => Number(a) - Number(b)).map(([k, v]) => `${k}:${(v ?? 0).toFixed(2)}`).join(",")
+    : "";
+  return [intent.mood, intent.scene, intent.duration_min, memories, w].join(" ");
 }
 
 /** Defensive copy so a cached plan can't be mutated by replan/store aliasing. */
@@ -43,19 +46,28 @@ function clonePlan(p: PlanResult): PlanResult {
 }
 
 /** createPlan with an in-process cache so repeat sessions with identical inputs are instant. */
-export async function createPlanCached(deps: PlanDeps, intent: SessionIntent, memories = ""): Promise<PlanResult> {
-  const key = planKey(intent, memories);
+export async function createPlanCached(
+  deps: PlanDeps,
+  intent: SessionIntent,
+  memories = "",
+  energyWeights?: Partial<Record<number, number>>,
+): Promise<PlanResult> {
+  const key = planKey(intent, memories, energyWeights);
   const hit = planCache.get(key);
   if (hit) return clonePlan(hit);
 
-  const plan = await createPlan(deps, intent, memories);
+  const plan = await createPlan(deps, intent, memories, energyWeights);
   if (plan.violations.length === 0) planCache.set(key, plan); // don't cache imperfect plans
   return clonePlan(plan);
 }
 
 /** Cached plan for these inputs without computing one — lets the route skip the provisional path on a hit. */
-export function peekPlanCache(intent: SessionIntent, memories = ""): PlanResult | undefined {
-  const hit = planCache.get(planKey(intent, memories));
+export function peekPlanCache(
+  intent: SessionIntent,
+  memories = "",
+  energyWeights?: Partial<Record<number, number>>,
+): PlanResult | undefined {
+  const hit = planCache.get(planKey(intent, memories, energyWeights));
   return hit ? clonePlan(hit) : undefined;
 }
 
@@ -67,11 +79,13 @@ export function peekPlanCache(intent: SessionIntent, memories = ""): PlanResult 
 export async function createProvisionalPlan(
   deps: PlanDeps,
   intent: SessionIntent,
+  energyWeights?: Partial<Record<number, number>>,
 ): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate> }> {
   const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
     mood: intent.mood,
     scene: intent.scene,
     limit: 24,
+    energyWeights,
   });
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
   return {
@@ -118,11 +132,17 @@ function provisionalTitle(intent: SessionIntent): string {
 }
 
 /** Initial session plan: Step 1 retrieval → Step 2 Flow over a fresh 8-track arc. */
-export async function createPlan(deps: PlanDeps, intent: SessionIntent, memories = ""): Promise<PlanResult> {
+export async function createPlan(
+  deps: PlanDeps,
+  intent: SessionIntent,
+  memories = "",
+  energyWeights?: Partial<Record<number, number>>,
+): Promise<PlanResult> {
   const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
     mood: intent.mood,
     scene: intent.scene,
     limit: 24,
+    energyWeights,
   });
   return runFlow(deps.flowModel, {
     intent,
@@ -140,6 +160,7 @@ export interface ReplanInput {
   played: TrackCandidate[];
   lastPlayedEnergy: number | null;
   remainingSlots: number;
+  energyWeights?: Partial<Record<number, number>>;
 }
 
 /** Mid-session replan: re-fill only the remaining slots, excluding played tracks. */
@@ -149,6 +170,7 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
     scene: input.intent.scene,
     excludeIds: new Set(input.playedIds),
     limit: Math.max(24, input.remainingSlots * 3),
+    energyWeights: input.energyWeights,
   });
   return runFlow(deps.flowModel, {
     intent: input.intent,

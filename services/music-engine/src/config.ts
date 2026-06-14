@@ -11,10 +11,7 @@ export interface Config {
   port: number;
   /** Music-engine owns its own catalog SQLite (tracks + embeddings only — no session_events). */
   dbPath: string;
-  /**
-   * Catalog data directory (manifest.json + audio/cover/photo assets). During the
-   * migration this points at apps/api/data; the physical move is a later phase.
-   */
+  /** Catalog data directory (manifest.json + audio/cover/photo assets) — @auracle/catalog. */
   catalogDataDir: string;
   geminiApiKey: string | undefined;
   flowModel: string;
@@ -26,7 +23,7 @@ export interface Config {
 export const config: Config = {
   port: Number(process.env.MUSIC_ENGINE_PORT ?? 3010),
   dbPath: process.env.MUSIC_ENGINE_DB_PATH ?? resolve(here, "../auracle-catalog.sqlite"),
-  catalogDataDir: process.env.CATALOG_DATA_DIR ?? resolve(here, "../../../apps/api/data"),
+  catalogDataDir: process.env.CATALOG_DATA_DIR ?? resolve(here, "../../../packages/catalog/data"),
   geminiApiKey: process.env.GEMINI_API_KEY || undefined,
   flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
   embedModel: process.env.GEMINI_EMBED_MODEL ?? "gemini-embedding-2",

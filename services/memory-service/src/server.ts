@@ -48,9 +48,14 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
 
     // Cross-session memory only feeds the experimental arm (condition "C");
     // A/B carry no prior context. mem0 degrades to "" when the stack is absent.
-    const mem0Context = condition === "C" ? await memory.recall(`${intent.mood} ${intent.scene}`) : "";
+    const mem0Context =
+      condition === "C"
+        ? await memory.recall(`music preferences for a ${intent.mood} ${intent.scene} session`)
+        : "";
 
-    const plan = await music.planTracklist({ intent, mode: "full", memories: mem0Context });
+    // Skip weights apply to all conditions — behavioral signal, not experimental arm.
+    const energyWeights = events.skipRateByEnergy(10);
+    const plan = await music.planTracklist({ intent, mode: "full", memories: mem0Context, energyWeights });
     const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
     const state = store.create({
       intent,
@@ -143,18 +148,32 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
     if (!track_id) return reply.code(400).send({ error: "track_id is required" });
 
     const prevIndex = state.currentTrackIndex;
+    const prevStartedAtMs = state.trackStartedAtMs;
     if (!store.markStarted(state, track_id)) return reply.code(400).send({ error: "unknown track_id" });
 
     if (state.pendingSkipAtMs != null && state.currentTrackIndex !== prevIndex) {
       const ms = Date.now() - state.pendingSkipAtMs;
+      const skipped = state.tracklist[prevIndex];
+      const energy = skipped ? (state.energyById.get(skipped.id) ?? null) : null;
       events.recordEvent(state.id, "skip_latency", {
         ms,
         from_index: prevIndex,
         to_index: state.currentTrackIndex,
+        energy,
       });
+      if (state.condition === "C" && prevStartedAtMs != null) {
+        const listenedMs = state.pendingSkipAtMs - prevStartedAtMs;
+        if (listenedMs >= 0 && listenedMs < 60_000) {
+          void memory.remember(
+            `User skipped a track after ${Math.round(listenedMs / 1000)}s during a "${state.intent.mood}" ${state.intent.scene} session${energy != null ? ` (energy ${energy}/5)` : ""}.`,
+            state.id,
+          );
+        }
+      }
       state.pendingSkipAtMs = undefined;
       app.log.info({ sessionId: state.id, ms }, "skip round-trip latency");
     }
+    state.trackStartedAtMs = Date.now();
 
     return { current_track_index: state.currentTrackIndex, remaining: store.remaining(state) };
   });

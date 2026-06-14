@@ -301,6 +301,27 @@ describe("memory-service orchestration", () => {
     expect(unknown.statusCode).toBe(400);
   });
 
+  it("now_playing writes a skip signal to mem0 when user skips quickly (condition C only)", async () => {
+    const idC = await createSession("C");
+    const beforeC = memory.facts.length;
+
+    // Register start time for track "a", then skip it.
+    await app.inject({ method: "POST", url: `/sessions/${idC}/now_playing`, payload: { track_id: "a" } });
+    await app.inject({ method: "POST", url: `/sessions/${idC}/tool`, payload: { name: "skip_track" } });
+    await app.inject({ method: "POST", url: `/sessions/${idC}/now_playing`, payload: { track_id: "b" } });
+
+    expect(memory.facts.length).toBe(beforeC + 1);
+    expect(memory.facts.at(-1)).toMatch(/skipped a track after \d+s/);
+
+    // Condition B: same flow should NOT write.
+    const idB = await createSession("B");
+    const beforeB = memory.facts.length;
+    await app.inject({ method: "POST", url: `/sessions/${idB}/now_playing`, payload: { track_id: "a" } });
+    await app.inject({ method: "POST", url: `/sessions/${idB}/tool`, payload: { name: "skip_track" } });
+    await app.inject({ method: "POST", url: `/sessions/${idB}/now_playing`, payload: { track_id: "b" } });
+    expect(memory.facts.length).toBe(beforeB);
+  });
+
   it("cue builds an end-of-track break and pushes it via Lane-3 inject_text", async () => {
     const id = await createSession("C");
     const before = proxy.injectCalls.length;

@@ -4,6 +4,8 @@ export interface PlanTracklistRequest {
   intent: SessionIntent;
   mode?: "provisional" | "full" | "replan";
   memories?: string;
+  /** Energy-level skip weights (1–5 → 0–0.7) from user history; passed to retrieval scoring. */
+  energyWeights?: Partial<Record<number, number>>;
   replan?: {
     playedIds?: string[];
     played?: TrackCandidate[];

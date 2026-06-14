@@ -23,6 +23,8 @@ export interface SessionState {
   refineListeners: Set<() => void>;
   /** Set when skip_track fires; cleared by the next now_playing to time the skip round trip. */
   pendingSkipAtMs?: number;
+  /** Timestamp (ms) when the current track started; set by now_playing. Used to measure listen time before a skip. */
+  trackStartedAtMs?: number;
 }
 
 /** In-memory session state machine. Memory-service is the sole owner of session state. */

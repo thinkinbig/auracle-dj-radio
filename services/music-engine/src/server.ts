@@ -63,6 +63,7 @@ export function buildServer(dbPath: string): MusicEngine {
       mode?: "provisional" | "full" | "replan";
       intent?: unknown;
       memories?: string;
+      energyWeights?: Partial<Record<number, number>>;
       replan?: { playedIds?: string[]; played?: TrackCandidate[]; lastPlayedEnergy?: number | null; remainingSlots?: number };
     };
     const intent = parseIntent(b.intent);
@@ -70,7 +71,7 @@ export function buildServer(dbPath: string): MusicEngine {
 
     const mode = b.mode ?? "full";
     if (mode === "provisional") {
-      const p = await createProvisionalPlan(deps, intent);
+      const p = await createProvisionalPlan(deps, intent, b.energyWeights);
       return { result: p.result, violations: [], candidates: [...p.candidatesById.values()] };
     }
     if (mode === "replan") {
@@ -81,10 +82,11 @@ export function buildServer(dbPath: string): MusicEngine {
         played: r.played ?? [],
         lastPlayedEnergy: r.lastPlayedEnergy ?? null,
         remainingSlots: r.remainingSlots ?? 0,
+        energyWeights: b.energyWeights,
       });
       return toPlanResponse(p);
     }
-    return toPlanResponse(await createPlanCached(deps, intent, b.memories ?? ""));
+    return toPlanResponse(await createPlanCached(deps, intent, b.memories ?? "", b.energyWeights));
   });
 
   // Catalog metadata for cue building (memory-service prefetches per session).
