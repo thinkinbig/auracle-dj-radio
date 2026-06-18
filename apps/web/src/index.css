@@ -2,6 +2,9 @@
 
 /* ─── Design Tokens (doc/auracle_ui_design.md) ──────── */
 :root {
+  /* Let native UI (form controls, scrollbars) follow the active theme. */
+  color-scheme: light dark;
+
   --stage-bg: #0a0a0a;
   --stage-bg-gradient: linear-gradient(180deg, #0f0f23 0%, #0a0a0a 100%);
   --dot-grid: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
@@ -71,6 +74,36 @@
   --z-sheet: 10;
   --z-overlay: 20;
   --z-minibar: 30;
+}
+
+/* ─── Dark mode (auto: follows the OS / phone setting) ───
+ * First-pass overrides. We only redefine tokens for the *light* surfaces
+ * (cards, transcript panel, dark-on-light text/controls). The stage, avatar,
+ * and accent colours are already dark/brand-correct, so they're intentionally
+ * left out and keep their default values. Tune the hex codes to taste. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --card-bg: #18181b;
+    --transcript-bg: #0f0f12;
+    --transcript-dot: radial-gradient(circle, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+
+    --text-primary: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --text-faded: rgba(244, 244, 245, 0.35);
+
+    /* Mini-bar waveform sits on the (now dark) card surface → invert it. */
+    --wave-mini-active: #f4f4f5;
+    --wave-mini-idle: #3f3f46;
+
+    /* Progress bar + primary button were dark-on-light → flip to light-on-dark. */
+    --progress-fill: #f4f4f5;
+    --progress-track: #3f3f46;
+    --btn-primary-bg: #f4f4f5;
+    --btn-primary-fg: #18181b;
+
+    --page-bg: #000000;
+    --frame-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+  }
 }
 
 @media (max-width: 767px) {
