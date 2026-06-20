@@ -1,5 +1,6 @@
 .root {
   flex-shrink: 0;
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-md);
@@ -7,6 +8,67 @@
   background: var(--card-bg);
   border-top: 1px solid var(--progress-track);
   z-index: var(--z-minibar);
+}
+
+/* Text barge-in composer: floats just above the control bar. */
+.composer {
+  position: absolute;
+  left: var(--space-md);
+  right: var(--space-md);
+  bottom: calc(100% + var(--space-xs));
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-md);
+  background: var(--card-bg);
+  border: 1px solid var(--progress-track);
+  border-radius: var(--radius-control);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.composerInput {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.composerInput::placeholder {
+  color: var(--text-secondary);
+}
+
+.composerInput:focus {
+  outline: none;
+}
+
+.composerSend {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
+  display: grid;
+  place-items: center;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  transition: opacity var(--duration-fast);
+}
+
+.composerSend:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.composerSend:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.btnTextActive {
+  background: var(--transcript-bg);
+  color: var(--text-primary);
 }
 
 :global([data-layout='split']) .root {

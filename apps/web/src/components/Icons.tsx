@@ -65,6 +65,47 @@ export function IconChevronUp({ size = 24, className }: IconProps) {
   );
 }
 
+export function IconText({ size = 20, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M21 11.5a8.5 8.5 0 0 1-11.7 7.9L3 21l1.6-6.3A8.5 8.5 0 1 1 21 11.5Z" />
+      <line x1="8.5" y1="10.5" x2="15.5" y2="10.5" />
+      <line x1="8.5" y1="14" x2="13" y2="14" />
+    </svg>
+  );
+}
+
+export function IconSend({ size = 20, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M22 2 11 13" />
+      <path d="M22 2 15 22l-4-9-9-4 20-7Z" />
+    </svg>
+  );
+}
+
 export function IconMic({ size = 20, className }: IconProps) {
   return (
     <svg

@@ -11,6 +11,7 @@ type Effect =
   | { ch: 'dispatch'; action: PlaybackAction }
   | { ch: 'bus'; call: 'skipDj' | 'resumeDj' | 'duck' | 'restore' }
   | { ch: 'audio'; call: 'pause' }
+  | { ch: 'live'; call: 'sendText'; text: string }
   | { ch: 'opening'; call: 'release' };
 
 function harness(state: Partial<PlaybackState>) {
@@ -34,6 +35,7 @@ function harness(state: Partial<PlaybackState>) {
         log.push({ ch: 'bus', call: v < 1 ? 'duck' : 'restore' }),
     }) as never,
     getAudio: () => ({ pause: () => log.push({ ch: 'audio', call: 'pause' }) }) as never,
+    getLive: () => ({ sendText: (text: string) => log.push({ ch: 'live', call: 'sendText', text }) }) as never,
     releaseOpening: () => log.push({ ch: 'opening', call: 'release' }),
   };
   return { commands: createRadioCommands(deps), log };
@@ -131,6 +133,28 @@ describe('radioCommands.talk', () => {
   it('ignores startTalk when paused or already talking', () => {
     const paused = harness({ phase: 'paused' });
     paused.commands.startTalk();
+    expect(paused.log).toEqual([]);
+  });
+});
+
+describe('radioCommands.sendText', () => {
+  it('barges in (cuts the DJ), sends the trimmed text, and echoes it into the transcript', () => {
+    const { commands, log } = harness({ phase: 'speaking' });
+    commands.sendText('  play something upbeat  ');
+    expect(log).toEqual([
+      { ch: 'bus', call: 'skipDj' },
+      { ch: 'live', call: 'sendText', text: 'play something upbeat' },
+      { ch: 'dispatch', action: { type: 'transcript', role: 'user', text: 'play something upbeat' } },
+    ]);
+  });
+
+  it('is a no-op for blank text or when idle/curating/paused', () => {
+    const blank = harness({ phase: 'playing' });
+    blank.commands.sendText('   ');
+    expect(blank.log).toEqual([]);
+
+    const paused = harness({ phase: 'paused' });
+    paused.commands.sendText('hello');
     expect(paused.log).toEqual([]);
   });
 });

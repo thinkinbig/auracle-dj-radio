@@ -15,6 +15,7 @@ export interface RadioHandlers {
   handleChangeHostMode: (hostMode: HostMode) => void;
   handleTalkStart: () => void;
   handleTalkEnd: () => void;
+  handleSendText: (text: string) => void;
 }
 
 interface RadioHandlersInput {
@@ -84,6 +85,10 @@ export function useRadioHandlers({
     commands.endTalk();
   }, [commands]);
 
+  const handleSendText = useCallback((text: string) => {
+    commands.sendText(text);
+  }, [commands]);
+
   const handleChangeHostMode = useCallback(
     (hostMode: HostMode) => {
       const s = store.stateRef.current;
@@ -105,5 +110,6 @@ export function useRadioHandlers({
     handleChangeHostMode,
     handleTalkStart,
     handleTalkEnd,
+    handleSendText,
   };
 }

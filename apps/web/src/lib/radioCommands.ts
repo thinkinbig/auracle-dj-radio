@@ -1,4 +1,5 @@
 import type { AudioBus } from './liveAudio';
+import type { LiveRtcHandle } from './liveSessionRtc';
 import { postCue } from './sessionApi';
 import type { PlaybackAction } from './playbackReducer';
 import type { PlaybackState } from '../types';
@@ -15,6 +16,8 @@ export interface RadioCommandDeps {
   dispatch(action: PlaybackAction): void;
   getBus(): AudioBus | null;
   getAudio(): HTMLAudioElement | null;
+  /** The live transport handle (null before connect / in demo fallback). */
+  getLive(): LiveRtcHandle | null;
   /** Unblock the silent opening track so its music can play (CONTEXT: Playhead/opening). */
   releaseOpening(): void;
 }
@@ -37,6 +40,8 @@ export interface RadioCommands {
   startTalk(): void;
   /** End a push-to-talk turn: restore the music. */
   endTalk(): void;
+  /** Barge in with a typed message: cut any in-flight DJ turn and send user text to the model. */
+  sendText(text: string): void;
   /** Read-and-clear the skip guard so the music element's `ended` can ignore the post-skip stop. */
   consumeSkipGuard(): boolean;
 }
@@ -101,6 +106,21 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
       // restore is the duck policy's job once isTalking clears.
       deps.getBus()?.resumeDj();
       deps.dispatch({ type: 'stop_talk' });
+    },
+
+    sendText(text: string): void {
+      const s = deps.getState();
+      if (s.phase === 'idle' || s.phase === 'curating' || s.phase === 'paused') return;
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      // Barge in like push-to-talk: silence any in-flight DJ voice instantly
+      // (local, zero round-trip), then deliver the typed message to the model as
+      // a user turn over the data channel.
+      deps.getBus()?.skipDj();
+      deps.getLive()?.sendText(trimmed);
+      // Echo into the transcript ourselves: unlike mic audio, typed text isn't
+      // transcribed back by the model, so this is the only record of the turn.
+      deps.dispatch({ type: 'transcript', role: 'user', text: trimmed });
     },
 
     consumeSkipGuard(): boolean {

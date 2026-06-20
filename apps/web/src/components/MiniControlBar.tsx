@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties, FormEvent } from 'react';
 import { useRadioActions, useRadioState } from '../context/RadioSessionContext';
 import { useBarCount } from '../hooks/useBarCount';
 import { formatTime } from '../lib/formatTime';
@@ -11,12 +11,12 @@ import {
   isPaused,
   playbackProgressPct,
 } from '../lib/playbackSelectors';
-import { IconMic, IconPause, IconPlay, IconSkipNext, IconSkipVoice } from './Icons';
+import { IconMic, IconPause, IconPlay, IconSend, IconSkipNext, IconSkipVoice, IconText } from './Icons';
 import styles from './MiniControlBar.module.css';
 
 export function MiniControlBar() {
   const state = useRadioState();
-  const { handleTogglePause, handleSkipTrack, handleSkipDj, handleContinue, handleTalkStart, handleTalkEnd } =
+  const { handleTogglePause, handleSkipTrack, handleSkipDj, handleContinue, handleTalkStart, handleTalkEnd, handleSendText } =
     useRadioActions();
   const waveRef = useRef<HTMLDivElement>(null);
   const barCount = useBarCount(waveRef, 5, 32, 160);
@@ -26,8 +26,60 @@ export function MiniControlBar() {
   const skipDisabled = !canSkipTrack(state);
   const pct = playbackProgressPct(state);
 
+  // Text barge-in composer (sibling to push-to-talk). Available in the same
+  // contexts as the mic: an active session that isn't curating or in a break.
+  const canConverse = !idle && !curating && !state.inBreak;
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerText, setComposerText] = useState('');
+  const composerInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (composerOpen) composerInputRef.current?.focus();
+  }, [composerOpen]);
+
+  useEffect(() => {
+    if (!canConverse) {
+      setComposerOpen(false);
+      setComposerText('');
+    }
+  }, [canConverse]);
+
+  const submitComposer = (e: FormEvent) => {
+    e.preventDefault();
+    const text = composerText.trim();
+    if (!text) return;
+    handleSendText(text);
+    setComposerText('');
+    setComposerOpen(false);
+  };
+
   return (
     <footer className={styles.root} aria-label="Playback controls">
+      {composerOpen && canConverse && (
+        <form id="dj-composer" className={styles.composer} onSubmit={submitComposer}>
+          <input
+            ref={composerInputRef}
+            className={styles.composerInput}
+            value={composerText}
+            onChange={(e) => setComposerText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setComposerOpen(false);
+            }}
+            placeholder="Message the DJ…"
+            aria-label="Message to the DJ"
+            enterKeyHint="send"
+            maxLength={500}
+          />
+          <button
+            type="submit"
+            className={styles.composerSend}
+            disabled={!composerText.trim()}
+            aria-label="Send message"
+          >
+            <IconSend size={16} />
+          </button>
+        </form>
+      )}
       <time className={styles.time}>{formatTime(state.progressSec)}</time>
 
       <div
@@ -78,18 +130,30 @@ export function MiniControlBar() {
         </button>
       )}
 
-      {!idle && !curating && !state.inBreak && (
-        <button
-          type="button"
-          className={cn(styles.btn, state.isTalking && styles.btnTalkActive)}
-          onPointerDown={handleTalkStart}
-          onPointerUp={handleTalkEnd}
-          onPointerLeave={handleTalkEnd}
-          aria-label="Hold to talk to DJ"
-          aria-pressed={state.isTalking}
-        >
-          <IconMic size={16} />
-        </button>
+      {canConverse && (
+        <>
+          <button
+            type="button"
+            className={cn(styles.btn, composerOpen && styles.btnTextActive)}
+            onClick={() => setComposerOpen((o) => !o)}
+            aria-label="Type a message to the DJ"
+            aria-expanded={composerOpen}
+            aria-controls="dj-composer"
+          >
+            <IconText size={16} />
+          </button>
+          <button
+            type="button"
+            className={cn(styles.btn, state.isTalking && styles.btnTalkActive)}
+            onPointerDown={handleTalkStart}
+            onPointerUp={handleTalkEnd}
+            onPointerLeave={handleTalkEnd}
+            aria-label="Hold to talk to DJ"
+            aria-pressed={state.isTalking}
+          >
+            <IconMic size={16} />
+          </button>
+        </>
       )}
 
       <button

@@ -1,12 +1,13 @@
 import { useRef } from 'react';
 import { createRadioCommands, type RadioCommands } from '../../lib/radioCommands';
 import type { OpeningGateControls } from './useOpeningGate';
-import type { AudioRefs, StoreRefs } from './sessionRefs';
+import type { AudioRefs, LiveRefs, StoreRefs } from './sessionRefs';
 
-/** Create the single long-lived command surface, reading the bus/audio lazily from refs. */
+/** Create the single long-lived command surface, reading the bus/audio/live lazily from refs. */
 export function useRadioCommands(
   store: StoreRefs,
   audio: AudioRefs,
+  live: LiveRefs,
   opening: Pick<OpeningGateControls, 'releaseOpening'>,
 ): RadioCommands {
   const ref = useRef<RadioCommands | null>(null);
@@ -16,6 +17,7 @@ export function useRadioCommands(
       dispatch: (action) => store.dispatchRef.current(action),
       getBus: () => audio.audioBusRef.current,
       getAudio: () => audio.audioRef.current,
+      getLive: () => live.liveRef.current,
       releaseOpening: () => opening.releaseOpening(),
     });
   }

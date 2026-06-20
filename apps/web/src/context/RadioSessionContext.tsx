@@ -12,6 +12,7 @@ export interface RadioActions {
   handleChangeHostMode: (hostMode: HostMode) => void;
   handleTalkStart: () => void;
   handleTalkEnd: () => void;
+  handleSendText: (text: string) => void;
 }
 
 interface RadioSessionContextValue {
@@ -38,6 +39,7 @@ export function RadioSessionProvider({ children }: { children: ReactNode }) {
       handleChangeHostMode: session.handleChangeHostMode,
       handleTalkStart: session.handleTalkStart,
       handleTalkEnd: session.handleTalkEnd,
+      handleSendText: session.handleSendText,
     },
   };
   return <RadioSessionContext.Provider value={value}>{children}</RadioSessionContext.Provider>;

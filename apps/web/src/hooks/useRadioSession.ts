@@ -27,6 +27,7 @@ export interface RadioSession {
   handleChangeHostMode: (hostMode: HostMode) => void;
   handleTalkStart: () => void;
   handleTalkEnd: () => void;
+  handleSendText: (text: string) => void;
 }
 
 /** Composes radio effect hooks around a single playback reducer. */
@@ -37,7 +38,7 @@ export function useRadioSession(): RadioSession {
   const { store, audio, live } = useSessionRefs(state, dispatch);
 
   const opening = useOpeningGate(store, audio);
-  const commands = useRadioCommands(store, audio, opening);
+  const commands = useRadioCommands(store, audio, live, opening);
 
   useTrackPlayback({
     store,
@@ -85,5 +86,6 @@ export function useRadioSession(): RadioSession {
     handleChangeHostMode: handlers.handleChangeHostMode,
     handleTalkStart: handlers.handleTalkStart,
     handleTalkEnd: handlers.handleTalkEnd,
+    handleSendText: handlers.handleSendText,
   };
 }
