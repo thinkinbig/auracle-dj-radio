@@ -35,3 +35,23 @@ export interface SessionEvent {
   event_type: string;
   payload: Record<string, unknown>;
 }
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface AuthResponse {
+  user: AuthUser;
+  token: string;
+}
+
+export interface AuthCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterCredentials extends AuthCredentials {
+  name?: string;
+}
