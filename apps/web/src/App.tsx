@@ -3,6 +3,7 @@ import { AppShell } from './components/AppShell';
 import { ContentSheet } from './components/ContentSheet';
 import { MiniControlBar } from './components/MiniControlBar';
 import { OnboardingPage } from './components/OnboardingPage';
+import { PlaylistDrawer } from './components/PlaylistDrawer';
 import { StageHeader } from './components/StageHeader';
 import { TrackQueue } from './components/TrackQueue';
 import { RadioSessionProvider, useRadioActions, useRadioState } from './context/RadioSessionContext';
@@ -13,7 +14,7 @@ import { loadTrackCatalog } from './lib/trackCatalog';
 function AppContent() {
   const state = useRadioState();
   const { handleTogglePause, handleSkipTrack } = useRadioActions();
-  const { isWide } = useLayoutMode();
+  const { isWide, isPhoneFrame } = useLayoutMode();
 
   useEffect(() => {
     void loadTrackCatalog();
@@ -42,6 +43,7 @@ function AppContent() {
       stage={<StageHeader />}
       sheet={<ContentSheet />}
       queue={isWide ? <TrackQueue /> : undefined}
+      drawer={!isPhoneFrame ? <PlaylistDrawer /> : undefined}
       miniBar={<MiniControlBar />}
     />
   );

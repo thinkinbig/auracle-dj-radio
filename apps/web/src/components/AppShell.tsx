@@ -7,10 +7,12 @@ interface AppShellProps {
   stage: ReactNode;
   sheet: ReactNode;
   queue?: ReactNode;
+  /** Retractable bottom playlist, mobile-only (overlays the stack body). */
+  drawer?: ReactNode;
   miniBar: ReactNode;
 }
 
-export function AppShell({ stage, sheet, queue, miniBar }: AppShellProps) {
+export function AppShell({ stage, sheet, queue, drawer, miniBar }: AppShellProps) {
   const { isWide, isPhoneFrame, isLandscape } = useLayoutMode();
   const layout = isWide ? 'split' : isPhoneFrame ? 'frame' : 'mobile';
 
@@ -39,9 +41,12 @@ export function AppShell({ stage, sheet, queue, miniBar }: AppShellProps) {
           </>
         ) : (
           <>
-            <div className={styles.stackBody}>
+            <div className={styles.mobileMain}>
               {stage}
-              {sheet}
+              <div className={styles.sheetArea}>
+                {sheet}
+                {drawer}
+              </div>
             </div>
             <div className={styles.stackMini}>{miniBar}</div>
           </>

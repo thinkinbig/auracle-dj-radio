@@ -1,0 +1,131 @@
+.drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-overlay);
+  height: var(--drawer-handle-h);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--card-bg);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  box-shadow: var(--shadow-sheet);
+  transition: height var(--duration-slow) var(--ease-out);
+}
+
+.drawerOpen {
+  height: calc(100% - var(--drawer-peek, 0px));
+}
+
+.grip {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--progress-track);
+  pointer-events: none;
+}
+
+.handle {
+  flex-shrink: 0;
+  height: var(--drawer-handle-h);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md) 0;
+  width: 100%;
+  text-align: left;
+}
+
+.handle:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--radius-inner);
+}
+
+.handleLabel {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.handleCount {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.chevron {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--text-secondary);
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md) var(--space-md);
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-pill);
+}
+
+.itemCurrent {
+  background: var(--highlight-bg);
+}
+
+.index {
+  width: 20px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.itemText {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.artist {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.duration {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  padding-top: 2px;
+}

@@ -368,7 +368,9 @@
 
 @media (max-width: 767px) {
   .root {
-    padding: var(--space-md) var(--space-md) var(--space-xs);
+    /* Bottom padding reserves room for the collapsed playlist-drawer handle so
+       the card background backs it (no black gap behind its rounded corners). */
+    padding: var(--space-md) var(--space-md) var(--drawer-handle-h);
     border-radius: 20px 20px 0 0;
   }
 

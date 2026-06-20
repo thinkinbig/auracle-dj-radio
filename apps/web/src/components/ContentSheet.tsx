@@ -64,7 +64,7 @@ export function ContentSheet() {
         ) : (
           <>
             <h1 className={styles.title}>{state.sessionTitle}</h1>
-            <p className={styles.meta}>{state.sessionSubtitle}</p>
+            <p className={styles.meta} data-session-heading>{state.sessionSubtitle}</p>
             <div className={styles.nowPlaying}>
               {state.albumCoverUrl ? (
                 <img
