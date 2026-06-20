@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { resolve, dirname, join } from 'node:path';
 import type { ServerResponse } from 'node:http';
 
+const srcDir = resolve(dirname(fileURLToPath(import.meta.url)), 'src');
+
 /** memory-service owns session orchestration (refactor-three-services). */
 const memoryTarget = process.env.MEMORY_PROXY_TARGET ?? 'http://localhost:3020';
 /** Go rt_llm_proxy receives the browser's WebRTC SDP offer. */
@@ -55,6 +57,11 @@ function catalogDev(): Plugin {
 export default defineConfig(() => {
   return {
     plugins: [react(), catalogDev()],
+    resolve: {
+      alias: {
+        '@': srcDir,
+      },
+    },
     server: {
       port: 5173,
       strictPort: true,
