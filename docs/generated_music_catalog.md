@@ -367,10 +367,3 @@ Turn it down, let it breathe
 Night is kind when we leave
 ```
 
-## Presentation Notes
-
-- The tracks were generated offline with MiniMax using original prompts and lyrics.
-- The project does not depend on MiniMax at runtime for music playback.
-- GitHub stores the MP3 files through Git LFS.
-- The app can play the generated tracks through the existing static catalogue route: `/tracks/<id>/audio`.
-- The current upload replaces the existing demo audio files `t01.mp3` to `t16.mp3`; app metadata can be updated separately if the team wants the UI to show these new fictional artists and song titles.
