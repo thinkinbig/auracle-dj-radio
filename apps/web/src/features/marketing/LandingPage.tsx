@@ -1,5 +1,5 @@
 import type { CSSProperties, FormEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AuthUser } from '@auracle/shared';
 import { DJ_NAME } from '@/shared/lib/constants';
 import { login, register } from './authApi';
@@ -24,11 +24,44 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
   const [authError, setAuthError] = useState<string | undefined>();
   const [authNotice, setAuthNotice] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBrandTransitioning, setIsBrandTransitioning] = useState(false);
+  const transitionTimerRef = useRef<number | undefined>();
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) window.clearTimeout(transitionTimerRef.current);
+    };
+  }, []);
 
   function switchAuthMode(mode: AuthMode) {
     setAuthMode(mode);
     setAuthError(undefined);
     setAuthNotice(undefined);
+  }
+
+  function runBrandTransition(onComplete: () => void) {
+    if (isBrandTransitioning) return;
+    setIsBrandTransitioning(true);
+    transitionTimerRef.current = window.setTimeout(() => {
+      onComplete();
+      transitionTimerRef.current = window.setTimeout(() => {
+        setIsBrandTransitioning(false);
+      }, 260);
+    }, 320);
+  }
+
+  function showAuth(mode: AuthMode) {
+    switchAuthMode(mode);
+    if (view === 'login') return;
+    runBrandTransition(() => setView('login'));
+  }
+
+  function enterApp(user: AuthUser) {
+    if (view === 'landing') {
+      runBrandTransition(() => onEnterApp(user));
+      return;
+    }
+    onEnterApp(user);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -47,7 +80,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
         authMode === 'register'
           ? await register({ email, password, name }, remember)
           : await login({ email, password }, remember);
-      onEnterApp(response.user);
+      enterApp(response.user);
     } catch (err) {
       setAuthError((err as Error).message);
     } finally {
@@ -59,12 +92,21 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
     <div className={styles.page}>
       <div className={styles.shell}>
         <header className={styles.topbar}>
-          <button className={styles.brand} type="button" onClick={() => setView('landing')}>
-            <span className={styles.mark} aria-hidden>
-              A
-            </span>
-            <span>{DJ_NAME}</span>
-          </button>
+          {view === 'login' || isBrandTransitioning ? (
+            <button
+              className={`${styles.brand} ${isBrandTransitioning ? styles.brandEntering : ''}`}
+              type="button"
+              onClick={() => setView('landing')}
+              disabled={isBrandTransitioning}
+            >
+              <span className={styles.mark} aria-hidden>
+                A
+              </span>
+              <span>{DJ_NAME}</span>
+            </button>
+          ) : (
+            <span className={styles.brandPlaceholder} aria-hidden />
+          )}
           <nav className={styles.nav} aria-label="Primary">
             <a href="#stations">Stations</a>
             <a href="#sound">Sound</a>
@@ -73,17 +115,15 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
           <button
             className={styles.ghostButton}
             type="button"
-            onClick={() => {
-              switchAuthMode('login');
-              setView('login');
-            }}
+            onClick={() => showAuth('login')}
+            disabled={isBrandTransitioning}
           >
             Log in
           </button>
         </header>
 
         {view === 'landing' ? (
-          <main className={styles.hero}>
+          <main className={`${styles.hero} ${isBrandTransitioning ? styles.heroLeaving : ''}`}>
             <section className={styles.copy} aria-labelledby="landing-title">
               <p className={styles.eyebrow}>Live AI radio for every mood</p>
               <h1 id="landing-title">Auracle</h1>
@@ -95,14 +135,17 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                 <button
                   className={styles.primaryButton}
                   type="button"
-                  onClick={() => {
-                    switchAuthMode('register');
-                    setView('login');
-                  }}
+                  onClick={() => showAuth('register')}
+                  disabled={isBrandTransitioning}
                 >
                   Start listening
                 </button>
-                <button className={styles.secondaryButton} type="button" onClick={() => onEnterApp(guestUser)}>
+                <button
+                  className={styles.secondaryButton}
+                  type="button"
+                  onClick={() => enterApp(guestUser)}
+                  disabled={isBrandTransitioning}
+                >
                   Try demo
                 </button>
               </div>

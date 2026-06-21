@@ -27,6 +27,10 @@ export function StageHeader() {
   return (
     <header className={styles.root}>
       <div className={styles.top}>
+        <p className={styles.status} aria-live="polite">
+          <span className={cn(styles.liveDot, status.live && styles.liveDotOn)} aria-hidden />
+          {status.text}
+        </p>
         <div className={styles.topRight}>
           {onAir && (
             <span
@@ -42,19 +46,16 @@ export function StageHeader() {
         </div>
       </div>
 
-      <p className={styles.status} aria-live="polite">
-        <span className={cn(styles.liveDot, status.live && styles.liveDotOn)} aria-hidden />
-        {status.text}
-      </p>
       {state.liveWarning && (
         <p className={styles.warning} role="status" aria-live="polite">
-          {state.liveWarning}
+          Demo voice fallback
         </p>
       )}
 
       {showStageArt && (
         <div className={styles.artArea}>
           <div className={styles.artStack}>
+            <span className={styles.artAura} aria-hidden />
             <img className={styles.albumCover} src={state.albumCoverUrl} alt="" />
           </div>
         </div>

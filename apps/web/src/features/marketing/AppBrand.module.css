@@ -10,6 +10,27 @@
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+}
+
+button.brand {
+  cursor: pointer;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+button.brand:hover {
+  opacity: 0.82;
+  transform: translateY(-1px);
+}
+
+button.brand:focus-visible {
+  outline: none;
+  border-radius: 999px;
+  box-shadow: var(--ring);
 }
 
 .mark {

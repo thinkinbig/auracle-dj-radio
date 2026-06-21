@@ -40,6 +40,23 @@ function AppContent() {
   return <PlayerScreen />;
 }
 
+function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
+  const state = useRadioState();
+  const { handleReturnToSetup } = useRadioActions();
+  const appView = getAppView(state.phase);
+
+  return (
+    <>
+      <AppBrand
+        onClick={appView === 'playing' ? handleReturnToSetup : undefined}
+        label={appView === 'playing' ? 'Back to station setup' : undefined}
+      />
+      <AuthStatus user={user} onLogout={onLogout} />
+      <AppContent />
+    </>
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState<AuthUser | undefined>();
   const [isRestoringUser, setIsRestoringUser] = useState(true);
@@ -65,18 +82,14 @@ export default function App() {
   }
 
   return (
-    <>
-      <AppBrand />
-      <AuthStatus
+    <RadioSessionProvider>
+      <LoggedInApp
         user={user}
         onLogout={() => {
           void logout();
           setUser(undefined);
         }}
       />
-      <RadioSessionProvider>
-        <AppContent />
-      </RadioSessionProvider>
-    </>
+    </RadioSessionProvider>
   );
 }

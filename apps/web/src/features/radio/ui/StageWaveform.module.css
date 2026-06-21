@@ -3,31 +3,29 @@
   grid-template-columns: repeat(var(--bar-count, 32), 1fr);
   gap: 3px;
   align-items: end;
-  width: calc(100% + 2 * var(--space-md));
-  margin-left: calc(-1 * var(--space-md));
-  margin-right: calc(-1 * var(--space-md));
-  height: 56px;
+  width: 100%;
+  height: 34px;
   margin-top: auto;
-  padding: 0 var(--space-md);
+  padding: 0 2px;
   overflow: hidden;
   -webkit-mask-image: linear-gradient(
     90deg,
     transparent 0%,
-    #000 6%,
-    #000 94%,
+    #000 10%,
+    #000 90%,
     transparent 100%
   );
   mask-image: linear-gradient(
     90deg,
     transparent 0%,
-    #000 6%,
-    #000 94%,
+    #000 10%,
+    #000 90%,
     transparent 100%
   );
 }
 
 :global([data-layout='split']) .root {
-  height: min(96px, 18vh);
+  height: min(52px, 8vh);
 }
 
 :global([data-layout='stack'][data-landscape='true']) .root {
@@ -39,10 +37,10 @@
   min-width: 0;
   height: 100%;
   border-radius: 999px;
-  background: rgba(248, 250, 252, 0.14);
+  background: rgba(248, 250, 252, 0.08);
   transform-origin: bottom center;
   will-change: transform;
-  opacity: 0.58;
+  opacity: 0.5;
   --bar-energy: 0.04;
 }
 
@@ -77,8 +75,8 @@
 .playing .bar {
   background: linear-gradient(
     to top,
-    rgba(141, 247, 167, 0.26) 0%,
-    rgba(248, 250, 252, 0.58) calc(var(--bar-energy) * 100%)
+    rgba(141, 247, 167, 0.2) 0%,
+    rgba(248, 250, 252, 0.32) calc(var(--bar-energy) * 100%)
   );
 }
 

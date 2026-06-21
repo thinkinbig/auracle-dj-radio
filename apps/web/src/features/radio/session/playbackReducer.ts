@@ -4,6 +4,7 @@ import { DEMO_SESSION } from '@/data/demoData';
 import type { PlaybackState, TranscriptLine, UiPhase } from '@/features/radio/session/types';
 
 export type PlaybackAction =
+  | { type: 'reset' }
   | { type: 'begin' }
   | { type: 'start'; session: CreateSessionResponse }
   | { type: 'tick' }
@@ -116,6 +117,8 @@ export function mapServerPhase(phase: Phase): 'speaking' | 'listening' | 'playin
 
 export function playbackReducer(state: PlaybackState, action: PlaybackAction): PlaybackState {
   switch (action.type) {
+    case 'reset':
+      return createInitialPlaybackState();
     case 'begin':
       return { ...state, phase: 'curating', transcript: [], activeTranscriptId: null };
     case 'start': {
