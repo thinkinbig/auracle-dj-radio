@@ -2,9 +2,14 @@
   min-height: 100dvh;
   display: flex;
   justify-content: center;
-  align-items: center;
-  background: var(--page-bg);
-  padding: var(--space-md);
+  align-items: flex-start;
+  background:
+    radial-gradient(circle at 16% 16%, rgba(75, 222, 128, 0.2), transparent 28%),
+    radial-gradient(circle at 82% 8%, rgba(244, 114, 182, 0.16), transparent 30%),
+    linear-gradient(135deg, #070807 0%, #111513 44%, #050505 100%);
+  background-size: 120% 120%, 130% 130%, 100% 100%;
+  padding: 76px var(--space-md) 24px;
+  animation: ambientShift 18s ease-in-out infinite alternate;
 }
 
 .shell {
@@ -69,19 +74,23 @@
 }
 
 .shellSplit {
-  max-width: var(--split-max-width);
+  max-width: 1160px;
   width: 100%;
-  height: min(100dvh, 720px);
+  height: min(calc(100dvh - 112px), 760px);
   border-radius: var(--frame-radius);
-  box-shadow: var(--frame-shadow);
-  background: var(--page-bg);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.34);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015)),
+    rgba(10, 14, 12, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
   padding: var(--split-gap);
   gap: var(--split-gap);
 }
 
 .split {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.2fr);
+  grid-template-columns: minmax(320px, 0.96fr) minmax(360px, 1.16fr);
   gap: var(--split-gap);
   flex: 1;
   min-height: 0;
@@ -93,9 +102,11 @@
   min-height: 0;
   border-radius: var(--radius-inner);
   overflow: hidden;
-  background: var(--stage-bg);
-  background-image: var(--stage-bg-gradient), var(--dot-grid);
-  background-size: auto, var(--dot-size) var(--dot-size);
+  background:
+    radial-gradient(circle at 50% 34%, rgba(141, 247, 167, 0.14), transparent 30%),
+    radial-gradient(circle at 18% 14%, rgba(244, 114, 182, 0.08), transparent 28%),
+    linear-gradient(180deg, #11130f 0%, #060706 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .contentCol {
@@ -117,8 +128,39 @@
   }
 }
 
+@media (min-width: 768px) and (max-height: 760px) {
+  .page {
+    padding-top: 64px;
+  }
+
+  .shellSplit {
+    height: min(calc(100dvh - 88px), 720px);
+  }
+}
+
 @media (min-width: 1440px) {
   .shellSplit {
-    max-width: var(--split-max-width);
+    max-width: 1160px;
+  }
+}
+
+@keyframes ambientShift {
+  from {
+    background-position:
+      0% 0%,
+      100% 0%,
+      0% 0%;
+  }
+  to {
+    background-position:
+      8% 12%,
+      88% 8%,
+      0% 0%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    animation: none;
   }
 }

@@ -6,7 +6,9 @@
     radial-gradient(circle at 18% 18%, rgba(75, 222, 128, 0.2), transparent 28%),
     radial-gradient(circle at 78% 12%, rgba(244, 114, 182, 0.18), transparent 30%),
     linear-gradient(135deg, #070807 0%, #111513 44%, #050505 100%);
+  background-size: 120% 120%, 130% 130%, 100% 100%;
   overflow: hidden;
+  animation: ambientShift 18s ease-in-out infinite alternate;
 }
 
 .shell {
@@ -104,6 +106,7 @@
 
 .copy {
   max-width: 610px;
+  animation: softEnter 700ms var(--ease-out) both;
 }
 
 .eyebrow,
@@ -206,6 +209,7 @@
   inset: 0 16px auto auto;
   width: min(74%, 420px);
   aspect-ratio: 1;
+  animation: floatAlbum 7s ease-in-out infinite;
 }
 
 .albumBack,
@@ -255,6 +259,7 @@
   margin-left: auto;
   padding: 24px;
   border-radius: 24px;
+  animation: softEnter 760ms var(--ease-out) 120ms both;
 }
 
 .nowPlaying h2 {
@@ -282,6 +287,20 @@
   min-height: 18px;
   border-radius: 999px;
   background: linear-gradient(180deg, #ffffff, #8df7a7);
+  transform-origin: center;
+  animation: waveformBreathe 2.8s ease-in-out infinite;
+}
+
+.waveform span:nth-child(3n) {
+  animation-delay: 260ms;
+}
+
+.waveform span:nth-child(3n + 1) {
+  animation-delay: 520ms;
+}
+
+.waveform span:nth-child(4n) {
+  animation-duration: 3.4s;
 }
 
 .trackRow {
@@ -377,14 +396,24 @@
   box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.38);
 }
 
-.errorText {
+.errorText,
+.noticeText {
   padding: 10px 12px;
-  border: 1px solid rgba(248, 113, 113, 0.26);
   border-radius: 14px;
-  color: #fecaca;
-  background: rgba(127, 29, 29, 0.32);
   font-size: 0.86rem;
   font-weight: 700;
+}
+
+.errorText {
+  border: 1px solid rgba(248, 113, 113, 0.26);
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.32);
+}
+
+.noticeText {
+  border: 1px solid rgba(141, 247, 167, 0.22);
+  color: #bbf7d0;
+  background: rgba(20, 83, 45, 0.24);
 }
 
 .formRow {
@@ -492,5 +521,63 @@
   .formRow {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@keyframes ambientShift {
+  from {
+    background-position:
+      0% 0%,
+      100% 0%,
+      0% 0%;
+  }
+  to {
+    background-position:
+      8% 12%,
+      88% 8%,
+      0% 0%;
+  }
+}
+
+@keyframes softEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatAlbum {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.8deg);
+  }
+}
+
+@keyframes waveformBreathe {
+  0%,
+  100% {
+    transform: scaleY(0.82);
+    opacity: 0.78;
+  }
+  50% {
+    transform: scaleY(1.08);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page,
+  .copy,
+  .albumStack,
+  .nowPlaying,
+  .waveform span {
+    animation: none;
   }
 }

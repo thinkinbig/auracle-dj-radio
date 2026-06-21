@@ -1,0 +1,99 @@
+.accountBar {
+  position: fixed;
+  top: 18px;
+  right: max(20px, env(safe-area-inset-right, 0px));
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: calc(100vw - 40px);
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: #f8fafc;
+  background: rgba(10, 14, 12, 0.68);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(24px);
+  overflow: hidden;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #f36f88, #1b7369);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.user {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.userText {
+  min-width: 0;
+  display: grid;
+}
+
+.userText strong,
+.userText small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userText strong {
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.userText small {
+  color: rgba(248, 250, 252, 0.58);
+  font-size: 0.72rem;
+}
+
+.accountBar button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #071108;
+  background: #8df7a7;
+  font-weight: 900;
+}
+
+.accountBar button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.38);
+}
+
+@media (max-width: 767px) {
+  .accountBar {
+    top: auto;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    max-width: none;
+    justify-content: space-between;
+  }
+
+  .user {
+    padding-left: 0;
+  }
+}

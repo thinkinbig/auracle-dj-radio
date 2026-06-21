@@ -22,7 +22,14 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
   const [view, setView] = useState<View>('landing');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authError, setAuthError] = useState<string | undefined>();
+  const [authNotice, setAuthNotice] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function switchAuthMode(mode: AuthMode) {
+    setAuthMode(mode);
+    setAuthError(undefined);
+    setAuthNotice(undefined);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,14 +37,16 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
     const email = String(formData.get('email') ?? '');
     const password = String(formData.get('password') ?? '');
     const name = String(formData.get('name') ?? '');
+    const remember = formData.get('remember') === 'on';
 
     setAuthError(undefined);
+    setAuthNotice(undefined);
     setIsSubmitting(true);
     try {
       const response =
         authMode === 'register'
-          ? await register({ email, password, name })
-          : await login({ email, password });
+          ? await register({ email, password, name }, remember)
+          : await login({ email, password }, remember);
       onEnterApp(response.user);
     } catch (err) {
       setAuthError((err as Error).message);
@@ -65,7 +74,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
             className={styles.ghostButton}
             type="button"
             onClick={() => {
-              setAuthMode('login');
+              switchAuthMode('login');
               setView('login');
             }}
           >
@@ -87,7 +96,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   className={styles.primaryButton}
                   type="button"
                   onClick={() => {
-                    setAuthMode('register');
+                    switchAuthMode('register');
                     setView('login');
                   }}
                 >
@@ -172,7 +181,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   role="tab"
                   aria-selected={authMode === 'login'}
                   className={authMode === 'login' ? styles.activeTab : undefined}
-                  onClick={() => setAuthMode('login')}
+                  onClick={() => switchAuthMode('login')}
                 >
                   Log in
                 </button>
@@ -181,7 +190,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   role="tab"
                   aria-selected={authMode === 'register'}
                   className={authMode === 'register' ? styles.activeTab : undefined}
-                  onClick={() => setAuthMode('register')}
+                  onClick={() => switchAuthMode('register')}
                 >
                   Sign up
                 </button>
@@ -207,13 +216,22 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   minLength={6}
                 />
               </label>
-              {authError ? <p className={styles.errorText}>{authError}</p> : null}
+              {authError ? <p className={styles.errorText} role="alert">{authError}</p> : null}
+              {authNotice ? <p className={styles.noticeText}>{authNotice}</p> : null}
               <div className={styles.formRow}>
                 <label className={styles.check}>
-                  <input type="checkbox" name="remember" />
+                  <input type="checkbox" name="remember" defaultChecked />
                   Keep me signed in
                 </label>
-                <button type="button">Forgot?</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthError(undefined);
+                    setAuthNotice('Password reset is simulated in this demo. Create a new account or use guest mode.');
+                  }}
+                >
+                  Forgot?
+                </button>
               </div>
               <button className={styles.primaryButton} type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'Checking...' : authMode === 'register' ? 'Create account' : 'Log in'}

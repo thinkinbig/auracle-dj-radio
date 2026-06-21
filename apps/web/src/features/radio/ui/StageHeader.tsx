@@ -9,7 +9,6 @@ import {
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
-import { DJ_NAME } from '@/shared/lib/constants';
 import {
   hostModeDisabled,
   isOnAir,
@@ -52,12 +51,6 @@ export function StageHeader() {
   return (
     <header className={styles.root}>
       <div className={styles.top}>
-        <div className={styles.identity}>
-          <div className={styles.avatar} aria-hidden>
-            {DJ_NAME.charAt(0).toUpperCase()}
-          </div>
-          <span className={styles.name}>{DJ_NAME}</span>
-        </div>
         <div className={styles.topRight}>
           {onAir && (
             <span
@@ -113,14 +106,6 @@ export function StageHeader() {
         <div className={styles.artArea}>
           <div className={styles.artStack}>
             <img className={styles.albumCover} src={state.albumCoverUrl} alt="" />
-            {state.artistPhotoUrl && (
-              <img
-                className={styles.artistBadge}
-                src={state.artistPhotoUrl}
-                alt=""
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-              />
-            )}
           </div>
         </div>
       )}

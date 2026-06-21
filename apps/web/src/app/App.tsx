@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { RadioSessionProvider, useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { getAppView } from '@/features/radio/session/playbackSelectors';
 import { loadTrackCatalog } from '@/data/trackCatalog';
+import { AppBrand } from '@/features/marketing/AppBrand';
+import { AuthStatus } from '@/features/marketing/AuthStatus';
 import { LandingPage } from '@/features/marketing/LandingPage';
-import { restoreUser } from '@/features/marketing/authApi';
+import { logout, restoreUser } from '@/features/marketing/authApi';
 import { MoodPickerScreen } from '@/features/radio/ui/MoodPickerScreen';
 import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import type { AuthUser } from '@auracle/shared';
@@ -63,8 +65,18 @@ export default function App() {
   }
 
   return (
-    <RadioSessionProvider>
-      <AppContent />
-    </RadioSessionProvider>
+    <>
+      <AppBrand />
+      <AuthStatus
+        user={user}
+        onLogout={() => {
+          void logout();
+          setUser(undefined);
+        }}
+      />
+      <RadioSessionProvider>
+        <AppContent />
+      </RadioSessionProvider>
+    </>
   );
 }
