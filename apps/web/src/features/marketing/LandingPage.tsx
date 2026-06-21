@@ -99,9 +99,6 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
               onClick={() => setView('landing')}
               disabled={isBrandTransitioning}
             >
-              <span className={styles.mark} aria-hidden>
-                A
-              </span>
               <span>{DJ_NAME}</span>
             </button>
           ) : (

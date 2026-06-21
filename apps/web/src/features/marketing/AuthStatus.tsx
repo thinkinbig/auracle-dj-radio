@@ -7,34 +7,11 @@ interface AuthStatusProps {
   onLogout: () => void;
 }
 
-type AccountView = 'overview' | 'profile' | 'preferences';
-
-interface AccountPreferences {
-  defaultMood: 'Focus' | 'Chill' | 'Energy';
-}
-
-const DEFAULT_PREFERENCES: AccountPreferences = {
-  defaultMood: 'Focus',
-};
-
-function getInitialPreferences(userId: string): AccountPreferences {
-  try {
-    const raw = window.localStorage.getItem(`auracle-account-preferences:${userId}`);
-    if (!raw) return DEFAULT_PREFERENCES;
-    const parsed = JSON.parse(raw) as Partial<AccountPreferences>;
-    return {
-      defaultMood: parsed.defaultMood ?? DEFAULT_PREFERENCES.defaultMood,
-    };
-  } catch {
-    return DEFAULT_PREFERENCES;
-  }
-}
+type AccountView = 'overview' | 'profile';
 
 export function AuthStatus({ user, onLogout }: AuthStatusProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<AccountView>('overview');
-  const [preferences, setPreferences] = useState<AccountPreferences>(() => getInitialPreferences(user.id));
-  const [saved, setSaved] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const initials = user.name
     .split(/\s+/)
@@ -63,16 +40,8 @@ export function AuthStatus({ user, onLogout }: AuthStatusProps) {
   }, [open]);
 
   useEffect(() => {
-    setPreferences(getInitialPreferences(user.id));
     setView('overview');
   }, [user.id]);
-
-  function updatePreferences(next: AccountPreferences) {
-    setPreferences(next);
-    window.localStorage.setItem(`auracle-account-preferences:${user.id}`, JSON.stringify(next));
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1400);
-  }
 
   return (
     <div className={styles.account} ref={rootRef}>
@@ -112,13 +81,9 @@ export function AuthStatus({ user, onLogout }: AuthStatusProps) {
                   <span>Profile</span>
                   <small>Name and sign-in</small>
                 </button>
-                <button type="button" onClick={() => setView('preferences')}>
-                  <span>Listening preferences</span>
-                  <small>{preferences.defaultMood} mood</small>
-                </button>
                 <div className={styles.activity}>
                   <span>Recent activity</span>
-                  <strong>Quiet Hours</strong>
+                  <strong>Afterglow Radio</strong>
                   <small>1 station session · demo catalog</small>
                 </div>
               </div>
@@ -144,30 +109,6 @@ export function AuthStatus({ user, onLogout }: AuthStatusProps) {
                   <strong>{user.id === 'guest' ? 'Guest mode' : 'Signed in'}</strong>
                 </span>
               </div>
-            </div>
-          )}
-
-          {view === 'preferences' && (
-            <div className={styles.detail}>
-              <button className={styles.backButton} type="button" onClick={() => setView('overview')}>
-                Preferences
-              </button>
-              <div className={styles.preferenceGroup}>
-                <span>Default station mood</span>
-                <div className={styles.segmented} aria-label="Default station mood">
-                  {(['Focus', 'Chill', 'Energy'] as const).map((mood) => (
-                    <button
-                      key={mood}
-                      type="button"
-                      className={preferences.defaultMood === mood ? styles.selected : undefined}
-                      onClick={() => updatePreferences({ ...preferences, defaultMood: mood })}
-                    >
-                      {mood}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {saved && <p className={styles.savedText}>Saved</p>}
             </div>
           )}
 

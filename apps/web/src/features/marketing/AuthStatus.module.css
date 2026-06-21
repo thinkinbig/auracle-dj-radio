@@ -33,8 +33,7 @@
 .avatarButton:focus-visible,
 .logoutButton:focus-visible,
 .menuList button:focus-visible,
-.backButton:focus-visible,
-.segmented button:focus-visible {
+.backButton:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.38);
 }
@@ -214,8 +213,7 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.infoRows small,
-.preferenceGroup > span {
+.infoRows small {
   color: rgba(248, 250, 252, 0.48);
   font-size: 0.72rem;
   font-weight: 800;
@@ -230,47 +228,6 @@
   font-size: 0.86rem;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.preferenceGroup {
-  display: grid;
-  gap: 8px;
-}
-
-.segmented {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-  padding: 5px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.segmented button {
-  min-width: 0;
-  min-height: 34px;
-  border-radius: 999px;
-  color: rgba(248, 250, 252, 0.58);
-  font-size: 0.76rem;
-  font-weight: 900;
-  transition:
-    color var(--duration-fast) var(--ease-out),
-    background var(--duration-fast) var(--ease-out);
-}
-
-.segmented .selected {
-  color: #071108;
-  background: #8df7a7;
-}
-
-.savedText {
-  min-height: 16px;
-  margin: -2px 0 0;
-  color: rgba(141, 247, 167, 0.8);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-align: center;
 }
 
 .logoutButton {
@@ -315,7 +272,6 @@
   .avatarButton,
   .logoutButton,
   .menuList button,
-  .segmented button,
   .panel {
     animation: none;
     transition: none;

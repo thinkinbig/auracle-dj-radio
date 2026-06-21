@@ -4,28 +4,32 @@ import styles from './AppBrand.module.css';
 interface AppBrandProps {
   onClick?: () => void;
   label?: string;
+  variant?: 'mark' | 'wordmark';
 }
 
-export function AppBrand({ onClick, label = DJ_NAME }: AppBrandProps) {
+export function AppBrand({ onClick, label = DJ_NAME, variant = 'mark' }: AppBrandProps) {
+  const className = `${styles.brand} ${variant === 'wordmark' ? styles.wordmark : ''}`;
   const content = (
     <>
-      <span className={styles.mark} aria-hidden>
-        A
-      </span>
+      {variant === 'mark' && (
+        <span className={styles.mark} aria-hidden>
+          A
+        </span>
+      )}
       <span>{DJ_NAME}</span>
     </>
   );
 
   if (onClick) {
     return (
-      <button className={styles.brand} type="button" onClick={onClick} aria-label={label} title={label}>
+      <button className={className} type="button" onClick={onClick} aria-label={label} title={label}>
         {content}
       </button>
     );
   }
 
   return (
-    <div className={styles.brand} aria-label={label}>
+    <div className={className} aria-label={label}>
       {content}
     </div>
   );

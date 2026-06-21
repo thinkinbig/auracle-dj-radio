@@ -15,6 +15,17 @@
   font-family: inherit;
 }
 
+.wordmark {
+  left: max(30px, calc((100vw - 1160px) / 2 + 10px), env(safe-area-inset-left, 0px));
+  gap: 0;
+  padding: 6px 0;
+  color: rgba(248, 250, 252, 0.86);
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
 button.brand {
   cursor: pointer;
   transition:
