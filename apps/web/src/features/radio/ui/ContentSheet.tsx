@@ -32,6 +32,7 @@ export function ContentSheet() {
   const skipDisabled = !canSkipTrack(state);
   const pct = playbackProgressPct(state);
   const creditLine = state.albumTitle ? `${state.artist} · ${state.albumTitle}` : state.artist;
+  const durationLabel = state.sessionSubtitle.split('·')[0]?.trim() || state.sessionSubtitle;
   const [artistPhotoFailed, setArtistPhotoFailed] = useState(false);
   const showArtistPhoto = Boolean(state.artistPhotoUrl) && !artistPhotoFailed;
   const artistInitial = state.artist.trim().charAt(0).toUpperCase() || '?';
@@ -63,8 +64,10 @@ export function ContentSheet() {
           </>
         ) : (
           <>
+            <div className={styles.sessionTopline}>
+              <p className={styles.meta} data-session-heading>{durationLabel}</p>
+            </div>
             <h1 className={styles.title}>{state.sessionTitle}</h1>
-            <p className={styles.meta} data-session-heading>{state.sessionSubtitle}</p>
             <div className={styles.nowPlaying}>
               {state.albumCoverUrl ? (
                 <img
@@ -77,6 +80,7 @@ export function ContentSheet() {
                 />
               ) : null}
               <div className={styles.trackInfo}>
+                <p className={styles.trackKicker}>Now playing</p>
                 <p className={styles.trackTitle}>{state.trackTitle}</p>
                 <p className={styles.trackCredit}>
                   {showArtistPhoto ? (
@@ -96,11 +100,6 @@ export function ContentSheet() {
                   )}
                   <span className={styles.creditText}>{creditLine}</span>
                 </p>
-                {state.lore && !idle ? (
-                  <div className={styles.loreScroll}>
-                    <p className={styles.lore}>{state.lore}</p>
-                  </div>
-                ) : null}
               </div>
             </div>
           </>

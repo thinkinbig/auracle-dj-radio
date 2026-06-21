@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, FormEvent } from 'react';
+import type { HostMode } from '@auracle/shared';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useBarCount } from '@/shared/hooks/useBarCount';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
 import {
   canSkipTrack,
+  hostModeDisabled,
   isCurating,
   isIdle,
   isPaused,
@@ -14,16 +16,31 @@ import {
 import { IconMic, IconPause, IconPlay, IconSend, IconSkipNext, IconSkipVoice, IconText } from '@/shared/ui/Icons';
 import styles from './MiniControlBar.module.css';
 
+const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
+  { value: 'curator', label: 'Guide' },
+  { value: 'set_dj', label: 'Quiet' },
+  { value: 'hype', label: 'Energy' },
+];
+
 export function MiniControlBar() {
   const state = useRadioState();
-  const { handleTogglePause, handleSkipTrack, handleSkipDj, handleContinue, handleTalkStart, handleTalkEnd, handleSendText } =
-    useRadioActions();
+  const {
+    handleTogglePause,
+    handleSkipTrack,
+    handleSkipDj,
+    handleContinue,
+    handleChangeHostMode,
+    handleTalkStart,
+    handleTalkEnd,
+    handleSendText,
+  } = useRadioActions();
   const waveRef = useRef<HTMLDivElement>(null);
   const barCount = useBarCount(waveRef, 5, 32, 160);
   const paused = isPaused(state.phase);
   const idle = isIdle(state.phase);
   const curating = isCurating(state.phase);
   const skipDisabled = !canSkipTrack(state);
+  const modeDisabled = hostModeDisabled(state);
   const pct = playbackProgressPct(state);
 
   // Text barge-in composer (sibling to push-to-talk). Available in the same
@@ -96,6 +113,27 @@ export function MiniControlBar() {
       </div>
 
       <time className={styles.timeEnd}>{formatTime(state.durationSec)}</time>
+
+      {!idle && (
+        <div className={styles.hostModes} aria-label="Host mode">
+          {HOST_MODE_OPTIONS.map((option) => {
+            const active = state.hostMode === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                className={cn(styles.hostMode, active && styles.hostModeActive)}
+                onClick={() => handleChangeHostMode(option.value)}
+                disabled={modeDisabled}
+                aria-pressed={active}
+                aria-label={`Switch host mode to ${option.label}`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {state.phase === 'speaking' && (
         <button

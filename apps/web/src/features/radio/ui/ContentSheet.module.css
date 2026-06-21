@@ -115,27 +115,39 @@
   max-width: 100%;
 }
 
+.sessionTopline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
 .title {
-  font-size: clamp(22px, 4vw, 28px);
+  max-width: 720px;
+  font-size: clamp(28px, 3.8vw, 42px);
   font-weight: 900;
   color: #ffffff;
-  line-height: 1.25;
+  line-height: 1.02;
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
 
 .meta {
-  margin-top: var(--space-xs);
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(248, 250, 252, 0.58);
-  letter-spacing: 0.02em;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(248, 250, 252, 0.38);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .nowPlaying {
   display: flex;
-  gap: var(--space-md);
-  margin-top: var(--space-md);
+  gap: 14px;
+  max-width: 620px;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
   align-items: flex-start;
 }
 
@@ -153,26 +165,36 @@
   flex: 1;
 }
 
+.trackKicker {
+  margin: 0 0 6px;
+  color: rgba(248, 250, 252, 0.38);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .trackTitle {
-  font-size: 17px;
+  margin: 0;
+  font-size: 22px;
   font-weight: 800;
   color: #ffffff;
-  line-height: 1.35;
+  line-height: 1.18;
   word-wrap: break-word;
 }
 
 .trackCredit {
-  margin-top: 6px;
-  font-size: 14px;
+  margin-top: 10px;
+  font-size: 13px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
 }
 
 .artistPhoto {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   flex-shrink: 0;
   object-fit: cover;
@@ -180,8 +202,8 @@
 }
 
 .artistInitial {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   flex-shrink: 0;
   display: grid;
@@ -195,15 +217,16 @@
 .creditText {
   min-width: 0;
   line-height: 1.35;
-  font-weight: 500;
-  color: rgba(248, 250, 252, 0.74);
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.54);
 }
 
 .lore {
-  margin-top: var(--space-sm);
+  max-width: 620px;
+  margin-top: 8px;
   font-size: 13px;
   line-height: 1.5;
-  color: rgba(248, 250, 252, 0.58);
+  color: rgba(248, 250, 252, 0.5);
 }
 
 .controls {

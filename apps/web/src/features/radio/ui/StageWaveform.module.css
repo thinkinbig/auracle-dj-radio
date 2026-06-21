@@ -1,14 +1,14 @@
 .root {
   display: grid;
   grid-template-columns: repeat(var(--bar-count, 32), 1fr);
-  gap: 2px;
+  gap: 3px;
   align-items: end;
   width: calc(100% + 2 * var(--space-md));
   margin-left: calc(-1 * var(--space-md));
   margin-right: calc(-1 * var(--space-md));
-  height: 72px;
+  height: 56px;
   margin-top: auto;
-  padding: var(--space-md) var(--space-md) 0;
+  padding: 0 var(--space-md);
   overflow: hidden;
   -webkit-mask-image: linear-gradient(
     90deg,
@@ -27,7 +27,7 @@
 }
 
 :global([data-layout='split']) .root {
-  height: min(160px, 30vh);
+  height: min(96px, 18vh);
 }
 
 :global([data-layout='stack'][data-landscape='true']) .root {
@@ -38,29 +38,30 @@
   width: 100%;
   min-width: 0;
   height: 100%;
-  border-radius: 2px;
-  background: var(--wave-stage-idle);
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.14);
   transform-origin: bottom center;
   will-change: transform;
+  opacity: 0.58;
   --bar-energy: 0.04;
 }
 
 /* Live / talking states glow green so the visualizer reads clearly on OLED black. */
 .live,
 .talking {
-  filter: drop-shadow(0 0 6px var(--accent-live-pulse));
+  filter: drop-shadow(0 0 5px rgba(141, 247, 167, 0.18));
   transition: filter var(--duration-fast) var(--ease-out);
 }
 
 .talking {
-  filter: drop-shadow(0 0 12px var(--accent-live-pulse));
+  filter: drop-shadow(0 0 8px rgba(141, 247, 167, 0.24));
 }
 
 .live .bar {
   background: linear-gradient(
     to top,
-    var(--wave-live-low) 0%,
-    var(--wave-live-high) calc(var(--bar-energy) * 100%)
+    rgba(141, 247, 167, 0.34) 0%,
+    rgba(210, 255, 220, 0.62) calc(var(--bar-energy) * 100%)
   );
 }
 
@@ -68,16 +69,16 @@
 .talking .bar {
   background: linear-gradient(
     to top,
-    var(--accent-live) 0%,
-    var(--wave-live-high) calc(var(--bar-energy) * 100%)
+    rgba(141, 247, 167, 0.44) 0%,
+    rgba(210, 255, 220, 0.72) calc(var(--bar-energy) * 100%)
   );
 }
 
 .playing .bar {
   background: linear-gradient(
     to top,
-    var(--wave-play-low) 0%,
-    var(--wave-play-high) calc(var(--bar-energy) * 100%)
+    rgba(141, 247, 167, 0.26) 0%,
+    rgba(248, 250, 252, 0.58) calc(var(--bar-energy) * 100%)
   );
 }
 

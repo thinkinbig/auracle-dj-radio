@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { cn } from '@/shared/lib/cn';
@@ -20,10 +21,40 @@ export function TrackQueue() {
   const state = useRadioState();
   const catalogLoaded = useCatalogLoaded();
   const current = useTrackMeta(state.trackId);
+  const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null);
+  const [regenerated, setRegenerated] = useState(false);
 
   return (
     <aside className={styles.root} aria-label="Up next" aria-busy={!catalogLoaded || undefined}>
-      <h3 className={styles.heading}>Up next</h3>
+      <div className={styles.header}>
+        <h3 className={styles.heading}>Up next</h3>
+        <div className={styles.actions} aria-label="Playlist feedback">
+          <button
+            type="button"
+            className={cn(styles.action, feedback === 'like' && styles.actionActive)}
+            onClick={() => setFeedback((value) => (value === 'like' ? null : 'like'))}
+            aria-pressed={feedback === 'like'}
+          >
+            Like
+          </button>
+          <button
+            type="button"
+            className={cn(styles.action, feedback === 'dislike' && styles.actionActive)}
+            onClick={() => setFeedback((value) => (value === 'dislike' ? null : 'dislike'))}
+            aria-pressed={feedback === 'dislike'}
+          >
+            Dislike
+          </button>
+          <button
+            type="button"
+            className={cn(styles.action, regenerated && styles.actionActive)}
+            onClick={() => setRegenerated(true)}
+            aria-pressed={regenerated}
+          >
+            {regenerated ? 'Regenerated' : 'Regenerate'}
+          </button>
+        </div>
+      </div>
 
       {!catalogLoaded ? (
         <>

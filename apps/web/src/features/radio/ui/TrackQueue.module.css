@@ -10,13 +10,60 @@
   backdrop-filter: blur(22px);
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
 .heading {
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: rgba(248, 250, 252, 0.52);
-  margin-bottom: var(--space-sm);
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.action {
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(248, 250, 252, 0.54);
+  font-size: 11px;
+  font-weight: 700;
+  transition:
+    background var(--duration-fast),
+    border-color var(--duration-fast),
+    color var(--duration-fast);
+}
+
+.action:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(248, 250, 252, 0.78);
+}
+
+.action:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.actionActive {
+  background: rgba(141, 247, 167, 0.14);
+  border-color: rgba(141, 247, 167, 0.28);
+  color: #8df7a7;
 }
 
 .list {
