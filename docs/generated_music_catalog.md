@@ -6,7 +6,7 @@ This document summarizes the AI-generated music catalogue prepared for the Aurac
 packages/catalog/data/tracks/
 ```
 
-The demo files are named `t01.mp3` to `t16.mp3`.
+The demo files are named `t01.mp3` to `t30.mp3`.
 
 ## Overview
 
@@ -30,6 +30,20 @@ Auracle uses an offline catalogue of generated tracks. Each track is designed ar
 | t14.mp3 | Synthwave | Orion Kade | Afterimage Drive | Chrome Horizon | hyped, confident / gym, commute |
 | t15.mp3 | Synthwave | Lena Sol | Ghost Frequency | Signals From Home | calm, nostalgic / evening, journaling |
 | t16.mp3 | Dream Pop | Iris Vale | Last Light Signal | Afterglow Rooms | peaceful, closing / bedtime |
+| t17.mp3 | Synthwave | Mira Vale | Rain Code | Neon Weather | focused, late-night / coding, studying |
+| t18.mp3 | Synthwave | Orion Kade | Redline Echo | Chrome Horizon | hyped, confident / gym, commute |
+| t19.mp3 | Synthwave | Lena Sol | Soft Static | Signals From Home | calm, nostalgic / evening, journaling |
+| t20.mp3 | Indie Folk | Juniper Lane | Honey Jar | Kitchen Table Light | cozy, hopeful / cooking, morning |
+| t21.mp3 | Indie Folk | Rowan Bright | Borrowed Map | Small Roads North | reflective, moving / walking, travel |
+| t22.mp3 | Indie Folk | Elsa Marin | Quiet Cup | Windows Open | sleepy, tender / rain, winding down |
+| t23.mp3 | Lo-fi Hip Hop | Niko Sable | Second Draft | Desk Lamp Studies | focused, mellow / studying, writing |
+| t24.mp3 | Lo-fi Hip Hop | Cassette Ryu | Transfer Line | Platform Seven | relaxed, cloudy / train, commute |
+| t25.mp3 | Lo-fi Hip Hop | Mina Dusk | Blue Highlighter | Annotated Evenings | productive, cozy / library, homework |
+| t26.mp3 | Afro House | Ama Kente | Gold Steps | Courtyard Motion | joyful, bright / party, sunny walk |
+| t27.mp3 | Afro House | Tayo Lume | Midnight Spice | Lantern Bass | groovy, awake / night out, city walk |
+| t28.mp3 | Afro House | Zuri Moss | Rootline | Leaf Patterns | grounded, warm / creative work, afternoon |
+| t29.mp3 | Dream Pop | The Silver Pines | Mist Avenue | Haze Maps | dreamy, gentle / morning, walking |
+| t30.mp3 | Dream Pop | Nova Fern | Bright Water | Clear Sleep | hopeful, shimmering / reset, creative work |
 
 ## Genre 1: Afro House
 
@@ -367,3 +381,282 @@ Turn it down, let it breathe
 Night is kind when we leave
 ```
 
+## Additional Tracks
+
+These tracks expand the catalogue while keeping the same fictional artists, genres, and album worlds.
+
+### t17.mp3 - Mira Vale, "Rain Code"
+
+**Genre:** Synthwave
+
+**Album:** Neon Weather
+
+**Artist story:** Mira Vale writes night-drive synth music for people who do their best thinking after midnight. Her songs feel like empty streets, open laptops, and city lights reflected in rain.
+
+**Lyrics:**
+
+```text
+[Verse]
+Rain code running on the screen
+Blue light keeps the room between
+[Chorus]
+Stay awake in the glow
+Let the quiet current flow
+```
+
+### t18.mp3 - Orion Kade, "Redline Echo"
+
+**Genre:** Synthwave
+
+**Album:** Chrome Horizon
+
+**Artist story:** Orion Kade is a fictional producer obsessed with retro dashboards and future highways. His music is built for high-energy transitions when a session needs momentum.
+
+**Lyrics:**
+
+```text
+[Verse]
+Redline echo in my chest
+No slow lane, no time to rest
+[Chorus]
+Run it higher, run it bright
+We burn clean through the night
+```
+
+### t19.mp3 - Lena Sol, "Soft Static"
+
+**Genre:** Synthwave
+
+**Album:** Signals From Home
+
+**Artist story:** Lena Sol makes softer synth-pop for the moment after a busy day ends. Her fictional catalogue is nostalgic, warm, and slightly haunted.
+
+**Lyrics:**
+
+```text
+[Verse]
+Soft static in the hallway
+Old light on the floor
+[Chorus]
+Call me through the quiet
+I will listen at the door
+```
+
+### t20.mp3 - Juniper Lane, "Honey Jar"
+
+**Genre:** Indie Folk
+
+**Album:** Kitchen Table Light
+
+**Artist story:** Juniper Lane is a fictional songwriter who turns small domestic scenes into quiet anthems. Her songs suit slow mornings and gentle focus.
+
+**Lyrics:**
+
+```text
+[Verse]
+Honey jar open by the sink
+Morning gives me time to think
+[Chorus]
+Small light, stay near
+Make the ordinary clear
+```
+
+### t21.mp3 - Rowan Bright, "Borrowed Map"
+
+**Genre:** Indie Folk
+
+**Album:** Small Roads North
+
+**Artist story:** Rowan Bright writes fictional folk songs about leaving, returning, and packing too lightly. His sound works for walking, travel, and transitional moods.
+
+**Lyrics:**
+
+```text
+[Verse]
+I drew the road on a borrowed map
+Folded the sky and packed it flat
+[Chorus]
+North wind, carry me through
+Every mile makes a different view
+```
+
+### t22.mp3 - Elsa Marin, "Quiet Cup"
+
+**Genre:** Indie Folk
+
+**Album:** Windows Open
+
+**Artist story:** Elsa Marin is a fictional bedroom-folk artist whose songs feel handwritten. Her tracks are meant for the low-energy end of an Auracle session.
+
+**Lyrics:**
+
+```text
+[Verse]
+Quiet cup beside the bed
+Rain repeats the words I said
+[Chorus]
+Let the evening settle slow
+There is nowhere else to go
+```
+
+### t23.mp3 - Niko Sable, "Second Draft"
+
+**Genre:** Lo-fi Hip Hop
+
+**Album:** Desk Lamp Studies
+
+**Artist story:** Niko Sable is a fictional beatmaker who samples imagined city ambience and builds loops that never pull too much attention from deep work.
+
+**Lyrics:**
+
+```text
+[Hook]
+Second draft, softer line
+Take the work one page at a time
+[Verse]
+Desk lamp hums and the city sleeps
+Small good thoughts in the margin keep
+```
+
+### t24.mp3 - Cassette Ryu, "Transfer Line"
+
+**Genre:** Lo-fi Hip Hop
+
+**Album:** Platform Seven
+
+**Artist story:** Cassette Ryu is a fictional lo-fi producer for train rides and cloudy afternoons. His tracks help Auracle ease users into concentration.
+
+**Lyrics:**
+
+```text
+[Intro]
+Transfer line, grey morning
+[Verse]
+Every window holds a passing thought
+Every station keeps what I forgot
+[Chorus]
+Roll slow, let it be
+The city moves quietly
+```
+
+### t25.mp3 - Mina Dusk, "Blue Highlighter"
+
+**Genre:** Lo-fi Hip Hop
+
+**Album:** Annotated Evenings
+
+**Artist story:** Mina Dusk makes fictional notebook beats with warm bass and simple melodic phrases. Her sound is designed for concentration without fatigue.
+
+**Lyrics:**
+
+```text
+[Verse]
+Blue highlighter, quiet glow
+Mark the line I need to know
+[Chorus]
+Read it twice, breathe it in
+Little focus, begin again
+```
+
+### t26.mp3 - Ama Kente, "Gold Steps"
+
+**Genre:** Afro House
+
+**Album:** Courtyard Motion
+
+**Artist story:** Ama Kente is a fictional producer who combines bright percussion with spacious house grooves. Her tracks are for social, sunny, high-energy Auracle sessions.
+
+**Lyrics:**
+
+```text
+[Verse]
+Gold steps tapping in the street
+Every hand finds the beat
+[Chorus]
+Move it bright, move it free
+Sun on the ground, come dance with me
+```
+
+### t27.mp3 - Tayo Lume, "Midnight Spice"
+
+**Genre:** Afro House
+
+**Album:** Lantern Bass
+
+**Artist story:** Tayo Lume is a fictional late-night house artist whose tracks feel like crowded markets, warm air, and bass moving through open streets.
+
+**Lyrics:**
+
+```text
+[Verse]
+Midnight spice in the air
+Drums move heat from everywhere
+[Chorus]
+Stay awake, stay alive
+We find the rhythm after five
+```
+
+### t28.mp3 - Zuri Moss, "Rootline"
+
+**Genre:** Afro House
+
+**Album:** Leaf Patterns
+
+**Artist story:** Zuri Moss creates fictional organic house tracks with earthy textures and patient builds. Her songs help Auracle lift a session without making it chaotic.
+
+**Lyrics:**
+
+```text
+[Verse]
+Rootline under every sound
+Green light rising from the ground
+[Chorus]
+Grow slow, move deep
+Wake the rhythm from its sleep
+```
+
+### t29.mp3 - The Silver Pines, "Mist Avenue"
+
+**Genre:** Dream Pop
+
+**Album:** Haze Maps
+
+**Artist story:** The Silver Pines are a fictional dream-pop duo who write foggy, guitar-washed songs for slow transitions and emotional decompression.
+
+**Lyrics:**
+
+```text
+[Verse]
+Mist avenue, pale and wide
+I keep the morning at my side
+[Chorus]
+Fade slow, breathe through
+The sky is making room for blue
+```
+
+### t30.mp3 - Nova Fern, "Bright Water"
+
+**Genre:** Dream Pop
+
+**Album:** Clear Sleep
+
+**Artist story:** Nova Fern is a fictional vocalist-producer making glossy dream pop for soft-focus optimism. Her songs fit the upward arc of a calm session.
+
+**Lyrics:**
+
+```text
+[Verse]
+Bright water under my feet
+Carries the day through the heat
+[Chorus]
+Come up shining, come up new
+Every wave remembers blue
+```
+
+## Presentation Notes
+
+- The tracks were generated offline with MiniMax using original prompts and lyrics.
+- The project does not depend on MiniMax at runtime for music playback.
+- GitHub stores the MP3 files through Git LFS.
+- The app can play the generated tracks through the existing static catalogue route: `/tracks/<id>/audio`.
+- The current catalogue covers demo audio files `t01.mp3` to `t30.mp3`; app metadata can be updated separately if the team wants the UI to show these new fictional artists and song titles.
