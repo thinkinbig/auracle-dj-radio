@@ -74,6 +74,8 @@ export default defineConfig(() => {
         '/sessions': harnessTarget,
         // Lightweight login/register endpoints → memory-service.
         '/auth': memoryTarget,
+        // Per-user taste profile (S2) → memory-service.
+        '/users': memoryTarget,
         // WebRTC SDP offer: same-origin in dev (no CORS in Go). The /proxy prefix
         // is stripped so the proxy sees its native offer path at `/`.
         '/proxy': { target: proxyTarget, rewrite: (p) => p.replace(/^\/proxy/, '') },

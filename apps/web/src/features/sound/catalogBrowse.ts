@@ -1,0 +1,89 @@
+import type { GenreCount, TrackMeta } from '@auracle/shared';
+
+/**
+ * Browse-first catalog model for the taste editor (#6): at ~100 tracks we group
+ * the static catalog into artists → albums → tracks on the client instead of
+ * standing up search infra. All options derive from the live catalog APIs.
+ */
+export interface BrowseAlbum {
+  slug: string;
+  title: string;
+  coverUrl: string;
+  trackIds: string[];
+}
+
+export interface BrowseArtist {
+  slug: string;
+  name: string;
+  photoUrl: string;
+  albums: BrowseAlbum[];
+}
+
+export interface BrowseTrack {
+  id: string;
+  title: string;
+  artist: string;
+  artistSlug: string;
+  albumSlug: string;
+  albumTitle: string;
+  coverUrl: string;
+  genreSlug: string;
+}
+
+export interface BrowseCatalog {
+  artists: BrowseArtist[];
+  tracks: BrowseTrack[];
+}
+
+/** Group flat catalog tracks into a stable artist/album/track tree (pure). */
+export function groupCatalog(tracks: TrackMeta[]): BrowseCatalog {
+  const artists = new Map<string, BrowseArtist>();
+  const albums = new Map<string, BrowseAlbum>();
+
+  for (const t of tracks) {
+    let artist = artists.get(t.artistSlug);
+    if (!artist) {
+      artist = { slug: t.artistSlug, name: t.artist, photoUrl: t.artistPhotoUrl, albums: [] };
+      artists.set(t.artistSlug, artist);
+    }
+    let album = albums.get(t.albumSlug);
+    if (!album) {
+      album = { slug: t.albumSlug, title: t.albumTitle, coverUrl: t.albumCoverUrl, trackIds: [] };
+      albums.set(t.albumSlug, album);
+      artist.albums.push(album);
+    }
+    album.trackIds.push(t.id);
+  }
+
+  const browseTracks: BrowseTrack[] = tracks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    artist: t.artist,
+    artistSlug: t.artistSlug,
+    albumSlug: t.albumSlug,
+    albumTitle: t.albumTitle,
+    coverUrl: t.albumCoverUrl,
+    genreSlug: t.genreSlug,
+  }));
+
+  return {
+    artists: [...artists.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    tracks: browseTracks.sort((a, b) => a.id.localeCompare(b.id)),
+  };
+}
+
+/** Live genre taxonomy + counts (GET /catalog/genres). */
+export async function loadGenres(): Promise<GenreCount[]> {
+  const res = await fetch('/catalog/genres');
+  if (!res.ok) throw new Error('Failed to load genres');
+  const body = (await res.json()) as { genres: GenreCount[] };
+  return body.genres;
+}
+
+/** Full catalog grouped for browse (GET /catalog/tracks). */
+export async function loadBrowseCatalog(): Promise<BrowseCatalog> {
+  const res = await fetch('/catalog/tracks');
+  if (!res.ok) throw new Error('Failed to load catalog');
+  const body = (await res.json()) as { tracks: TrackMeta[] };
+  return groupCatalog(body.tracks);
+}

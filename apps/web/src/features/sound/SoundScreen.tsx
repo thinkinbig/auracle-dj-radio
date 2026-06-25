@@ -1,4 +1,5 @@
 import type { AuthUser } from '@auracle/shared';
+import { TastePanel } from './TastePanel';
 import styles from './SoundScreen.module.css';
 
 interface SoundScreenProps {
@@ -44,11 +45,11 @@ export function SoundScreen({ user, onClose }: SoundScreenProps) {
           <p className={styles.blockCopy}>
             Genre, artist, album, and track prefer / avoid — the reproducible layer for planning.
           </p>
-          <div className={styles.placeholder} aria-hidden>
-            <span>Genre chips</span>
-            <span>Artist / album picks</span>
-          </div>
-          <p className={styles.shipNote}>Ships with Epic #3 — taste onboarding &amp; profile API.</p>
+          {isGuest ? (
+            <div className={styles.emptyState}>Sign in to set and save your taste.</div>
+          ) : (
+            <TastePanel />
+          )}
         </section>
 
         <section className={styles.block} aria-labelledby="sound-learned-title">

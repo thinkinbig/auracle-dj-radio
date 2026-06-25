@@ -1,0 +1,315 @@
+.panel {
+  display: grid;
+  gap: 16px;
+}
+
+.summary {
+  color: rgba(141, 247, 167, 0.86);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.muted {
+  color: rgba(248, 250, 252, 0.5);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.errorText {
+  color: rgba(244, 114, 182, 0.92);
+  font-size: 0.84rem;
+}
+
+.group {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.group legend {
+  padding: 0 6px;
+  color: rgba(248, 250, 252, 0.7);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.group legend small {
+  margin-left: 6px;
+  color: rgba(248, 250, 252, 0.4);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* Polarity toggle */
+.polarity {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.polarityBtn {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(248, 250, 252, 0.66);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.polaritySm .polarityBtn {
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: 0.68rem;
+}
+
+.polarityBtn:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.polarityBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.34);
+}
+
+.polarityBtn.prefer {
+  color: #07150c;
+  background: rgba(141, 247, 167, 0.9);
+  border-color: rgba(141, 247, 167, 0.9);
+}
+
+.polarityBtn.avoid {
+  color: #1a0710;
+  background: rgba(244, 114, 182, 0.9);
+  border-color: rgba(244, 114, 182, 0.9);
+}
+
+/* Genres */
+.chipGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.chipRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.chipLabel {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.chipLabel small {
+  margin-left: 4px;
+  color: rgba(248, 250, 252, 0.4);
+  font-size: 0.72rem;
+}
+
+/* Artists & albums */
+.artistList {
+  display: grid;
+  gap: 10px;
+}
+
+.artistCard {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.artistHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.artistName {
+  flex: 1 1 auto;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.albumList {
+  display: grid;
+  gap: 4px;
+  padding-left: 44px;
+}
+
+.albumRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.albumTitle {
+  color: rgba(248, 250, 252, 0.74);
+  font-size: 0.84rem;
+}
+
+/* Tracks */
+.trackList {
+  display: grid;
+  gap: 6px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.trackRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cover {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.trackMeta {
+  flex: 1 1 auto;
+  display: grid;
+  min-width: 0;
+}
+
+.trackMeta strong {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trackMeta small {
+  color: rgba(248, 250, 252, 0.46);
+  font-size: 0.74rem;
+}
+
+/* Free text */
+.freeText {
+  width: 100%;
+  resize: vertical;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.24);
+  color: #f8fafc;
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.freeText:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.3);
+}
+
+/* Orphans */
+.orphanGroup {
+  border-color: rgba(244, 114, 182, 0.2);
+  background: rgba(244, 114, 182, 0.05);
+}
+
+.orphanList {
+  display: grid;
+  gap: 6px;
+}
+
+.orphanRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: rgba(248, 250, 252, 0.5);
+  font-size: 0.82rem;
+}
+
+.orphanRow code {
+  color: rgba(248, 250, 252, 0.66);
+}
+
+.removeBtn {
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(244, 114, 182, 0.36);
+  background: transparent;
+  color: rgba(244, 114, 182, 0.92);
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.saveBtn {
+  min-height: 40px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(141, 247, 167, 0.92);
+  color: #07150c;
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.saveBtn:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.saveBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.4);
+}
+
+.saved {
+  color: rgba(141, 247, 167, 0.86);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
