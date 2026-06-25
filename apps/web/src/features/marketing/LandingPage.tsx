@@ -1,7 +1,9 @@
 import type { CSSProperties, FormEvent } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AuthUser } from '@auracle/shared';
 import { DJ_NAME } from '@/shared/lib/constants';
+import { formatTime } from '@/shared/lib/formatTime';
+import { useCatalogLoaded, useCatalogTracks } from '@/shared/hooks/useTrackCatalog';
 import { login, register } from './authApi';
 import styles from './LandingPage.module.css';
 
@@ -19,6 +21,8 @@ const guestUser: AuthUser = {
 };
 
 export function LandingPage({ onEnterApp }: LandingPageProps) {
+  const catalogLoaded = useCatalogLoaded();
+  const tracks = useCatalogTracks();
   const [view, setView] = useState<View>('landing');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authError, setAuthError] = useState<string | undefined>();
@@ -88,6 +92,16 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
     }
   }
 
+  const { featured, upNext } = useMemo(() => {
+    if (tracks.length === 0) return { featured: undefined, upNext: [] as typeof tracks };
+    const pick =
+      tracks.find((t) => t.id === 't11') ??
+      tracks[Math.min(10, tracks.length - 1)] ??
+      tracks[0];
+    const rest = tracks.filter((t) => t.id !== pick?.id);
+    return { featured: pick, upNext: rest.slice(0, 2) };
+  }, [tracks]);
+
   return (
     <div className={styles.page}>
       <div className={styles.shell}>
@@ -152,7 +166,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   adaptive station
                 </span>
                 <span>
-                  <strong>16</strong>
+                  <strong>{catalogLoaded ? tracks.length : '…'}</strong>
                   curated tracks
                 </span>
                 <span>
@@ -165,15 +179,30 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
             <section className={styles.playerShowcase} aria-label="Auracle web player preview">
               <div className={styles.albumStack} aria-hidden>
                 <div className={styles.albumBack} />
-                <div className={styles.albumArt}>
-                  <span />
+                <div
+                  className={styles.albumArt}
+                  style={
+                    featured?.albumCoverUrl
+                      ? {
+                          backgroundImage: `url(${featured.albumCoverUrl})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                        }
+                      : undefined
+                  }
+                >
+                  {!featured?.albumCoverUrl ? <span /> : null}
                 </div>
               </div>
               <div className={styles.nowPlaying}>
                 <div>
                   <p className={styles.status}>On air now</p>
-                  <h2>Midnight Signal</h2>
-                  <p>Auracle DJ is blending soft house, vocal texture, and late-night focus.</p>
+                  <h2>{featured?.title ?? 'Midnight Signal'}</h2>
+                  <p>
+                    {featured
+                      ? `${featured.artist} — ${featured.lore}`
+                      : 'Auracle DJ is blending soft house, vocal texture, and late-night focus.'}
+                  </p>
                 </div>
                 <div className={styles.waveform} aria-hidden>
                   {Array.from({ length: 24 }, (_, index) => (
@@ -183,22 +212,16 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     />
                   ))}
                 </div>
-                <div className={styles.trackRow}>
-                  <span>01</span>
-                  <div>
-                    <strong>Velvet Room</strong>
-                    <small>Nova Pulse</small>
+                {(upNext.length > 0 ? upNext : [undefined, undefined]).map((track, index) => (
+                  <div className={styles.trackRow} key={track?.id ?? `placeholder-${index}`}>
+                    <span>{String(index + 2).padStart(2, '0')}</span>
+                    <div>
+                      <strong>{track?.title ?? (index === 0 ? 'Velvet Room' : 'Glass Coast')}</strong>
+                      <small>{track?.artist ?? (index === 0 ? 'Nova Pulse' : 'Mirrorline')}</small>
+                    </div>
+                    <em>{track ? formatTime(track.durationSec) : index === 0 ? '3:42' : '4:08'}</em>
                   </div>
-                  <em>3:42</em>
-                </div>
-                <div className={styles.trackRow}>
-                  <span>02</span>
-                  <div>
-                    <strong>Glass Coast</strong>
-                    <small>Mirrorline</small>
-                  </div>
-                  <em>4:08</em>
-                </div>
+                ))}
               </div>
             </section>
           </main>

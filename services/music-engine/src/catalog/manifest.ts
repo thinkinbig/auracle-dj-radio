@@ -90,8 +90,7 @@ export function manifestToTracks(manifest: CatalogManifest): Track[] {
       energy: t.energy,
       tempo: t.tempo,
       genre: t.genre,
-      // Slugs are stamped into the manifest by backfill; fall back to slugify so
-      // an un-backfilled manifest still yields non-empty slugs.
+      // Prefer manifest slugs; fall back to slugify when omitted.
       genreSlug: t.genreSlug ?? slugify(t.genre),
       artistSlug: artist.slug ?? slugify(artist.name),
       albumSlug: album.slug ?? slugify(album.title),

@@ -11,7 +11,7 @@ import { computeCatalogRevision, loadGenreTaxonomy, tracksWithAssets, toTrackMet
  *   GET /catalog/tracks  → data/catalog/tracks.json     ({ revision, tracks: TrackMeta[] })
  *   GET /catalog/genres  → data/catalog/genres.json      ({ revision, genres: GenreCount[] })
  *   GET /tracks/:id      → data/catalog/track/<id>.json (TrackMeta)
- * Re-run after editing data/catalog/manifest.json (run `backfill` first).
+ * Re-run after editing data/catalog/manifest.json.
  */
 const catalogDir = resolve(dirname(fileURLToPath(import.meta.url)), "../data/catalog");
 const trackDir = resolve(catalogDir, "track");

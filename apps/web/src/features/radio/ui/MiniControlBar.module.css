@@ -223,7 +223,9 @@
   }
 
   .root {
-    min-height: 56px;
+    min-height: 52px;
+    gap: var(--space-sm);
+    overflow: hidden;
     padding: 10px calc(var(--space-md) + env(safe-area-inset-right, 0px))
       calc(10px + env(safe-area-inset-bottom, 0px))
       calc(var(--space-md) + env(safe-area-inset-left, 0px));
@@ -238,7 +240,27 @@
   }
 
   :global([data-layout='stack']) .btn {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 400px) {
+  :global([data-layout='stack']) .timeEnd {
+    display: none;
+  }
+
+  .time {
+    width: 32px;
+    font-size: 11px;
+  }
+
+  :global([data-layout='stack']) .btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .root {
+    gap: 6px;
   }
 }

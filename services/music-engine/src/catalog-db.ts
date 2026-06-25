@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS tracks (
 `;
 
 // Additive columns for older DBs created before structured taste (S1). SQLite's
-// CREATE TABLE IF NOT EXISTS won't add columns to an existing table, so backfill
+// CREATE TABLE IF NOT EXISTS won't add columns to an existing table, so add
 // them here — never dropping or rewriting existing columns.
 const ADDITIVE_COLUMNS: ReadonlyArray<[name: string, decl: string]> = [
   ["genre_slug", "TEXT NOT NULL DEFAULT ''"],

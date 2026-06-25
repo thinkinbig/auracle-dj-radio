@@ -16,7 +16,7 @@ export interface CatalogArtist {
   photoFile: string;
   /** Optional override for artist-photo generation (press-portrait subject). */
   photoSubject?: string;
-  /** Stable URL-safe slug for structured taste (backfilled, see `backfill.ts`). */
+  /** Stable URL-safe slug for structured taste. */
   slug?: string;
 }
 
@@ -29,7 +29,7 @@ export interface CatalogAlbum {
   coverFile: string;
   /** Optional override for cover background generation. */
   coverSubject?: string;
-  /** Stable URL-safe slug for structured taste (backfilled, see `backfill.ts`). */
+  /** Stable URL-safe slug for structured taste. */
   slug?: string;
 }
 
@@ -49,7 +49,7 @@ export interface CatalogTrack {
   instrumental?: boolean;
   /** Optional lyrics for vocal tracks. If omitted, MiniMax lyrics_optimizer is used. */
   lyrics?: string;
-  /** Taxonomy slug mapped from `genre` at backfill time (see `genre_taxonomy.json`). */
+  /** Taxonomy slug for `genre` (see `genre_taxonomy.json`). */
   genreSlug?: string;
 }
 

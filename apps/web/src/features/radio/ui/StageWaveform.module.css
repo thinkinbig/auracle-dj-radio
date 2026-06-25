@@ -88,7 +88,13 @@
 
 @media (max-width: 767px) {
   .root {
-    height: 52px;
-    padding-top: var(--space-sm);
+    height: 44px;
+    padding-top: var(--space-xs);
+  }
+}
+
+@media (max-width: 767px) and (max-height: 740px) {
+  .root {
+    height: 36px;
   }
 }

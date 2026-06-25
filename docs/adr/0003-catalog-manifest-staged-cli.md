@@ -7,9 +7,12 @@ build, matching the existing `generate-tracks` pattern (`--track`, `--all`,
 `--dry-run`, `--force`).
 
 Steps: `catalog:compose` (Gemini → manifest) → `catalog:covers` (image gen) →
-`generate-tracks` (MiniMax) → `seed` (text embed) → `catalog:embed-audio`
-(Phase 2). Each step reads or updates the manifest and can be re-run
-independently when one stage fails or assets change.
+`generate-tracks` (MiniMax) → `export-catalog` (manifest → static JSON) →
+`seed` (text embed) → `catalog:embed-audio` (Phase 2). Each step reads or updates
+the manifest and can be re-run independently when one stage fails or assets change.
+
+Structured-taste fields (`slug`, `genreSlug`) are authored directly in
+`manifest.json`; there is no separate backfill CLI.
 
 ## Considered options
 

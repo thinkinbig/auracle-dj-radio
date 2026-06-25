@@ -1,19 +1,21 @@
 .page {
-  height: 100dvh;
   min-height: 100dvh;
   color: #f8fafc;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background:
     radial-gradient(circle at 18% 18%, rgba(75, 222, 128, 0.2), transparent 28%),
     radial-gradient(circle at 78% 12%, rgba(244, 114, 182, 0.18), transparent 30%),
     linear-gradient(135deg, #070807 0%, #111513 44%, #050505 100%);
   background-size: 120% 120%, 130% 130%, 100% 100%;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   animation: ambientShift 18s ease-in-out infinite alternate;
 }
 
 .shell {
   width: min(1180px, calc(100% - 40px));
-  min-height: 100dvh;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -453,10 +455,6 @@
 }
 
 @media (max-width: 900px) {
-  .page {
-    overflow: auto;
-  }
-
   .shell {
     width: min(100% - 28px, 680px);
   }
@@ -496,6 +494,10 @@
 }
 
 @media (max-width: 520px) {
+  .page {
+    align-items: stretch;
+  }
+
   .shell {
     width: min(100% - 20px, 420px);
   }

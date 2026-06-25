@@ -16,10 +16,6 @@ function AppContent() {
   const appView = getAppView(state.phase);
 
   useEffect(() => {
-    void loadTrackCatalog();
-  }, []);
-
-  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
       if (e.code === 'Space') {
@@ -71,6 +67,10 @@ export default function App() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    void loadTrackCatalog();
   }, []);
 
   if (isRestoringUser) {

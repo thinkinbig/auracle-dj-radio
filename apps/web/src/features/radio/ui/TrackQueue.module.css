@@ -147,3 +147,16 @@
   flex-shrink: 0;
   margin-top: 2px;
 }
+
+/* Wide split: fixed bottom row — never overlap the session card above. */
+:global([data-layout='split']) .root {
+  max-height: min(240px, 34vh);
+}
+
+/* Phone frame (768–1023): inline queue below the session card, not a bottom drawer. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :global([data-layout='stack']) .root {
+    flex: 0 1 auto;
+    max-height: min(200px, 26vh);
+  }
+}

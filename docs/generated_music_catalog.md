@@ -1,16 +1,54 @@
 # Generated Music Catalog
 
-This document summarizes the AI-generated music catalogue prepared for the Auracle demo. The MP3 files have been uploaded to GitHub LFS under:
+> **Runtime metadata** lives in `packages/catalog/data/catalog/manifest.json` (pun-artist catalog, 30 tracks).
+> This file is an **archive of original MiniMax generation prompts** for `t01.mp3`–`t30.mp3`. Track IDs and file paths match the repo; **titles, artists, and lore** below may differ from what the app shows. See `docs/CONTEXT-catalog.md` § Current demo catalog.
+
+The MP3 files are in Git LFS:
 
 ```text
-packages/catalog/data/tracks/
+packages/catalog/data/tracks/t01.mp3 … t30.mp3
 ```
 
-The demo files are named `t01.mp3` to `t30.mp3`.
+## App catalog (canonical)
 
-## Overview
+| ID | Title | Artist | Album | genre → slug | E |
+|----|-------|--------|-------|--------------|---|
+| t01 | Paper Lanterns | Lana Del Delay | Born to Delay | ambient | 1 |
+| t02 | Soft Static | Lana Del Delay | Born to Delay | lo-fi | 1 |
+| t03 | Morning Steam | Lana Del Delay | Born to Delay | downtempo | 2 |
+| t04 | Quiet Desk | Jay-Zzz | The Blueprint Nap | chillhop | 2 |
+| t05 | Tide Pool | Lana Del Delay | Born to Delay | ambient | 2 |
+| t06 | Glass Garden | Lana Del Delay | Born to Delay | downtempo | 3 |
+| t07 | Neon Commute | Justin Tiger | Suit & Stripes | jazztronica | 3 |
+| t08 | City Pulse | Kayan East | East of the Bass | deep-house | 3 |
+| t09 | Run Lights | Kayan East | Neon District | nu-disco | 4 |
+| t10 | Open Road | Kayan East | Neon District | house | 4 |
+| t11 | Skyline Drive | Taylor Drift | 1989 Drift | synthwave | 4 |
+| t12 | Peak Hour | Kayan East | Neon District | house | 5 |
+| t13 | Full Send | Kayan East | Neon District | nu-disco | 5 |
+| t14 | Afterglow | Taylor Drift | 1989 Drift | synthwave | 3 |
+| t15 | Cooldown | Kayan East | East of the Bass | future-garage | 2 |
+| t16 | Last Light | Lana Del Delay | Born to Delay | downtempo | 1 |
+| t17 | Delay Lines | Lana Del Delay | Born to Delay | ambient | 2 |
+| t18 | Feedback Room | Lana Del Delay | Born to Delay | lo-fi | 3 |
+| t19 | Pillow Drop | Jay-Zzz | The Blueprint Nap | chillhop | 1 |
+| t20 | Snooze Button | Jay-Zzz | The Blueprint Nap | chillhop | 3 |
+| t21 | Turnstile Stripes | Justin Tiger | Suit & Stripes | jazztronica | 4 |
+| t22 | Metro Fade | Justin Tiger | Suit & Stripes | jazztronica | 2 |
+| t23 | Sub Corridor | Kayan East | East of the Bass | deep-house | 2 |
+| t24 | Garage Receipt | Kayan East | East of the Bass | future-garage | 4 |
+| t25 | District Lights | Kayan East | Neon District | house | 3 |
+| t26 | Timeline Bend | Kayan East | Neon District | nu-disco | 5 |
+| t27 | Compass Fade | Kayan East | East of the Bass | downtempo | 1 |
+| t28 | Hairpin Gold | Taylor Drift | 1989 Drift | synthwave | 5 |
+| t29 | Polaroid Hush | Taylor Drift | 1989 Drift | synthwave | 2 |
+| t30 | Drift Crown | Taylor Drift | 1989 Drift | synthwave | 4 |
 
-Auracle uses an offline catalogue of generated tracks. Each track is designed around a genre, mood, scene, energy level, fictional artist, album concept, and lyrics. The catalogue covers five genres, with at least three fictional artists per genre.
+Edit flow: `manifest.json` → `pnpm --filter @auracle/catalog export-catalog` → `pnpm --filter @auracle/music-engine seed`.
+
+## Generation archive (original prompts)
+
+The tables and per-track sections below describe the **first** fictional-artist pass (Afro House, Dream Pop, Indie Folk, etc.) used when the audio was generated. They are kept for prompt/lyrics reference only.
 
 | Track | Genre | Artist | Song | Album | Mood / Scene |
 |---|---|---|---|---|---|
@@ -655,8 +693,8 @@ Every wave remembers blue
 
 ## Presentation Notes
 
-- The tracks were generated offline with MiniMax using original prompts and lyrics.
+- The tracks were generated offline with MiniMax using the **generation archive** prompts and lyrics below.
 - The project does not depend on MiniMax at runtime for music playback.
-- GitHub stores the MP3 files through Git LFS.
-- The app can play the generated tracks through the existing static catalogue route: `/tracks/<id>/audio`.
-- The current catalogue covers demo audio files `t01.mp3` to `t30.mp3`; app metadata can be updated separately if the team wants the UI to show these new fictional artists and song titles.
+- GitHub stores the MP3 files through Git LFS (`t01.mp3`–`t30.mp3`).
+- The app serves metadata from `manifest.json` / `tracks.json` and audio via `/tracks/<id>/audio`.
+- Pun-artist titles and lore in the app catalog table above are authoritative for UI, Flow, and seed.
