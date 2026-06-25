@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { ANONYMOUS_USER_ID } from "@auracle/shared";
 
 // Memory-service owns the analytics event log. Every tool side-effect and
 // lifecycle event flows through here; transcripts live in the Go side-channel
@@ -7,11 +8,13 @@ const SCHEMA = `
 CREATE TABLE IF NOT EXISTS session_events (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   session_id  TEXT NOT NULL,
+  user_id     TEXT NOT NULL DEFAULT '${ANONYMOUS_USER_ID}',
   ts          INTEGER NOT NULL,
   event_type  TEXT NOT NULL,
   payload_json TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_events_session ON session_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_events_user ON session_events(user_id);
 `;
 
 export class EventsDb {
@@ -23,10 +26,10 @@ export class EventsDb {
     this.db.exec(SCHEMA);
   }
 
-  recordEvent(sessionId: string, eventType: string, payload: unknown): void {
+  recordEvent(sessionId: string, userId: string, eventType: string, payload: unknown): void {
     this.db
-      .prepare(`INSERT INTO session_events (session_id, ts, event_type, payload_json) VALUES (?, ?, ?, ?)`)
-      .run(sessionId, Date.now(), eventType, JSON.stringify(payload ?? {}));
+      .prepare(`INSERT INTO session_events (session_id, user_id, ts, event_type, payload_json) VALUES (?, ?, ?, ?, ?)`)
+      .run(sessionId, userId, Date.now(), eventType, JSON.stringify(payload ?? {}));
   }
 
   /** Count events for a session (used by tests / analytics sanity). */
@@ -43,11 +46,12 @@ export class EventsDb {
    * 0.7 = heavily skipped. Each additional skip adds 0.15, capped at 0.7.
    * Used by music-engine to soft-downrank tracks at energies the user often skips.
    */
-  skipRateByEnergy(recentSessions: number): Partial<Record<number, number>> {
+  skipRateByEnergy(userId: string, recentSessions: number): Partial<Record<number, number>> {
     const rows = this.db
       .prepare(
         `WITH recent AS (
            SELECT session_id FROM session_events
+           WHERE user_id = ?
            GROUP BY session_id ORDER BY MIN(id) DESC LIMIT ?
          )
          SELECT CAST(json_extract(e.payload_json, '$.energy') AS INTEGER) AS energy,
@@ -58,7 +62,7 @@ export class EventsDb {
            AND json_extract(e.payload_json, '$.energy') IS NOT NULL
          GROUP BY energy`,
       )
-      .all(recentSessions) as { energy: number; skip_count: number }[];
+      .all(userId, recentSessions) as { energy: number; skip_count: number }[];
 
     const weights: Partial<Record<number, number>> = {};
     for (const { energy, skip_count } of rows) {

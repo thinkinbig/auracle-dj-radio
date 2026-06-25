@@ -2,6 +2,7 @@ import type { CSSProperties, FormEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { AuthUser } from '@auracle/shared';
 import { DJ_NAME } from '@/shared/lib/constants';
+import { evalMode } from '@/shared/lib/evalMode';
 import { login, register } from './authApi';
 import styles from './LandingPage.module.css';
 
@@ -105,9 +106,8 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
             <span className={styles.brandPlaceholder} aria-hidden />
           )}
           <nav className={styles.nav} aria-label="Primary">
-            <a href="#stations">Stations</a>
+            <a href="#listen">Listen</a>
             <a href="#sound">Sound</a>
-            <a href="#studio">Studio</a>
           </nav>
           <button
             className={styles.ghostButton}
@@ -120,7 +120,8 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
         </header>
 
         {view === 'landing' ? (
-          <main className={`${styles.hero} ${isBrandTransitioning ? styles.heroLeaving : ''}`}>
+          <>
+          <main id="listen" className={`${styles.hero} ${isBrandTransitioning ? styles.heroLeaving : ''}`}>
             <section className={styles.copy} aria-labelledby="landing-title">
               <p className={styles.eyebrow}>Live AI radio for every mood</p>
               <h1 id="landing-title">Auracle</h1>
@@ -137,6 +138,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                 >
                   Start listening
                 </button>
+                {!evalMode ? (
                 <button
                   className={styles.secondaryButton}
                   type="button"
@@ -145,6 +147,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                 >
                   Try demo
                 </button>
+                ) : null}
               </div>
               <div className={styles.metrics} aria-label="Product highlights">
                 <span>
@@ -202,6 +205,33 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
               </div>
             </section>
           </main>
+
+          <section id="sound" className={styles.pillarSection} aria-labelledby="sound-pillar-title">
+            <div className={styles.pillarCopy}>
+              <p className={styles.eyebrow}>Taste engineering</p>
+              <h2 id="sound-pillar-title">Your sound shapes every station.</h2>
+              <p>
+                Build a taste profile with genres and artists you love, see what the DJ learns from
+                conversation, and let skip patterns quietly steer the next mix — not EQ knobs, but
+                real personalization that shows up in the tracklist.
+              </p>
+            </div>
+            <ul className={styles.pillarList}>
+              <li>
+                <strong>Your taste</strong>
+                <span>Structured prefer / avoid on genres, artists, albums, and tracks.</span>
+              </li>
+              <li>
+                <strong>Learned</strong>
+                <span>Context the DJ picks up between songs — saved for future sessions.</span>
+              </li>
+              <li>
+                <strong>Signals</strong>
+                <span>Skip and completion patterns that nudge energy and replanning.</span>
+              </li>
+            </ul>
+          </section>
+          </>
         ) : (
           <main className={styles.loginStage}>
             <section className={styles.loginIntro} aria-labelledby="login-title">
@@ -210,7 +240,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                 {authMode === 'register' ? 'Create your listening space.' : 'Tune in where you left off.'}
               </h1>
               <p>
-                Save your station history, keep your preferences, and return to a personal radio room
+                Save your listening history, tune your sound profile, and return to a personal radio room
                 that feels ready before the first track starts.
               </p>
             </section>
@@ -276,9 +306,11 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
               <button className={styles.primaryButton} type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'Checking...' : authMode === 'register' ? 'Create account' : 'Log in'}
               </button>
+              {!evalMode ? (
               <button className={styles.secondaryButton} type="button" onClick={() => onEnterApp(guestUser)}>
                 Continue as guest
               </button>
+              ) : null}
             </form>
           </main>
         )}

@@ -44,9 +44,12 @@ export async function applyReplan(
   const intent = { ...state.intent, mood: params.mood };
   const before = deps.store.remaining(state).map((r) => r.id);
 
+  const personalized = state.condition === "C";
   const { result, violations, candidates } = await deps.music.planTracklist({
     intent,
     mode: "replan",
+    memories: personalized ? state.mem0Context : "",
+    energyWeights: personalized ? state.energyWeights : undefined,
     replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: remainingCount },
   });
 
@@ -54,7 +57,7 @@ export async function applyReplan(
   const appended = deps.store.replaceRemaining(state, result.tracklist, candidatesById);
   state.intent = intent; // future replans build on the new mood
 
-  await deps.memory.recordEvent(state.id, "replan", {
+  await deps.memory.recordEvent(state.id, state.userId, "replan", {
     mood: params.mood,
     energy_delta: params.energy_delta ?? "same",
     before,
@@ -63,11 +66,14 @@ export async function applyReplan(
   });
 
   // A successful mood shift is a cross-session preference signal — Condition C only.
-  if (state.condition === "C") {
-    await deps.memory.remember(
-      `During a ${state.intent.scene} session the user shifted the mood to "${params.mood}" (${params.energy_delta ?? "same"} energy).`,
-      state.id,
-    );
+  if (personalized) {
+    void deps.memory
+      .remember(
+        `During a ${state.intent.scene} session the user shifted the mood to "${params.mood}" (${params.energy_delta ?? "same"} energy).`,
+        state.id,
+        state.userId,
+      )
+      .catch(() => {});
   }
 
   return { replanned: true, remaining: appended };
@@ -99,7 +105,7 @@ export async function replanAndPush(
       ],
     });
   } catch (err) {
-    await deps.memory.recordEvent(state.id, "replan_failed", {
+    await deps.memory.recordEvent(state.id, state.userId, "replan_failed", {
       error: err instanceof Error ? err.message : String(err),
     });
   }

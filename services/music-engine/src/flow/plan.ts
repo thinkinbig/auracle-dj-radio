@@ -161,6 +161,8 @@ export interface ReplanInput {
   lastPlayedEnergy: number | null;
   remainingSlots: number;
   energyWeights?: Partial<Record<number, number>>;
+  /** Cross-session preference recall (condition C); "" for A/B. */
+  memories?: string;
 }
 
 /** Mid-session replan: re-fill only the remaining slots, excluding played tracks. */
@@ -174,7 +176,7 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
   });
   return runFlow(deps.flowModel, {
     intent: input.intent,
-    memories: "",
+    memories: input.memories ?? "",
     played: input.played,
     lastPlayedEnergy: input.lastPlayedEnergy,
     remainingSlots: input.remainingSlots,

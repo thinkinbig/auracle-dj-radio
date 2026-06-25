@@ -5,7 +5,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FlowResult, TrackCandidate, TrackMeta } from "@auracle/shared";
 import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
 import { config } from "../src/config.js";
-import { HashEmbedder } from "../src/flow/embedder.js";
+import { HashEmbedder, type Embedder } from "../src/flow/embedder.js";
+import type { FlowInput, FlowModel } from "../src/flow/flow-model.js";
+import { replan } from "../src/flow/plan.js";
 import { resolveCatalogPath, tracksWithAssets } from "../src/catalog/manifest.js";
 import { buildServer, type MusicEngine } from "../src/server.js";
 
@@ -96,6 +98,59 @@ describe("music-engine HTTP", () => {
     expect(Array.isArray(body.violations)).toBe(true);
     expect(body.candidates.length).toBeGreaterThan(0);
   }, 10_000);
+
+  it("replan forwards mem0 recall into the flow input (P0-5)", async () => {
+    const stubEmbedder: Embedder = {
+      async embedTrack() {
+        return [1, 0];
+      },
+      async embedQuery() {
+        return [1, 0];
+      },
+    };
+    const row = (id: string, energy: number): TrackRow =>
+      ({
+        id,
+        title: id,
+        artist: "a",
+        artistId: "ar",
+        albumId: "al",
+        albumTitle: "al",
+        lore: "",
+        albumCoverPath: "",
+        artistPhotoPath: "",
+        energy,
+        tempo: 90,
+        genre: "g",
+        mood: "calm",
+        scene: "studying",
+        filePath: "",
+        introOffsetMs: null,
+        instrumental: true,
+        embedding: [1, 0],
+      }) as TrackRow;
+    class CapturingFlow implements FlowModel {
+      last?: FlowInput;
+      async plan(input: FlowInput): Promise<FlowResult> {
+        this.last = input;
+        return {
+          session_title: "t",
+          session_subtitle: "s",
+          arc: "build",
+          tracklist: input.candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "x" })),
+        };
+      }
+    }
+    const flow = new CapturingFlow();
+    const deps = { embedder: stubEmbedder, flowModel: flow, tracks: () => [row("a", 2), row("b", 4)] };
+    const base = { intent: { mood: "calm", scene: "studying", duration_min: 25 }, playedIds: [], played: [], lastPlayedEnergy: null, remainingSlots: 2 };
+
+    await replan(deps, { ...base, memories: "prefers lighter energy" });
+    expect(flow.last?.memories).toBe("prefers lighter energy");
+
+    await replan(deps, base);
+    expect(flow.last?.memories).toBe("");
+  });
 
   it("GET /tracks/:id returns metadata, 404 for unknown", async () => {
     const ok = await engine.app.inject({ method: "GET", url: `/tracks/${firstTrackId}` });

@@ -1,4 +1,5 @@
 import type { SessionIntent } from '@auracle/shared';
+import { evalMode } from '@/shared/lib/evalMode';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { isCurating } from '@/features/radio/session/playbackSelectors';
 import { IntentOnboarding } from './IntentOnboarding';
@@ -18,9 +19,12 @@ export function OnboardingPage() {
     <div className={styles.page}>
       <main className={styles.frame} aria-labelledby="mood-title">
         <section className={styles.copy}>
-          <p className={styles.eyebrow}>Personal station</p>
+          <p className={styles.eyebrow}>Set your station</p>
           <h1 id="mood-title">Ready when you are.</h1>
-          <p className={styles.lede}>Choose your mood and moment.</p>
+          <p className={styles.lede}>Choose your mood and moment. Your sound shapes what plays next.</p>
+          {evalMode ? (
+            <p className={styles.evalNote}>User study: sign in with your assigned account before starting.</p>
+          ) : null}
           <div className={styles.previewPanel} aria-hidden>
             <div className={styles.albumPreview}>
               <div className={styles.albumBack} />

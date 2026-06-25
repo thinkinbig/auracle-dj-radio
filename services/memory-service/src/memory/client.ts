@@ -1,8 +1,6 @@
 import type { Memory } from "mem0ai/oss";
 import { config } from "../config.js";
 
-/** Hardcoded single demo user (doc/auracle_memory_decision.md). */
-const USER_ID = "auracle_user";
 const COLLECTION = "auracle_memories";
 
 /**
@@ -16,10 +14,10 @@ export interface MemoryClient {
   readonly enabled: boolean;
   /** True once the backing store has failed and all ops are silently no-oped. */
   readonly degraded: boolean;
-  /** Recalled facts as a short bullet list, or "" if none / unavailable. */
-  recall(query: string): Promise<string>;
-  /** Extract and persist a preference fact for future sessions. */
-  remember(fact: string, sessionId: string): Promise<void>;
+  /** Recalled facts for `userId` as a short bullet list, or "" if none / unavailable. */
+  recall(query: string, userId: string): Promise<string>;
+  /** Extract and persist a preference fact for `userId`'s future sessions. */
+  remember(fact: string, sessionId: string, userId: string): Promise<void>;
 }
 
 class NoopMemory implements MemoryClient {
@@ -53,11 +51,11 @@ class Mem0Memory implements MemoryClient {
     return this.memory;
   }
 
-  async recall(query: string): Promise<string> {
+  async recall(query: string, userId: string): Promise<string> {
     if (this.broken) return "";
     try {
       const m = await this.client();
-      const res = await m.search(query, { filters: { user_id: USER_ID }, topK: 5 });
+      const res = await m.search(query, { filters: { user_id: userId }, topK: 5 });
       const facts = res.results.map((r) => r.memory).filter((f): f is string => Boolean(f));
       return facts.map((f) => `- ${f}`).join("\n");
     } catch (err) {
@@ -67,11 +65,11 @@ class Mem0Memory implements MemoryClient {
     }
   }
 
-  async remember(fact: string, sessionId: string): Promise<void> {
+  async remember(fact: string, sessionId: string, userId: string): Promise<void> {
     if (this.broken || !fact.trim()) return;
     try {
       const m = await this.client();
-      await m.add(fact, { userId: USER_ID, runId: sessionId });
+      await m.add(fact, { userId, runId: sessionId });
     } catch (err) {
       console.error("[mem0] remember failed:", (err as Error).message);
     }

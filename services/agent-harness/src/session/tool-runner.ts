@@ -28,7 +28,7 @@ export async function runTool(
   const args = call.args ?? {};
   switch (call.name) {
     case "skip_track": {
-      await deps.memory.recordEvent(state.id, "skip_track", {});
+      await deps.memory.recordEvent(state.id, state.userId, "skip_track", {});
       // Browser is the sole playhead writer: this ui_event makes it advance, and the
       // next now_playing closes the loop. Stamp the start to time that round trip.
       state.pendingSkipAtMs = Date.now();
@@ -36,7 +36,7 @@ export async function runTool(
     }
     case "pause_playback": {
       const action = args.action === "resume" ? "resume" : "pause";
-      await deps.memory.recordEvent(state.id, "pause_playback", { action });
+      await deps.memory.recordEvent(state.id, state.userId, "pause_playback", { action });
       return {
         gemini_result: { ok: true, action },
         ui_events: [{ type: "intent", intent: { type: "pause_playback", action } }],
@@ -44,9 +44,9 @@ export async function runTool(
     }
     case "record_preference": {
       const fact = String(args.fact ?? "");
-      await deps.memory.recordEvent(state.id, "record_preference", { fact });
+      await deps.memory.recordEvent(state.id, state.userId, "record_preference", { fact });
       // mem0 write is cold IO — never block the tool response on it (hot/cold).
-      if (state.condition === "C") void deps.memory.remember(fact, state.id);
+      if (state.condition === "C") void deps.memory.remember(fact, state.id, state.userId);
       return {
         gemini_result: { ok: true },
         ui_events: [{ type: "intent", intent: { type: "record_preference", fact } }],
@@ -60,7 +60,7 @@ export async function runTool(
         return { gemini_result: { ok: true, host_mode: previous, changed: false }, ui_events: [] };
       }
       state.hostMode = nextMode;
-      await deps.memory.recordEvent(state.id, "change_host_mode", { host_mode: nextMode, previous });
+      await deps.memory.recordEvent(state.id, state.userId, "change_host_mode", { host_mode: nextMode, previous });
       return {
         gemini_result: {
           ok: true,

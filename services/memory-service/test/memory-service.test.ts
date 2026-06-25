@@ -2,6 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { ANONYMOUS_USER_ID } from "@auracle/shared";
 import { AuthStore } from "../src/auth-store.js";
 import { EventsDb } from "../src/events-db.js";
 import type { MemoryClient } from "../src/memory/client.js";
@@ -10,12 +11,14 @@ import { buildServer } from "../src/server.js";
 class RecordingMemory implements MemoryClient {
   readonly enabled = true;
   readonly degraded = false;
-  facts: string[] = [];
-  async recall(): Promise<string> {
+  facts: { fact: string; userId: string }[] = [];
+  recalls: { query: string; userId: string }[] = [];
+  async recall(query: string, userId: string): Promise<string> {
+    this.recalls.push({ query, userId });
     return "";
   }
-  async remember(fact: string): Promise<void> {
-    this.facts.push(fact);
+  async remember(fact: string, _sessionId: string, userId: string): Promise<void> {
+    this.facts.push({ fact, userId });
   }
 }
 
@@ -109,7 +112,11 @@ describe("memory-service /auth", () => {
 
 describe("memory-service internal memory/events API", () => {
   it("exposes recall, remember, recordEvent, and skipRateByEnergy for agent-harness", async () => {
-    const recall = await app.inject({ method: "POST", url: "/memory/recall", payload: { query: "calm studying" } });
+    const recall = await app.inject({
+      method: "POST",
+      url: "/memory/recall",
+      payload: { query: "calm studying", user_id: ANONYMOUS_USER_ID },
+    });
     expect(recall.statusCode).toBe(200);
     expect(recall.json<{ memories: string }>().memories).toBe("");
 
@@ -117,7 +124,7 @@ describe("memory-service internal memory/events API", () => {
     const remembered = await app.inject({
       method: "POST",
       url: "/memory/remember",
-      payload: { fact: "likes sparse piano", session_id: "internal-s1" },
+      payload: { fact: "likes sparse piano", session_id: "internal-s1", user_id: ANONYMOUS_USER_ID },
     });
     expect(remembered.statusCode).toBe(200);
     expect(memory.facts.length).toBe(beforeFacts + 1);
@@ -125,14 +132,57 @@ describe("memory-service internal memory/events API", () => {
     const recorded = await app.inject({
       method: "POST",
       url: "/events",
-      payload: { session_id: "internal-s1", event_type: "skip_latency", payload: { energy: 3 } },
+      payload: {
+        session_id: "internal-s1",
+        user_id: ANONYMOUS_USER_ID,
+        event_type: "skip_latency",
+        payload: { energy: 3 },
+      },
     });
     expect(recorded.statusCode).toBe(200);
     expect(events.countEvents("internal-s1")).toBe(1);
 
-    const weights = await app.inject({ method: "POST", url: "/events/skip-rate-by-energy", payload: { recent_sessions: 10 } });
+    const weights = await app.inject({
+      method: "POST",
+      url: "/events/skip-rate-by-energy",
+      payload: { user_id: ANONYMOUS_USER_ID, recent_sessions: 10 },
+    });
     expect(weights.statusCode).toBe(200);
     expect(weights.json<{ weights: Record<string, number> }>().weights[3]).toBeGreaterThan(0);
+  });
+
+  it("threads user_id through recall/remember and isolates skip weights per user (P0-2/P0-3)", async () => {
+    await app.inject({
+      method: "POST",
+      url: "/memory/remember",
+      payload: { fact: "loves dub techno", session_id: "iso-s1", user_id: "user-a" },
+    });
+    expect(memory.facts.at(-1)).toEqual({ fact: "loves dub techno", userId: "user-a" });
+
+    await app.inject({ method: "POST", url: "/memory/recall", payload: { query: "q", user_id: "user-b" } });
+    expect(memory.recalls.at(-1)).toEqual({ query: "q", userId: "user-b" });
+
+    // User A skips energy-2 tracks; user B skips energy-5 tracks.
+    await app.inject({
+      method: "POST",
+      url: "/events",
+      payload: { session_id: "iso-a", user_id: "user-a", event_type: "skip_latency", payload: { energy: 2 } },
+    });
+    await app.inject({
+      method: "POST",
+      url: "/events",
+      payload: { session_id: "iso-b", user_id: "user-b", event_type: "skip_latency", payload: { energy: 5 } },
+    });
+
+    const a = await app.inject({ method: "POST", url: "/events/skip-rate-by-energy", payload: { user_id: "user-a", recent_sessions: 10 } });
+    const aWeights = a.json<{ weights: Record<string, number> }>().weights;
+    expect(aWeights[2]).toBeGreaterThan(0);
+    expect(aWeights[5]).toBeUndefined();
+
+    const b = await app.inject({ method: "POST", url: "/events/skip-rate-by-energy", payload: { user_id: "user-b", recent_sessions: 10 } });
+    const bWeights = b.json<{ weights: Record<string, number> }>().weights;
+    expect(bWeights[5]).toBeGreaterThan(0);
+    expect(bWeights[2]).toBeUndefined();
   });
 
   it("rejects malformed internal API calls", async () => {
@@ -144,5 +194,8 @@ describe("memory-service internal memory/events API", () => {
 
     const event = await app.inject({ method: "POST", url: "/events", payload: { session_id: "s1" } });
     expect(event.statusCode).toBe(400);
+
+    const skipRate = await app.inject({ method: "POST", url: "/events/skip-rate-by-energy", payload: {} });
+    expect(skipRate.statusCode).toBe(400);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Energy, FlowTrackRef, TrackCandidate, TrackMeta } from "@auracle/shared";
+import { ANONYMOUS_USER_ID, type Energy, type FlowTrackRef, type TrackCandidate, type TrackMeta } from "@auracle/shared";
 import type { MemoryServiceClient } from "../src/memory-service-client.js";
 import type {
   MusicEngineClient,
@@ -17,19 +17,31 @@ function candidate(id: string, energy: Energy): TrackCandidate {
 }
 
 class FakeMemoryService implements MemoryServiceClient {
-  facts: string[] = [];
-  events: { sessionId: string; eventType: string; payload: unknown }[] = [];
+  facts: { fact: string; userId: string }[] = [];
+  events: { sessionId: string; userId: string; eventType: string; payload: unknown }[] = [];
+  skipCalls: { userId: string; recentSessions: number }[] = [];
+  /** Bearer token → user id; tokens absent here (and no token) resolve anonymous. */
+  tokenToUser = new Map<string, string>();
+  recallValue = "";
+  skipWeights: Partial<Record<number, number>> = {};
   async recall(): Promise<string> {
-    return "";
+    return this.recallValue;
   }
-  async remember(fact: string): Promise<void> {
-    this.facts.push(fact);
+  async remember(fact: string, _sessionId: string, userId: string): Promise<void> {
+    this.facts.push({ fact, userId });
   }
-  async recordEvent(sessionId: string, eventType: string, payload: unknown): Promise<void> {
-    this.events.push({ sessionId, eventType, payload });
+  async recordEvent(sessionId: string, userId: string, eventType: string, payload: unknown): Promise<void> {
+    this.events.push({ sessionId, userId, eventType, payload });
   }
-  async skipRateByEnergy(): Promise<Partial<Record<number, number>>> {
-    return {};
+  async skipRateByEnergy(userId: string, recentSessions: number): Promise<Partial<Record<number, number>>> {
+    this.skipCalls.push({ userId, recentSessions });
+    return this.skipWeights;
+  }
+  async resolveSessionUser(token?: string) {
+    if (!token) return { kind: "anonymous" as const, userId: ANONYMOUS_USER_ID };
+    const userId = this.tokenToUser.get(token);
+    if (!userId) return { kind: "invalid_token" as const };
+    return { kind: "authenticated" as const, userId };
   }
   countEvents(sessionId: string): number {
     return this.events.filter((e) => e.sessionId === sessionId).length;
@@ -138,7 +150,7 @@ describe("agent-harness", () => {
       | undefined;
     expect(updated?.remaining.map((r) => r.id)).toEqual(["d", "e"]);
     expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
-    expect(memory.facts.at(-1)).toContain("darker");
+    expect(memory.facts.at(-1)?.fact).toContain("darker");
     await app.close();
   });
 
@@ -153,6 +165,102 @@ describe("agent-harness", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json<{ current_track_index: number }>().current_track_index).toBe(1);
     expect(memory.events.map((e) => e.eventType)).toContain("skip_latency");
+    await app.close();
+  });
+
+  it("binds an unauthenticated session to the anonymous user (P0-1)", async () => {
+    const { app, memory } = buildTestApp();
+    await app.ready();
+    const res = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = res.json<{ session_id: string }>();
+    expect(memory.events.find((e) => e.sessionId === session_id)?.userId).toBe(ANONYMOUS_USER_ID);
+    await app.close();
+  });
+
+  it("resolves the Bearer token to the authed user and aggregates skips per user (P0-1/P0-3)", async () => {
+    const { app, memory } = buildTestApp();
+    memory.tokenToUser.set("tok-1", "user-1");
+    await app.ready();
+    const res = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers: { authorization: "Bearer tok-1" },
+      payload: { mood: "calm", scene: "studying" },
+    });
+    const { session_id } = res.json<{ session_id: string }>();
+    expect(memory.events.find((e) => e.sessionId === session_id)?.userId).toBe("user-1");
+    expect(memory.skipCalls).toEqual([{ userId: "user-1", recentSessions: 10 }]);
+    await app.close();
+  });
+
+  it("rejects an invalid Bearer token with 401 (P0-7)", async () => {
+    const { app, memory } = buildTestApp();
+    await app.ready();
+    const res = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers: { authorization: "Bearer bad-token" },
+      payload: { mood: "calm", scene: "studying" },
+    });
+    expect(res.statusCode).toBe(401);
+    expect(memory.events).toHaveLength(0);
+    await app.close();
+  });
+
+  it("condition B uses no skip weights or mem0 recall (P0-4)", async () => {
+    const { app, memory, music } = buildTestApp();
+    memory.recallValue = "prefers lighter energy";
+    memory.skipWeights = { 5: 0.3 };
+    await app.ready();
+    await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "B" } });
+    expect(memory.skipCalls).toEqual([]);
+    expect(music.planCalls[0]?.memories).toBe("");
+    expect(music.planCalls[0]?.energyWeights).toBeUndefined();
+    await app.close();
+  });
+
+  it("condition C replan reuses the initial recall and skip weights (P0-5/P0-6)", async () => {
+    const { app, memory, music } = buildTestApp();
+    memory.recallValue = "prefers lighter energy";
+    memory.skipWeights = { 5: 0.3 };
+    await app.ready();
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "C" },
+    });
+    const { session_id } = created.json<{ session_id: string }>();
+    expect(music.planCalls[0]).toMatchObject({ memories: "prefers lighter energy", energyWeights: { 5: 0.3 } });
+
+    await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "mood_change", args: { mood: "darker", energy_delta: "heavier" } },
+    });
+    await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true));
+    const replan = music.planCalls.find((c) => c.mode === "replan");
+    expect(replan).toMatchObject({ memories: "prefers lighter energy", energyWeights: { 5: 0.3 } });
+    await app.close();
+  });
+
+  it("condition B replan carries no memories or weights (P0-5/P0-6)", async () => {
+    const { app, music } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "B" },
+    });
+    const { session_id } = created.json<{ session_id: string }>();
+    await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "mood_change", args: { mood: "darker", energy_delta: "heavier" } },
+    });
+    await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true));
+    const replan = music.planCalls.find((c) => c.mode === "replan");
+    expect(replan?.memories).toBe("");
+    expect(replan?.energyWeights).toBeUndefined();
     await app.close();
   });
 });

@@ -45,25 +45,27 @@ export class AgentHarness {
     return parseIntent(raw);
   }
 
-  async createSession(input: CreateSessionInput): Promise<Record<string, unknown>> {
+  async createSession(input: CreateSessionInput, userId: string): Promise<Record<string, unknown>> {
     const intent = parseIntent(input);
     if (!intent) throw new Error("mood and scene are required");
     const condition: Condition = input.condition ?? "C";
-    // Personalization inputs are best-effort: a memory-service blip must not
-    // block session creation (music-engine is the only hard dependency here).
-    const mem0Context =
+    // Personalization is best-effort and condition-C-only; must not block session create.
+    const [mem0Context, energyWeights] =
       condition === "C"
-        ? await this.deps.memory
-            .recall(`music preferences for a ${intent.mood} ${intent.scene} session`)
-            .catch(() => "")
-        : "";
-
-    const energyWeights = await this.deps.memory.skipRateByEnergy(10).catch(() => ({}));
+        ? await Promise.all([
+            this.deps.memory
+              .recall(`music preferences for a ${intent.mood} ${intent.scene} session`, userId)
+              .catch(() => ""),
+            this.deps.memory.skipRateByEnergy(userId, 10).catch(() => undefined),
+          ])
+        : ["", undefined] as const;
     const plan = await this.deps.music.planTracklist({ intent, mode: "full", memories: mem0Context, energyWeights });
     const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
     const state = this.deps.store.create({
+      userId,
       intent,
       condition,
+      energyWeights,
       title: plan.result.session_title,
       subtitle: plan.result.session_subtitle,
       arc: plan.result.arc,
@@ -73,7 +75,7 @@ export class AgentHarness {
     });
 
     await this.deps.memory
-      .recordEvent(state.id, "session_created", { intent, condition, tracklist: plan.result.tracklist })
+      .recordEvent(state.id, state.userId, "session_created", { intent, condition, tracklist: plan.result.tracklist })
       .catch((err) => this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "record session_created failed"));
 
     const openingTrack = await this.openingTrack(state.tracklist[0]?.id);
@@ -142,13 +144,14 @@ export class AgentHarness {
       // can't leak it into the next now_playing (bogus latency / re-fired skip).
       state.pendingSkipAtMs = undefined;
       await this.deps.memory
-        .recordEvent(state.id, "skip_latency", { ms, from_index: prevIndex, to_index: state.currentTrackIndex, energy })
+        .recordEvent(state.id, state.userId, "skip_latency", { ms, from_index: prevIndex, to_index: state.currentTrackIndex, energy })
         .catch((err) => this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "record skip_latency failed"));
       if (state.condition === "C" && listenedMs != null && listenedMs >= 0 && listenedMs < 60_000) {
         void this.deps.memory
           .remember(
             `User skipped a track after ${Math.round(listenedMs / 1000)}s during a "${state.intent.mood}" ${state.intent.scene} session${energy != null ? ` (energy ${energy}/5)` : ""}.`,
             state.id,
+            state.userId,
           )
           .catch(() => {});
       }
@@ -175,7 +178,7 @@ export class AgentHarness {
     const changed = nextMode !== previous;
     if (changed) {
       state.hostMode = nextMode;
-      await this.deps.memory.recordEvent(id, "change_host_mode", { host_mode: nextMode, previous, source: "ui" });
+      await this.deps.memory.recordEvent(id, state.userId, "change_host_mode", { host_mode: nextMode, previous, source: "ui" });
       await this.deps.proxy.inject(id, {
         inject_text: `[host mode → ${nextMode}] Adopt this speaking style from your next line; don't announce the switch. Playlist unchanged.`,
       });
@@ -184,8 +187,9 @@ export class AgentHarness {
   }
 
   async recordClientEvent(id: string, eventType: string, payload: unknown): Promise<boolean> {
-    if (!this.deps.store.get(id)) return false;
-    await this.deps.memory.recordEvent(id, eventType, payload ?? {});
+    const state = this.deps.store.get(id);
+    if (!state) return false;
+    await this.deps.memory.recordEvent(id, state.userId, eventType, payload ?? {});
     return true;
   }
 

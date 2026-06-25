@@ -1,16 +1,29 @@
 import type { CreateSessionResponse, HostMode, SessionIntent } from '@auracle/shared';
+import { clearStoredToken, jsonAuthHeaders } from '@/features/marketing/authApi';
 import { DEMO_SESSION } from '@/data/demoData';
+
+export class SessionAuthError extends Error {
+  constructor() {
+    super('Session authentication expired');
+    this.name = 'SessionAuthError';
+  }
+}
 
 export async function createSession(intent: SessionIntent): Promise<CreateSessionResponse> {
   try {
     const res = await fetch('/sessions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonAuthHeaders(),
       body: JSON.stringify(intent),
     });
+    if (res.status === 401) {
+      clearStoredToken();
+      throw new SessionAuthError();
+    }
     if (res.ok) return (await res.json()) as CreateSessionResponse;
-  } catch {
-    /* demo fallback */
+  } catch (err) {
+    if (err instanceof SessionAuthError) throw err;
+    /* demo fallback on network / server errors */
   }
   return DEMO_SESSION;
 }
