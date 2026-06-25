@@ -42,7 +42,12 @@ export function TranscriptPanel({ djName }: TranscriptPanelProps) {
         ) : null}
 
         {!curating && state.transcript.length === 0 ? (
-          <p className={styles.empty}>Waiting for DJ…</p>
+          <div className={styles.summary}>
+            <p className={styles.summaryKicker}>DJ summary</p>
+            <p className={styles.summaryText}>
+              Tuned from your imported mix for {state.sessionSubtitle}. Use voice or text to reshape the station.
+            </p>
+          </div>
         ) : null}
 
         {state.transcript.map((line) => {

@@ -42,8 +42,6 @@ export function IntentOnboarding({ onStart, disabled }: IntentOnboardingProps) {
 
   return (
     <div className={styles.root}>
-      <p className={styles.lead}>Tell Auracle how to tune in — we&apos;ll match tracks to your vibe.</p>
-
       <fieldset className={styles.group}>
         <legend className={styles.legend}>How do you feel?</legend>
         <div className={styles.chips} role="list">

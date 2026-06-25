@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useCatalogLoaded } from '@/shared/hooks/useTrackCatalog';
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
@@ -31,14 +30,7 @@ export function ContentSheet() {
   const showTranscript = !showOnboarding;
   const skipDisabled = !canSkipTrack(state);
   const pct = playbackProgressPct(state);
-  const creditLine = state.albumTitle ? `${state.artist} · ${state.albumTitle}` : state.artist;
-  const [artistPhotoFailed, setArtistPhotoFailed] = useState(false);
-  const showArtistPhoto = Boolean(state.artistPhotoUrl) && !artistPhotoFailed;
-  const artistInitial = state.artist.trim().charAt(0).toUpperCase() || '?';
-
-  useEffect(() => {
-    setArtistPhotoFailed(false);
-  }, [state.artistPhotoUrl]);
+  const durationLabel = state.sessionSubtitle.split('·')[0]?.trim() || state.sessionSubtitle;
 
   return (
     <section className={styles.root} aria-label="Now playing">
@@ -63,44 +55,30 @@ export function ContentSheet() {
           </>
         ) : (
           <>
+            <div className={styles.sessionTopline}>
+              <p className={styles.meta} data-session-heading>{durationLabel}</p>
+            </div>
             <h1 className={styles.title}>{state.sessionTitle}</h1>
-            <p className={styles.meta} data-session-heading>{state.sessionSubtitle}</p>
             <div className={styles.nowPlaying}>
-              {state.albumCoverUrl ? (
-                <img
-                  className={styles.cover}
-                  src={state.albumCoverUrl}
-                  alt=""
-                  width={88}
-                  height={88}
-                  loading="lazy"
-                />
-              ) : null}
+              <p className={styles.trackKicker}>Now playing</p>
               <div className={styles.trackInfo}>
                 <p className={styles.trackTitle}>{state.trackTitle}</p>
-                <p className={styles.trackCredit}>
-                  {showArtistPhoto ? (
+                <div className={styles.albumLine}>
+                  {state.albumCoverUrl ? (
                     <img
-                      className={styles.artistPhoto}
-                      src={state.artistPhotoUrl}
+                      className={styles.cover}
+                      src={state.albumCoverUrl}
                       alt=""
-                      width={32}
-                      height={32}
+                      width={44}
+                      height={44}
                       loading="lazy"
-                      onError={() => setArtistPhotoFailed(true)}
                     />
-                  ) : (
-                    <span className={styles.artistInitial} aria-hidden>
-                      {artistInitial}
-                    </span>
-                  )}
-                  <span className={styles.creditText}>{creditLine}</span>
-                </p>
-                {state.lore && !idle ? (
-                  <div className={styles.loreScroll}>
-                    <p className={styles.lore}>{state.lore}</p>
-                  </div>
-                ) : null}
+                  ) : null}
+                  <p className={styles.trackCredit}>
+                    <span>{state.artist}</span>
+                    {state.albumTitle ? <small>{state.albumTitle}</small> : null}
+                  </p>
+                </div>
               </div>
             </div>
           </>

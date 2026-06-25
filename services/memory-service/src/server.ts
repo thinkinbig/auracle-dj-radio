@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Condition, SessionIntent } from "@auracle/shared";
 import { parseHostMode } from "@auracle/shared";
+import type { RegisterCredentials, AuthCredentials } from "@auracle/shared";
+import type { AuthStore } from "./auth-store.js";
 import { EventsDb } from "./events-db.js";
 import { SessionStore } from "./session/store.js";
 import type { MusicEngineClient } from "./music-engine-client.js";
@@ -20,6 +22,7 @@ export interface MemoryServiceDeps {
   proxy: ProxyClient;
   /** Public base URL of the proxy handed to the browser for the SDP offer. */
   proxyPublicUrl: string;
+  auth: AuthStore;
 }
 
 function parseIntent(raw: unknown): SessionIntent | undefined {
@@ -28,17 +31,58 @@ function parseIntent(raw: unknown): SessionIntent | undefined {
   return { mood: b.mood, scene: b.scene, duration_min: b.duration_min ?? 25 };
 }
 
+function bearerToken(raw: string | undefined): string | undefined {
+  const match = raw?.match(/^Bearer\s+(.+)$/i);
+  return match?.[1];
+}
+
+function parseCredentials(raw: unknown): AuthCredentials | undefined {
+  const body = (raw ?? {}) as Partial<AuthCredentials>;
+  const email = body.email?.trim();
+  const password = body.password;
+  if (!email || !password || password.length < 6) return undefined;
+  return { email, password };
+}
+
 /**
  * Memory-service: the stateful orchestrator. Owns session state + the analytics
  * event log; sources tracklists from music-engine over HTTP. Phase 2a stands the
  * service up in isolation — the live path stays on the apps/api relay until Phase 3.
  */
 export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
-  const { store, events, music, memory, proxy, proxyPublicUrl } = deps;
+  const { store, events, music, memory, proxy, proxyPublicUrl, auth } = deps;
   const orchestration: OrchestrationDeps = { store, events, memory, music, proxy };
   const app = Fastify({ logger: true });
 
   app.get("/health", async () => ({ ok: true }));
+
+  app.post("/auth/register", async (req, reply) => {
+    const credentials = parseCredentials(req.body);
+    if (!credentials) return reply.code(400).send({ error: "valid email and password are required" });
+    const { name } = (req.body ?? {}) as Partial<RegisterCredentials>;
+    const user = auth.createUser({ ...credentials, name });
+    if (!user) return reply.code(409).send({ error: "email already registered" });
+    return { user, token: auth.createSession(user.id) };
+  });
+
+  app.post("/auth/login", async (req, reply) => {
+    const credentials = parseCredentials(req.body);
+    if (!credentials) return reply.code(400).send({ error: "valid email and password are required" });
+    const user = auth.verifyUser(credentials.email, credentials.password);
+    if (!user) return reply.code(401).send({ error: "invalid email or password" });
+    return { user, token: auth.createSession(user.id) };
+  });
+
+  app.get("/auth/me", async (req, reply) => {
+    const user = auth.getUserByToken(bearerToken(req.headers.authorization));
+    if (!user) return reply.code(401).send({ error: "not authenticated" });
+    return { user };
+  });
+
+  app.post("/auth/logout", async (req) => {
+    auth.deleteSession(bearerToken(req.headers.authorization));
+    return { ok: true };
+  });
 
   app.post("/sessions", async (req, reply) => {
     const body = (req.body ?? {}) as Partial<SessionIntent> & { condition?: Condition };

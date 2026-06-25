@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Energy, FlowTrackRef, TrackCandidate, TrackMeta } from "@auracle/shared";
+import { AuthStore } from "../src/auth-store.js";
 import { EventsDb } from "../src/events-db.js";
 import { SessionStore } from "../src/session/store.js";
 import type {
@@ -93,13 +94,16 @@ class FakeProxyClient implements ProxyClient {
 
 let app: ReturnType<typeof buildServer>;
 let events: EventsDb;
+let auth: AuthStore;
 let music: FakeMusicEngine;
 let memory: RecordingMemory;
 let proxy: FakeProxyClient;
 
 beforeAll(async () => {
   const dbPath = join(mkdtempSync(join(tmpdir(), "memory-service-")), "events.sqlite");
+  const authDbPath = join(mkdtempSync(join(tmpdir(), "memory-service-auth-")), "auth.sqlite");
   events = new EventsDb(dbPath);
+  auth = new AuthStore(authDbPath);
   music = new FakeMusicEngine();
   memory = new RecordingMemory();
   proxy = new FakeProxyClient();
@@ -110,6 +114,7 @@ beforeAll(async () => {
     memory,
     proxy,
     proxyPublicUrl: "http://proxy.test",
+    auth,
   });
   await app.ready();
 });
@@ -117,6 +122,74 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close();
   events.close();
+  auth.close();
+});
+
+describe("memory-service /auth", () => {
+  it("registers, restores the current user, rejects duplicate email, and logs out", async () => {
+    const created = await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: { email: "Listener@Example.com", password: "secret123", name: "Listener" },
+    });
+    expect(created.statusCode).toBe(200);
+    const body = created.json<{ user: { email: string; name: string }; token: string }>();
+    expect(body.user.email).toBe("listener@example.com");
+    expect(body.user.name).toBe("Listener");
+    expect(body.token).toBeTruthy();
+
+    const duplicate = await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: { email: "listener@example.com", password: "secret123" },
+    });
+    expect(duplicate.statusCode).toBe(409);
+
+    const me = await app.inject({
+      method: "GET",
+      url: "/auth/me",
+      headers: { authorization: `Bearer ${body.token}` },
+    });
+    expect(me.statusCode).toBe(200);
+    expect(me.json<{ user: { email: string } }>().user.email).toBe("listener@example.com");
+
+    const logout = await app.inject({
+      method: "POST",
+      url: "/auth/logout",
+      headers: { authorization: `Bearer ${body.token}` },
+    });
+    expect(logout.statusCode).toBe(200);
+
+    const afterLogout = await app.inject({
+      method: "GET",
+      url: "/auth/me",
+      headers: { authorization: `Bearer ${body.token}` },
+    });
+    expect(afterLogout.statusCode).toBe(401);
+  });
+
+  it("logs in an existing user and rejects a bad password", async () => {
+    await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: { email: "login@example.com", password: "secret123" },
+    });
+
+    const bad = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { email: "login@example.com", password: "wrong123" },
+    });
+    expect(bad.statusCode).toBe(401);
+
+    const ok = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { email: "login@example.com", password: "secret123" },
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json<{ token: string }>().token).toBeTruthy();
+  });
 });
 
 describe("memory-service /sessions", () => {
