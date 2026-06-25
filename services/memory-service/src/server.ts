@@ -1,14 +1,28 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import { parseBearerToken, type AuthCredentials, type RegisterCredentials } from "@auracle/shared";
+import {
+  parseBearerToken,
+  type AuthCredentials,
+  type RegisterCredentials,
+  type TasteProfileResponse,
+} from "@auracle/shared";
 import type { AuthStore } from "./auth-store.js";
+import type { CatalogIndex } from "./catalog-index.js";
 import type { EventsDb } from "./events-db.js";
 import type { MemoryClient } from "./memory/client.js";
+import type { TasteStore } from "./taste-store.js";
+import { findInvalidPreferences, parseSaveTasteRequest, resolvePreferences, summarizeTaste } from "./taste.js";
 
 export interface MemoryServiceDeps {
   events: EventsDb;
   memory: MemoryClient;
   auth: AuthStore;
+  taste: TasteStore;
+  /** Live catalog (S1) for validating/resolving taste entities. */
+  catalog: CatalogIndex;
 }
+
+/** Pseudo run id for mem0 facts written from a taste save (not a live session). */
+const TASTE_RUN_ID = "taste-profile";
 
 function parseCredentials(raw: unknown): AuthCredentials | undefined {
   const body = (raw ?? {}) as Partial<AuthCredentials>;
@@ -18,9 +32,9 @@ function parseCredentials(raw: unknown): AuthCredentials | undefined {
   return { email, password };
 }
 
-/** Memory-service owns auth, cross-session memory, and analytics events. */
+/** Memory-service owns auth, cross-session memory, analytics events, and taste. */
 export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
-  const { events, memory, auth } = deps;
+  const { events, memory, auth, taste, catalog } = deps;
   const app = Fastify({ logger: true });
 
   app.get("/health", async () => ({ ok: true }));
@@ -87,6 +101,52 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
   app.post("/auth/logout", async (req) => {
     auth.deleteSession(parseBearerToken(req.headers.authorization));
     return { ok: true };
+  });
+
+  // --- Structured taste profile (Epic #3, S2). Login required; no taste
+  //     persistence for the anonymous identity (design §8). ---
+
+  app.get("/users/me/taste", async (req, reply) => {
+    const user = auth.getUserByToken(parseBearerToken(req.headers.authorization));
+    if (!user) return reply.code(401).send({ error: "authentication required" });
+    const profile = taste.getProfile(user.id);
+    const body: TasteProfileResponse = {
+      ...profile,
+      preferences: resolvePreferences(profile.preferences, catalog),
+      catalogRevision: catalog.revision,
+    };
+    return body;
+  });
+
+  app.put("/users/me/taste", async (req, reply) => {
+    const user = auth.getUserByToken(parseBearerToken(req.headers.authorization));
+    if (!user) return reply.code(401).send({ error: "authentication required" });
+
+    const parsed = parseSaveTasteRequest(req.body);
+    if ("error" in parsed) return reply.code(400).send({ error: parsed.error });
+
+    // Every entity must resolve against the live catalog (S1).
+    const invalid = findInvalidPreferences(parsed.preferences, catalog);
+    if (invalid.length > 0) {
+      return reply.code(400).send({
+        error: "unknown taste entities",
+        invalid: invalid.map((p) => ({ entityType: p.entityType, entityId: p.entityId })),
+      });
+    }
+
+    taste.saveProfile(user.id, parsed.preferences, parsed.freeText, catalog.revision);
+
+    // Dual-write a human-readable summary fact for DJ recall (§3, mem0 layer).
+    const summary = summarizeTaste(parsed.preferences, parsed.freeText);
+    if (summary) await memory.remember(summary, TASTE_RUN_ID, user.id);
+
+    const body: TasteProfileResponse = {
+      preferences: resolvePreferences(parsed.preferences, catalog),
+      ...(parsed.freeText ? { freeText: parsed.freeText } : {}),
+      catalogRevisionAtSave: catalog.revision,
+      catalogRevision: catalog.revision,
+    };
+    return body;
   });
 
   return app;
