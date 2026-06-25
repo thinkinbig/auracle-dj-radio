@@ -332,6 +332,31 @@ describe("memory-service /users/me/taste (S2)", () => {
     expect(bView.json<TasteProfileResponse>().preferences).toHaveLength(0);
   });
 
+  it("exposes a user's active prefs for plan weighting via /taste/weights (S4)", async () => {
+    const { id, token } = await registerUser("taste-weights@example.com");
+    await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        preferences: [
+          { entityType: "genre", entityId: "house", polarity: "avoid", source: "onboarding", strength: 3 },
+          { entityType: "artist", entityId: "lana-del-delay", polarity: "prefer", source: "onboarding" },
+        ],
+      },
+    });
+
+    const res = await app.inject({ method: "POST", url: "/taste/weights", payload: { user_id: id } });
+    expect(res.statusCode).toBe(200);
+    const { preferences } = res.json<{ preferences: { entityType: string; entityId: string; polarity: string; status?: string }[] }>();
+    expect(preferences).toHaveLength(2);
+    expect(preferences.every((p) => p.status === "active")).toBe(true);
+    expect(preferences.find((p) => p.entityType === "genre")).toMatchObject({ entityId: "house", polarity: "avoid" });
+
+    const missing = await app.inject({ method: "POST", url: "/taste/weights", payload: {} });
+    expect(missing.statusCode).toBe(400);
+  });
+
   it("re-resolves slug-based prefs to new ids after a catalog rebuild (orphans track ids)", async () => {
     const { token } = await registerUser("taste-reload@example.com");
     const headers = { authorization: `Bearer ${token}` };

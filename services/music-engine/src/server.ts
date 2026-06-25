@@ -1,5 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import type { GenreCount, SessionIntent, TrackCandidate } from "@auracle/shared";
+import type { GenreCount, SessionIntent, TastePreference, TrackCandidate } from "@auracle/shared";
 import { CatalogDb } from "./catalog-db.js";
 import { computeCatalogRevision, loadGenreTaxonomy } from "./catalog/manifest.js";
 import { buildEmbedder, buildFlowModel } from "./wiring.js";
@@ -74,6 +74,7 @@ export function buildServer(dbPath: string): MusicEngine {
       intent?: unknown;
       memories?: string;
       energyWeights?: Partial<Record<number, number>>;
+      taste?: TastePreference[];
       replan?: { playedIds?: string[]; played?: TrackCandidate[]; lastPlayedEnergy?: number | null; remainingSlots?: number };
     };
     const intent = parseIntent(b.intent);
@@ -81,7 +82,7 @@ export function buildServer(dbPath: string): MusicEngine {
 
     const mode = b.mode ?? "full";
     if (mode === "provisional") {
-      const p = await createProvisionalPlan(deps, intent, b.energyWeights);
+      const p = await createProvisionalPlan(deps, intent, b.energyWeights, b.taste);
       return { result: p.result, violations: [], candidates: [...p.candidatesById.values()] };
     }
     if (mode === "replan") {
@@ -94,10 +95,11 @@ export function buildServer(dbPath: string): MusicEngine {
         remainingSlots: r.remainingSlots ?? 0,
         energyWeights: b.energyWeights,
         memories: b.memories ?? "",
+        taste: b.taste,
       });
       return toPlanResponse(p);
     }
-    return toPlanResponse(await createPlanCached(deps, intent, b.memories ?? "", b.energyWeights));
+    return toPlanResponse(await createPlanCached(deps, intent, b.memories ?? "", b.energyWeights, b.taste));
   });
 
   // Catalog metadata for cue building (memory-service prefetches per session).

@@ -303,3 +303,32 @@ memory-service（:3020）持久化 per-user 结构化口味，并在保存时向
 ```
 
 字段形状非法（未知 `entityType`/`polarity`/`source`、空 `entityId`、`strength` ∉ {1,2,3}）同样 `400`。`401` 未认证。
+
+---
+
+## 附录 B：Plan weighting + migrate（S4 实现，[#7](https://github.com/thinkinbig/auracle-dj-radio/issues/7)）
+
+结构化口味在 **Condition C** 下进入歌单规划（编排层加载 → music-engine 检索加权），不止 DJ 口播。P0（per-user session / mem0 隔离）为前置，已实现。
+
+### `POST /taste/weights`（memory-service，内部）
+
+服务间调用（同 `/memory/recall`，按 `user_id`，无 Bearer）。返回该用户 **active**（可解析）结构化偏好供加权；orphaned 不返回。
+
+```json
+// req: { "user_id": "..." }
+// 200: { "preferences": [ { "entityType": "genre", "entityId": "house", "polarity": "avoid", "status": "active", ... } ] }
+```
+
+### 检索加权（music-engine `retrieve.ts`）
+
+每个候选曲按 **最具体** 匹配偏好（§6：track > album > artist > genre）得到一个分数乘子，叠加在 cosine + skip-energy 之上：
+
+- `prefer` → `× (1 + 0.3·strength)`；`avoid` → `× max(0.05, 1 − 0.3·strength)`（strength 默认 2）。
+- 偏好按 **slug**（`genreSlug`/`artistSlug`/`albumSlug`）与 `trackId` 匹配 `TrackRow`，换库稳定。
+- 编排层（agent-harness）在 `createSession` 载入 `taste` 存入 `SessionState`，初始 plan 与 replan 复用同一份；A/B 不加权。
+
+### `pnpm --filter @auracle/memory-service taste:migrate [--prune]`
+
+离线脚本（§5）：按当前 catalog 重解析每用户偏好；slug 型 artist/album 随 id 变更存活，已删除 track pin 标 `orphaned`。`--prune` 删除 orphaned 行；幂等（二次运行 0 orphaned）。不触碰 mem0。
+
+> 设置页：orphaned 项灰显 + 移除（S3）；失效占比 > 30%（track 权重×2）时显示一次性横幅（S4）。

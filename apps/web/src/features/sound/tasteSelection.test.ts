@@ -5,7 +5,9 @@ import {
   countByType,
   hydrateSelection,
   isOrphaned,
+  ORPHAN_BANNER_THRESHOLD,
   orphanedEntries,
+  orphanRatio,
   polarityOf,
   setPolarity,
   toSaveRequest,
@@ -70,5 +72,26 @@ describe('tasteSelection', () => {
 
   it('omits freeText when blank', () => {
     expect(toSaveRequest({}, '   ').freeText).toBeUndefined();
+  });
+
+  it('computes a track-weighted orphan ratio for the banner threshold', () => {
+    expect(orphanRatio({})).toBe(0);
+    // 1 active genre + 1 orphaned genre → 1/2 = 0.5 > threshold.
+    const half = hydrateSelection([
+      pref({ entityType: 'genre', entityId: 'lo-fi', polarity: 'prefer', status: 'active' }),
+      pref({ entityType: 'genre', entityId: 'gone', polarity: 'prefer', status: 'orphaned' }),
+    ]);
+    expect(orphanRatio(half)).toBeCloseTo(0.5);
+    expect(orphanRatio(half)).toBeGreaterThan(ORPHAN_BANNER_THRESHOLD);
+
+    // Track orphans count double: 4 active-genre weight vs 1 orphaned track ×2 = 2/6 ≈ 0.33.
+    const weighted = hydrateSelection([
+      pref({ entityType: 'genre', entityId: 'a', polarity: 'prefer', status: 'active' }),
+      pref({ entityType: 'genre', entityId: 'b', polarity: 'prefer', status: 'active' }),
+      pref({ entityType: 'genre', entityId: 'c', polarity: 'prefer', status: 'active' }),
+      pref({ entityType: 'genre', entityId: 'd', polarity: 'prefer', status: 'active' }),
+      pref({ entityType: 'track', entityId: 't99', polarity: 'avoid', status: 'orphaned' }),
+    ]);
+    expect(orphanRatio(weighted)).toBeCloseTo(2 / 6);
   });
 });

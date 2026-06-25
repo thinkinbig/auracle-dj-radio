@@ -88,6 +88,25 @@ export function orphanedEntries(selection: Selection): TastePreference[] {
   return Object.values(selection).filter((p) => p.status === 'orphaned');
 }
 
+/** Show the "catalog changed, check your taste" banner above this ratio (design §5). */
+export const ORPHAN_BANNER_THRESHOLD = 0.3;
+
+/**
+ * Share of preferences that are orphaned, weighting track prefs ×2 (design §5):
+ * track pins are the finest-grained and most likely to break, so they count
+ * double toward the "should we nudge the user" threshold.
+ */
+export function orphanRatio(selection: Selection): number {
+  const weight = (p: TastePreference) => (p.entityType === 'track' ? 2 : 1);
+  let total = 0;
+  let orphaned = 0;
+  for (const p of Object.values(selection)) {
+    total += weight(p);
+    if (p.status === 'orphaned') orphaned += weight(p);
+  }
+  return total === 0 ? 0 : orphaned / total;
+}
+
 /**
  * Build the PUT payload. Orphaned entries are dropped — they no longer resolve
  * against the live catalog, so re-sending them would 400 (and saving is exactly

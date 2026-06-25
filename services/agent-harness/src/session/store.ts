@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ArcStage, Condition, FlowTrackRef, HostMode, SessionIntent, TrackCandidate } from "@auracle/shared";
+import type { ArcStage, Condition, FlowTrackRef, HostMode, SessionIntent, TastePreference, TrackCandidate } from "@auracle/shared";
 import { inferHostModeFromScene } from "@auracle/shared";
 
 export interface SessionState {
@@ -10,6 +10,8 @@ export interface SessionState {
   condition: Condition;
   /** Skip-energy penalty weights for this user (condition C only); reused by replan. */
   energyWeights?: Partial<Record<number, number>>;
+  /** Structured taste prefer/avoid for this user (condition C only); reused by replan. */
+  taste?: TastePreference[];
   hostMode: HostMode;
   title: string;
   subtitle: string;
@@ -40,6 +42,7 @@ export class SessionStore {
     intent: SessionIntent;
     condition: Condition;
     energyWeights?: Partial<Record<number, number>>;
+    taste?: TastePreference[];
     title: string;
     subtitle: string;
     arc: ArcStage;
@@ -58,6 +61,7 @@ export class SessionStore {
       intent: params.intent,
       condition: params.condition,
       energyWeights: params.energyWeights,
+      taste: params.taste,
       hostMode: inferHostModeFromScene(params.intent.scene),
       title: params.title,
       subtitle: params.subtitle,

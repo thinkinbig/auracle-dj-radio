@@ -1,7 +1,8 @@
-import type { TrackCandidate } from "@auracle/shared";
+import type { TastePreference, TrackCandidate } from "@auracle/shared";
 import { toCandidate } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
 import type { Embedder } from "./embedder.js";
+import { buildTasteWeighting } from "./taste-weighting.js";
 
 export interface RetrieveInput {
   mood: string;
@@ -10,6 +11,8 @@ export interface RetrieveInput {
   limit?: number;
   /** Energy-level skip weights (1–5 → 0–0.7): penalises tracks at energies the user often skips. */
   energyWeights?: Partial<Record<number, number>>;
+  /** Structured taste prefer/avoid (Epic #3, S4): boosts/penalises matching tracks. */
+  taste?: TastePreference[];
 }
 
 export interface Scored<T> {
@@ -26,9 +29,13 @@ export async function retrieveCandidates(
   const query = await embedder.embedQuery(input.mood, input.scene);
   const pool = input.excludeIds ? tracks.filter((t) => !input.excludeIds!.has(t.id)) : tracks;
   const weights = input.energyWeights;
+  const hasEnergy = weights && Object.keys(weights).length > 0;
+  const taste = input.taste && input.taste.length > 0 ? buildTasteWeighting(input.taste) : undefined;
+  // Combine skip-energy and structured-taste multipliers onto the cosine score.
   const adjust =
-    weights && Object.keys(weights).length > 0
-      ? (t: TrackRow, score: number) => score * (1 - (weights[t.energy] ?? 0))
+    hasEnergy || taste
+      ? (t: TrackRow, score: number) =>
+          score * (hasEnergy ? 1 - (weights[t.energy] ?? 0) : 1) * (taste ? taste.multiplierFor(t) : 1)
       : undefined;
   const ranked = topK(query, pool, (t) => t.embedding, input.limit ?? 24, adjust);
   return ranked.map((s) => toCandidate(s.item));

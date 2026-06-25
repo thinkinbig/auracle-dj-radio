@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Condition, HostMode, SessionIntent, TrackMeta } from "@auracle/shared";
+import type { Condition, HostMode, SessionIntent, TastePreference, TrackMeta } from "@auracle/shared";
 import { parseHostMode } from "@auracle/shared";
 import { buildRegistration } from "../dj/registration.js";
 import type { MemoryServiceClient } from "../memory-service-client.js";
@@ -50,22 +50,24 @@ export class AgentHarness {
     if (!intent) throw new Error("mood and scene are required");
     const condition: Condition = input.condition ?? "C";
     // Personalization is best-effort and condition-C-only; must not block session create.
-    const [mem0Context, energyWeights] =
+    const [mem0Context, energyWeights, taste]: [string, Partial<Record<number, number>> | undefined, TastePreference[] | undefined] =
       condition === "C"
         ? await Promise.all([
             this.deps.memory
               .recall(`music preferences for a ${intent.mood} ${intent.scene} session`, userId)
               .catch(() => ""),
             this.deps.memory.skipRateByEnergy(userId, 10).catch(() => undefined),
+            this.deps.memory.tasteWeights(userId).catch(() => []),
           ])
-        : ["", undefined] as const;
-    const plan = await this.deps.music.planTracklist({ intent, mode: "full", memories: mem0Context, energyWeights });
+        : ["", undefined, undefined];
+    const plan = await this.deps.music.planTracklist({ intent, mode: "full", memories: mem0Context, energyWeights, taste });
     const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
     const state = this.deps.store.create({
       userId,
       intent,
       condition,
       energyWeights,
+      taste,
       title: plan.result.session_title,
       subtitle: plan.result.session_subtitle,
       arc: plan.result.arc,

@@ -175,4 +175,37 @@ describe("music-engine HTTP", () => {
     const counted = genres.reduce((sum, g) => sum + g.count, 0);
     expect(counted).toBe(totalTracks);
   });
+
+  it("structured taste shifts the candidate pool (S4)", async () => {
+    const genreById = new Map(engine.db.allTracks().map((t) => [t.id, t.genreSlug]));
+    // Pick a genre that has several tracks so a shift is observable.
+    const counts = new Map<string, number>();
+    for (const g of genreById.values()) counts.set(g, (counts.get(g) ?? 0) + 1);
+    const targetGenre = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+
+    async function planCandidates(taste?: unknown): Promise<TrackCandidate[]> {
+      const res = await engine.app.inject({
+        method: "POST",
+        url: "/plan_tracklist",
+        payload: { mode: "provisional", intent: { mood: "calm", scene: "studying" }, taste },
+      });
+      expect(res.statusCode).toBe(200);
+      return res.json<{ candidates: TrackCandidate[] }>().candidates;
+    }
+    const countGenre = (cands: TrackCandidate[]) => cands.filter((c) => genreById.get(c.id) === targetGenre).length;
+
+    const baseline = await planCandidates();
+    const avoided = await planCandidates([
+      { entityType: "genre", entityId: targetGenre, polarity: "avoid", strength: 3, source: "onboarding" },
+    ]);
+    const preferred = await planCandidates([
+      { entityType: "genre", entityId: targetGenre, polarity: "prefer", strength: 3, source: "onboarding" },
+    ]);
+
+    // Avoiding the genre reduces its presence below the baseline.
+    expect(countGenre(avoided)).toBeLessThan(countGenre(baseline));
+    // Two users with opposing prefs on the same intent get different sequences.
+    expect(preferred.map((c) => c.id)).not.toEqual(avoided.map((c) => c.id));
+    expect(countGenre(preferred)).toBeGreaterThan(countGenre(avoided));
+  });
 });

@@ -50,6 +50,7 @@ export async function applyReplan(
     mode: "replan",
     memories: personalized ? state.mem0Context : "",
     energyWeights: personalized ? state.energyWeights : undefined,
+    taste: personalized ? state.taste : undefined,
     replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: remainingCount },
   });
 

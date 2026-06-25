@@ -1,4 +1,4 @@
-import { ANONYMOUS_USER_ID, type AuthUser } from "@auracle/shared";
+import { ANONYMOUS_USER_ID, type AuthUser, type TastePreference } from "@auracle/shared";
 
 export type ResolveSessionUserResult =
   | { kind: "anonymous"; userId: string }
@@ -10,6 +10,8 @@ export interface MemoryServiceClient {
   remember(fact: string, sessionId: string, userId: string): Promise<void>;
   recordEvent(sessionId: string, userId: string, eventType: string, payload: unknown): Promise<void>;
   skipRateByEnergy(userId: string, recentSessions: number): Promise<Partial<Record<number, number>>>;
+  /** A user's active structured taste prefs for plan weighting (Epic #3, S4). */
+  tasteWeights(userId: string): Promise<TastePreference[]>;
   /** Map Bearer token → user id; no token → anonymous; bad token → invalid_token. Never throws. */
   resolveSessionUser(token?: string): Promise<ResolveSessionUserResult>;
 }
@@ -46,6 +48,11 @@ export class HttpMemoryServiceClient implements MemoryServiceClient {
       recent_sessions: recentSessions,
     });
     return body.weights;
+  }
+
+  async tasteWeights(userId: string): Promise<TastePreference[]> {
+    const body = await this.postJson<{ preferences: TastePreference[] }>("/taste/weights", { user_id: userId });
+    return body.preferences;
   }
 
   async resolveSessionUser(token?: string): Promise<ResolveSessionUserResult> {

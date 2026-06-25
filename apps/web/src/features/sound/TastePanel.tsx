@@ -6,7 +6,9 @@ import {
   countByType,
   MAX_TRACK_AVOID,
   MAX_TRACK_PREFER,
+  ORPHAN_BANNER_THRESHOLD,
   orphanedEntries,
+  orphanRatio,
   polarityOf,
   type Selection,
 } from './tasteSelection';
@@ -74,6 +76,7 @@ export function TastePanel() {
   }
 
   const orphans = orphanedEntries(selection);
+  const showOrphanBanner = orphanRatio(selection) > ORPHAN_BANNER_THRESHOLD;
   const trackPins = countByType(selection, 'track', 'prefer');
   const trackBlocks = countByType(selection, 'track', 'avoid');
 
@@ -82,6 +85,12 @@ export function TastePanel() {
       <p className={styles.summary} aria-live="polite">
         {summarize(selection)}
       </p>
+
+      {showOrphanBanner && (
+        <div className={styles.banner} role="alert">
+          The catalog changed and several of your picks no longer exist. Review and remove them below.
+        </div>
+      )}
 
       {/* Genres — chips from the live taxonomy. */}
       <fieldset className={styles.group}>

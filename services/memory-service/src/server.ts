@@ -149,5 +149,15 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
     return body;
   });
 
+  // Internal: a user's *active* (catalog-resolvable) prefs for plan weighting
+  // (S4). Server-to-server like /memory/recall — keyed by user_id, no Bearer.
+  // Orphaned prefs are excluded so a removed entity never affects retrieval.
+  app.post("/taste/weights", async (req, reply) => {
+    const { user_id } = (req.body ?? {}) as { user_id?: string };
+    if (!user_id) return reply.code(400).send({ error: "user_id is required" });
+    const resolved = resolvePreferences(taste.getProfile(user_id).preferences, catalog);
+    return { preferences: resolved.filter((p) => p.status === "active") };
+  });
+
   return app;
 }

@@ -1,10 +1,11 @@
-import type { FlowResult, FlowTrackRef, SessionIntent, TrackCandidate } from "@auracle/shared";
+import type { FlowResult, FlowTrackRef, SessionIntent, TastePreference, TrackCandidate } from "@auracle/shared";
 import { ARC_BANDS, FULL_SESSION_LENGTH } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
 import type { Embedder } from "./embedder.js";
 import type { FlowModel, FlowInput } from "./flow-model.js";
 import { repairTracklist } from "./repair.js";
 import { retrieveCandidates } from "./retrieve.js";
+import { tasteCacheKey } from "./taste-weighting.js";
 import { formatViolationsForRetry, validateTracklist, type Violation } from "./validate.js";
 
 export interface PlanDeps {
@@ -29,11 +30,16 @@ export interface PlanResult {
  */
 const planCache = new Map<string, PlanResult>();
 
-function planKey(intent: SessionIntent, memories: string, energyWeights?: Partial<Record<number, number>>): string {
+function planKey(
+  intent: SessionIntent,
+  memories: string,
+  energyWeights?: Partial<Record<number, number>>,
+  taste?: TastePreference[],
+): string {
   const w = energyWeights && Object.keys(energyWeights).length > 0
     ? Object.entries(energyWeights).sort(([a], [b]) => Number(a) - Number(b)).map(([k, v]) => `${k}:${(v ?? 0).toFixed(2)}`).join(",")
     : "";
-  return [intent.mood, intent.scene, intent.duration_min, memories, w].join(" ");
+  return [intent.mood, intent.scene, intent.duration_min, memories, w, tasteCacheKey(taste)].join(" ");
 }
 
 /** Defensive copy so a cached plan can't be mutated by replan/store aliasing. */
@@ -51,12 +57,13 @@ export async function createPlanCached(
   intent: SessionIntent,
   memories = "",
   energyWeights?: Partial<Record<number, number>>,
+  taste?: TastePreference[],
 ): Promise<PlanResult> {
-  const key = planKey(intent, memories, energyWeights);
+  const key = planKey(intent, memories, energyWeights, taste);
   const hit = planCache.get(key);
   if (hit) return clonePlan(hit);
 
-  const plan = await createPlan(deps, intent, memories, energyWeights);
+  const plan = await createPlan(deps, intent, memories, energyWeights, taste);
   if (plan.violations.length === 0) planCache.set(key, plan); // don't cache imperfect plans
   return clonePlan(plan);
 }
@@ -66,8 +73,9 @@ export function peekPlanCache(
   intent: SessionIntent,
   memories = "",
   energyWeights?: Partial<Record<number, number>>,
+  taste?: TastePreference[],
 ): PlanResult | undefined {
-  const hit = planCache.get(planKey(intent, memories, energyWeights));
+  const hit = planCache.get(planKey(intent, memories, energyWeights, taste));
   return hit ? clonePlan(hit) : undefined;
 }
 
@@ -80,12 +88,14 @@ export async function createProvisionalPlan(
   deps: PlanDeps,
   intent: SessionIntent,
   energyWeights?: Partial<Record<number, number>>,
+  taste?: TastePreference[],
 ): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate> }> {
   const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
     mood: intent.mood,
     scene: intent.scene,
     limit: 24,
     energyWeights,
+    taste,
   });
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
   return {
@@ -137,12 +147,14 @@ export async function createPlan(
   intent: SessionIntent,
   memories = "",
   energyWeights?: Partial<Record<number, number>>,
+  taste?: TastePreference[],
 ): Promise<PlanResult> {
   const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
     mood: intent.mood,
     scene: intent.scene,
     limit: 24,
     energyWeights,
+    taste,
   });
   return runFlow(deps.flowModel, {
     intent,
@@ -163,6 +175,8 @@ export interface ReplanInput {
   energyWeights?: Partial<Record<number, number>>;
   /** Cross-session preference recall (condition C); "" for A/B. */
   memories?: string;
+  /** Structured taste prefer/avoid (condition C); undefined for A/B. */
+  taste?: TastePreference[];
 }
 
 /** Mid-session replan: re-fill only the remaining slots, excluding played tracks. */
@@ -173,6 +187,7 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
     excludeIds: new Set(input.playedIds),
     limit: Math.max(24, input.remainingSlots * 3),
     energyWeights: input.energyWeights,
+    taste: input.taste,
   });
   return runFlow(deps.flowModel, {
     intent: input.intent,

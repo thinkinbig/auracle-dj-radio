@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ANONYMOUS_USER_ID, type Energy, type FlowTrackRef, type TrackCandidate, type TrackMeta } from "@auracle/shared";
+import { ANONYMOUS_USER_ID, type Energy, type FlowTrackRef, type TastePreference, type TrackCandidate, type TrackMeta } from "@auracle/shared";
 import type { MemoryServiceClient } from "../src/memory-service-client.js";
 import type {
   MusicEngineClient,
@@ -24,8 +24,14 @@ class FakeMemoryService implements MemoryServiceClient {
   tokenToUser = new Map<string, string>();
   recallValue = "";
   skipWeights: Partial<Record<number, number>> = {};
+  tasteValue: TastePreference[] = [];
+  tasteCalls: string[] = [];
   async recall(): Promise<string> {
     return this.recallValue;
+  }
+  async tasteWeights(userId: string): Promise<TastePreference[]> {
+    this.tasteCalls.push(userId);
+    return this.tasteValue;
   }
   async remember(fact: string, _sessionId: string, userId: string): Promise<void> {
     this.facts.push({ fact, userId });
@@ -212,17 +218,22 @@ describe("agent-harness", () => {
     memory.recallValue = "prefers lighter energy";
     memory.skipWeights = { 5: 0.3 };
     await app.ready();
+    memory.tasteValue = [{ entityType: "genre", entityId: "house", polarity: "avoid", source: "onboarding" }];
     await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "B" } });
     expect(memory.skipCalls).toEqual([]);
+    expect(memory.tasteCalls).toEqual([]);
     expect(music.planCalls[0]?.memories).toBe("");
     expect(music.planCalls[0]?.energyWeights).toBeUndefined();
+    expect(music.planCalls[0]?.taste).toBeUndefined();
     await app.close();
   });
 
-  it("condition C replan reuses the initial recall and skip weights (P0-5/P0-6)", async () => {
+  it("condition C loads structured taste and passes it into plan + replan (S4)", async () => {
     const { app, memory, music } = buildTestApp();
     memory.recallValue = "prefers lighter energy";
     memory.skipWeights = { 5: 0.3 };
+    const taste: TastePreference[] = [{ entityType: "genre", entityId: "house", polarity: "avoid", source: "onboarding", strength: 3 }];
+    memory.tasteValue = taste;
     await app.ready();
     const created = await app.inject({
       method: "POST",
@@ -230,7 +241,7 @@ describe("agent-harness", () => {
       payload: { mood: "calm", scene: "studying", condition: "C" },
     });
     const { session_id } = created.json<{ session_id: string }>();
-    expect(music.planCalls[0]).toMatchObject({ memories: "prefers lighter energy", energyWeights: { 5: 0.3 } });
+    expect(music.planCalls[0]).toMatchObject({ memories: "prefers lighter energy", energyWeights: { 5: 0.3 }, taste });
 
     await app.inject({
       method: "POST",
@@ -239,7 +250,8 @@ describe("agent-harness", () => {
     });
     await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true));
     const replan = music.planCalls.find((c) => c.mode === "replan");
-    expect(replan).toMatchObject({ memories: "prefers lighter energy", energyWeights: { 5: 0.3 } });
+    // taste is loaded once at create and reused on replan (same array contents).
+    expect(replan?.taste).toEqual(taste);
     await app.close();
   });
 
@@ -261,6 +273,7 @@ describe("agent-harness", () => {
     const replan = music.planCalls.find((c) => c.mode === "replan");
     expect(replan?.memories).toBe("");
     expect(replan?.energyWeights).toBeUndefined();
+    expect(replan?.taste).toBeUndefined();
     await app.close();
   });
 });

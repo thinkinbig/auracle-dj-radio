@@ -111,6 +111,25 @@ export class TasteStore {
     replace();
   }
 
+  /** All user ids that have a stored profile or preferences (for taste:migrate). */
+  listUserIds(): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT user_id FROM taste_profile
+         UNION
+         SELECT DISTINCT user_id FROM taste_prefs`,
+      )
+      .all() as { user_id: string }[];
+    return rows.map((r) => r.user_id);
+  }
+
+  /** Remove a single preference (used by taste:migrate to prune orphans). */
+  deletePreference(userId: string, entityType: TastePreference["entityType"], entityId: string): void {
+    this.db
+      .prepare(`DELETE FROM taste_prefs WHERE user_id = ? AND entity_type = ? AND entity_id = ?`)
+      .run(userId, entityType, entityId);
+  }
+
   close(): void {
     this.db.close();
   }
