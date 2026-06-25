@@ -20,6 +20,7 @@ export interface RadioSession {
   /** Mic-input spectrum, used by the waveform while the listener holds the floor. */
   micAnalyser: AnalyserNode | null;
   handleStart: (intent: SessionIntent) => Promise<void>;
+  handleReturnToSetup: () => void;
   handleTogglePause: () => void;
   handleSkipTrack: () => void;
   handleSkipDj: () => void;
@@ -79,6 +80,7 @@ export function useRadioSession(): RadioSession {
     analyser,
     micAnalyser,
     handleStart: handlers.handleStart,
+    handleReturnToSetup: handlers.handleReturnToSetup,
     handleTogglePause: handlers.handleTogglePause,
     handleSkipTrack: handlers.handleSkipTrack,
     handleSkipDj: handlers.handleSkipDj,

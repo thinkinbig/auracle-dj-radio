@@ -10,6 +10,8 @@ export interface Config {
   port: number;
   /** Memory-service owns the analytics/event DB (session_events) — refactor-three-services. */
   eventsDbPath: string;
+  /** Lightweight user auth DB for the web app login flow. */
+  authDbPath: string;
   /** Base URL of the music-engine HTTP service (catalog retrieval + planning). */
   musicEngineUrl: string;
   /** Base URL of the media proxy (rt_llm_proxy) memory-service registers sessions with. */
@@ -31,6 +33,7 @@ export interface Config {
 export const config: Config = {
   port: Number(process.env.MEMORY_SERVICE_PORT ?? 3020),
   eventsDbPath: process.env.MEMORY_EVENTS_DB_PATH ?? resolve(here, "../auracle-events.sqlite"),
+  authDbPath: process.env.AUTH_DB_PATH ?? resolve(here, "../auracle-auth.sqlite"),
   musicEngineUrl: process.env.MUSIC_ENGINE_URL ?? "http://localhost:3010",
   proxyUrl: process.env.PROXY_URL ?? "http://localhost:8080",
   proxyPublicUrl: process.env.PROXY_PUBLIC_URL ?? "/proxy",

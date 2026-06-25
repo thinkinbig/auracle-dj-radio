@@ -1,4 +1,5 @@
 import { config } from "./config.js";
+import { AuthStore } from "./auth-store.js";
 import { EventsDb } from "./events-db.js";
 import { SessionStore } from "./session/store.js";
 import { HttpMusicEngineClient } from "./music-engine-client.js";
@@ -13,6 +14,7 @@ const app = buildServer({
   memory: createMemoryClient(),
   proxy: new HttpProxyClient(config.proxyUrl),
   proxyPublicUrl: config.proxyPublicUrl,
+  auth: new AuthStore(config.authDbPath),
 });
 
 app

@@ -1,0 +1,63 @@
+.brand {
+  position: fixed;
+  top: 24px;
+  left: max(20px, calc((100vw - 1180px) / 2), env(safe-area-inset-left, 0px));
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #f8fafc;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+}
+
+.wordmark {
+  left: max(30px, calc((100vw - 1160px) / 2 + 10px), env(safe-area-inset-left, 0px));
+  gap: 0;
+  padding: 6px 0;
+  color: rgba(248, 250, 252, 0.86);
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+button.brand {
+  cursor: pointer;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+button.brand:hover {
+  opacity: 0.82;
+  transform: translateY(-1px);
+}
+
+button.brand:focus-visible {
+  outline: none;
+  border-radius: 999px;
+  box-shadow: var(--ring);
+}
+
+.mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #071108;
+  background: #8df7a7;
+  box-shadow: 0 0 28px rgba(141, 247, 167, 0.35);
+}
+
+@media (max-width: 900px) {
+  .brand {
+    top: 24px;
+    left: 20px;
+  }
+}

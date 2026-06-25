@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { cn } from '@/shared/lib/cn';
@@ -20,10 +21,63 @@ export function TrackQueue() {
   const state = useRadioState();
   const catalogLoaded = useCatalogLoaded();
   const current = useTrackMeta(state.trackId);
+  const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null);
+  const [regenerated, setRegenerated] = useState(false);
+  const feedbackLabel =
+    feedback === 'like'
+      ? 'Station saved'
+      : feedback === 'dislike'
+        ? 'Tuning away'
+        : regenerated
+          ? 'Queue refreshed'
+          : 'Feedback';
 
   return (
     <aside className={styles.root} aria-label="Up next" aria-busy={!catalogLoaded || undefined}>
-      <h3 className={styles.heading}>Up next</h3>
+      <div className={styles.header}>
+        <h3 className={styles.heading}>Up next</h3>
+        <div className={styles.feedbackStatus} aria-live="polite">
+          {feedbackLabel}
+        </div>
+      </div>
+
+      <div className={styles.feedbackBar} aria-label="Playlist feedback">
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={cn(styles.action, feedback === 'like' && styles.actionActive)}
+            onClick={() => {
+              setRegenerated(false);
+              setFeedback((value) => (value === 'like' ? null : 'like'));
+            }}
+            aria-pressed={feedback === 'like'}
+          >
+            Like
+          </button>
+          <button
+            type="button"
+            className={cn(styles.action, feedback === 'dislike' && styles.actionActive)}
+            onClick={() => {
+              setRegenerated(false);
+              setFeedback((value) => (value === 'dislike' ? null : 'dislike'));
+            }}
+            aria-pressed={feedback === 'dislike'}
+          >
+            Dislike
+          </button>
+          <button
+            type="button"
+            className={cn(styles.action, regenerated && styles.actionActive)}
+            onClick={() => {
+              setFeedback(null);
+              setRegenerated(true);
+            }}
+            aria-pressed={regenerated}
+          >
+            Regenerate
+          </button>
+        </div>
+      </div>
 
       {!catalogLoaded ? (
         <>

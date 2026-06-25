@@ -9,6 +9,7 @@ import type { AudioRefs, StoreRefs } from './sessionRefs';
 
 export interface RadioHandlers {
   handleStart: (intent: SessionIntent) => Promise<void>;
+  handleReturnToSetup: () => void;
   handleTogglePause: () => void;
   handleSkipTrack: () => void;
   handleSkipDj: () => void;
@@ -64,6 +65,14 @@ export function useRadioHandlers({
     store.dispatchRef.current({ type: 'toggle_pause' });
   }, [store]);
 
+  const handleReturnToSetup = useCallback(() => {
+    audio.audioRef.current?.pause();
+    if (audio.audioRef.current) audio.audioRef.current.currentTime = 0;
+    audio.audioBusRef.current?.skipDj();
+    store.dispatchRef.current({ type: 'reset' });
+    setAnalyser(audio.audioBusRef.current?.getAnalyser() ?? null);
+  }, [store, audio, setAnalyser]);
+
   // "Continue ▶": end the talk break now and move to the next track.
   const handleContinue = useCallback(() => {
     if (!store.stateRef.current.inBreak) return;
@@ -110,6 +119,7 @@ export function useRadioHandlers({
 
   return {
     handleStart,
+    handleReturnToSetup,
     handleTogglePause,
     handleSkipTrack,
     handleSkipDj,

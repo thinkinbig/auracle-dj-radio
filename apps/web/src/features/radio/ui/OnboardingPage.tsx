@@ -1,7 +1,6 @@
 import type { SessionIntent } from '@auracle/shared';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { isCurating } from '@/features/radio/session/playbackSelectors';
-import { DJ_NAME } from '@/shared/lib/constants';
 import { IntentOnboarding } from './IntentOnboarding';
 import styles from './OnboardingPage.module.css';
 
@@ -17,20 +16,32 @@ export function OnboardingPage() {
 
   return (
     <div className={styles.page}>
-      <main className={styles.frame}>
-        <header className={styles.brand}>
-          <span className={styles.logo} aria-hidden>
-            {DJ_NAME.charAt(0)}
-          </span>
-          <div>
-            <h1 className={styles.name}>{DJ_NAME}</h1>
-            <p className={styles.tagline}>Not a playlist. A station.</p>
+      <main className={styles.frame} aria-labelledby="mood-title">
+        <section className={styles.copy}>
+          <p className={styles.eyebrow}>Personal station</p>
+          <h1 id="mood-title">Ready when you are.</h1>
+          <p className={styles.lede}>Choose your mood and moment.</p>
+          <div className={styles.previewPanel} aria-hidden>
+            <div className={styles.albumPreview}>
+              <div className={styles.albumBack} />
+              <div className={styles.albumArt}>
+                <span />
+              </div>
+            </div>
+            <div className={styles.previewText}>
+              <span>Next up</span>
+              <strong>Adaptive mix</strong>
+              <small>Live DJ flow</small>
+            </div>
           </div>
-        </header>
-        <IntentOnboarding
-          onStart={(intent: SessionIntent) => void handleStart(intent)}
-          disabled={curating}
-        />
+        </section>
+
+        <section className={styles.intentCard}>
+          <IntentOnboarding
+            onStart={(intent: SessionIntent) => void handleStart(intent)}
+            disabled={curating}
+          />
+        </section>
       </main>
     </div>
   );

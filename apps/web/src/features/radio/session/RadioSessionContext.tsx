@@ -5,6 +5,7 @@ import type { PlaybackState } from '@/features/radio/session/types';
 
 export interface RadioActions {
   handleStart: (intent: SessionIntent) => Promise<void>;
+  handleReturnToSetup: () => void;
   handleTogglePause: () => void;
   handleSkipTrack: () => void;
   handleSkipDj: () => void;
@@ -32,6 +33,7 @@ export function RadioSessionProvider({ children }: { children: ReactNode }) {
     micAnalyser: session.micAnalyser,
     actions: {
       handleStart: session.handleStart,
+      handleReturnToSetup: session.handleReturnToSetup,
       handleTogglePause: session.handleTogglePause,
       handleSkipTrack: session.handleSkipTrack,
       handleSkipDj: session.handleSkipDj,
