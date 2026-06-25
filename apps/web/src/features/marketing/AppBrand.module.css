@@ -44,17 +44,6 @@ button.brand:focus-visible {
   box-shadow: var(--ring);
 }
 
-.mark {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  color: #071108;
-  background: #8df7a7;
-  box-shadow: 0 0 28px rgba(141, 247, 167, 0.35);
-}
-
 @media (max-width: 900px) {
   .brand {
     top: 24px;

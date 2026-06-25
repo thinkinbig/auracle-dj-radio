@@ -105,13 +105,22 @@ Live 模型 env：`GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview`（见 `aurac
 ```sql
 -- tracks: id, title, artist, energy, tempo, genre, mood, embedding_json, file_path, intro_offset_ms NULL
 -- session_events: session_id, ts, event_type, payload_json
+-- auth_users / auth_sessions: 见 memory-service auth-store（评估 per-user）
 ```
 
 ---
 
-## 用户系统：单用户，无登录
+## 用户与个性化边界
 
-- `user_id` 硬编码 `"auracle_user"`
+| 场景 | `user_id` |
+|------|-----------|
+| 登录用户 | `auth_users.id` |
+| 匿名 demo | `auracle_anonymous` |
+| 用户研究 | **每人独立账号**（禁止 anonymous） |
+
+mem0 `userId` 与 `skipRateByEnergy` 聚合均跟上述 id（⏳ P0 实施）。详见 `auracle_memory_decision.md`、`auracle_personalization_plan.md`。
+
+**实现状态**：auth 已有；session 创建与 mem0 绑定为 P0。
 
 ---
 
@@ -134,7 +143,7 @@ const memory = new Memory({
   vectorStore: { provider: "qdrant", config: { url: QDRANT_URL, collectionName: "auracle_memories", dimension: 3072 } },
   historyDbPath: AURACLE_MEM0_HISTORY_DB,
 });
-// userId: "auracle_user", metadata.run_id: session_id
+// userId: per-user 或 auracle_anonymous; runId: session_id
 ```
 
 见 `auracle_memory_decision.md` 完整配置与 `docker-compose.yml`。

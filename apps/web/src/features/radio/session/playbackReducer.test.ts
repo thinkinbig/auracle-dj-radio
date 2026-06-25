@@ -106,6 +106,31 @@ describe('playbackReducer', () => {
     expect(advanced.currentTrackIndex).toBe(1);
   });
 
+  it('records playlist feedback without mutating the queue (server owns the tracklist)', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    for (const feedback of ['like', 'dislike', 'regenerate'] as const) {
+      const next = playbackReducer(base, { type: 'playlist_feedback', feedback });
+      expect(next.playlistFeedback).toBe(feedback);
+      // The queue and current track are left for the server's `tracklist_updated`.
+      expect(next.remainingTrackIds).toEqual(base.remainingTrackIds);
+      expect(next.trackId).toBe(base.trackId);
+    }
+  });
+
+  it('clears playlist feedback when the server pushes an updated tracklist', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const liked = playbackReducer(base, { type: 'playlist_feedback', feedback: 'like' });
+    const updated = playbackReducer(liked, { type: 'tracklist_updated', remainingIds: ['a', 'b'] });
+    expect(updated.playlistFeedback).toBeNull();
+    expect(updated.remainingTrackIds).toEqual(['a', 'b']);
+  });
+
   it('counts a fresh user utterance once, not per streamed chunk', () => {
     const base = playbackReducer(createInitialPlaybackState(), {
       type: 'start',

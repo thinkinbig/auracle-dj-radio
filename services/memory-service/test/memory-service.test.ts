@@ -1,73 +1,12 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { Energy, FlowTrackRef, TrackCandidate, TrackMeta } from "@auracle/shared";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AuthStore } from "../src/auth-store.js";
 import { EventsDb } from "../src/events-db.js";
-import { SessionStore } from "../src/session/store.js";
-import type {
-  MusicEngineClient,
-  PlanResponse,
-  PlanTracklistRequest,
-  SearchCatalogRequest,
-} from "../src/music-engine-client.js";
 import type { MemoryClient } from "../src/memory/client.js";
-import type { InjectPayload, ProxyClient } from "../src/proxy-client.js";
-import type { Registration } from "../src/dj/registration.js";
 import { buildServer } from "../src/server.js";
 
-function candidate(id: string, energy: Energy): TrackCandidate {
-  return { id, energy, tempo: 90 + energy * 5, genre: `g${id}`, mood: "calm", scene: "studying" };
-}
-
-/** Canned music-engine: full → a,b,c; replan → d,e (distinct so replan is visible). */
-class FakeMusicEngine implements MusicEngineClient {
-  planCalls: PlanTracklistRequest[] = [];
-  async planTracklist(req: PlanTracklistRequest): Promise<PlanResponse> {
-    this.planCalls.push(req);
-    const candidates =
-      req.mode === "replan"
-        ? [candidate("d", 2), candidate("e", 4)]
-        : [candidate("a", 1), candidate("b", 3), candidate("c", 5)];
-    const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({
-      id: c.id,
-      flow_position: i + 1,
-      reason: "fake",
-    }));
-    return {
-      result: { session_title: "Fake Set, vol. 1", session_subtitle: "25 min · building", arc: "build", tracklist },
-      violations: [],
-      candidates,
-    };
-  }
-  async searchCatalog(_req: SearchCatalogRequest): Promise<{ candidates: TrackCandidate[] }> {
-    return { candidates: [candidate("a", 1)] };
-  }
-  async getTrack(id: string): Promise<TrackMeta | undefined> {
-    if (id !== "a") return undefined;
-    return {
-      id: "a",
-      title: "Opening Track",
-      artist: "Test Artist",
-      artistId: "ar1",
-      albumId: "al1",
-      albumTitle: "Test Album",
-      albumCoverUrl: "/covers/a.jpg",
-      artistPhotoUrl: "/artists/ar1.jpg",
-      lore: "A gentle opener.",
-      energy: 1,
-      tempo: 70,
-      genre: "ambient",
-      mood: "calm",
-      scene: "studying",
-      filePath: "data/audio/a.mp3",
-      introOffsetMs: null,
-    };
-  }
-}
-
-/** Records remember() calls so condition-C writes are assertable; recall stays empty. */
 class RecordingMemory implements MemoryClient {
   readonly enabled = true;
   readonly degraded = false;
@@ -80,42 +19,18 @@ class RecordingMemory implements MemoryClient {
   }
 }
 
-/** Captures the registration push (session creation) and Lane-3 inject calls. */
-class FakeProxyClient implements ProxyClient {
-  calls: { sessionId: string; token: string; reg: Registration }[] = [];
-  injectCalls: { sessionId: string; payload: InjectPayload }[] = [];
-  async register(sessionId: string, token: string, reg: Registration): Promise<void> {
-    this.calls.push({ sessionId, token, reg });
-  }
-  async inject(sessionId: string, payload: InjectPayload): Promise<void> {
-    this.injectCalls.push({ sessionId, payload });
-  }
-}
-
 let app: ReturnType<typeof buildServer>;
 let events: EventsDb;
 let auth: AuthStore;
-let music: FakeMusicEngine;
 let memory: RecordingMemory;
-let proxy: FakeProxyClient;
 
 beforeAll(async () => {
   const dbPath = join(mkdtempSync(join(tmpdir(), "memory-service-")), "events.sqlite");
   const authDbPath = join(mkdtempSync(join(tmpdir(), "memory-service-auth-")), "auth.sqlite");
   events = new EventsDb(dbPath);
   auth = new AuthStore(authDbPath);
-  music = new FakeMusicEngine();
   memory = new RecordingMemory();
-  proxy = new FakeProxyClient();
-  app = buildServer({
-    store: new SessionStore(),
-    events,
-    music,
-    memory,
-    proxy,
-    proxyPublicUrl: "http://proxy.test",
-    auth,
-  });
+  app = buildServer({ events, memory, auth });
   await app.ready();
 });
 
@@ -192,271 +107,42 @@ describe("memory-service /auth", () => {
   });
 });
 
-describe("memory-service /sessions", () => {
-  it("creates a session sourced from music-engine and logs session_created", async () => {
-    const res = await app.inject({
-      method: "POST",
-      url: "/sessions",
-      payload: { mood: "calm", scene: "studying", condition: "C" },
-    });
-    expect(res.statusCode).toBe(200);
-    const body = res.json<{ session_id: string; tracklist: FlowTrackRef[]; host_mode: string }>();
-    expect(body.tracklist.map((t) => t.id)).toEqual(["a", "b", "c"]);
-    expect(body.host_mode).toBeTruthy();
-    expect(music.planCalls).toHaveLength(1);
-    expect(events.countEvents(body.session_id)).toBe(1);
-  });
+describe("memory-service internal memory/events API", () => {
+  it("exposes recall, remember, recordEvent, and skipRateByEnergy for agent-harness", async () => {
+    const recall = await app.inject({ method: "POST", url: "/memory/recall", payload: { query: "calm studying" } });
+    expect(recall.statusCode).toBe(200);
+    expect(recall.json<{ memories: string }>().memories).toBe("");
 
-  it("pushes the registration to the proxy and returns proxy_url + token", async () => {
-    const before = proxy.calls.length;
-    const res = await app.inject({
-      method: "POST",
-      url: "/sessions",
-      payload: { mood: "calm", scene: "studying", condition: "C" },
-    });
-    const body = res.json<{ session_id: string; proxy_url: string; token: string }>();
-    expect(body.proxy_url).toBe("http://proxy.test");
-    expect(body.token).toBeTruthy();
-
-    expect(proxy.calls.length).toBe(before + 1);
-    const pushed = proxy.calls.at(-1)!;
-    expect(pushed.sessionId).toBe(body.session_id);
-    expect(pushed.token).toBe(body.token);
-    expect(pushed.reg.systemInstruction).toContain("Fake Set, vol. 1");
-    expect(pushed.reg.tools.map((t) => t.name)).toContain("skip_track");
-  });
-
-  it("rejects a session missing mood/scene", async () => {
-    const res = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm" } });
-    expect(res.statusCode).toBe(400);
-  });
-
-  it("returns a session snapshot, 404 for unknown", async () => {
-    const created = await app.inject({
-      method: "POST",
-      url: "/sessions",
-      payload: { mood: "calm", scene: "studying" },
-    });
-    const { session_id } = created.json<{ session_id: string }>();
-
-    const snap = await app.inject({ method: "GET", url: `/sessions/${session_id}` });
-    expect(snap.statusCode).toBe(200);
-    const body = snap.json<{ current_track_index: number; remaining: FlowTrackRef[] }>();
-    expect(body.current_track_index).toBe(0);
-    expect(body.remaining.map((t) => t.id)).toEqual(["b", "c"]);
-
-    const missing = await app.inject({ method: "GET", url: "/sessions/nope" });
-    expect(missing.statusCode).toBe(404);
-  });
-
-  it("serves a pre-baked registration contract, 404 for unknown", async () => {
-    const created = await app.inject({
-      method: "POST",
-      url: "/sessions",
-      payload: { mood: "calm", scene: "studying" },
-    });
-    const { session_id, session_title } = created.json<{ session_id: string; session_title: string }>();
-
-    const res = await app.inject({ method: "GET", url: `/sessions/${session_id}/registration` });
-    expect(res.statusCode).toBe(200);
-    const reg = res.json<{ systemInstruction: string; tools: { name: string }[]; openingCue: string }>();
-    expect(reg.systemInstruction).toContain(session_title);
-    expect(reg.tools.map((t) => t.name)).toEqual([
-      "skip_track",
-      "mood_change",
-      "change_host_mode",
-      "pause_playback",
-      "record_preference",
-    ]);
-    expect(reg.openingCue).toContain("[opening");
-    expect(reg.openingCue).toContain("Opening Track");
-
-    const missing = await app.inject({ method: "GET", url: "/sessions/nope/registration" });
-    expect(missing.statusCode).toBe(404);
-  });
-});
-
-describe("memory-service orchestration", () => {
-  async function createSession(condition = "C"): Promise<string> {
-    const res = await app.inject({
-      method: "POST",
-      url: "/sessions",
-      payload: { mood: "calm", scene: "studying", condition },
-    });
-    return res.json<{ session_id: string }>().session_id;
-  }
-
-  it("change_host_mode updates state and returns the Lane-1 envelope", async () => {
-    const id = await createSession();
-    const res = await app.inject({
-      method: "POST",
-      url: `/sessions/${id}/tool`,
-      payload: { name: "change_host_mode", args: { host_mode: "hype" } },
-    });
-    expect(res.statusCode).toBe(200);
-    const env = res.json<{ gemini_result: { host_mode: string; changed: boolean }; ui_events: { type: string; intent: { type: string; host_mode: string } }[] }>();
-    expect(env.gemini_result).toMatchObject({ host_mode: "hype", changed: true });
-    expect(env.ui_events[0]).toMatchObject({ type: "intent", intent: { type: "host_mode_changed", host_mode: "hype" } });
-
-    const snap = await app.inject({ method: "GET", url: `/sessions/${id}` });
-    expect(snap.json<{ host_mode: string }>().host_mode).toBe("hype");
-  });
-
-  it("mood_change acks immediately and pushes tracklist_updated via Lane 3", async () => {
-    const id = await createSession("C");
     const beforeFacts = memory.facts.length;
-    const beforeInjects = proxy.injectCalls.length;
-    const res = await app.inject({
+    const remembered = await app.inject({
       method: "POST",
-      url: `/sessions/${id}/tool`,
-      payload: { name: "mood_change", args: { mood: "darker", energy_delta: "heavier" } },
+      url: "/memory/remember",
+      payload: { fact: "likes sparse piano", session_id: "internal-s1" },
     });
-    expect(res.statusCode).toBe(200);
-    const env = res.json<{ gemini_result: { ok: boolean }; ui_events: { type: string }[] }>();
-    expect(env.gemini_result.ok).toBe(true);
-    // The slow tracklist no longer rides the synchronous tool response — only the
-    // intent ack does; the new list arrives later over Lane 3.
-    expect(env.ui_events.some((e) => e.type === "intent")).toBe(true);
-    expect(env.ui_events.some((e) => e.type === "tracklist_updated")).toBe(false);
-
-    await vi.waitFor(() => expect(proxy.injectCalls.length).toBe(beforeInjects + 1));
-    const pushed = proxy.injectCalls.at(-1)!;
-    expect(pushed.sessionId).toBe(id);
-    const updated = pushed.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
-      | { remaining: { id: string }[] }
-      | undefined;
-    expect(updated?.remaining.map((r) => r.id)).toEqual(["d", "e"]);
-    expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
+    expect(remembered.statusCode).toBe(200);
     expect(memory.facts.length).toBe(beforeFacts + 1);
-    expect(memory.facts.at(-1)).toContain("darker");
-  });
 
-  it("condition A pins the playlist (mood_change neither replans nor injects)", async () => {
-    const id = await createSession("A");
-    const beforeInjects = proxy.injectCalls.length;
-    const res = await app.inject({
+    const recorded = await app.inject({
       method: "POST",
-      url: `/sessions/${id}/tool`,
-      payload: { name: "mood_change", args: { mood: "darker" } },
+      url: "/events",
+      payload: { session_id: "internal-s1", event_type: "skip_latency", payload: { energy: 3 } },
     });
-    const env = res.json<{ ui_events: { type: string }[] }>();
-    expect(env.ui_events.some((e) => e.type === "tracklist_updated")).toBe(false);
-    // Let the fire-and-forget background task settle, then confirm it was a noop.
-    await new Promise((r) => setTimeout(r, 0));
-    expect(proxy.injectCalls.length).toBe(beforeInjects);
+    expect(recorded.statusCode).toBe(200);
+    expect(events.countEvents("internal-s1")).toBe(1);
+
+    const weights = await app.inject({ method: "POST", url: "/events/skip-rate-by-energy", payload: { recent_sessions: 10 } });
+    expect(weights.statusCode).toBe(200);
+    expect(weights.json<{ weights: Record<string, number> }>().weights[3]).toBeGreaterThan(0);
   });
 
-  it("record_preference persists only for condition C", async () => {
-    const idC = await createSession("C");
-    const beforeC = memory.facts.length;
-    await app.inject({ method: "POST", url: `/sessions/${idC}/tool`, payload: { name: "record_preference", args: { fact: "loves vinyl crackle" } } });
-    expect(memory.facts.length).toBe(beforeC + 1);
+  it("rejects malformed internal API calls", async () => {
+    const recall = await app.inject({ method: "POST", url: "/memory/recall", payload: {} });
+    expect(recall.statusCode).toBe(400);
 
-    const idB = await createSession("B");
-    const beforeB = memory.facts.length;
-    await app.inject({ method: "POST", url: `/sessions/${idB}/tool`, payload: { name: "record_preference", args: { fact: "ignored" } } });
-    expect(memory.facts.length).toBe(beforeB);
-  });
+    const remember = await app.inject({ method: "POST", url: "/memory/remember", payload: { fact: "x" } });
+    expect(remember.statusCode).toBe(400);
 
-  it("now_playing mirrors the playhead and times the skip round trip", async () => {
-    const id = await createSession("C");
-    expect(events.countEvents(id)).toBe(1); // session_created
-
-    await app.inject({ method: "POST", url: `/sessions/${id}/tool`, payload: { name: "skip_track" } });
-    expect(events.countEvents(id)).toBe(2); // + skip_track
-
-    const res = await app.inject({ method: "POST", url: `/sessions/${id}/now_playing`, payload: { track_id: "b" } });
-    expect(res.statusCode).toBe(200);
-    expect(res.json<{ current_track_index: number }>().current_track_index).toBe(1);
-    expect(events.countEvents(id)).toBe(3); // + skip_latency
-
-    const unknown = await app.inject({ method: "POST", url: `/sessions/${id}/now_playing`, payload: { track_id: "zzz" } });
-    expect(unknown.statusCode).toBe(400);
-  });
-
-  it("now_playing writes a skip signal to mem0 when user skips quickly (condition C only)", async () => {
-    const idC = await createSession("C");
-    const beforeC = memory.facts.length;
-
-    // Register start time for track "a", then skip it.
-    await app.inject({ method: "POST", url: `/sessions/${idC}/now_playing`, payload: { track_id: "a" } });
-    await app.inject({ method: "POST", url: `/sessions/${idC}/tool`, payload: { name: "skip_track" } });
-    await app.inject({ method: "POST", url: `/sessions/${idC}/now_playing`, payload: { track_id: "b" } });
-
-    expect(memory.facts.length).toBe(beforeC + 1);
-    expect(memory.facts.at(-1)).toMatch(/skipped a track after \d+s/);
-
-    // Condition B: same flow should NOT write.
-    const idB = await createSession("B");
-    const beforeB = memory.facts.length;
-    await app.inject({ method: "POST", url: `/sessions/${idB}/now_playing`, payload: { track_id: "a" } });
-    await app.inject({ method: "POST", url: `/sessions/${idB}/tool`, payload: { name: "skip_track" } });
-    await app.inject({ method: "POST", url: `/sessions/${idB}/now_playing`, payload: { track_id: "b" } });
-    expect(memory.facts.length).toBe(beforeB);
-  });
-
-  it("cue builds an end-of-track break and pushes it via Lane-3 inject_text", async () => {
-    const id = await createSession("C");
-    const before = proxy.injectCalls.length;
-    const res = await app.inject({ method: "POST", url: `/sessions/${id}/cue`, payload: { kind: "break" } });
-    expect(res.statusCode).toBe(200);
-    expect(proxy.injectCalls.length).toBe(before + 1);
-    const pushed = proxy.injectCalls.at(-1)!;
-    expect(pushed.sessionId).toBe(id);
-    expect(pushed.payload.inject_text).toContain("[break");
-    expect(pushed.payload.inject_text).toContain("Opening Track");
-
-    const missing = await app.inject({ method: "POST", url: "/sessions/nope/cue", payload: { kind: "break" } });
-    expect(missing.statusCode).toBe(404);
-  });
-
-  it("host-mode (UI pill) updates state, logs it, and nudges the DJ once per change", async () => {
-    const id = await createSession("C");
-    const beforeEvents = events.countEvents(id);
-    const beforeInjects = proxy.injectCalls.length;
-
-    const res = await app.inject({ method: "POST", url: `/sessions/${id}/host-mode`, payload: { host_mode: "hype" } });
-    expect(res.statusCode).toBe(200);
-    expect(res.json<{ host_mode: string; changed: boolean }>()).toMatchObject({ host_mode: "hype", changed: true });
-    expect(events.countEvents(id)).toBe(beforeEvents + 1);
-    expect(proxy.injectCalls.length).toBe(beforeInjects + 1);
-    expect(proxy.injectCalls.at(-1)!.payload.inject_text).toContain("hype");
-    expect((await app.inject({ method: "GET", url: `/sessions/${id}` })).json<{ host_mode: string }>().host_mode).toBe("hype");
-
-    // Re-applying the same mode is a no-op: no event, no nudge.
-    const again = await app.inject({ method: "POST", url: `/sessions/${id}/host-mode`, payload: { host_mode: "hype" } });
-    expect(again.json<{ changed: boolean }>().changed).toBe(false);
-    expect(events.countEvents(id)).toBe(beforeEvents + 1);
-    expect(proxy.injectCalls.length).toBe(beforeInjects + 1);
-
-    const bad = await app.inject({ method: "POST", url: `/sessions/${id}/host-mode`, payload: { host_mode: "nope" } });
-    expect(bad.statusCode).toBe(400);
-  });
-
-  it("events records a client analytics event, 400/404 on bad input", async () => {
-    const id = await createSession("C");
-    const before = events.countEvents(id);
-    const res = await app.inject({
-      method: "POST",
-      url: `/sessions/${id}/events`,
-      payload: { event_type: "track_started", payload: { track_id: "a" } },
-    });
-    expect(res.statusCode).toBe(200);
-    expect(events.countEvents(id)).toBe(before + 1);
-
-    const noType = await app.inject({ method: "POST", url: `/sessions/${id}/events`, payload: { payload: {} } });
-    expect(noType.statusCode).toBe(400);
-
-    const missing = await app.inject({ method: "POST", url: "/sessions/nope/events", payload: { event_type: "x" } });
-    expect(missing.statusCode).toBe(404);
-  });
-
-  it("rejects unknown tools and missing sessions", async () => {
-    const id = await createSession("C");
-    const unknown = await app.inject({ method: "POST", url: `/sessions/${id}/tool`, payload: { name: "frobnicate" } });
-    expect(unknown.json<{ gemini_result: { ok: boolean } }>().gemini_result.ok).toBe(false);
-
-    const missing = await app.inject({ method: "POST", url: "/sessions/nope/tool", payload: { name: "skip_track" } });
-    expect(missing.statusCode).toBe(404);
+    const event = await app.inject({ method: "POST", url: "/events", payload: { session_id: "s1" } });
+    expect(event.statusCode).toBe(400);
   });
 });

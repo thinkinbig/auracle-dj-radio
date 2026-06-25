@@ -1,4 +1,4 @@
-# Prod / demo: qdrant + music-engine + memory-service + rt-llm-proxy + web.
+# Prod / demo: qdrant + music-engine + memory-service + agent-harness + rt-llm-proxy + web.
 # web (nginx) serves the SPA *and* the static catalog/audio/images (api+web merge).
 # Only web (host :8080) and the host-networked proxy are reachable from outside.
 # Requires repo-root .env (see .env.example). Circuit breaker defaults ON via NODE_ENV=production.
@@ -50,6 +50,21 @@ services:
       MEMORY_EVENTS_DB_PATH: /data/auracle-events.sqlite
       AURACLE_MEM0_HISTORY_DB: /data/mem0/history.db
       QDRANT_URL: http://qdrant:6333
+    volumes:
+      - memory_service_data:/data
+    depends_on:
+      qdrant:
+        condition: service_healthy
+
+  agent-harness:
+    build:
+      context: .
+      dockerfile: services/agent-harness/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      AGENT_HARNESS_PORT: "3030"
+      MEMORY_SERVICE_URL: http://memory-service:3020
       MUSIC_ENGINE_URL: http://music-engine:3010
       # Proxy runs on the host network (WebRTC) — reach it via the host gateway.
       PROXY_URL: http://host.docker.internal:8090
@@ -57,14 +72,18 @@ services:
       - "host.docker.internal:host-gateway"
     # Loopback-only publish so the host-networked proxy can reach Lane-1 tools.
     ports:
-      - "127.0.0.1:3020:3020"
-    volumes:
-      - memory_service_data:/data
+      - "127.0.0.1:3030:3030"
     depends_on:
-      qdrant:
-        condition: service_healthy
+      memory-service:
+        condition: service_started
       music-engine:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3030/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   rt-llm-proxy:
     build:
@@ -79,9 +98,10 @@ services:
     # lets it use the host's real interfaces (single-host / LAN demo).
     network_mode: host
     env_file: .env
-    command: ["-addr", ":8090", "-memory-service", "http://localhost:3020"]
+    command: ["-addr", ":8090", "-memory-service", "http://localhost:3030"]
     depends_on:
-      - memory-service
+      agent-harness:
+        condition: service_healthy
 
   web:
     build:
@@ -94,6 +114,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
+      agent-harness:
+        condition: service_started
       memory-service:
         condition: service_started
       rt-llm-proxy:

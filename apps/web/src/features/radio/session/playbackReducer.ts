@@ -1,7 +1,7 @@
 import type { CreateSessionResponse, Phase } from '@auracle/shared';
 import { getTrackMeta } from '@/data/trackCatalog';
 import { DEMO_SESSION } from '@/data/demoData';
-import type { PlaybackState, TranscriptLine, UiPhase } from '@/features/radio/session/types';
+import type { PlaybackState, PlaylistFeedback, TranscriptLine, UiPhase } from '@/features/radio/session/types';
 
 export type PlaybackAction =
   | { type: 'reset' }
@@ -19,6 +19,7 @@ export type PlaybackAction =
   | { type: 'transcript'; role: 'user' | 'model'; text: string }
   | { type: 'server_phase'; phase: Phase; trackIndex?: number }
   | { type: 'tracklist_updated'; remainingIds: string[]; sessionTitle?: string; sessionSubtitle?: string }
+  | { type: 'playlist_feedback'; feedback: PlaylistFeedback }
   | { type: 'set_host_mode'; hostMode: CreateSessionResponse['host_mode'] };
 
 export function createInitialPlaybackState(): PlaybackState {
@@ -50,6 +51,7 @@ export function createInitialPlaybackState(): PlaybackState {
     inBreak: false,
     isTalking: false,
     userUtteranceCount: 0,
+    playlistFeedback: null,
   };
 }
 
@@ -154,6 +156,7 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         inBreak: false,
         isTalking: false,
         userUtteranceCount: 0,
+        playlistFeedback: null,
       };
     }
     case 'transcript': {
@@ -206,7 +209,12 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         remainingTrackIds: action.remainingIds,
         sessionTitle: action.sessionTitle ?? state.sessionTitle,
         sessionSubtitle: action.sessionSubtitle ?? state.sessionSubtitle,
+        playlistFeedback: null,
       };
+    case 'playlist_feedback':
+      // The signal is posted to the server for analytics/personalization; the
+      // queue itself only changes when the server pushes `tracklist_updated`.
+      return { ...state, playlistFeedback: action.feedback };
     case 'set_host_mode':
       return { ...state, hostMode: action.hostMode };
     case 'tick':

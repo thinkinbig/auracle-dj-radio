@@ -4,21 +4,11 @@ import styles from './AppBrand.module.css';
 interface AppBrandProps {
   onClick?: () => void;
   label?: string;
-  variant?: 'mark' | 'wordmark';
 }
 
-export function AppBrand({ onClick, label = DJ_NAME, variant = 'mark' }: AppBrandProps) {
-  const className = `${styles.brand} ${variant === 'wordmark' ? styles.wordmark : ''}`;
-  const content = (
-    <>
-      {variant === 'mark' && (
-        <span className={styles.mark} aria-hidden>
-          A
-        </span>
-      )}
-      <span>{DJ_NAME}</span>
-    </>
-  );
+export function AppBrand({ onClick, label = DJ_NAME }: AppBrandProps) {
+  const className = `${styles.brand} ${styles.wordmark}`;
+  const content = <span>{DJ_NAME}</span>;
 
   if (onClick) {
     return (

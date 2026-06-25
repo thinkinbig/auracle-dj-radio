@@ -7,7 +7,9 @@ import type { ServerResponse } from 'node:http';
 
 const srcDir = resolve(dirname(fileURLToPath(import.meta.url)), 'src');
 
-/** memory-service owns session orchestration (refactor-three-services). */
+/** agent-harness owns session orchestration. */
+const harnessTarget = process.env.AGENT_HARNESS_PROXY_TARGET ?? 'http://localhost:3030';
+/** memory-service owns auth, memory, and analytics events. */
 const memoryTarget = process.env.MEMORY_PROXY_TARGET ?? 'http://localhost:3020';
 /** Go rt_llm_proxy receives the browser's WebRTC SDP offer. */
 const proxyTarget = process.env.PROXY_PROXY_TARGET ?? 'http://localhost:8080';
@@ -66,8 +68,8 @@ export default defineConfig(() => {
       port: 5173,
       strictPort: true,
       proxy: {
-        // Session orchestration → memory-service.
-        '/sessions': memoryTarget,
+        // Session orchestration → agent-harness.
+        '/sessions': harnessTarget,
         // Lightweight login/register endpoints → memory-service.
         '/auth': memoryTarget,
         // WebRTC SDP offer: same-origin in dev (no CORS in Go). The /proxy prefix

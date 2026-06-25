@@ -47,6 +47,36 @@ function offerUrl(proxyUrl: string, model: string): string {
   return `${proxyUrl.replace(/\/$/, '')}/?model=${encodeURIComponent(model)}`;
 }
 
+const MAX_PENDING_TEXT_MESSAGES = 20;
+
+interface TextDataChannel {
+  readonly readyState: RTCDataChannelState;
+  send(text: string): void;
+  addEventListener(type: 'open', listener: () => void): void;
+}
+
+export function createBufferedTextSender(dc: TextDataChannel): (text: string) => void {
+  const pending: string[] = [];
+
+  const flush = () => {
+    if (dc.readyState !== 'open') return;
+    const batch = pending.splice(0);
+    for (const text of batch) dc.send(text);
+  };
+
+  dc.addEventListener('open', flush);
+
+  return (text: string) => {
+    if (dc.readyState === 'open') {
+      dc.send(text);
+      return;
+    }
+    if (dc.readyState !== 'connecting') return;
+    if (pending.length >= MAX_PENDING_TEXT_MESSAGES) pending.shift();
+    pending.push(text);
+  };
+}
+
 /**
  * Establish the live DJ session directly with the proxy over WebRTC. The
  * memory-service is never in the media path: it has already pushed the session
@@ -65,6 +95,7 @@ export async function connectLiveSessionRtc(
 
   const pc = new RTCPeerConnection({}); // no ICE servers — host candidates only
   const dc = pc.createDataChannel('data', { ordered: true });
+  const sendText = createBufferedTextSender(dc);
 
   let closed = false;
   const cleanup = () => {
@@ -125,9 +156,7 @@ export async function connectLiveSessionRtc(
   await pc.setRemoteDescription({ type: 'answer', sdp: answer });
 
   return {
-    sendText(text) {
-      if (dc.readyState === 'open') dc.send(text);
-    },
+    sendText,
     setMicEnabled(on) {
       for (const track of localStream.getAudioTracks()) track.enabled = on;
     },
