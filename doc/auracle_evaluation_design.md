@@ -93,6 +93,15 @@ A 条件：`mood_change` **不**触发重排（仅 DJ 口头回应或 noop）。
 - 每个 session：约 8 首、~25 分钟；Desktop Chrome  
 - 听完填问卷；客观指标从 `session_events` 自动计算  
 
+### 实验 SOP（评估部署）
+
+1. **账号**：实验员为每名被试预注册独立账号（email + 密码记录在分配表）；被试仅使用自己的凭据登录。  
+2. **部署**：构建 web 时设置 `VITE_EVAL_MODE=true`（隐藏「Try demo」/「Continue as guest」；onboarding 显示登录提示）。  
+3. **浏览器**：每名被试使用 **独立 Chrome profile**（或独立机器）；session 间清除站点数据或换 profile，避免 token / localStorage 串台。  
+4. **禁止**：guest 模式、`auracle_anonymous` 会话、多人共用同一浏览器 profile。  
+5. **校验**：`POST /sessions` 必须带有效 Bearer；过期 token 返回 **401**（前端清 token 并退回登录），不得静默降为 anonymous。  
+6. **条件分配**：由实验员在 harness 侧注入 `condition`（A/B/C）；被试界面不暴露条件代号。
+
 ---
 
 ## 日志要求

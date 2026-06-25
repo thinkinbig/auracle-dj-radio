@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { HostMode, SessionIntent } from '@auracle/shared';
 import { createAudioBus } from '../lib/liveAudio';
-import { createSession, postHostMode, postSessionEvent } from '../lib/sessionApi';
+import { createSession, postHostMode, postSessionEvent, SessionAuthError } from '../lib/sessionApi';
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
 import type { RadioCommands } from '../lib/radioCommands';
@@ -27,6 +27,7 @@ interface RadioHandlersInput {
   audio: AudioRefs;
   commands: RadioCommands;
   setAnalyser: (analyser: AnalyserNode | null) => void;
+  onAuthExpired?: () => void;
 }
 
 export function useRadioHandlers({
@@ -34,6 +35,7 @@ export function useRadioHandlers({
   audio,
   commands,
   setAnalyser,
+  onAuthExpired,
 }: RadioHandlersInput): RadioHandlers {
   const handleStart = useCallback(async (intent: SessionIntent) => {
     try {
@@ -50,11 +52,17 @@ export function useRadioHandlers({
       void prefetchTracks(session.tracklist.map((t) => t.id));
       store.dispatchRef.current({ type: 'start', session });
     } catch (err) {
+      if (err instanceof SessionAuthError) {
+        console.error('[radio] session auth expired');
+        store.dispatchRef.current({ type: 'reset' });
+        onAuthExpired?.();
+        return;
+      }
       console.error('[radio] start failed', err);
       void prefetchTracks(DEMO_SESSION.tracklist.map((t) => t.id));
       store.dispatchRef.current({ type: 'start', session: DEMO_SESSION });
     }
-  }, [store, audio, setAnalyser]);
+  }, [store, audio, setAnalyser, onAuthExpired]);
 
   const handleTogglePause = useCallback(() => {
     // Pausing during a talk break closes the window (mic off via the listening

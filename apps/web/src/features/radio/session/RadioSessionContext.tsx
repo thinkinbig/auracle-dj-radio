@@ -26,8 +26,14 @@ interface RadioSessionContextValue {
 
 const RadioSessionContext = createContext<RadioSessionContextValue | null>(null);
 
-export function RadioSessionProvider({ children }: { children: ReactNode }) {
-  const session = useRadioSession();
+export function RadioSessionProvider({
+  children,
+  onAuthExpired,
+}: {
+  children: ReactNode;
+  onAuthExpired?: () => void;
+}) {
+  const session = useRadioSession(onAuthExpired);
   const value: RadioSessionContextValue = {
     state: session.state,
     analyser: session.analyser,

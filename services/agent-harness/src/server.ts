@@ -1,5 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import type { Condition, SessionIntent } from "@auracle/shared";
+import { parseBearerToken, type Condition, type SessionIntent } from "@auracle/shared";
 import { AgentHarness } from "./harness/agent-harness.js";
 import type { MemoryServiceClient } from "./memory-service-client.js";
 import type { MusicEngineClient } from "./music-engine-client.js";
@@ -29,7 +29,12 @@ export function buildServer(deps: AgentHarnessDeps): FastifyInstance {
   app.post("/sessions", async (req, reply) => {
     const body = (req.body ?? {}) as Partial<SessionIntent> & { condition?: Condition };
     if (!harness.parseSessionIntent(body)) return reply.code(400).send({ error: "mood and scene are required" });
-    return harness.createSession(body as SessionIntent & { condition?: Condition });
+    const token = parseBearerToken(req.headers.authorization);
+    const resolved = await deps.memory.resolveSessionUser(token);
+    if (resolved.kind === "invalid_token") {
+      return reply.code(401).send({ error: "invalid or expired token" });
+    }
+    return harness.createSession(body as SessionIntent & { condition?: Condition }, resolved.userId);
   });
 
   app.get("/sessions/:id/registration", async (req, reply) => {

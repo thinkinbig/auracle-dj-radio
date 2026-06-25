@@ -5,11 +5,12 @@ import styles from './AuthStatus.module.css';
 interface AuthStatusProps {
   user: AuthUser;
   onLogout: () => void;
+  onOpenSound: () => void;
 }
 
 type AccountView = 'overview' | 'profile';
 
-export function AuthStatus({ user, onLogout }: AuthStatusProps) {
+export function AuthStatus({ user, onLogout, onOpenSound }: AuthStatusProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<AccountView>('overview');
   const rootRef = useRef<HTMLDivElement>(null);
@@ -73,18 +74,28 @@ export function AuthStatus({ user, onLogout }: AuthStatusProps) {
             <>
               <div className={styles.meta}>
                 <span>Auracle account</span>
-                <strong>{user.id === 'guest' ? 'Guest session' : 'Personal station'}</strong>
+                <strong>{user.id === 'guest' ? 'Demo station' : 'Your station'}</strong>
               </div>
 
               <div className={styles.menuList}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onOpenSound();
+                  }}
+                >
+                  <span>Sound</span>
+                  <small>Taste engineering — genres, learned prefs, signals</small>
+                </button>
                 <button type="button" onClick={() => setView('profile')}>
                   <span>Profile</span>
                   <small>Name and sign-in</small>
                 </button>
                 <div className={styles.activity}>
                   <span>Recent activity</span>
-                  <strong>Afterglow Radio</strong>
-                  <small>1 station session · demo catalog</small>
+                  <strong>{user.id === 'guest' ? 'Guest listening' : 'Session history'}</strong>
+                  <small>{user.id === 'guest' ? 'Demo catalog · no saved sound' : 'Ships with session history'}</small>
                 </div>
               </div>
             </>

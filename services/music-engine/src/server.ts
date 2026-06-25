@@ -83,6 +83,7 @@ export function buildServer(dbPath: string): MusicEngine {
         lastPlayedEnergy: r.lastPlayedEnergy ?? null,
         remainingSlots: r.remainingSlots ?? 0,
         energyWeights: b.energyWeights,
+        memories: b.memories ?? "",
       });
       return toPlanResponse(p);
     }

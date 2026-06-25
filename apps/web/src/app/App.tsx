@@ -8,6 +8,7 @@ import { LandingPage } from '@/features/marketing/LandingPage';
 import { logout, restoreUser } from '@/features/marketing/authApi';
 import { MoodPickerScreen } from '@/features/radio/ui/MoodPickerScreen';
 import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
+import { SoundScreen } from '@/features/sound/SoundScreen';
 import type { AuthUser } from '@auracle/shared';
 
 function AppContent() {
@@ -41,17 +42,22 @@ function AppContent() {
 }
 
 function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
+  const [showSound, setShowSound] = useState(false);
   const state = useRadioState();
   const { handleReturnToSetup } = useRadioActions();
   const appView = getAppView(state.phase);
+
+  if (showSound) {
+    return <SoundScreen user={user} onClose={() => setShowSound(false)} />;
+  }
 
   return (
     <>
       <AppBrand
         onClick={appView === 'playing' ? handleReturnToSetup : undefined}
-        label={appView === 'playing' ? 'Back to station setup' : undefined}
+        label={appView === 'playing' ? 'Set your station' : undefined}
       />
-      <AuthStatus user={user} onLogout={onLogout} />
+      <AuthStatus user={user} onLogout={onLogout} onOpenSound={() => setShowSound(true)} />
       <AppContent />
     </>
   );
@@ -82,7 +88,7 @@ export default function App() {
   }
 
   return (
-    <RadioSessionProvider>
+    <RadioSessionProvider onAuthExpired={() => setUser(undefined)}>
       <LoggedInApp
         user={user}
         onLogout={() => {

@@ -224,8 +224,23 @@ interface TastePreference {
 
 ---
 
-## 9. 相关文档
+## 9. 产品 IA（Sound 品位工程）
 
+结构化口味是 **Sound** 产品的 L1 层；完整入口、文案与 Station 边界见 **`auracle_sound_ia.md`**。
+
+| Sound 区块 | 本文件对应 |
+|------------|------------|
+| Your taste（L1） | §3–§7 `TastePreference`、taxonomy、slug |
+| Learned（L3） | mem0（`auracle_memory_decision.md`） |
+| Signals（L2） | skip / events（`auracle_personalization_plan.md`） |
+
+Epic #3 实现切片 S1–S4 交付 Sound 页；**Studio 明确不做**。
+
+---
+
+## 10. 相关文档
+
+- 产品 IA（Station / Sound）：`auracle_sound_ia.md`
 - 个性化路线图：`auracle_personalization_plan.md`
 - 曲库流水线：`docs/adr/0003-catalog-manifest-staged-cli.md`
 - Embedding 阶段：`docs/adr/0002-phased-catalog-embedding.md`

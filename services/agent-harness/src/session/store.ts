@@ -4,8 +4,12 @@ import { inferHostModeFromScene } from "@auracle/shared";
 
 export interface SessionState {
   id: string;
+  /** Memory/analytics identity: the authed user, or `auracle_anonymous` for demo. */
+  userId: string;
   intent: SessionIntent;
   condition: Condition;
+  /** Skip-energy penalty weights for this user (condition C only); reused by replan. */
+  energyWeights?: Partial<Record<number, number>>;
   hostMode: HostMode;
   title: string;
   subtitle: string;
@@ -32,8 +36,10 @@ export class SessionStore {
   private readonly sessions = new Map<string, SessionState>();
 
   create(params: {
+    userId: string;
     intent: SessionIntent;
     condition: Condition;
+    energyWeights?: Partial<Record<number, number>>;
     title: string;
     subtitle: string;
     arc: ArcStage;
@@ -48,8 +54,10 @@ export class SessionStore {
     }
     const state: SessionState = {
       id: randomUUID(),
+      userId: params.userId,
       intent: params.intent,
       condition: params.condition,
+      energyWeights: params.energyWeights,
       hostMode: inferHostModeFromScene(params.intent.scene),
       title: params.title,
       subtitle: params.subtitle,

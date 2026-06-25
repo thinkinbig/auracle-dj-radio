@@ -1,0 +1,152 @@
+.page {
+  min-height: 100dvh;
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 14% 12%, rgba(141, 247, 167, 0.14), transparent 32%),
+    radial-gradient(circle at 82% 8%, rgba(244, 114, 182, 0.12), transparent 28%),
+    linear-gradient(160deg, #070807 0%, #101412 48%, #050505 100%);
+}
+
+.header {
+  display: grid;
+  gap: 18px;
+  padding: 24px max(20px, env(safe-area-inset-right, 0px)) 0
+    max(20px, env(safe-area-inset-left, 0px));
+}
+
+.backButton {
+  justify-self: start;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: rgba(141, 247, 167, 0.9);
+  background: rgba(141, 247, 167, 0.08);
+  border: 1px solid rgba(141, 247, 167, 0.18);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.headerCopy {
+  display: grid;
+  gap: 6px;
+}
+
+.eyebrow {
+  color: rgba(141, 247, 167, 0.82);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.headerCopy h1 {
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  line-height: 1.05;
+}
+
+.main {
+  width: min(720px, calc(100% - 40px));
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+  padding: 8px 0 48px;
+}
+
+.lede {
+  color: rgba(248, 250, 252, 0.72);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.notice {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(244, 114, 182, 0.08);
+  border: 1px solid rgba(244, 114, 182, 0.2);
+}
+
+.notice strong {
+  font-size: 0.95rem;
+}
+
+.notice p {
+  color: rgba(248, 250, 252, 0.68);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.block {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.blockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.blockHeader h2 {
+  font-size: 1.05rem;
+}
+
+.badge {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: rgba(141, 247, 167, 0.86);
+  background: rgba(141, 247, 167, 0.08);
+  border: 1px solid rgba(141, 247, 167, 0.16);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.blockCopy {
+  color: rgba(248, 250, 252, 0.58);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.placeholder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.placeholder span {
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: rgba(248, 250, 252, 0.42);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  font-size: 0.78rem;
+}
+
+.emptyState {
+  padding: 14px 16px;
+  border-radius: 16px;
+  color: rgba(248, 250, 252, 0.45);
+  background: rgba(0, 0, 0, 0.18);
+  font-size: 0.84rem;
+}
+
+.shipNote {
+  color: rgba(248, 250, 252, 0.38);
+  font-size: 0.74rem;
+}
+
+.backButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.38);
+}

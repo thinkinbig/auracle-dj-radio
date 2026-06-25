@@ -33,7 +33,7 @@ export interface RadioSession {
 }
 
 /** Composes radio effect hooks around a single playback reducer. */
-export function useRadioSession(): RadioSession {
+export function useRadioSession(onAuthExpired?: () => void): RadioSession {
   const [state, dispatch] = useReducer(playbackReducer, undefined, createInitialPlaybackState);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
@@ -74,7 +74,7 @@ export function useRadioSession(): RadioSession {
   useTalkWindow(store, state.phase, state.inBreak, state.userUtteranceCount);
   useSessionClock(state.phase, dispatch);
 
-  const handlers = useRadioHandlers({ store, audio, commands, setAnalyser });
+  const handlers = useRadioHandlers({ store, audio, commands, setAnalyser, onAuthExpired });
 
   return {
     state,

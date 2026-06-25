@@ -7,7 +7,7 @@
     radial-gradient(circle at 78% 12%, rgba(244, 114, 182, 0.18), transparent 30%),
     linear-gradient(135deg, #070807 0%, #111513 44%, #050505 100%);
   background-size: 120% 120%, 130% 130%, 100% 100%;
-  overflow: hidden;
+  overflow: auto;
   animation: ambientShift 18s ease-in-out infinite alternate;
 }
 
@@ -452,6 +452,57 @@
   font-weight: 800;
 }
 
+.pillarSection {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr);
+  gap: clamp(24px, 4vw, 48px);
+  padding: 12px 0 72px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pillarCopy {
+  display: grid;
+  gap: 12px;
+  max-width: 560px;
+}
+
+.pillarCopy h2 {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  line-height: 1.1;
+}
+
+.pillarCopy p {
+  color: rgba(248, 250, 252, 0.68);
+  line-height: 1.65;
+}
+
+.pillarList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pillarList li {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pillarList strong {
+  font-size: 0.92rem;
+}
+
+.pillarList span {
+  color: rgba(248, 250, 252, 0.58);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 @media (max-width: 900px) {
   .page {
     overflow: auto;
@@ -476,6 +527,11 @@
     grid-template-columns: 1fr;
     align-items: start;
     padding: 32px 0 36px;
+  }
+
+  .pillarSection {
+    grid-template-columns: 1fr;
+    padding-bottom: 48px;
   }
 
   .copy h1 {

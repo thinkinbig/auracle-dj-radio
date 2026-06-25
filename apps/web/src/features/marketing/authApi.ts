@@ -15,6 +15,14 @@ export function getStoredToken(): string | null {
   return window.localStorage.getItem(TOKEN_KEY) ?? window.sessionStorage.getItem(TOKEN_KEY);
 }
 
+/** JSON request headers with Bearer auth when a token is stored. */
+export function jsonAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = getStoredToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
 export function storeToken(token: string, remember: boolean): void {
   clearStoredToken();
   const storage = remember ? window.localStorage : window.sessionStorage;

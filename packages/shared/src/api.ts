@@ -42,6 +42,14 @@ export interface AuthUser {
   name: string;
 }
 
+/** Fallback memory/analytics identity for unauthenticated (demo) sessions. */
+export const ANONYMOUS_USER_ID = "auracle_anonymous";
+
+/** Parse `Authorization: Bearer <token>`; returns undefined when absent or malformed. */
+export function parseBearerToken(authorization?: string): string | undefined {
+  return authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+}
+
 export interface AuthResponse {
   user: AuthUser;
   token: string;
