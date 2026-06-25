@@ -8,14 +8,14 @@
 
 | 项 | 选择 |
 |----|------|
-| 长期记忆 | **mem0 OSS**（`mem0ai/oss`），内嵌于 `apps/api`，**不走 mem0 cloud** |
+| 长期记忆 | **mem0 OSS**（`mem0ai/oss`），内嵌于 **`services/memory-service`**，**不走 mem0 cloud** |
 | 向量持久化 | **Qdrant**（本地 Docker 单容器，`./data/qdrant` volume） |
 | 变更审计 | mem0 内置 **SQLite history**（`AURACLE_MEM0_HISTORY_DB`） |
 | LLM / Embedder | 复用 **`GEMINI_API_KEY`**：`gemini-3.1-flash-lite` 抽取 + `gemini-embedding-001`（**native 3072 维**，不截断） |
 | DJ 风格进化 | **固定 system prompt**（不写回 prompt）；不用 LangMem procedural memory |
 | 框架 | **无 LangChain**；Fastify + `@google/genai` + `mem0ai/oss` |
 | Session 边界 | `run_id` = `session_id`（写入 `metadata.run_id`） |
-| 用户 | 硬编码 `userId: "auracle_user"` |
+| 用户 | **per `user_id`**：登录用户用 auth id；匿名 demo 用 `auracle_anonymous`（**评估禁止**） |
 
 ### 为何从 cloud 改为自部署
 
@@ -43,8 +43,8 @@
 # 1. Qdrant + API（Docker；向量库持久化在 qdrant_data volume）
 pnpm docker:dev
 
-# 2. 本地 API 进程（mem0 OSS 在进程内初始化）
-pnpm dev
+# 2. 本地 API 进程（mem0 OSS 在 memory-service 内初始化）
+pnpm --filter memory-service dev
 ```
 
 首次运行会自动创建 `AURACLE_MEM0_HISTORY_DB` 所指目录。
@@ -53,33 +53,56 @@ pnpm dev
 
 ## Context 注入完整流程
 
-| 时机 | 操作 |
-|------|------|
-| `POST /sessions`（session 开始） | `memory.search()` → 读取历史偏好 → 烘焙进 `systemInstruction`（Live 连接前一次性写入） |
-| Flow 重排前 | `memory.search()` → 注入 Step 2 prompt |
-| Replan 成功后 | 写 mem0 + 通过 `realtimeInput` 随下一次 `cue_dj` 注入更新后的 tracklist 与偏好事实 |
+| 时机 | 操作 | 代码状态 |
+|------|------|----------|
+| `POST /sessions`（session 开始） | 双 query `memory.search()`（P1）→ 烘焙进 `systemInstruction` | ✅ recall；⏳ 双 query 为 P1 |
+| Flow 初始 plan | 同上 memories + C only `skipRateByEnergy` | ✅ / ⏳ skip 仅 C 为 P0 |
+| Flow **replan**（`mood_change`） | 传入 `mem0Context` + memories 进 Step 2 | ⏳ **P0**（当前 `replan()` 硬编码 `memories: ""`） |
+| Replan 成功后 | 写 mem0（C only） | ✅ |
+| 曲间 cue | `inject_text` 曲目上下文；**不含** session 内新偏好 | ✅；偏好回灌 cue 为 **P2** |
 
-> `systemInstruction` 在 Live 连接后不可更改；mid-session 的偏好更新通过 `realtimeInput` scene direction 传递，而非 `clientContent`。
+> `systemInstruction` 在 Live 连接后不可更改。Session 内新写入的偏好 **不**自动更新 DJ（`mem0Context` 为开场快照）；P2 可选通过 `realtimeInput` 回灌。
+
+### recall query（目标，P1）
+
+1. `music preferences for a {mood} {scene} session`  
+2. `general music taste and listening habits`  
+
+合并 topK、去重后注入 Flow 与 DJ。
+
+---
+
+## 跨 session 行为信号（skip 权重）
+
+| 项 | 说明 |
+|----|------|
+| 来源 | `session_events` 中 `skip_latency`（含 `energy`） |
+| 聚合 | **per `user_id`**，最近 N 个 session（⏳ P0） |
+| 作用 | Step 1 检索：该 energy 档位 cosine 分 × `(1 − weight)` |
+| 条件 | **仅 Condition C**（A/B 不传 `energyWeights`） |
+
+与 mem0 文本事实互补：skip 权重为**隐式行为**；mem0 为**显式事实**。
 
 ---
 
 ## 写入时机
 
-| 场景 | mem0 |
-|------|------|
-| mood / 风格打断并重排成功 | 写入偏好事实 |
-| 闲聊带偏好语义（`record_preference` tool） | 写入 |
-| skip / pause | 一般不写 |
-| Flow 重排前 | **read** memories 注入 Step 2 prompt |
+| 场景 | mem0 | 条件 |
+|------|------|------|
+| mood 打断并重排成功 | 模板事实 | C only |
+| 闲聊（`record_preference` tool） | DJ 提炼 fact | C only |
+| 60s 内 skip | 模板事实（含 energy / mood / scene） | C only |
+| pause / 完播 | 一般不写（P1 可加规则） | — |
+| Flow replan 前 | **read** memories | C only |
 
-**评估条件差异**：Condition A / B 中 `record_preference` handler **noop**（工具定义保留，后端不写 mem0）；仅 Condition C 实际写入。
+**评估条件差异**：Condition A / B 中 `record_preference` handler **noop**（工具定义保留）；A/B **不**写 mem0、**不**应用跨 session skip 权重。
 
 ---
 
 ## 配置
 
 ```typescript
-// apps/api/src/memory/client.ts
+// services/memory-service/src/memory/client.ts
 import { Memory } from "mem0ai/oss";
 
 export const memory = new Memory({
@@ -109,10 +132,10 @@ export const memory = new Memory({
   historyDbPath: process.env.AURACLE_MEM0_HISTORY_DB ?? "./data/mem0/history.db",
 });
 
-// Cloud SDK 的 user_id / run_id → OSS 的 userId / metadata
-await memory.add("用户偏好 lo-fi，不喜欢高能量 EDM", {
-  userId: "auracle_user",
-  metadata: { run_id: sessionId },
+// OSS: userId + runId（runId = session_id）
+await memory.add("User prefers lighter energy during study sessions.", {
+  userId: participantUserId, // 或 auracle_anonymous
+  runId: sessionId,
 });
 ```
 
@@ -171,3 +194,4 @@ await memory.add("用户偏好 lo-fi，不喜欢高能量 EDM", {
 
 - 架构与存储：`auracle_architecture_storage.md`
 - Live context 注入：`auracle_api_protocol.md`
+- 个性化实施计划 & 评估 Checklist：`auracle_personalization_plan.md`

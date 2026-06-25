@@ -1,6 +1,7 @@
 import type { HostMode } from '@auracle/shared';
 
 export type UiPhase = 'idle' | 'curating' | 'opening' | 'playing' | 'speaking' | 'listening' | 'paused';
+export type PlaylistFeedback = 'like' | 'dislike' | 'regenerate';
 
 export interface TranscriptLine {
   id: string;
@@ -40,4 +41,6 @@ export interface PlaybackState {
   isTalking: boolean;
   /** Count of distinct user utterances; drives the talk-window silence/turn cap. */
   userUtteranceCount: number;
+  /** Last explicit playlist feedback action from the listener. */
+  playlistFeedback: PlaylistFeedback | null;
 }

@@ -2,6 +2,15 @@ import type { AuthResponse, AuthUser, RegisterCredentials } from '@auracle/share
 
 const TOKEN_KEY = 'auracle.authToken';
 
+class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 export function getStoredToken(): string | null {
   return window.localStorage.getItem(TOKEN_KEY) ?? window.sessionStorage.getItem(TOKEN_KEY);
 }
@@ -26,7 +35,7 @@ async function authFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, { ...init, headers });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(body?.error ?? 'Request failed');
+    throw new ApiError(body?.error ?? 'Request failed', res.status);
   }
   return (await res.json()) as T;
 }
@@ -64,8 +73,10 @@ export async function restoreUser(): Promise<AuthUser | undefined> {
   try {
     const response = await authFetch<{ user: AuthUser }>('/auth/me');
     return response.user;
-  } catch {
-    clearStoredToken();
+  } catch (err) {
+    // Only a genuine auth rejection means the token is invalid. A transient
+    // outage (network error / 5xx) must NOT wipe a still-valid login.
+    if (err instanceof ApiError && err.status === 401) clearStoredToken();
     return undefined;
   }
 }

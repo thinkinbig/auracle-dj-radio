@@ -4,7 +4,7 @@ import {
   createInitialPlaybackState,
   playbackReducer,
 } from './playbackReducer';
-import type { PlaybackState } from '@/features/radio/session/types';
+import type { PlaybackState, PlaylistFeedback } from '@/features/radio/session/types';
 import { useLiveConnection } from '../effects/useLiveConnection';
 import { useOpeningGate } from '../effects/useOpeningGate';
 import { useRadioCommands } from '../effects/useRadioCommands';
@@ -26,6 +26,7 @@ export interface RadioSession {
   handleSkipDj: () => void;
   handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
+  handlePlaylistFeedback: (feedback: PlaylistFeedback) => void;
   handleTalkStart: () => void;
   handleTalkEnd: () => void;
   handleSendText: (text: string) => void;
@@ -86,6 +87,7 @@ export function useRadioSession(): RadioSession {
     handleSkipDj: handlers.handleSkipDj,
     handleContinue: handlers.handleContinue,
     handleChangeHostMode: handlers.handleChangeHostMode,
+    handlePlaylistFeedback: handlers.handlePlaylistFeedback,
     handleTalkStart: handlers.handleTalkStart,
     handleTalkEnd: handlers.handleTalkEnd,
     handleSendText: handlers.handleSendText,

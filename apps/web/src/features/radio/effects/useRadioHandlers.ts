@@ -5,6 +5,7 @@ import { createSession, postHostMode, postSessionEvent } from '../lib/sessionApi
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
 import type { RadioCommands } from '../lib/radioCommands';
+import type { PlaylistFeedback } from '@/features/radio/session/types';
 import type { AudioRefs, StoreRefs } from './sessionRefs';
 
 export interface RadioHandlers {
@@ -15,6 +16,7 @@ export interface RadioHandlers {
   handleSkipDj: () => void;
   handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
+  handlePlaylistFeedback: (feedback: PlaylistFeedback) => void;
   handleTalkStart: () => void;
   handleTalkEnd: () => void;
   handleSendText: (text: string) => void;
@@ -105,6 +107,19 @@ export function useRadioHandlers({
     commands.sendText(text);
   }, [commands]);
 
+  const handlePlaylistFeedback = useCallback((feedback: PlaylistFeedback) => {
+    const s = store.stateRef.current;
+    if (s.phase === 'idle' || s.phase === 'curating') return;
+    store.dispatchRef.current({ type: 'playlist_feedback', feedback });
+    if (s.sessionId) {
+      postSessionEvent(s.sessionId, 'playlist_feedback', {
+        feedback,
+        track_id: s.trackId,
+        remaining_ids: s.remainingTrackIds,
+      });
+    }
+  }, [store]);
+
   const handleChangeHostMode = useCallback(
     (hostMode: HostMode) => {
       const s = store.stateRef.current;
@@ -125,6 +140,7 @@ export function useRadioHandlers({
     handleSkipDj,
     handleContinue,
     handleChangeHostMode,
+    handlePlaylistFeedback,
     handleTalkStart,
     handleTalkEnd,
     handleSendText,

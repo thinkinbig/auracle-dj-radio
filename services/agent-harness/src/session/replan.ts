@@ -1,6 +1,5 @@
 import type { FlowTrackRef } from "@auracle/shared";
-import type { EventsDb } from "../events-db.js";
-import type { MemoryClient } from "../memory/client.js";
+import type { MemoryServiceClient } from "../memory-service-client.js";
 import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
 import type { SessionState, SessionStore } from "./store.js";
@@ -8,8 +7,7 @@ import type { SessionState, SessionStore } from "./store.js";
 /** Dependencies shared by the orchestration handlers (replan + tool dispatch). */
 export interface OrchestrationDeps {
   store: SessionStore;
-  events: EventsDb;
-  memory: MemoryClient;
+  memory: MemoryServiceClient;
   music: MusicEngineClient;
   proxy: ProxyClient;
 }
@@ -56,7 +54,7 @@ export async function applyReplan(
   const appended = deps.store.replaceRemaining(state, result.tracklist, candidatesById);
   state.intent = intent; // future replans build on the new mood
 
-  deps.events.recordEvent(state.id, "replan", {
+  await deps.memory.recordEvent(state.id, "replan", {
     mood: params.mood,
     energy_delta: params.energy_delta ?? "same",
     before,
@@ -101,7 +99,7 @@ export async function replanAndPush(
       ],
     });
   } catch (err) {
-    deps.events.recordEvent(state.id, "replan_failed", {
+    await deps.memory.recordEvent(state.id, "replan_failed", {
       error: err instanceof Error ? err.message : String(err),
     });
   }

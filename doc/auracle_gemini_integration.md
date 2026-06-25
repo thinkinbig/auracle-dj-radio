@@ -68,9 +68,11 @@ Gemini 应 **分模型、分 API、分时机** 嵌入，而不是一个 Live 会
 
 2. **非结构化信号**：曲间闲聊「今天好累」→ Live 调 `record_preference({ fact: "..." })` → mem0  
 
-3. **读记忆**：`POST /sessions` 与 Flow 重排前 `mem0.search()`，注入 Step 2 prompt 与 Live `systemInstruction` 附录  
+3. **读记忆**：`POST /sessions` 与 Flow **replan** 前 `mem0.search()`（双 query，P1）→ 注入 Step 2 prompt 与 Live `systemInstruction`；**仅 Condition C**
 
-Gemini **不负责存储**；负责 **从对话/行为中抽取可写入 mem0 的事实**（可用 Flash 做抽取，Demo 可规则+tool 够用）。
+**跨 session skip 权重**（仅 C）：`skipRateByEnergy(user_id)` → Step 1 检索降权。见 `auracle_memory_decision.md`。
+
+Gemini **不负责存储**；负责 **从对话/行为中抽取可写入 mem0 的事实**（可用 Flash 做抽取，Demo 以规则 + tool 为主）。
 
 ---
 
@@ -287,13 +289,13 @@ Next: "{next_title}".
 
 ## 6. 评估实验（FaAI）中的 Gemini
 
-| 条件 | Gemini 差异 |
-|------|-------------|
-| A Baseline | Lite 简单选 8 首（无 energy 规则）；Live `systemInstruction` TOOLS 部分注明「mood_change 不重排，歌单固定」；`record_preference` noop |
-| B Ablation | 完整 Flow（`gemini-3.1-flash-lite`）；Live 同上；无 mem0 注入 |
-| C Full | Flow + mem0 + Live |
+| 条件 | Gemini / 后端差异 |
+|------|-------------------|
+| A Baseline | Lite 简单选 8 首（无 energy 规则）；Live 注明 mood 不重排；无 mem0；无跨 session skip 权重 |
+| B Ablation | 完整 Flow + session 内 replan；无 mem0 注入；无跨 session skip 权重 |
+| C Full | Flow + mem0 + 跨 session skip 权重 + replan 读 memories（P0） |
 
-三条件 **同一 Live 壳**，盲测有效（见 `auracle_evaluation_design.md`）。
+三条件 **同一 Live 壳**，盲测有效。per-user 与 checklist 见 `auracle_evaluation_design.md`、`auracle_personalization_plan.md`。
 
 ---
 

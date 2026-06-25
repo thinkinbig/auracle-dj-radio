@@ -29,6 +29,8 @@
 | Tempo Smoothness | σ(ΔBPM) | 相邻曲子 BPM 差值标准差 |
 | Arc Adherence | MSE vs 目标曲线 | 实际能量曲线与热身→高潮→收尾目标的偏差 |
 | Genre Diversity | entropy | session 内曲风多样性 |
+| **C vs B 歌单 Jaccard** | \|played_C ∩ played_B\| / \|played_C ∪ played_B\| | 同被试两条件实际播放序列重叠度（个性化：C 应更低或 replan 后能量偏移更明显） |
+| **C replan Δenergy** | mean(energy_remaining_after) − before | 仅 C：第 3 首 mood 打断后剩余曲平均能量变化 |
 
 ### 数据来源（重要变更）
 
@@ -42,13 +44,25 @@
 
 | 条件 | 后端差异 | Live DJ |
 |------|----------|---------|
-| **A — Baseline** | 简单 LLM 选曲；**无 Flow 规则、无 mem0**；打断仅 skip/pause，**不触发重排** | ✅ |
-| **B — Ablation** | **有 Flow 重排**；无 mem0 | ✅ |
-| **C — Full** | Flow + **mem0** | ✅ |
+| **A — Baseline** | 简单 LLM 选曲；**无 Flow 规则**；**无 mem0**；**无跨 session skip 权重**；打断仅 skip/pause，**不触发重排** | ✅ |
+| **B — Ablation** | **有 Flow 重排**（session 内）；**无 mem0**；**无跨 session skip 权重** | ✅ |
+| **C — Full** | Flow + **mem0** + **跨 session skip 权重**（`skipRateByEnergy`） | ✅ |
 
-**Condition B 的作用**：单独量化 Flow 编排贡献，与记忆模块解耦。
+**Condition B 的作用**：单独量化 Flow 编排贡献，与记忆模块及跨 session 行为偏置解耦。
+
+**个性化信号按条件**（见 `auracle_personalization_plan.md` §1）：
+
+| 信号 | A | B | C |
+|------|---|---|---|
+| mem0 读/写 | ❌ | ❌ | ✅ |
+| 跨 session skip 权重（检索降权） | ❌ | ❌ | ✅ |
+| session 内 `mood_change` → replan | ❌ | ✅ | ✅ |
+
+**用户隔离（评估）**：每名被试 **独立登录账号**；mem0 与 skip 聚合均 **per `user_id`**。Demo 无 token 时 fallback `auracle_anonymous`（评估禁止使用）。
 
 **与旧版差异**：C 条件由「Flow + 记忆 + DJ 文案 + TTS」改为「Flow + 记忆 + **Live DJ**」；无离线 TTS。
+
+**18 人研究内的 C 效应说明**：每人仅 **1 次** C session（与 A、B 各 1 次配对）。主对比为 **同被试 C vs B**（初始 plan + replan 后歌单）。跨 session mem0 增益主要在 **同账号多次收听**（QA smoke、回访用户）；正式实验不假设被试有第二次 C。
 
 **三条件 Live 行为差异**：
 
@@ -56,7 +70,7 @@
 |------|---|---|---|
 | `mood_change` | 后端 noop；`systemInstruction` 注明歌单不可变 | ✅ 触发重排 | ✅ 触发重排 |
 | `record_preference` | 后端 noop | 后端 noop | ✅ 写入 mem0 |
-| `skip_track` / `pause_playback` | ✅ | ✅ | ✅ |
+| `skip_track` / `pause_playback` | ✅（记 events） | ✅（记 events） | ✅（记 events；C 且快速 skip 可写 mem0） |
 
 ---
 
@@ -74,7 +88,8 @@ A 条件：`mood_change` **不**触发重排（仅 DJ 口头回应或 noop）。
 ## 实验规模
 
 - 参与者：**18 人**（6 种条件顺序各 3 人，Latin Square counterbalancing）  
-- 每人 3 个 session（A/B/C），counterbalanced 顺序  
+- 每人 3 个 session（A/B/C 各一次），counterbalanced 顺序  
+- **评估前**：为每人预注册独立账号；禁止共用浏览器 profile 或 `auracle_anonymous`  
 - 每个 session：约 8 首、~25 分钟；Desktop Chrome  
 - 听完填问卷；客观指标从 `session_events` 自动计算  
 
@@ -82,14 +97,23 @@ A 条件：`mood_change` **不**触发重排（仅 DJ 口头回应或 noop）。
 
 ## 日志要求
 
-Fastify 必须持久化：
+`memory-service` 的 `session_events`（SQLite）必须持久化，且 **`session_created` payload 含 `user_id`、`condition`、`intent`**：
 
-- `intent_detected`（含 transcript / tool）  
-- `replan`（重排前后 tracklist diff）  
-- `track_started` / `track_skipped`  
-- `pause`  
+| event_type | 说明 |
+|------------|------|
+| `session_created` | `intent`, `condition`, `tracklist`；响应体含 `mem0_context` 快照 |
+| `replan` | mood 打断后重排；`before` / `after` track id 列表 |
+| `replan_failed` | 重排或 Lane-3 push 失败 |
+| `skip_latency` | skip 闭环耗时；payload 含 `energy` |
+| `record_preference` | C only；`fact` |
+| `pause_playback` | `action`: pause / resume |
+| `change_host_mode` | UI 或 tool 切换主持风格 |
 
-可选：WS `transcript` 消息与 `session_events` 关联。
+重建 `played_track_ids[]`：按 `now_playing` / playhead 镜像逻辑或专用 play 事件（以实现为准），**不用**初始 plan。
+
+可选：Go side-channel `transcript` 与 `session_id` 离线 join。
+
+**P0 验收与实验 SOP**：见 `auracle_personalization_plan.md` §3–§4。
 
 ---
 
@@ -97,8 +121,18 @@ Fastify 必须持久化：
 
 - [ ] Arc Adherence 目标曲线精确定义  
 - [ ] Likert 措辞终稿  
-- [ ] 样本量与统计检验（t-test / ANOVA）  
+- [ ] 样本量与统计检验（t-test / ANOVA；**配对** C vs B）  
 - [ ] Baseline「简单选曲」prompt 与 Flow 的公平性（时长、曲数一致）  
+- [x] 个性化条件边界（skip 权重 / mem0 / per-user）→ `auracle_personalization_plan.md`  
+- [ ] C vs B 歌单 Jaccard 与 replan Δenergy 自动化脚本  
+
+---
+
+## 个性化实施 & 实验 Checklist
+
+Grill 收束后的 **P0/P1 工程计划**、**18 人研究操作清单**、**C vs B 客观核对项**：
+
+→ [`auracle_personalization_plan.md`](auracle_personalization_plan.md)
 
 ---
 
@@ -106,3 +140,4 @@ Fastify 必须持久化：
 
 - 架构：`auracle_architecture_storage.md`  
 - Flow / intent：`auracle_flow_prompt_design.md`  
+- 个性化计划：`auracle_personalization_plan.md`  

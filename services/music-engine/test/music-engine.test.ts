@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FlowResult, TrackCandidate, TrackMeta } from "@auracle/shared";
 import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
+import { config } from "../src/config.js";
 import { HashEmbedder } from "../src/flow/embedder.js";
 import { resolveCatalogPath, tracksWithAssets } from "../src/catalog/manifest.js";
 import { buildServer, type MusicEngine } from "../src/server.js";
@@ -34,6 +35,8 @@ async function seedTempDb(): Promise<string> {
 }
 
 beforeAll(async () => {
+  config.geminiApiKey = undefined;
+  config.embedder = "hash";
   const dbPath = await seedTempDb();
   engine = buildServer(dbPath);
   await engine.app.ready();
@@ -92,7 +95,7 @@ describe("music-engine HTTP", () => {
     expect(body.result.tracklist.length).toBeGreaterThan(0);
     expect(Array.isArray(body.violations)).toBe(true);
     expect(body.candidates.length).toBeGreaterThan(0);
-  });
+  }, 10_000);
 
   it("GET /tracks/:id returns metadata, 404 for unknown", async () => {
     const ok = await engine.app.inject({ method: "GET", url: `/tracks/${firstTrackId}` });

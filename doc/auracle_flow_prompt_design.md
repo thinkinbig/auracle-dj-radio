@@ -126,13 +126,13 @@ Output: JSON — {session_title?, tracklist: [{id, flow_position, reason}]}
 
 ## Condition 差异（评估）
 
-| 条件 | Step 2 Flow | mem0 | 打断重排 |
-|------|-------------|------|----------|
-| A Baseline | ❌ 简单选曲 | ❌ | skip/pause only，**不**重排 |
-| B Ablation | ✅ | ❌ | ✅ |
-| C Full | ✅ | ✅ | ✅ |
+| 条件 | Step 2 Flow | mem0 | 跨 session skip 权重 | 打断重排 |
+|------|-------------|------|----------------------|----------|
+| A Baseline | ❌ 简单选曲 | ❌ | ❌ | skip/pause only，**不**重排 |
+| B Ablation | ✅ | ❌ | ❌ | ✅ |
+| C Full | ✅ | ✅ | ✅ | ✅ |
 
-A/B/C 共用同一 Live UI 壳（见评估文档）。
+A/B/C 共用同一 Live UI 壳（见 `auracle_evaluation_design.md`、`auracle_personalization_plan.md`）。
 
 ---
 

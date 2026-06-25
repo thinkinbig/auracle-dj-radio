@@ -1,9 +1,13 @@
-import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomUUID, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import Database from "better-sqlite3";
 import type { AuthUser } from "@auracle/shared";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const SWEEP_INTERVAL_MS = 1000 * 60 * 60;
 const KEY_LENGTH = 64;
+
+const scrypt = promisify(scryptCb) as (password: string, salt: string, keylen: number) => Promise<Buffer>;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS auth_users (
@@ -29,34 +33,40 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function hashPassword(password: string): string {
+async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, KEY_LENGTH).toString("hex");
+  const hash = (await scrypt(password, salt, KEY_LENGTH)).toString("hex");
   return `${salt}:${hash}`;
 }
 
-function verifyPassword(password: string, stored: string): boolean {
+async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [salt, hash] = stored.split(":");
   if (!salt || !hash) return false;
   const expected = Buffer.from(hash, "hex");
-  const actual = scryptSync(password, salt, KEY_LENGTH);
+  const actual = await scrypt(password, salt, KEY_LENGTH);
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 export class AuthStore {
   private readonly db: Database.Database;
+  private readonly sweepTimer: ReturnType<typeof setInterval>;
 
   constructor(path: string) {
     this.db = new Database(path);
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("foreign_keys = ON");
     this.db.exec(SCHEMA);
+    this.pruneExpiredSessions();
+    // Sweep expired sessions on a timer rather than on every token read.
+    this.sweepTimer = setInterval(() => this.pruneExpiredSessions(), SWEEP_INTERVAL_MS);
+    this.sweepTimer.unref?.();
   }
 
-  createUser(input: { email: string; password: string; name?: string }): AuthUser | undefined {
+  async createUser(input: { email: string; password: string; name?: string }): Promise<AuthUser | undefined> {
     const email = normalizeEmail(input.email);
     const name = input.name?.trim() || email.split("@")[0] || "Listener";
     const user: AuthUser = { id: randomUUID(), email, name };
+    const passwordHash = await hashPassword(input.password);
 
     try {
       this.db
@@ -64,7 +74,7 @@ export class AuthStore {
           `INSERT INTO auth_users (id, email, name, password_hash, created_at)
            VALUES (?, ?, ?, ?, ?)`,
         )
-        .run(user.id, user.email, user.name, hashPassword(input.password), Date.now());
+        .run(user.id, user.email, user.name, passwordHash, Date.now());
       return user;
     } catch (err) {
       if ((err as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE") return undefined;
@@ -72,11 +82,11 @@ export class AuthStore {
     }
   }
 
-  verifyUser(email: string, password: string): AuthUser | undefined {
+  async verifyUser(email: string, password: string): Promise<AuthUser | undefined> {
     const row = this.db
       .prepare(`SELECT id, email, name, password_hash FROM auth_users WHERE email = ?`)
       .get(normalizeEmail(email)) as (AuthUser & { password_hash: string }) | undefined;
-    if (!row || !verifyPassword(password, row.password_hash)) return undefined;
+    if (!row || !(await verifyPassword(password, row.password_hash))) return undefined;
     return { id: row.id, email: row.email, name: row.name };
   }
 
@@ -94,8 +104,8 @@ export class AuthStore {
 
   getUserByToken(token: string | undefined): AuthUser | undefined {
     if (!token) return undefined;
-    const now = Date.now();
-    this.db.prepare(`DELETE FROM auth_sessions WHERE expires_at <= ?`).run(now);
+    // Expired rows are filtered out by `expires_at > ?` here; no write needed
+    // on this hot read path — the sweep timer reclaims them.
     return this.db
       .prepare(
         `SELECT u.id, u.email, u.name
@@ -103,7 +113,7 @@ export class AuthStore {
          JOIN auth_users u ON u.id = s.user_id
          WHERE s.token = ? AND s.expires_at > ?`,
       )
-      .get(token, now) as AuthUser | undefined;
+      .get(token, Date.now()) as AuthUser | undefined;
   }
 
   deleteSession(token: string | undefined): void {
@@ -111,7 +121,12 @@ export class AuthStore {
     this.db.prepare(`DELETE FROM auth_sessions WHERE token = ?`).run(token);
   }
 
+  private pruneExpiredSessions(): void {
+    this.db.prepare(`DELETE FROM auth_sessions WHERE expires_at <= ?`).run(Date.now());
+  }
+
   close(): void {
+    clearInterval(this.sweepTimer);
     this.db.close();
   }
 }

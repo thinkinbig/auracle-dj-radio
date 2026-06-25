@@ -24,6 +24,7 @@ interface TrackPlaybackInput {
 /** Music element listeners, per-track loading, duck policy, and pause/resume DJ sync. */
 export function useTrackPlayback({ store, audio, commands, state, opening }: TrackPlaybackInput): void {
   const { openingReleased, armForTrack } = opening;
+  const nextTrackId = state.remainingTrackIds[0];
   const prevPhaseRef = useRef(state.phase);
   // Track index we've already fired an end-of-track cue for, so the final-seconds
   // trigger runs once per track (ADR-0004).
@@ -129,22 +130,21 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
       el.currentTime = 0;
       if (!isOpening) void el.play().catch(() => {});
     }
-
-    const nextId = state.remainingTrackIds[0];
-    if (nextId) {
-      const pre = preloadRef.current ?? (preloadRef.current = new Audio());
-      pre.preload = 'auto';
-      pre.src = `/tracks/${nextId}/audio`;
-    }
   }, [
     store,
     audio,
     state.sessionId,
     state.currentTrackIndex,
     state.trackId,
-    state.remainingTrackIds,
     armForTrack,
   ]);
+
+  useEffect(() => {
+    if (!state.sessionId || !nextTrackId) return;
+    const pre = preloadRef.current ?? (preloadRef.current = new Audio());
+    pre.preload = 'auto';
+    pre.src = `/tracks/${nextTrackId}/audio`;
+  }, [state.sessionId, nextTrackId]);
 
   useEffect(() => {
     applyPlaybackPolicy();

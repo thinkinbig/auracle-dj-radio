@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useRadioState } from '@/features/radio/session/RadioSessionContext';
+import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { cn } from '@/shared/lib/cn';
 import { Skeleton } from '@/shared/ui/Skeleton';
@@ -19,16 +18,15 @@ function TrackQueueSkeletonItem({ current }: { current?: boolean }) {
 
 export function TrackQueue() {
   const state = useRadioState();
+  const { handlePlaylistFeedback } = useRadioActions();
   const catalogLoaded = useCatalogLoaded();
   const current = useTrackMeta(state.trackId);
-  const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null);
-  const [regenerated, setRegenerated] = useState(false);
   const feedbackLabel =
-    feedback === 'like'
+    state.playlistFeedback === 'like'
       ? 'Station saved'
-      : feedback === 'dislike'
+      : state.playlistFeedback === 'dislike'
         ? 'Tuning away'
-        : regenerated
+        : state.playlistFeedback === 'regenerate'
           ? 'Queue refreshed'
           : 'Feedback';
 
@@ -45,34 +43,25 @@ export function TrackQueue() {
         <div className={styles.actions}>
           <button
             type="button"
-            className={cn(styles.action, feedback === 'like' && styles.actionActive)}
-            onClick={() => {
-              setRegenerated(false);
-              setFeedback((value) => (value === 'like' ? null : 'like'));
-            }}
-            aria-pressed={feedback === 'like'}
+            className={cn(styles.action, state.playlistFeedback === 'like' && styles.actionActive)}
+            onClick={() => handlePlaylistFeedback('like')}
+            aria-pressed={state.playlistFeedback === 'like'}
           >
             Like
           </button>
           <button
             type="button"
-            className={cn(styles.action, feedback === 'dislike' && styles.actionActive)}
-            onClick={() => {
-              setRegenerated(false);
-              setFeedback((value) => (value === 'dislike' ? null : 'dislike'));
-            }}
-            aria-pressed={feedback === 'dislike'}
+            className={cn(styles.action, state.playlistFeedback === 'dislike' && styles.actionActive)}
+            onClick={() => handlePlaylistFeedback('dislike')}
+            aria-pressed={state.playlistFeedback === 'dislike'}
           >
             Dislike
           </button>
           <button
             type="button"
-            className={cn(styles.action, regenerated && styles.actionActive)}
-            onClick={() => {
-              setFeedback(null);
-              setRegenerated(true);
-            }}
-            aria-pressed={regenerated}
+            className={cn(styles.action, state.playlistFeedback === 'regenerate' && styles.actionActive)}
+            onClick={() => handlePlaylistFeedback('regenerate')}
+            aria-pressed={state.playlistFeedback === 'regenerate'}
           >
             Regenerate
           </button>

@@ -19,7 +19,7 @@ export interface ToolEnvelope {
   ui_events: ServerMessage[];
 }
 
-/** Dispatch a Gemini Live function call to session side-effects (intents, replan, mem0). */
+/** Dispatch a Gemini Live function call to session side-effects (intents, replan, memory writes). */
 export async function runTool(
   deps: OrchestrationDeps,
   state: SessionState,
@@ -28,7 +28,7 @@ export async function runTool(
   const args = call.args ?? {};
   switch (call.name) {
     case "skip_track": {
-      deps.events.recordEvent(state.id, "skip_track", {});
+      await deps.memory.recordEvent(state.id, "skip_track", {});
       // Browser is the sole playhead writer: this ui_event makes it advance, and the
       // next now_playing closes the loop. Stamp the start to time that round trip.
       state.pendingSkipAtMs = Date.now();
@@ -36,7 +36,7 @@ export async function runTool(
     }
     case "pause_playback": {
       const action = args.action === "resume" ? "resume" : "pause";
-      deps.events.recordEvent(state.id, "pause_playback", { action });
+      await deps.memory.recordEvent(state.id, "pause_playback", { action });
       return {
         gemini_result: { ok: true, action },
         ui_events: [{ type: "intent", intent: { type: "pause_playback", action } }],
@@ -44,7 +44,7 @@ export async function runTool(
     }
     case "record_preference": {
       const fact = String(args.fact ?? "");
-      deps.events.recordEvent(state.id, "record_preference", { fact });
+      await deps.memory.recordEvent(state.id, "record_preference", { fact });
       // mem0 write is cold IO — never block the tool response on it (hot/cold).
       if (state.condition === "C") void deps.memory.remember(fact, state.id);
       return {
@@ -60,7 +60,7 @@ export async function runTool(
         return { gemini_result: { ok: true, host_mode: previous, changed: false }, ui_events: [] };
       }
       state.hostMode = nextMode;
-      deps.events.recordEvent(state.id, "change_host_mode", { host_mode: nextMode, previous });
+      await deps.memory.recordEvent(state.id, "change_host_mode", { host_mode: nextMode, previous });
       return {
         gemini_result: {
           ok: true,

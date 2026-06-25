@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import type { HostMode, SessionIntent } from '@auracle/shared';
 import { useRadioSession } from './useRadioSession';
-import type { PlaybackState } from '@/features/radio/session/types';
+import type { PlaybackState, PlaylistFeedback } from '@/features/radio/session/types';
 
 export interface RadioActions {
   handleStart: (intent: SessionIntent) => Promise<void>;
@@ -11,6 +11,7 @@ export interface RadioActions {
   handleSkipDj: () => void;
   handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
+  handlePlaylistFeedback: (feedback: PlaylistFeedback) => void;
   handleTalkStart: () => void;
   handleTalkEnd: () => void;
   handleSendText: (text: string) => void;
@@ -39,6 +40,7 @@ export function RadioSessionProvider({ children }: { children: ReactNode }) {
       handleSkipDj: session.handleSkipDj,
       handleContinue: session.handleContinue,
       handleChangeHostMode: session.handleChangeHostMode,
+      handlePlaylistFeedback: session.handlePlaylistFeedback,
       handleTalkStart: session.handleTalkStart,
       handleTalkEnd: session.handleTalkEnd,
       handleSendText: session.handleSendText,

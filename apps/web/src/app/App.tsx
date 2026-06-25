@@ -48,7 +48,6 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
   return (
     <>
       <AppBrand
-        variant="wordmark"
         onClick={appView === 'playing' ? handleReturnToSetup : undefined}
         label={appView === 'playing' ? 'Back to station setup' : undefined}
       />
