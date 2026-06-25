@@ -186,14 +186,14 @@ interface TastePreference {
 | `artists[]` | `slug` | 由现有 `id`/name 推导，**现有 5 艺人 id 不变** |
 | `albums[]` | `slug` | `{artist-slug}/{album-kebab}` |
 | `tracks[]` | `genreSlug` | 映射自现有 `genre`；**原 `genre` 不删** |
-| 仓库 | `catalogRevision` | 首次 backfill 后 bump |
+| 仓库 | `catalogRevision` | 每次 `export-catalog` + `seed` 成功后 bump（`data/catalog/.revision`） |
 
-### 验收
+### 验收（S1 已完成，Demo 30 首）
 
-- [ ] 迁移前后 **track `id` 集合一致**（当前 16 首 → 扩至 ~100 时仅 **新增** id，不 rename 已有 id）
-- [ ] `export-catalog` / `tracks.json` / SQLite seed 字段 **超集** 于迁移前（无字段丢失）
-- [ ] 每首现有曲目有非空 `genreSlug` 与可解析的 artist/album `slug`
-- [ ] 迁移脚本可重复执行（idempotent）
+- [x] 迁移前后 **track `id` 集合一致**（t01–t16 保留；扩库仅 **新增** id，不 rename 已有 id）— 当前 **30 首**（t01–t30）
+- [x] `export-catalog` / `tracks.json` / SQLite seed 字段 **超集** 于迁移前（无字段丢失）
+- [x] 每首曲目有非空 `genreSlug` 与可解析的 artist/album `slug`（写在 manifest；join 时对缺省项 fallback `slugify()`）
+- [x] 曲库编辑流程：`manifest.json` → `pnpm --filter @auracle/catalog export-catalog` → `pnpm --filter @auracle/music-engine seed`
 
 ---
 
@@ -204,7 +204,7 @@ interface TastePreference {
 
 | # | Title | Issue | Blocked by |
 |---|--------|-------|------------|
-| **S1** | Catalog backfill: taxonomy, slugs, revision | [#4](https://github.com/thinkinbig/auracle-dj-radio/issues/4) | — |
+| **S1** | Catalog taxonomy, slugs, revision | [#4](https://github.com/thinkinbig/auracle-dj-radio/issues/4) | — |
 | **S2** | Taste profile API + mem0 summary | [#5](https://github.com/thinkinbig/auracle-dj-radio/issues/5) | #4 |
 | **S3** | Taste onboarding UI | [#6](https://github.com/thinkinbig/auracle-dj-radio/issues/6) | #5 |
 | **S4** | Plan weighting + taste migrate UX | [#7](https://github.com/thinkinbig/auracle-dj-radio/issues/7) | #5, P0 |
@@ -218,7 +218,7 @@ interface TastePreference {
 | 7 条是否合适？ | **否** → **4 条**（上表） |
 | #5 拆 Step1 / Flow？ | **否** — 合并在 **S4** |
 | Genre taxonomy 谁定？ | **产品从现有曲库 tag 归纳 ~12–15 slug**；AFK 实现，非 LLM 聚类 HITL |
-| `slug` 何时进 manifest？ | **S1 一并 backfill**；migrate 工具只服务换库 remap，不负责首次补 slug |
+| `slug` 何时进 manifest？ | **直接写在 `manifest.json`**（艺人/专辑 `slug`、曲目 `genreSlug`）；无独立 backfill 步骤。`taste:migrate` 仅服务换库 remap |
 | P0 阻塞？ | **S4 显式 blocked by P0**（per-user session / mem0 隔离） |
 | 匿名用户？ | **登录才持久化口味**；`auracle_anonymous` **不**做 onboarding / 本地暂存（v1 减 scope） |
 

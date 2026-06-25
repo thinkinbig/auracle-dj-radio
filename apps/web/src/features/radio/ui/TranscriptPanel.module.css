@@ -157,4 +157,20 @@
   .root {
     margin-top: var(--space-sm);
   }
+
+  :global([data-layout='stack']) .root {
+    flex: 0 1 auto;
+    max-height: clamp(72px, 20vh, 148px);
+  }
+}
+
+@media (max-width: 767px) and (max-height: 740px) {
+  :global([data-layout='stack']) .root {
+    max-height: clamp(64px, 16vh, 112px);
+  }
+
+  :global([data-layout='stack']) .summaryText {
+    font-size: 12px;
+    line-height: 1.45;
+  }
 }

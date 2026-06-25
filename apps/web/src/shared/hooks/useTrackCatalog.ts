@@ -3,6 +3,7 @@ import {
   getTrackCatalogSnapshot,
   getTrackMeta,
   isCatalogLoaded,
+  listCatalogTracks,
   subscribeTrackCatalog,
   type TrackDisplay,
 } from '@/data/trackCatalog';
@@ -25,4 +26,10 @@ export function useTrackMeta(id: string): TrackDisplay {
 export function useCatalogLoaded(): boolean {
   useTrackCatalogVersion();
   return isCatalogLoaded();
+}
+
+/** All tracks in the offline catalog, sorted by id. */
+export function useCatalogTracks(): TrackDisplay[] {
+  useTrackCatalogVersion();
+  return listCatalogTracks();
 }

@@ -16,6 +16,8 @@ export interface CatalogArtist {
   photoFile: string;
   /** Optional override for artist-photo generation (press-portrait subject). */
   photoSubject?: string;
+  /** Stable URL-safe slug for structured taste. */
+  slug?: string;
 }
 
 export interface CatalogAlbum {
@@ -27,6 +29,8 @@ export interface CatalogAlbum {
   coverFile: string;
   /** Optional override for cover background generation. */
   coverSubject?: string;
+  /** Stable URL-safe slug for structured taste. */
+  slug?: string;
 }
 
 export interface CatalogTrack {
@@ -45,12 +49,35 @@ export interface CatalogTrack {
   instrumental?: boolean;
   /** Optional lyrics for vocal tracks. If omitted, MiniMax lyrics_optimizer is used. */
   lyrics?: string;
+  /** Taxonomy slug for `genre` (see `genre_taxonomy.json`). */
+  genreSlug?: string;
 }
 
 export interface CatalogManifest {
   artists: CatalogArtist[];
   albums: CatalogAlbum[];
   tracks: CatalogTrack[];
+}
+
+/** A user-facing genre choice in `genre_taxonomy.json`. */
+export interface GenreTaxonomyEntry {
+  slug: string;
+  label: string;
+}
+
+/**
+ * Structured-taste genre taxonomy (`data/catalog/genre_taxonomy.json`).
+ * `mapping` is a manual, checked-in table from each manifest `genre` tag to a
+ * taxonomy slug — no LLM clustering (taxonomy v1).
+ */
+export interface GenreTaxonomy {
+  genres: GenreTaxonomyEntry[];
+  mapping: Record<string, string>;
+}
+
+/** A taxonomy entry plus how many catalog tracks map to it (GET /catalog/genres). */
+export interface GenreCount extends GenreTaxonomyEntry {
+  count: number;
 }
 
 /** Public track metadata returned by GET /tracks/:id (no embedding). */
@@ -67,6 +94,12 @@ export interface TrackMeta {
   energy: 1 | 2 | 3 | 4 | 5;
   tempo: number;
   genre: string;
+  /** Taxonomy slug for `genre` (structured taste). */
+  genreSlug: string;
+  /** Stable slug of the credited artist. */
+  artistSlug: string;
+  /** Stable slug of the album. */
+  albumSlug: string;
   mood: string;
   scene: string;
   filePath: string;

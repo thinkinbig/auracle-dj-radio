@@ -45,6 +45,7 @@ export function AppShell({ stage, sheet, queue, drawer, miniBar }: AppShellProps
               {stage}
               <div className={styles.sheetArea}>
                 {sheet}
+                {queue}
                 {drawer}
               </div>
             </div>

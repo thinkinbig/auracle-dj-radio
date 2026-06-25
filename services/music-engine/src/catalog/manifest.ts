@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
-import type { CatalogManifest, Track, TrackMeta } from "@auracle/shared";
+import { slugify, type CatalogManifest, type GenreTaxonomy, type Track, type TrackMeta } from "@auracle/shared";
 import { config } from "../config.js";
 
 // Catalog assets (manifest + tracks/covers/artists) live under config.catalogDataDir
@@ -12,9 +13,35 @@ export function defaultManifestPath(): string {
   return resolve(config.catalogDataDir, "catalog/manifest.json");
 }
 
+/** Genre taxonomy path (`<catalogDataDir>/catalog/genre_taxonomy.json`). */
+export function genreTaxonomyPath(): string {
+  return resolve(config.catalogDataDir, "catalog/genre_taxonomy.json");
+}
+
+/** Catalog revision marker (`<catalogDataDir>/catalog/.revision`). */
+export function revisionPath(): string {
+  return resolve(config.catalogDataDir, "catalog/.revision");
+}
+
 export function loadCatalogManifest(path = defaultManifestPath()): CatalogManifest {
   const raw = readFileSync(path, "utf8");
   return JSON.parse(raw) as CatalogManifest;
+}
+
+export function loadGenreTaxonomy(path = genreTaxonomyPath()): GenreTaxonomy {
+  return JSON.parse(readFileSync(path, "utf8")) as GenreTaxonomy;
+}
+
+/** Content-addressed catalog revision: first 16 hex of sha256(manifest.json). */
+export function computeCatalogRevision(path = defaultManifestPath()): string {
+  return createHash("sha256").update(readFileSync(path, "utf8")).digest("hex").slice(0, 16);
+}
+
+/** Recompute and persist `.revision`; returns the new revision. */
+export function writeCatalogRevision(): string {
+  const rev = computeCatalogRevision();
+  writeFileSync(revisionPath(), `${rev}\n`);
+  return rev;
 }
 
 export function resolveCatalogPath(relativePath: string): string {
@@ -63,6 +90,10 @@ export function manifestToTracks(manifest: CatalogManifest): Track[] {
       energy: t.energy,
       tempo: t.tempo,
       genre: t.genre,
+      // Prefer manifest slugs; fall back to slugify when omitted.
+      genreSlug: t.genreSlug ?? slugify(t.genre),
+      artistSlug: artist.slug ?? slugify(artist.name),
+      albumSlug: album.slug ?? slugify(album.title),
       mood: t.mood,
       scene: t.scene,
       filePath: t.filePath,
@@ -92,6 +123,9 @@ export function toTrackMeta(track: Track): TrackMeta {
     energy: track.energy,
     tempo: track.tempo,
     genre: track.genre,
+    genreSlug: track.genreSlug,
+    artistSlug: track.artistSlug,
+    albumSlug: track.albumSlug,
     mood: track.mood,
     scene: track.scene,
     filePath: track.filePath,

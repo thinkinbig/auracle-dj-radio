@@ -259,12 +259,23 @@
 
 @media (max-width: 767px) {
   .account {
-    top: 16px;
-    right: 14px;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+  }
+
+  .avatarButton {
+    width: 42px;
+    height: 42px;
+  }
+
+  .avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 0.7rem;
   }
 
   .panel {
-    top: 56px;
+    top: 52px;
   }
 }
 

@@ -2,13 +2,15 @@
   min-height: 100dvh;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
+  overflow-x: hidden;
+  overflow-y: auto;
   background:
     radial-gradient(circle at 16% 16%, rgba(75, 222, 128, 0.2), transparent 28%),
     radial-gradient(circle at 82% 8%, rgba(244, 114, 182, 0.16), transparent 30%),
     linear-gradient(135deg, #070807 0%, #111513 44%, #050505 100%);
   background-size: 120% 120%, 130% 130%, 100% 100%;
-  padding: 76px var(--space-md) 24px;
+  padding: max(76px, calc(env(safe-area-inset-top, 0px) + 56px)) var(--space-md) max(24px, env(safe-area-inset-bottom, 0px));
   animation: ambientShift 18s ease-in-out infinite alternate;
 }
 
@@ -48,17 +50,22 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: var(--space-sm);
   position: relative;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .stackMini {
   flex-shrink: 0;
+  padding: 0 var(--space-sm) calc(var(--space-sm) + env(safe-area-inset-bottom, 0px));
 }
 
 .shellFrame {
   width: 100%;
   max-width: var(--frame-max-width);
   min-height: min(100dvh, var(--frame-max-height));
+  margin-inline: auto;
   border-radius: var(--frame-radius);
   box-shadow: var(--frame-shadow);
 }
@@ -77,6 +84,7 @@
   max-width: 1160px;
   width: 100%;
   height: min(calc(100dvh - 112px), 760px);
+  margin-inline: auto;
   border-radius: var(--frame-radius);
   box-shadow: 0 32px 90px rgba(0, 0, 0, 0.34);
   background:
@@ -110,11 +118,12 @@
 }
 
 .contentCol {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: var(--space-md);
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .miniWide {
@@ -125,6 +134,7 @@
   .page {
     padding: 0;
     align-items: stretch;
+    overflow: hidden;
   }
 }
 

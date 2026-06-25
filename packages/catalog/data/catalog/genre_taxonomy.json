@@ -1,0 +1,26 @@
+{
+  "genres": [
+    { "slug": "ambient", "label": "Ambient" },
+    { "slug": "lo-fi", "label": "Lo-Fi" },
+    { "slug": "downtempo", "label": "Downtempo" },
+    { "slug": "chillhop", "label": "Chillhop" },
+    { "slug": "jazztronica", "label": "Jazztronica" },
+    { "slug": "deep-house", "label": "Deep House" },
+    { "slug": "nu-disco", "label": "Nu-Disco" },
+    { "slug": "house", "label": "House" },
+    { "slug": "synthwave", "label": "Synthwave" },
+    { "slug": "future-garage", "label": "Future Garage" }
+  ],
+  "mapping": {
+    "ambient": "ambient",
+    "lo-fi": "lo-fi",
+    "downtempo": "downtempo",
+    "chillhop": "chillhop",
+    "jazztronica": "jazztronica",
+    "deep-house": "deep-house",
+    "nu-disco": "nu-disco",
+    "house": "house",
+    "synthwave": "synthwave",
+    "future-garage": "future-garage"
+  }
+}

@@ -1,6 +1,6 @@
 import { config } from "./config.js";
 import { CatalogDb, type TrackRow } from "./catalog-db.js";
-import { resolveCatalogPath, tracksWithAssets } from "./catalog/manifest.js";
+import { resolveCatalogPath, tracksWithAssets, writeCatalogRevision } from "./catalog/manifest.js";
 import { buildSeedEmbedder } from "./wiring.js";
 
 /**
@@ -26,7 +26,8 @@ async function main(): Promise<void> {
     db.upsertTrack(row);
   }
   db.close();
-  console.log(`Seeded ${tracks.length} tracks into ${config.dbPath}`);
+  const revision = writeCatalogRevision();
+  console.log(`Seeded ${tracks.length} tracks into ${config.dbPath} (catalog revision ${revision})`);
 }
 
 main().catch((err) => {

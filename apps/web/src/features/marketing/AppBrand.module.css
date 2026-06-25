@@ -46,7 +46,13 @@ button.brand:focus-visible {
 
 @media (max-width: 900px) {
   .brand {
-    top: 24px;
-    left: 20px;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    left: calc(var(--space-md) + env(safe-area-inset-left, 0px));
+  }
+}
+
+@media (max-width: 767px) {
+  .wordmark:not(button) {
+    display: none;
   }
 }

@@ -14,7 +14,7 @@ export function PlayerScreen() {
     <AppShell
       stage={<StageHeader />}
       sheet={<ContentSheet />}
-      queue={isWide ? <TrackQueue /> : undefined}
+      queue={isWide || isPhoneFrame ? <TrackQueue /> : undefined}
       drawer={!isPhoneFrame ? <PlaylistDrawer /> : undefined}
       miniBar={<MiniControlBar />}
     />

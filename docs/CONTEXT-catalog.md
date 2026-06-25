@@ -53,10 +53,24 @@ _Avoid_: synopsis, description, prompt.
 > **Dev:** "Can the DJ read the full **Lore** on air?"
 > **Domain expert:** "No — **Lore** is source material. The DJ may borrow one evocative phrase, not recite it."
 
+## Current demo catalog
+
+| Item | Value |
+|------|--------|
+| Source of truth | `packages/catalog/data/catalog/manifest.json` |
+| Tracks | **30** (`t01`–`t30`); MP3s under `packages/catalog/data/tracks/` |
+| Artists | **5** pun stage names (Lana Del Delay, Jay-Zzz, Justin Tiger, Kayan East, Taylor Drift) |
+| Albums | **6** |
+| Structured taste | `genre_taxonomy.json` + per-entity `slug` / `genreSlug` in manifest |
+| Static export | `pnpm --filter @auracle/catalog export-catalog` → `tracks.json`, `track/tXX.json`, `genres.json` |
+| Runtime DB | `pnpm --filter @auracle/music-engine seed` → SQLite (`tracks` table) |
+
+`docs/generated_music_catalog.md` records **original MiniMax generation prompts** for the same `tXX.mp3` files; runtime titles/artists/lore follow the manifest (pun-artist universe), not that doc.
+
 ## Flagged ambiguities
 
 - "artist" on the existing `Track` row is a display string — resolved: migrate to **Artist** entity; track holds `artistId` plus denormalized display name.
 - "AI singer" was used for fictional performers — resolved: **Artist** personas for instrumental catalog; no vocal generation in this scope.
 - Whether **Album** constrains Flow scheduling — resolved: **presentation-only**; same album may appear multiple times in one session if the arc allows.
-- Initial catalog scale — resolved: **~40–48 tracks**, **3–4 artists**, **6–8 albums**; migrate existing 16 tracks first (Batch 0), then compose ~24–32 new tracks (Batch 1).
+- Initial catalog scale — resolved: target **~40–48 tracks** long-term; **Batch 0 done** — 30 tracks wired (t01–t30 on disk + manifest + seed). Further growth is **Batch 1** (~10–18 new compositions).
 - How **Lore** reaches the listener — resolved: **split** — UI shows cover + full lore; DJ uses lore only in **curator** mode, one evocative phrase, never verbatim.

@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { FlowResult, TrackCandidate, TrackMeta } from "@auracle/shared";
+import type { FlowResult, GenreCount, TrackCandidate, TrackMeta } from "@auracle/shared";
 import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
 import { config } from "../src/config.js";
 import { HashEmbedder, type Embedder } from "../src/flow/embedder.js";
@@ -152,12 +152,27 @@ describe("music-engine HTTP", () => {
     expect(flow.last?.memories).toBe("");
   });
 
-  it("GET /tracks/:id returns metadata, 404 for unknown", async () => {
+  it("GET /tracks/:id returns metadata incl. genreSlug, 404 for unknown", async () => {
     const ok = await engine.app.inject({ method: "GET", url: `/tracks/${firstTrackId}` });
     expect(ok.statusCode).toBe(200);
-    expect(ok.json<TrackMeta>().id).toBe(firstTrackId);
+    const meta = ok.json<TrackMeta>();
+    expect(meta.id).toBe(firstTrackId);
+    expect(meta.genreSlug.length).toBeGreaterThan(0);
+    expect(meta.artistSlug.length).toBeGreaterThan(0);
 
     const missing = await engine.app.inject({ method: "GET", url: "/tracks/does-not-exist" });
     expect(missing.statusCode).toBe(404);
+  });
+
+  it("GET /catalog/genres returns taxonomy slugs with counts summing to the catalog", async () => {
+    const res = await engine.app.inject({ method: "GET", url: "/catalog/genres" });
+    expect(res.statusCode).toBe(200);
+    const { genres } = res.json<{ genres: GenreCount[]; revision: string }>();
+    expect(genres.length).toBeGreaterThan(0);
+    expect(genres[0]).toEqual(expect.objectContaining({ slug: expect.any(String), label: expect.any(String), count: expect.any(Number) }));
+
+    const totalTracks = engine.db.allTracks().length;
+    const counted = genres.reduce((sum, g) => sum + g.count, 0);
+    expect(counted).toBe(totalTracks);
   });
 });
