@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS tracks (
   energy          INTEGER NOT NULL,
   tempo           INTEGER NOT NULL,
   genre           TEXT NOT NULL,
+  genre_slug      TEXT NOT NULL DEFAULT '',
+  artist_slug     TEXT NOT NULL DEFAULT '',
+  album_slug      TEXT NOT NULL DEFAULT '',
   mood            TEXT NOT NULL,
   scene           TEXT NOT NULL,
   file_path       TEXT NOT NULL,
@@ -25,6 +28,15 @@ CREATE TABLE IF NOT EXISTS tracks (
   embedding_json  TEXT
 );
 `;
+
+// Additive columns for older DBs created before structured taste (S1). SQLite's
+// CREATE TABLE IF NOT EXISTS won't add columns to an existing table, so backfill
+// them here — never dropping or rewriting existing columns.
+const ADDITIVE_COLUMNS: ReadonlyArray<[name: string, decl: string]> = [
+  ["genre_slug", "TEXT NOT NULL DEFAULT ''"],
+  ["artist_slug", "TEXT NOT NULL DEFAULT ''"],
+  ["album_slug", "TEXT NOT NULL DEFAULT ''"],
+];
 
 /** A track plus its stored embedding vector (kept out of the shared Track type). */
 export interface TrackRow extends Track {
@@ -44,6 +56,9 @@ interface RawTrackRow {
   energy: number;
   tempo: number;
   genre: string;
+  genre_slug: string;
+  artist_slug: string;
+  album_slug: string;
   mood: string;
   scene: string;
   file_path: string;
@@ -58,6 +73,17 @@ export class CatalogDb {
     this.db = new Database(path);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA);
+    this.migrate();
+  }
+
+  /** Add structured-taste columns to pre-existing DBs (idempotent, additive). */
+  private migrate(): void {
+    const existing = new Set(
+      (this.db.prepare(`PRAGMA table_info(tracks)`).all() as Array<{ name: string }>).map((r) => r.name),
+    );
+    for (const [name, decl] of ADDITIVE_COLUMNS) {
+      if (!existing.has(name)) this.db.exec(`ALTER TABLE tracks ADD COLUMN ${name} ${decl}`);
+    }
   }
 
   upsertTrack(t: TrackRow): void {
@@ -65,17 +91,17 @@ export class CatalogDb {
       .prepare(
         `INSERT INTO tracks (
            id, title, artist, artist_id, album_id, album_title, lore, album_cover_path, artist_photo_path,
-           energy, tempo, genre, mood, scene, file_path, intro_offset_ms, embedding_json
+           energy, tempo, genre, genre_slug, artist_slug, album_slug, mood, scene, file_path, intro_offset_ms, embedding_json
          )
          VALUES (
            @id, @title, @artist, @artist_id, @album_id, @album_title, @lore, @album_cover_path, @artist_photo_path,
-           @energy, @tempo, @genre, @mood, @scene, @file_path, @intro_offset_ms, @embedding_json
+           @energy, @tempo, @genre, @genre_slug, @artist_slug, @album_slug, @mood, @scene, @file_path, @intro_offset_ms, @embedding_json
          )
          ON CONFLICT(id) DO UPDATE SET
            title=@title, artist=@artist, artist_id=@artist_id, album_id=@album_id,
            album_title=@album_title, lore=@lore, album_cover_path=@album_cover_path, artist_photo_path=@artist_photo_path,
-           energy=@energy, tempo=@tempo, genre=@genre, mood=@mood, scene=@scene,
-           file_path=@file_path, intro_offset_ms=@intro_offset_ms, embedding_json=@embedding_json`,
+           energy=@energy, tempo=@tempo, genre=@genre, genre_slug=@genre_slug, artist_slug=@artist_slug, album_slug=@album_slug,
+           mood=@mood, scene=@scene, file_path=@file_path, intro_offset_ms=@intro_offset_ms, embedding_json=@embedding_json`,
       )
       .run({
         id: t.id,
@@ -90,6 +116,9 @@ export class CatalogDb {
         energy: t.energy,
         tempo: t.tempo,
         genre: t.genre,
+        genre_slug: t.genreSlug,
+        artist_slug: t.artistSlug,
+        album_slug: t.albumSlug,
         mood: t.mood,
         scene: t.scene,
         file_path: t.filePath,
@@ -132,6 +161,9 @@ function rowToTrack(row: RawTrackRow): TrackRow {
     energy: row.energy as Energy,
     tempo: row.tempo,
     genre: row.genre,
+    genreSlug: row.genre_slug ?? "",
+    artistSlug: row.artist_slug ?? "",
+    albumSlug: row.album_slug ?? "",
     mood: row.mood,
     scene: row.scene,
     filePath: row.file_path,

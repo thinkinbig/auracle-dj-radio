@@ -7,7 +7,8 @@
       "punOf": "Lana Del Rey (Del Rey → Del Delay, tape delay pedal)",
       "visualHomage": "2010s sad-girl americana album art: vintage California melancholy, film grain, faded Americana flags, motel neon, queen-of-sadness torch-singer palette — plus visible delay pedal / tape echo motifs instead of roses.",
       "vocalHomage": "Lana Del Rey-era cinematic alto: breathy noir delivery, slow vibrato, sad-girl americana phrasing — but delay-washed and more ambient/ethereal, as if sung through three tape-echo pedals. Never impersonate a real singer.",
-      "photoFile": "a-lana-delay.jpg"
+      "photoFile": "a-lana-delay.jpg",
+      "slug": "lana-del-delay"
     },
     {
       "id": "a-jay-zzz",
@@ -16,7 +17,8 @@
       "punOf": "Jay-Z (Z → Zzz, asleep at the blueprint)",
       "visualHomage": "Late-90s NYC hip-hop album packaging like The Blueprint era: black-and-gold luxury minimalism, Brooklyn noir, executive cool — but every motif suggests sleep (pillows, bedside lamp, floating Zzz, drooping eyelids). No rapper portrait.",
       "vocalHomage": "Jay-Z Blueprint-era cool conversational flow: NYC cadence, executive confidence, punchy internal rhymes — but half-asleep delivery, slower BPM, mumble-chillhop diction, yawning between phrases. Never impersonate a real rapper.",
-      "photoFile": "a-jay-zzz.jpg"
+      "photoFile": "a-jay-zzz.jpg",
+      "slug": "jay-zzz"
     },
     {
       "id": "a-justin-tiger",
@@ -25,7 +27,8 @@
       "punOf": "Justin Bieber (Bieber → Tiger, teen-pop heartthrob + big-cat stripes)",
       "visualHomage": "2010s Justin Bieber album art vocabulary: Purpose-era lavender and soft glow, Believe neon purple-pink, Justice chrome-heart minimalism — merged with bold orange-black tiger-stripe fur and metro turnstile gold. Pop-idol graphic design without any face likeness.",
       "vocalHomage": "2010s teen-pop male tenor: youthful melodic hooks, R&B glide, sticky chorus phrasing — merged with jazztronica pocket and metro-commute rhythm, tiger-stripe funk in ad-libs. Never impersonate a real pop star.",
-      "photoFile": "a-justin-tiger.jpg"
+      "photoFile": "a-justin-tiger.jpg",
+      "slug": "justin-tiger"
     },
     {
       "id": "a-kayan-east",
@@ -35,7 +38,8 @@
       "visualHomage": "Kanye-era album art vocabulary (Dropout orange, Graduation pastel, Yeezus scarlet) as graphic design language only — bear mascot, bold shapes, ego-scale layout. NEVER a photoreal celebrity face; use mascot, silhouette, or obscured stylized character.",
       "vocalHomage": "Kanye-era confident baritone: sermon-like delivery, punchy phrasing, autotune-polished hooks on peaks — redirected into nu-disco/house groove with EAST/compass metaphors and disco falsetto lifts. Never impersonate a real voice.",
       "photoFile": "a-kayan-east.jpg",
-      "photoSubject": "Stylized fictional producer — NOT a real-person lookalike. Face hidden by oversized graphic shutter shades and dropout-bear mascot hoodie. EAST is the hero: enormous brass compass rose behind him, needle locked on E; repeating east-pointing arrows; eastbound highway sign shapes; sunrise glowing from the east edge. Warm Dropout orange + Yeezus scarlet accents. Kanye-era fashion vibe without copying anyone's face."
+      "photoSubject": "Stylized fictional producer — NOT a real-person lookalike. Face hidden by oversized graphic shutter shades and dropout-bear mascot hoodie. EAST is the hero: enormous brass compass rose behind him, needle locked on E; repeating east-pointing arrows; eastbound highway sign shapes; sunrise glowing from the east edge. Warm Dropout orange + Yeezus scarlet accents. Kanye-era fashion vibe without copying anyone's face.",
+      "slug": "kayan-east"
     },
     {
       "id": "a-taylor-drift",
@@ -45,7 +49,8 @@
       "visualHomage": "2014 Taylor Swift 1989 album era — MUST include several of: thick Polaroid instant-film white border, flock of seagulls in seagull-blue sky, platinum-blonde soft waves, cherry-red lipstick, NYC pop-girl autumn palette, vintage film grain, crop-top and high-waist skirt styling, polaroid-chic daylight glamour. Then merge with touge drift: matte white sports coupe, tire smoke, pink taillights, mountain hairpin.",
       "vocalHomage": "1989-era bright female pop vocal: crisp enunciation, conversational verses, anthemic chorus lift, mid-range clarity — merged with touge-night adrenaline: breathier on long notes, rush energy on downshifts, racing exhale between lines. Never impersonate a real singer.",
       "photoFile": "a-taylor-drift.jpg",
-      "photoSubject": "1989 album-cover portrait: platinum-blonde woman, cherry-red lips, soft waves, thick white Polaroid frame, seagulls, seagull-blue sky. Glamorous blonde mid-drift in white sports coupe — fierce smile, windblown hair, tire smoke on mountain touge. 2014 pop-album daylight. Reads as 1989 cover meets street racing."
+      "photoSubject": "1989 album-cover portrait: platinum-blonde woman, cherry-red lips, soft waves, thick white Polaroid frame, seagulls, seagull-blue sky. Glamorous blonde mid-drift in white sports coupe — fierce smile, windblown hair, tire smoke on mountain touge. 2014 pop-album daylight. Reads as 1989 cover meets street racing.",
+      "slug": "taylor-drift"
     }
   ],
   "albums": [
@@ -55,7 +60,8 @@
       "title": "Born to Delay",
       "concept": "Tape hiss, lantern glow, and infinite feedback — Lana Del Delay's slowest ride home.",
       "coverFile": "alb-lana-delay-midnight.jpg",
-      "coverSubject": "Echo Lana Del Rey Born to Die cover DNA: faded Americana flag texture, vintage California melancholy, soft film grain, highway twilight — but swap every rose and flower for glowing tape-delay pedals, coiled echo cables, and rack-mount DELAY units. Lantern glow instead of pop glamour. Born to DIE → Born to DELAY pun must read visually."
+      "coverSubject": "Echo Lana Del Rey Born to Die cover DNA: faded Americana flag texture, vintage California melancholy, soft film grain, highway twilight — but swap every rose and flower for glowing tape-delay pedals, coiled echo cables, and rack-mount DELAY units. Lantern glow instead of pop glamour. Born to DIE → Born to DELAY pun must read visually.",
+      "slug": "born-to-delay"
     },
     {
       "id": "alb-jay-zzz-nap",
@@ -63,7 +69,8 @@
       "title": "The Blueprint Nap",
       "concept": "Jay-Zzz's study-session classic — one beat, zero alarms, four bars then repeat.",
       "coverFile": "alb-jay-zzz-nap.jpg",
-      "coverSubject": "Echo Jay-Z The Blueprint cover: cobalt blueprint drafting grid and technical paper texture filling the square, black-and-gold luxury framing — but every line droops into floating Zzz, pillow silhouettes, bedside lamp glow, and drooping eyelids. Hustle replaced by nap. Blueprint → Blueprint NAP pun obvious. No rapper portrait."
+      "coverSubject": "Echo Jay-Z The Blueprint cover: cobalt blueprint drafting grid and technical paper texture filling the square, black-and-gold luxury framing — but every line droops into floating Zzz, pillow silhouettes, bedside lamp glow, and drooping eyelids. Hustle replaced by nap. Blueprint → Blueprint NAP pun obvious. No rapper portrait.",
+      "slug": "the-blueprint-nap"
     },
     {
       "id": "alb-justin-tiger-suit",
@@ -71,7 +78,8 @@
       "title": "Suit & Stripes",
       "concept": "Justin Tiger's jazztronica commute — tiger-stripe funk over pop-sized hooks, pocket so deep the turnstile nods along.",
       "coverFile": "alb-justin-tiger-suit.jpg",
-      "coverSubject": "Echo Justin Bieber Purpose cover: soft lavender-pink gradient haze and minimal teen-pop blur — but bold orange-black TIGER stripes slash through the frame and metro turnstile gold. Chrome-heart motif subtly becomes tiger claw. BIEBER pop idol → TIGER stripes pun foreground. No celebrity face."
+      "coverSubject": "Echo Justin Bieber Purpose cover: soft lavender-pink gradient haze and minimal teen-pop blur — but bold orange-black TIGER stripes slash through the frame and metro turnstile gold. Chrome-heart motif subtly becomes tiger claw. BIEBER pop idol → TIGER stripes pun foreground. No celebrity face.",
+      "slug": "suit-stripes"
     },
     {
       "id": "alb-east-coast",
@@ -79,7 +87,8 @@
       "title": "East of the Bass",
       "concept": "Garage subs and deep-house corridors — Kayan East takes the College Dropout warmth underground, bass pointing east.",
       "coverFile": "alb-east-coast.jpg",
-      "coverSubject": "Echo Kanye College Dropout cover: warm orange-brown palette, dropout bear mascot posed like the source album — but bear wears a compass badge locked on EAST. UK garage subwoofers and concrete corridor beneath. Eastbound chevrons on floor. WEST → EAST pun dominates. No human face."
+      "coverSubject": "Echo Kanye College Dropout cover: warm orange-brown palette, dropout bear mascot posed like the source album — but bear wears a compass badge locked on EAST. UK garage subwoofers and concrete corridor beneath. Eastbound chevrons on floor. WEST → EAST pun dominates. No human face.",
+      "slug": "east-of-the-bass"
     },
     {
       "id": "alb-kayan-neon",
@@ -87,7 +96,8 @@
       "title": "Neon District",
       "concept": "Kayan East's dancefloor gospel — Graduation pastels crashed into peak-hour house, every sign says EAST.",
       "coverFile": "alb-kayan-neon.jpg",
-      "coverSubject": "Echo Kanye Graduation cover: pastel dorm-sky sunset gradient and collegiate bear-graduate silhouette energy from the source — but sun rises from EAST horizon only, giant compass and east arrows over neon nightclub skyline. Campus replaced by peak-hour rave. WEST → EAST pun dominates. No celebrity face."
+      "coverSubject": "Echo Kanye Graduation cover: pastel dorm-sky sunset gradient and collegiate bear-graduate silhouette energy from the source — but sun rises from EAST horizon only, giant compass and east arrows over neon nightclub skyline. Campus replaced by peak-hour rave. WEST → EAST pun dominates. No celebrity face.",
+      "slug": "neon-district"
     },
     {
       "id": "alb-taylor-drift",
@@ -95,7 +105,8 @@
       "title": "1989 Drift",
       "concept": "Taylor Drift's instrumental night-run — the 1989 album Polaroid optimism powerslides into touge. Seagull-blue skies, synthwave downshifts, zero verses.",
       "coverFile": "alb-taylor-drift.jpg",
-      "coverSubject": "Echo Taylor Swift 1989 cover layout: thick white Polaroid instant-film border dominates — inside the window, matte white sports coupe mid-powerslide on touge with tire smoke instead of a portrait. Seagulls and seagull-blue sky beyond the frame. SWIFT pop portrait → DRIFT racing pun. Soft 2014 film grain."
+      "coverSubject": "Echo Taylor Swift 1989 cover layout: thick white Polaroid instant-film border dominates — inside the window, matte white sports coupe mid-powerslide on touge with tire smoke instead of a portrait. Seagulls and seagull-blue sky beyond the frame. SWIFT pop portrait → DRIFT racing pun. Soft 2014 film grain.",
+      "slug": "1989-drift"
     }
   ],
   "tracks": [
@@ -110,7 +121,8 @@
       "scene": "study",
       "filePath": "data/tracks/t01.mp3",
       "introOffsetMs": null,
-      "lore": "Lana Del Delay taped crackling lantern footage from a Kyoto alley and built the pad around that loop — then ran it through delay until the lanterns echoed tomorrow."
+      "lore": "Lana Del Delay taped crackling lantern footage from a Kyoto alley and built the pad around that loop — then ran it through delay until the lanterns echoed tomorrow.",
+      "genreSlug": "ambient"
     },
     {
       "id": "t02",
@@ -123,7 +135,8 @@
       "scene": "study",
       "filePath": "data/tracks/t02.mp3",
       "introOffsetMs": null,
-      "lore": "Recorded on a dying cassette deck; Lana Del Delay says the hiss is a feature — 'static is just delay that gave up on arriving.'"
+      "lore": "Recorded on a dying cassette deck; Lana Del Delay says the hiss is a feature — 'static is just delay that gave up on arriving.'",
+      "genreSlug": "lo-fi"
     },
     {
       "id": "t03",
@@ -136,7 +149,8 @@
       "scene": "focus",
       "filePath": "data/tracks/t03.mp3",
       "introOffsetMs": null,
-      "lore": "Written while waiting for kettle steam to clear the window — the first chord lands three seconds late on purpose."
+      "lore": "Written while waiting for kettle steam to clear the window — the first chord lands three seconds late on purpose.",
+      "genreSlug": "downtempo"
     },
     {
       "id": "t04",
@@ -149,7 +163,8 @@
       "scene": "study",
       "filePath": "data/tracks/t04.mp3",
       "introOffsetMs": null,
-      "lore": "Jay-Zzz mixed this at whisper volume — liner notes say 'if you remember this track, you weren't the target audience.'"
+      "lore": "Jay-Zzz mixed this at whisper volume — liner notes say 'if you remember this track, you weren't the target audience.'",
+      "genreSlug": "chillhop"
     },
     {
       "id": "t05",
@@ -162,7 +177,8 @@
       "scene": "chill",
       "filePath": "data/tracks/t05.mp3",
       "introOffsetMs": null,
-      "lore": "Field recordings from a tide pool at dawn; Lana Del Delay delayed each bubble until the tide came back twice."
+      "lore": "Field recordings from a tide pool at dawn; Lana Del Delay delayed each bubble until the tide came back twice.",
+      "genreSlug": "ambient"
     },
     {
       "id": "t06",
@@ -175,7 +191,8 @@
       "scene": "focus",
       "filePath": "data/tracks/t06.mp3",
       "introOffsetMs": null,
-      "lore": "Mallet hits sampled from wind chimes on a porch — still the 'uptempo' track on Born to Delay, which tells you everything."
+      "lore": "Mallet hits sampled from wind chimes on a porch — still the 'uptempo' track on Born to Delay, which tells you everything.",
+      "genreSlug": "downtempo"
     },
     {
       "id": "t07",
@@ -190,7 +207,8 @@
       "introOffsetMs": null,
       "instrumental": false,
       "lyrics": "[Intro]\n(Turnstile beep, subway hum)\nFluorescent stripe in the lavender glow\nLast train humming — everybody knows\n\n[Verse 1]\nSwipe my card, the gate sings on beat\nTiger-stripe jacket, gold at my feet\nPlatform lights smear to a soft purple haze\nEvery delay bar is a funk parade\nJazz keys stutter where the rails align\nPop hook lodged like a transfer sign\n\n[Pre-Chorus]\nDoors slide wide, the pocket runs deep\nTurnstile choir won't let me sleep\n\n[Chorus]\nNeon commute, neon commute\nEvery stop locks to the tiger-suit groove\nMetro melody sticky in my head\nTransfer hits like a chorus instead\nNeon commute, ride the line\nStripes on the seat, chrome on the sign\nPop was the template — tiger's the proof\nEvery beep in harmony under the roof\n\n[Verse 2]\nRush-hour blur but the baseline stays clean\nFunk in the corridor, neon on the screen\nOne more bar till my exit glows\nHook so sweet that I missed my stop — twice, I know\n\n[Pre-Chorus]\nDoors slide wide, the pocket runs deep\nTurnstile choir won't let me sleep\n\n[Chorus]\nNeon commute, neon commute\nEvery stop locks to the tiger-suit groove\nNeon commute, ride the line\nStripes on the seat, chrome on the sign\n\n[Bridge]\n(Half-spoken, playful)\nLine seven's late but the chords arrive on time\nTiger don't sprint — just ride the rhyme\n\n[Final Chorus]\nNeon commute, neon commute\nLast stop shining — turnstile salute\nHook in my pocket, loop through the night\nNeon commute…\n(Subway fade)",
-      "lore": "Justin Tiger mapped an automated metro line into a chord progression — each stop syncs, every transfer hits like a chorus you can't unstick."
+      "lore": "Justin Tiger mapped an automated metro line into a chord progression — each stop syncs, every transfer hits like a chorus you can't unstick.",
+      "genreSlug": "jazztronica"
     },
     {
       "id": "t08",
@@ -203,7 +221,8 @@
       "scene": "focus",
       "filePath": "data/tracks/t08.mp3",
       "introOffsetMs": null,
-      "lore": "Built from a kick recorded in a parking garage; Kayan East sampled the College Dropout bear mascot energy into the sub — the reverb tail answers from the eastbound lane."
+      "lore": "Built from a kick recorded in a parking garage; Kayan East sampled the College Dropout bear mascot energy into the sub — the reverb tail answers from the eastbound lane.",
+      "genreSlug": "deep-house"
     },
     {
       "id": "t09",
@@ -218,7 +237,8 @@
       "introOffsetMs": null,
       "instrumental": false,
       "lyrics": "[Intro]\n(Heartbeat kick, pastel synth swell)\nMile marker twelve in the mirror glow\nEast river waiting — let the sunrise show\n\n[Verse 1]\nLace up slow, the pavement's a pulse\nGraduation colors on the gymnasium walls\nBreath in fours, exhale on the snare\nEvery stride is a sermon I declare\nPastel horizon bleeding into red\nEast is the only direction in my head\n\n[Pre-Chorus]\nLegs on fire but the tempo holds true\nMile twelve coming — that's the breakthrough\n\n[Chorus]\nRun lights, run lights\nHeadlights of dawn on the east-side nights\nEvery step is a cultural moment, feel the lift\nPastel sky cracking — that's the gift\nRun lights, don't stop\nCompass locked east till we hit the top\nWest was yesterday — east is the call\nRun lights, run through it all\n\n[Verse 2]\nSweat on the bridge, river below\nNeon district fading in the indigo\nFilter opens like the sky turns gold\nMarathon heart in a house tempo soul\n\n[Pre-Chorus]\nLegs on fire but the tempo holds true\nMile twelve coming — that's the breakthrough\n\n[Chorus]\nRun lights, run lights\nHeadlights of dawn on the east-side nights\nRun lights, don't stop\nCompass locked east till we hit the top\n\n[Bridge]\n(Chant, building)\nEast — say it\nEast — play it\nTimeline bending where the drop will land\nPeak of the run, both feet on sand\n\n[Final Chorus]\nRun lights, run lights\nSunrise receipt for a hundred miles\nBest story the eastbound lane ever wrote\nRun lights…\n(Breath out, fade)",
-      "lore": "Composed for a friend training for a night marathon — Kayan East calls mile twelve 'a cultural moment' and timed the drop to a Graduation-pastel sunrise over the east river."
+      "lore": "Composed for a friend training for a night marathon — Kayan East calls mile twelve 'a cultural moment' and timed the drop to a Graduation-pastel sunrise over the east river.",
+      "genreSlug": "nu-disco"
     },
     {
       "id": "t10",
@@ -231,7 +251,8 @@
       "scene": "gym",
       "filePath": "data/tracks/t10.mp3",
       "introOffsetMs": null,
-      "lore": "Kayan East imagined headlights on an empty highway where every sign points EAST — the filter sweep is the first curve past the neon district."
+      "lore": "Kayan East imagined headlights on an empty highway where every sign points EAST — the filter sweep is the first curve past the neon district.",
+      "genreSlug": "house"
     },
     {
       "id": "t11",
@@ -246,7 +267,8 @@
       "introOffsetMs": null,
       "instrumental": false,
       "lyrics": "[Intro]\n(Engine idle, synth arp rising)\nPolaroid light on the rearview glass\nHairpin waiting — let the moment pass\n\n[Verse 1]\nWhite coupe on the touge, seagull-blue above\nCherry-red lips, but I'm not here for love\nI'm here for the downshift, third gear and clean\nFirst hairpin I nailed — best I've ever been\nEvery arp's a heel-toe, every sweep's the smoke\n1989 optimism in a midnight coat\n\n[Pre-Chorus]\nFilter opens like the mountain bends\nBreath gets thin but the rush never ends\n\n[Chorus]\nSkyline drive, skyline drive\nTire smoke catching the blue in the sky\nI'm not fast, I'm precise — that's the drift in my life\nPolaroid flash on a perfect line\nSkyline drive, hold the line\nPop-girl daylight on a touge at night\nSwift was the old me — drift is the proof\nEvery clean corner is the absolute truth\n\n[Verse 2]\nPlatinum hair in the wind, taillights pink\nOne more lap before I let myself think\nThe straight's ahead but I don't want flat\nI'd rather powerslide and take it back\nSeagulls scatter when the tires scream\nThis isn't a dream — it's a racing scheme\n\n[Pre-Chorus]\nFilter opens like the mountain bends\nBreath gets thin but the rush never ends\n\n[Chorus]\nSkyline drive, skyline drive\nTire smoke catching the blue in the sky\nI'm not fast, I'm precise — that's the drift in my life\nPolaroid flash on a perfect line\nSkyline drive, hold the line\nPop-girl daylight on a touge at night\nSwift was the old me — drift is the proof\nEvery clean corner is the absolute truth\n\n[Bridge]\n(Breakdown — breathier, half-spoken)\nMatte white paint, mountain hairpin grace\nOne clean line and I forget the race\nNot about winning — about the line you keep\nExhale on the straight, then dive back deep\n\n[Final Chorus]\nSkyline drive, skyline drive\nTire smoke catching the blue in the sky\nHairpin clean and the Polaroid's gold\nBest story this blonde has ever told\nSkyline drive…\n(Synth fade, engine cool-down)",
-      "lore": "Taylor Drift wrote this after her first clean hairpin in the matte white coupe — every arp is a downshift, every filter sweep is tire smoke catching the 1989-blue sky."
+      "lore": "Taylor Drift wrote this after her first clean hairpin in the matte white coupe — every arp is a downshift, every filter sweep is tire smoke catching the 1989-blue sky.",
+      "genreSlug": "synthwave"
     },
     {
       "id": "t12",
@@ -261,7 +283,8 @@
       "introOffsetMs": null,
       "instrumental": false,
       "lyrics": "[Intro]\n(Strobe hiss, kick drum lock)\nClock says midnight — floor says now\nEast sign flashing on the sweat-stained brow\n\n[Verse 1]\nDoors fly open, sub hits first\nBear on the hoodie, ego rehearsed\nTimeline bending at the quarter-hour\nDrop incoming — feel the power\nScarlet strobe on a pastel ghost\nPeak hour eastbound — coast to coast\n\n[Pre-Chorus]\nHands up slow then the ceiling breaks\nThis is the moment the timeline shakes\n\n[Chorus]\nPeak hour, peak hour\nInterrupt the timeline — feel the power\nEvery head nod is a eastbound prayer\nMandatory motion — nobody's sitting there\nPeak hour, full send\nDancefloor gospel till the night ends\nWest is a memory — east is the law\nPeak hour, give me more\n\n[Verse 2]\nDJ booth fog and the compass spins\nFour-on-the-floor where the sermon begins\nAutotune halo on the highest note\nReceipt in hand — that's all she wrote\n\n[Pre-Chorus]\nHands up slow then the ceiling breaks\nThis is the moment the timeline shakes\n\n[Chorus]\nPeak hour, peak hour\nInterrupt the timeline — feel the power\nPeak hour, full send\nDancefloor gospel till the night ends\n\n[Bridge]\n(Shout, half-spoken)\nSunrise stealing through the warehouse crack\nOne more drop and we ain't coming back\nExplain it tomorrow — not tonight\nPeak hour owns the timeline\n\n[Final Chorus]\nPeak hour, peak hour\nFloor still shaking — eastbound power\nLast track before the sky turns gold\nPeak hour…\n(Kick fade, strobe out)",
-      "lore": "The last track Kayan East finished before sunrise — he called the drop 'interrupting the timeline' in full Yeezus-red confidence and refused to explain further."
+      "lore": "The last track Kayan East finished before sunrise — he called the drop 'interrupting the timeline' in full Yeezus-red confidence and refused to explain further.",
+      "genreSlug": "house"
     },
     {
       "id": "t13",
@@ -274,7 +297,8 @@
       "scene": "party",
       "filePath": "data/tracks/t13.mp3",
       "introOffsetMs": null,
-      "lore": "A deliberate excess of everything that worked on Neon District — Kayan East calls it the receipt; the dancefloor calls it mandatory eastbound peak hour."
+      "lore": "A deliberate excess of everything that worked on Neon District — Kayan East calls it the receipt; the dancefloor calls it mandatory eastbound peak hour.",
+      "genreSlug": "nu-disco"
     },
     {
       "id": "t14",
@@ -289,7 +313,8 @@
       "introOffsetMs": null,
       "instrumental": false,
       "lyrics": "[Intro]\n(Engine cools, synth pad soft)\nMountain straightens — let the moment breathe\nPolaroid light on the gold-green eve\n\n[Verse 1]\nTire smoke settled, hairpin behind\nRearview holding what we left on the climb\nPlatinum strands in the warm cabin air\nCherry-red quiet — no more dare\nSynthwave hush where the touge went loud\nAfterglow painting every cloud\n\n[Pre-Chorus]\nFoot off the gas, heart still sings\nGold on the glass — slow-motion things\n\n[Chorus]\nAfterglow, afterglow\nPolaroid warmth on the long road home\nNot the race — just the line we keep\nExhale on the straight, drift off to sleep\nAfterglow, hold it close\n1989 daylight in a sunset dose\nDrift was the rush — afterglow's the proof\nBest stories need a gentle roof\n\n[Verse 2]\nSeagull-blue fading to amber and rose\nTaillights dimming on the mountain close\nOne hand on the wheel, one on the frame\nEvery hairpin still whispering my name\nBut I'm not chasing — I'm letting it go\nAfterglow teaching what the straight roads know\n\n[Pre-Chorus]\nFoot off the gas, heart still sings\nGold on the glass — slow-motion things\n\n[Chorus]\nAfterglow, afterglow\nPolaroid warmth on the long road home\nAfterglow, hold it close\n1989 daylight in a sunset dose\n\n[Bridge]\n(Breathier, almost whispered)\nMatte white paint cooling in the lane\nBest lap I ran was the one I didn't name\nWinning is quiet when the mountain's done\nAfterglow — that's the one\n\n[Final Chorus]\nAfterglow, afterglow\nHairpin memories in a soft gold glow\nBlonde behind the wheel finally still\nAfterglow…\n(Synth fade, engine tick)",
-      "lore": "The cool-down lap on 1989 Drift — Taylor Drift wrote it for when the mountain straightens, the Polaroid light goes gold, and the blonde behind the wheel finally exhales."
+      "lore": "The cool-down lap on 1989 Drift — Taylor Drift wrote it for when the mountain straightens, the Polaroid light goes gold, and the blonde behind the wheel finally exhales.",
+      "genreSlug": "synthwave"
     },
     {
       "id": "t15",
@@ -302,7 +327,8 @@
       "scene": "chill",
       "filePath": "data/tracks/t15.mp3",
       "introOffsetMs": null,
-      "lore": "Inspired by opening a window after cooking — Kayan East kept the shuffle slow, like air finally finding the east-facing room."
+      "lore": "Inspired by opening a window after cooking — Kayan East kept the shuffle slow, like air finally finding the east-facing room.",
+      "genreSlug": "future-garage"
     },
     {
       "id": "t16",
@@ -315,7 +341,8 @@
       "scene": "chill",
       "filePath": "data/tracks/t16.mp3",
       "introOffsetMs": null,
-      "lore": "Lana Del Delay's closing sketch — one sustained note held until the bus reaches the depot, still echoing after everyone left."
+      "lore": "Lana Del Delay's closing sketch — one sustained note held until the bus reaches the depot, still echoing after everyone left.",
+      "genreSlug": "downtempo"
     }
   ]
 }

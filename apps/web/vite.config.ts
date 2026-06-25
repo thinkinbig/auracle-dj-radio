@@ -18,6 +18,7 @@ const proxyTarget = process.env.PROXY_PROXY_TARGET ?? 'http://localhost:8080';
  * Serve the static catalog (packages/catalog/data) in dev — the api service was
  * retired, so this mirrors what nginx does in prod:
  *   GET /catalog/tracks      → catalog/tracks.json
+ *   GET /catalog/genres      → catalog/genres.json
  *   GET /tracks/:id          → catalog/track/<id>.json
  *   GET /tracks/:id/audio     → tracks/<id>.mp3
  *   GET /covers|artists/:file → image
@@ -44,6 +45,7 @@ function catalogDev(): Plugin {
       server.middlewares.use((req, res, next) => {
         const url = (req.url ?? '').split('?')[0];
         if (url === '/catalog/tracks') return send(res, join(dataDir, 'catalog/tracks.json'), 'application/json');
+        if (url === '/catalog/genres') return send(res, join(dataDir, 'catalog/genres.json'), 'application/json');
         let m = url.match(/^\/tracks\/([^/]+)\/audio$/);
         if (m) return send(res, join(dataDir, 'tracks', `${m[1]}.mp3`), 'audio/mpeg');
         m = url.match(/^\/tracks\/([^/]+)$/);

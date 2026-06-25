@@ -19,6 +19,12 @@ export interface Track {
   energy: Energy;
   tempo: number; // BPM
   genre: string;
+  /** Taxonomy slug for `genre` (structured taste; see `genre_taxonomy.json`). */
+  genreSlug: string;
+  /** Stable slug of the credited artist (denormalized from the manifest). */
+  artistSlug: string;
+  /** Stable slug of the album (denormalized from the manifest). */
+  albumSlug: string;
   mood: string;
   scene: string;
   filePath: string;

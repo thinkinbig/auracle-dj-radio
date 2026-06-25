@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import type { SessionIntent, TrackCandidate } from "@auracle/shared";
+import type { GenreCount, SessionIntent, TrackCandidate } from "@auracle/shared";
 import { CatalogDb } from "./catalog-db.js";
+import { computeCatalogRevision, loadGenreTaxonomy } from "./catalog/manifest.js";
 import { buildEmbedder, buildFlowModel } from "./wiring.js";
 import { retrieveCandidates } from "./flow/retrieve.js";
 import {
@@ -42,6 +43,15 @@ export function buildServer(dbPath: string): MusicEngine {
   const app = Fastify({ logger: true });
 
   app.get("/health", async () => ({ ok: true, tracks: db.allTracks().length }));
+
+  // Taxonomy slugs + per-genre track counts for the taste-onboarding UI (S3).
+  app.get("/catalog/genres", async () => {
+    const taxonomy = loadGenreTaxonomy();
+    const counts = new Map<string, number>();
+    for (const t of db.allTracks()) counts.set(t.genreSlug, (counts.get(t.genreSlug) ?? 0) + 1);
+    const genres: GenreCount[] = taxonomy.genres.map((g) => ({ ...g, count: counts.get(g.slug) ?? 0 }));
+    return { genres, revision: computeCatalogRevision() };
+  });
 
   // Step 1 retrieval: embed mood/scene, return top-K candidates by cosine.
   app.post("/search_catalog", async (req, reply) => {
