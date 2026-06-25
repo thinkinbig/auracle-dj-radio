@@ -7,6 +7,7 @@ import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
 import { config } from "../src/config.js";
 import { HashEmbedder, type Embedder } from "../src/flow/embedder.js";
 import type { FlowInput, FlowModel } from "../src/flow/flow-model.js";
+import { buildPrompt } from "../src/flow/gemini.js";
 import { replan } from "../src/flow/plan.js";
 import { resolveCatalogPath, tracksWithAssets } from "../src/catalog/manifest.js";
 import { buildServer, type MusicEngine } from "../src/server.js";
@@ -150,6 +151,24 @@ describe("music-engine HTTP", () => {
 
     await replan(deps, base);
     expect(flow.last?.memories).toBe("");
+  });
+
+  it("treats mem0 facts as explicit planning guidance in the Flow prompt (P1-2)", () => {
+    const prompt = buildPrompt({
+      intent: { mood: "calm", scene: "studying", duration_min: 25 },
+      memories: "- prefers lighter energy",
+      played: [],
+      lastPlayedEnergy: null,
+      remainingSlots: 2,
+      candidates: [
+        { id: "a", energy: 2, tempo: 80, genre: "ambient", mood: "calm", scene: "studying" },
+        { id: "b", energy: 5, tempo: 140, genre: "club", mood: "intense", scene: "workout" },
+      ],
+    });
+
+    expect(prompt).toContain("User profile:\n- prefers lighter energy");
+    expect(prompt).toContain("prefer matching candidates");
+    expect(prompt).toContain("explain any necessary tradeoff");
   });
 
   it("GET /tracks/:id returns metadata incl. genreSlug, 404 for unknown", async () => {

@@ -31,6 +31,12 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
     return { memories: await memory.recall(query, user_id) };
   });
 
+  app.post("/memory/recall-intent", async (req, reply) => {
+    const { user_id, mood, scene } = (req.body ?? {}) as { user_id?: string; mood?: string; scene?: string };
+    if (!user_id || !mood || !scene) return reply.code(400).send({ error: "user_id, mood, and scene are required" });
+    return { memories: await memory.recallForIntent(user_id, mood, scene) };
+  });
+
   app.post("/memory/remember", async (req, reply) => {
     const { fact, session_id, user_id } = (req.body ?? {}) as { fact?: string; session_id?: string; user_id?: string };
     if (!fact || !session_id || !user_id) {

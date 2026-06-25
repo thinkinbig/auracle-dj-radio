@@ -16,14 +16,35 @@ export interface MemoryClient {
   readonly degraded: boolean;
   /** Recalled facts for `userId` as a short bullet list, or "" if none / unavailable. */
   recall(query: string, userId: string): Promise<string>;
+  /** Two-query recall tuned for session planning: exact mood+scene plus broader scene taste. */
+  recallForIntent(userId: string, mood: string, scene: string): Promise<string>;
   /** Extract and persist a preference fact for `userId`'s future sessions. */
   remember(fact: string, sessionId: string, userId: string): Promise<void>;
+}
+
+function dedupeFacts(facts: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const fact of facts) {
+    const normalized = fact.trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(fact.trim());
+  }
+  return out;
+}
+
+function formatFacts(facts: string[]): string {
+  return facts.map((f) => `- ${f}`).join("\n");
 }
 
 class NoopMemory implements MemoryClient {
   readonly enabled = false;
   readonly degraded = false;
   async recall(): Promise<string> {
+    return "";
+  }
+  async recallForIntent(): Promise<string> {
     return "";
   }
   async remember(): Promise<void> {}
@@ -51,18 +72,30 @@ class Mem0Memory implements MemoryClient {
     return this.memory;
   }
 
-  async recall(query: string, userId: string): Promise<string> {
-    if (this.broken) return "";
+  private async searchFacts(query: string, userId: string, topK = 5): Promise<string[]> {
+    if (this.broken) return [];
     try {
       const m = await this.client();
-      const res = await m.search(query, { filters: { user_id: userId }, topK: 5 });
-      const facts = res.results.map((r) => r.memory).filter((f): f is string => Boolean(f));
-      return facts.map((f) => `- ${f}`).join("\n");
+      const res = await m.search(query, { filters: { user_id: userId }, topK });
+      return res.results.map((r) => r.memory).filter((f): f is string => Boolean(f));
     } catch (err) {
       this.broken = true;
       console.error("[mem0] recall failed, disabling memory:", (err as Error).message);
-      return "";
+      return [];
     }
+  }
+
+  async recall(query: string, userId: string): Promise<string> {
+    return formatFacts(await this.searchFacts(query, userId));
+  }
+
+  async recallForIntent(userId: string, mood: string, scene: string): Promise<string> {
+    const exact = `music preferences for a ${mood} ${scene} session`;
+    const sceneWide = `music preferences for ${scene} sessions`;
+    return formatFacts(dedupeFacts([
+      ...(await this.searchFacts(exact, userId)),
+      ...(await this.searchFacts(sceneWide, userId)),
+    ]));
   }
 
   async remember(fact: string, sessionId: string, userId: string): Promise<void> {

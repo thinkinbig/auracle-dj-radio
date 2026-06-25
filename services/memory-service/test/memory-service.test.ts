@@ -15,6 +15,19 @@ class RecordingMemory implements MemoryClient {
   recalls: { query: string; userId: string }[] = [];
   async recall(query: string, userId: string): Promise<string> {
     this.recalls.push({ query, userId });
+    return this.memoriesFor(query);
+  }
+  async recallForIntent(userId: string, mood: string, scene: string): Promise<string> {
+    const queries = [`music preferences for a ${mood} ${scene} session`, `music preferences for ${scene} sessions`];
+    const facts = queries.flatMap((query) => {
+      this.recalls.push({ query, userId });
+      return this.memoriesFor(query).split("\n").map((line) => line.replace(/^- /, "")).filter(Boolean);
+    });
+    return [...new Set(facts)].map((fact) => `- ${fact}`).join("\n");
+  }
+  private memoriesFor(query: string): string {
+    if (query.includes("calm studying")) return "- prefers lighter energy\n- likes sparse piano";
+    if (query.includes("studying sessions")) return "- likes sparse piano\n- dislikes harsh drums";
     return "";
   }
   async remember(fact: string, _sessionId: string, userId: string): Promise<void> {
@@ -118,9 +131,23 @@ describe("memory-service internal memory/events API", () => {
       payload: { query: "calm studying", user_id: ANONYMOUS_USER_ID },
     });
     expect(recall.statusCode).toBe(200);
-    expect(recall.json<{ memories: string }>().memories).toBe("");
+    expect(recall.json<{ memories: string }>().memories).toBe("- prefers lighter energy\n- likes sparse piano");
 
     const beforeFacts = memory.facts.length;
+    const intentRecall = await app.inject({
+      method: "POST",
+      url: "/memory/recall-intent",
+      payload: { mood: "calm", scene: "studying", user_id: ANONYMOUS_USER_ID },
+    });
+    expect(intentRecall.statusCode).toBe(200);
+    expect(intentRecall.json<{ memories: string }>().memories).toBe(
+      "- prefers lighter energy\n- likes sparse piano\n- dislikes harsh drums",
+    );
+    expect(memory.recalls.slice(-2)).toEqual([
+      { query: "music preferences for a calm studying session", userId: ANONYMOUS_USER_ID },
+      { query: "music preferences for studying sessions", userId: ANONYMOUS_USER_ID },
+    ]);
+
     const remembered = await app.inject({
       method: "POST",
       url: "/memory/remember",
@@ -188,6 +215,9 @@ describe("memory-service internal memory/events API", () => {
   it("rejects malformed internal API calls", async () => {
     const recall = await app.inject({ method: "POST", url: "/memory/recall", payload: {} });
     expect(recall.statusCode).toBe(400);
+
+    const recallIntent = await app.inject({ method: "POST", url: "/memory/recall-intent", payload: { user_id: "u" } });
+    expect(recallIntent.statusCode).toBe(400);
 
     const remember = await app.inject({ method: "POST", url: "/memory/remember", payload: { fact: "x" } });
     expect(remember.statusCode).toBe(400);
