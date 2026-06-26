@@ -70,7 +70,7 @@ export function TastePanel() {
     return <p className={styles.muted}>Loading your taste…</p>;
   }
   if (editor.loadState === 'error') {
-    return <p className={styles.errorText}>Couldn’t load the catalog. Refresh to try again.</p>;
+    return <p className={styles.errorText}>Couldn’t load your taste editor. Refresh to try again.</p>;
   }
 
   const orphans = orphanedEntries(selection);

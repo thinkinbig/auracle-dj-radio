@@ -8,7 +8,6 @@ import type { GenreCount, TrackMeta } from '@auracle/shared';
 export interface BrowseAlbum {
   slug: string;
   title: string;
-  coverUrl: string;
   trackIds: string[];
 }
 
@@ -25,9 +24,7 @@ export interface BrowseTrack {
   artist: string;
   artistSlug: string;
   albumSlug: string;
-  albumTitle: string;
   coverUrl: string;
-  genreSlug: string;
 }
 
 export interface BrowseCatalog {
@@ -48,7 +45,7 @@ export function groupCatalog(tracks: TrackMeta[]): BrowseCatalog {
     }
     let album = albums.get(t.albumSlug);
     if (!album) {
-      album = { slug: t.albumSlug, title: t.albumTitle, coverUrl: t.albumCoverUrl, trackIds: [] };
+      album = { slug: t.albumSlug, title: t.albumTitle, trackIds: [] };
       albums.set(t.albumSlug, album);
       artist.albums.push(album);
     }
@@ -61,13 +58,16 @@ export function groupCatalog(tracks: TrackMeta[]): BrowseCatalog {
     artist: t.artist,
     artistSlug: t.artistSlug,
     albumSlug: t.albumSlug,
-    albumTitle: t.albumTitle,
     coverUrl: t.albumCoverUrl,
-    genreSlug: t.genreSlug,
   }));
 
+  // Sort albums within each artist (insertion order otherwise depends on the
+  // order tracks arrive in), mirroring the artist/track sorts below.
+  const sortedArtists = [...artists.values()].sort((a, b) => a.name.localeCompare(b.name));
+  for (const artist of sortedArtists) artist.albums.sort((a, b) => a.title.localeCompare(b.title));
+
   return {
-    artists: [...artists.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    artists: sortedArtists,
     tracks: browseTracks.sort((a, b) => a.id.localeCompare(b.id)),
   };
 }

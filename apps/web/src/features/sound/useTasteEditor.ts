@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GenreCount, TasteEntityType, TastePolarity } from '@auracle/shared';
 import { loadBrowseCatalog, loadGenres, type BrowseCatalog } from './catalogBrowse';
 import { describeSaveError, fetchTaste, saveTaste } from './tasteApi';
@@ -32,6 +32,13 @@ export function useTasteEditor(): TasteEditor {
   const [freeText, setFreeTextState] = useState('');
   const [saveState, setSaveState] = useState<TasteSaveState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Latest edited state, so a save that resolves after the user keeps editing
+  // doesn't clobber those edits when it rehydrates from the response.
+  const latest = useRef({ selection, freeText });
+  useEffect(() => {
+    latest.current = { selection, freeText };
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -71,9 +78,19 @@ export function useTasteEditor(): TasteEditor {
   const save = useCallback(() => {
     setSaveState('saving');
     setErrorMessage('');
+    const savedSelection = selection;
+    const savedFreeText = freeText;
     void (async () => {
       try {
-        const res = await saveTaste(toSaveRequest(selection, freeText));
+        const res = await saveTaste(toSaveRequest(savedSelection, savedFreeText));
+        // If the user edited during the in-flight save, keep their edits and
+        // leave the form dirty rather than overwriting with the server echo.
+        const edited =
+          latest.current.selection !== savedSelection || latest.current.freeText !== savedFreeText;
+        if (edited) {
+          setSaveState('idle');
+          return;
+        }
         setSelection(hydrateSelection(res.preferences));
         setFreeTextState(res.freeText ?? '');
         setSaveState('saved');

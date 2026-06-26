@@ -53,7 +53,9 @@ export function setPolarity(
     delete next[key];
     return next;
   }
-  next[key] = { entityType, entityId, polarity, source: next[key]?.source ?? source };
+  // Spread the existing pick so provenance (`source`) and `strength` survive a
+  // polarity flip; only `polarity` changes.
+  next[key] = { ...next[key], entityType, entityId, polarity, source: next[key]?.source ?? source };
   return next;
 }
 
@@ -69,8 +71,15 @@ export function togglePolarity(
   return setPolarity(selection, entityType, entityId, current === polarity ? null : polarity, source);
 }
 
+/**
+ * Count *active* picks of one type/polarity. Orphaned entries are excluded —
+ * they are dropped from the save (see `toSaveRequest`), so they must not inflate
+ * the summary or eat a track pin/block slot.
+ */
 export function countByType(selection: Selection, entityType: TasteEntityType, polarity: TastePolarity): number {
-  return Object.values(selection).filter((p) => p.entityType === entityType && p.polarity === polarity).length;
+  return Object.values(selection).filter(
+    (p) => p.entityType === entityType && p.polarity === polarity && p.status !== "orphaned",
+  ).length;
 }
 
 /**
