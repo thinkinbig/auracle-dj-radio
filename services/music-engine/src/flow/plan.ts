@@ -1,13 +1,13 @@
 import type { FlowResult, FlowTrackRef, SessionIntent, TastePreference, TrackCandidate } from "@auracle/shared";
 import { ARC_BANDS, FULL_SESSION_LENGTH } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
-import type { Embedder } from "./embedder.js";
-import type { FlowModel, FlowInput } from "./flow-model.js";
-import { energyWeightsFromMemories, mergeEnergyWeights } from "./memory-energy.js";
-import { repairTracklist } from "./repair.js";
-import { retrieveCandidates } from "./retrieve.js";
-import { tasteCacheKey } from "./taste-weighting.js";
-import { formatViolationsForRetry, validateTracklist, type Violation } from "./validate.js";
+import type { Embedder } from "./llm/embedder.js";
+import type { FlowModel, FlowInput } from "./llm/flow-model.js";
+import { energyWeightsFromMemories, mergeEnergyWeights } from "./weighting/memory-energy.js";
+import { repairTracklist } from "./validation/repair.js";
+import { retrieveCandidates } from "./retrieval/retrieve.js";
+import { tasteCacheKey } from "./weighting/taste-weighting.js";
+import { formatViolationsForRetry, validateTracklist, type Violation } from "./validation/validate.js";
 
 export interface PlanDeps {
   embedder: Embedder;

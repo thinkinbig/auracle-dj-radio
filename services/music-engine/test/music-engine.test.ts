@@ -5,11 +5,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FlowResult, GenreCount, TrackCandidate, TrackMeta } from "@auracle/shared";
 import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
 import { config } from "../src/config.js";
-import { HashEmbedder, type Embedder } from "../src/flow/embedder.js";
-import type { FlowInput, FlowModel } from "../src/flow/flow-model.js";
-import { buildPrompt } from "../src/flow/gemini.js";
+import { HashEmbedder, type Embedder } from "../src/flow/llm/embedder.js";
+import type { FlowInput, FlowModel } from "../src/flow/llm/flow-model.js";
+import { buildPrompt } from "../src/flow/llm/gemini.js";
 import { createPlan, replan } from "../src/flow/plan.js";
-import { energyWeightsFromMemories, mergeEnergyWeights } from "../src/flow/memory-energy.js";
+import { energyWeightsFromMemories, mergeEnergyWeights } from "../src/flow/weighting/memory-energy.js";
 import { resolveCatalogPath, tracksWithAssets } from "../src/catalog/manifest.js";
 import { buildServer, type MusicEngine } from "../src/server.js";
 

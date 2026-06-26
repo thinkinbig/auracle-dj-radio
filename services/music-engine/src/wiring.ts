@@ -1,9 +1,9 @@
 import { config } from "./config.js";
-import { HashEmbedder, type Embedder } from "./flow/embedder.js";
-import { HeuristicFlowModel } from "./flow/heuristic-flow.js";
-import type { FlowModel } from "./flow/flow-model.js";
-import { GeminiEmbedder, GeminiFlowModel } from "./flow/gemini.js";
-import { withEmbedFallback, withFlowFallback } from "./flow/fallback.js";
+import { HashEmbedder, type Embedder } from "./flow/llm/embedder.js";
+import { HeuristicFlowModel } from "./flow/llm/heuristic-flow.js";
+import type { FlowModel } from "./flow/llm/flow-model.js";
+import { GeminiEmbedder, GeminiFlowModel } from "./flow/llm/gemini.js";
+import { withEmbedFallback, withFlowFallback } from "./flow/llm/fallback.js";
 
 /**
  * Composition-root wiring for music intelligence providers. Callers receive

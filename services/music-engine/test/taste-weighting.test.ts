@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TastePreference } from "@auracle/shared";
-import { scoreRetrievalCandidate, normalizeCosineScore } from "../src/flow/retrieve.js";
-import { buildTasteScorer, tasteCacheKey, type WeightableTrack } from "../src/flow/taste-weighting.js";
+import { scoreRetrievalCandidate, normalizeCosineScore } from "../src/flow/retrieval/retrieve.js";
+import { buildTasteScorer, tasteCacheKey, type WeightableTrack } from "../src/flow/weighting/taste-weighting.js";
 
 const track: WeightableTrack = { id: "t01", genreSlug: "house", artistSlug: "lana-del-delay", albumSlug: "born-to-delay" };
 
