@@ -17,7 +17,7 @@ export function SoundScreen({ user, onClose }: SoundScreenProps) {
           Back
         </button>
         <div className={styles.headerCopy}>
-          <p className={styles.eyebrow}>Taste engineering</p>
+          <p className={styles.eyebrow}>Sound settings</p>
           <h1>Your sound</h1>
         </div>
       </header>
@@ -27,23 +27,22 @@ export function SoundScreen({ user, onClose }: SoundScreenProps) {
           <section className={styles.notice} aria-live="polite">
             <strong>Sign in to build your sound</strong>
             <p>
-              Guest mode runs a demo station only. Create an account to save structured taste,
-              learned preferences, and listening signals across sessions.
+              Guest mode lets you try a demo station. Sign in to save what you like and keep improving future sessions.
             </p>
           </section>
         ) : (
           <p className={styles.lede}>
-            Your sound shapes every station — explicit taste, what the DJ learns, and how you listen.
+            Tune what Auracle plays for you, from favorite genres to the habits it learns over time.
           </p>
         )}
 
         <section className={styles.block} aria-labelledby="sound-taste-title">
           <div className={styles.blockHeader}>
             <h2 id="sound-taste-title">Your taste</h2>
-            <span className={styles.badge}>L1 · Structured</span>
+            <span className={styles.badge}>You choose</span>
           </div>
           <p className={styles.blockCopy}>
-            Genre, artist, album, and track prefer / avoid — the reproducible layer for planning.
+            Pick the genres, artists, albums, and tracks you want Auracle to play more or less often.
           </p>
           {isGuest ? (
             <div className={styles.emptyState}>Sign in to set and save your taste.</div>
@@ -55,10 +54,10 @@ export function SoundScreen({ user, onClose }: SoundScreenProps) {
         <section className={styles.block} aria-labelledby="sound-learned-title">
           <div className={styles.blockHeader}>
             <h2 id="sound-learned-title">Learned</h2>
-            <span className={styles.badge}>L3 · mem0</span>
+            <span className={styles.badge}>DJ memory</span>
           </div>
           <p className={styles.blockCopy}>
-            Facts gathered from DJ conversation and session context — read-only summaries here.
+            Preferences the DJ picks up from your conversations and listening sessions.
           </p>
           <div className={styles.emptyState}>No learned preferences yet.</div>
         </section>
@@ -66,10 +65,10 @@ export function SoundScreen({ user, onClose }: SoundScreenProps) {
         <section className={styles.block} aria-labelledby="sound-signals-title">
           <div className={styles.blockHeader}>
             <h2 id="sound-signals-title">Signals</h2>
-            <span className={styles.badge}>L2 · Behavior</span>
+            <span className={styles.badge}>Listening habits</span>
           </div>
           <p className={styles.blockCopy}>
-            Skip and completion patterns that softly steer energy and replanning.
+            How your skips and finished listens help Auracle adjust future stations.
           </p>
           <div className={styles.emptyState}>Listening signals appear after a few sessions.</div>
         </section>

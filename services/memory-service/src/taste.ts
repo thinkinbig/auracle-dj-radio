@@ -41,9 +41,13 @@ export function parseSaveTasteRequest(raw: unknown): SaveTasteRequest | { error:
     return { error: "freeText must be a string" };
   }
   const preferences: TastePreference[] = [];
+  const seen = new Set<string>();
   for (let i = 0; i < body.preferences.length; i++) {
     const pref = parsePreference(body.preferences[i]);
     if (!pref) return { error: `preferences[${i}] is malformed` };
+    const key = `${pref.entityType}\0${pref.entityId}`;
+    if (seen.has(key)) return { error: `preferences[${i}] duplicates an earlier preference` };
+    seen.add(key);
     preferences.push(pref);
   }
   const freeText = typeof body.freeText === "string" ? body.freeText.trim() : undefined;
@@ -71,33 +75,36 @@ export function resolvePreferences(prefs: TastePreference[], catalog: CatalogInd
   });
 }
 
-function labelList(prefs: TastePreference[], entityType: TasteEntityType): string[] {
-  return prefs.filter((p) => p.entityType === entityType).map((p) => p.entityId);
+function labelList(prefs: TastePreference[], entityType: TasteEntityType, catalog: CatalogIndex): string[] {
+  return prefs.filter((p) => p.entityType === entityType).map((p) => catalog.label(p.entityType, p.entityId));
 }
 
-function clause(prefs: TastePreference[], verb: string): string | undefined {
+function clause(prefs: TastePreference[], verb: string, catalog: CatalogIndex): string | undefined {
   if (prefs.length === 0) return undefined;
   const parts: string[] = [];
   for (const type of ["genre", "artist", "album", "track"] as TasteEntityType[]) {
-    const ids = labelList(prefs, type);
-    if (ids.length) parts.push(`${type}s ${ids.join(", ")}`);
+    const names = labelList(prefs, type, catalog);
+    if (names.length) parts.push(`${type}s ${names.join(", ")}`);
   }
   return parts.length ? `${verb} ${parts.join("; ")}` : undefined;
 }
 
 /**
- * Build a single human-readable taste fact for mem0 (DJ recall). Returns "" when
- * there is nothing worth remembering, so the caller can skip the write.
+ * Build a single human-readable taste fact for mem0 (DJ recall), naming entities
+ * by their catalog display name rather than raw slug/id. Returns "" when there
+ * is nothing worth remembering, so the caller can skip the write.
  */
-export function summarizeTaste(prefs: TastePreference[], freeText?: string): string {
+export function summarizeTaste(prefs: TastePreference[], catalog: CatalogIndex, freeText?: string): string {
   const sentences = [
     clause(
       prefs.filter((p) => p.polarity === "prefer"),
       "Prefers",
+      catalog,
     ),
     clause(
       prefs.filter((p) => p.polarity === "avoid"),
       "Avoids",
+      catalog,
     ),
   ].filter((s): s is string => Boolean(s));
   if (freeText) sentences.push(`Note: ${freeText}`);

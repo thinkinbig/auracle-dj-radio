@@ -40,10 +40,22 @@ describe('tasteSelection', () => {
     expect(polarityOf(sel, 'genre', 'house')).toBeUndefined();
   });
 
-  it('preserves source when re-setting an existing pick', () => {
-    let sel = hydrateSelection([pref({ entityType: 'artist', entityId: 'x', polarity: 'prefer', source: 'search' })]);
+  it('preserves source and strength when re-setting an existing pick', () => {
+    let sel = hydrateSelection([
+      pref({ entityType: 'artist', entityId: 'x', polarity: 'prefer', source: 'search', strength: 2 }),
+    ]);
     sel = setPolarity(sel, 'artist', 'x', 'avoid');
     expect(sel['artist:x']?.source).toBe('search');
+    expect(sel['artist:x']?.strength).toBe(2);
+  });
+
+  it('excludes orphaned entries from counts and caps', () => {
+    const sel = hydrateSelection([
+      pref({ entityType: 'track', entityId: 't1', polarity: 'prefer', status: 'active' }),
+      pref({ entityType: 'track', entityId: 'gone', polarity: 'prefer', status: 'orphaned' }),
+    ]);
+    expect(countByType(sel, 'track', 'prefer')).toBe(1); // orphan not counted
+    expect(canSetTrack(sel, 't2', 'prefer')).toBe(true); // orphan doesn't eat a pin slot
   });
 
   it('enforces track pin/block caps but always allows toggling off', () => {

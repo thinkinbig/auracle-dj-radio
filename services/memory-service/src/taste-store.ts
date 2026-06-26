@@ -23,8 +23,6 @@ CREATE TABLE IF NOT EXISTS taste_prefs (
   source      TEXT NOT NULL,
   PRIMARY KEY (user_id, entity_type, entity_id)
 );
-
-CREATE INDEX IF NOT EXISTS idx_taste_prefs_user ON taste_prefs(user_id);
 `;
 
 interface PrefRow {

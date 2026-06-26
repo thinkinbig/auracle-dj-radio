@@ -7,6 +7,7 @@ import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
 import { config } from "../src/config.js";
 import { HashEmbedder, type Embedder } from "../src/flow/embedder.js";
 import type { FlowInput, FlowModel } from "../src/flow/flow-model.js";
+import { buildPrompt } from "../src/flow/gemini.js";
 import { replan } from "../src/flow/plan.js";
 import { resolveCatalogPath, tracksWithAssets } from "../src/catalog/manifest.js";
 import { buildServer, type MusicEngine } from "../src/server.js";
@@ -60,13 +61,39 @@ describe("music-engine HTTP", () => {
     const res = await engine.app.inject({
       method: "POST",
       url: "/search_catalog",
-      payload: { mood: "calm", scene: "studying", limit: 8 },
+      payload: { mood: "calm", scene: "study", limit: 8 },
     });
     expect(res.statusCode).toBe(200);
     const { candidates } = res.json<{ candidates: TrackCandidate[] }>();
     expect(candidates.length).toBeGreaterThan(0);
     expect(candidates.length).toBeLessThanOrEqual(8);
     expect(candidates[0]).toHaveProperty("id");
+  });
+
+  it("search_catalog ranks exact mood+scene matches highest", async () => {
+    // t01 has mood=calm + scene=study — exact match should be #1
+    const res = await engine.app.inject({
+      method: "POST",
+      url: "/search_catalog",
+      payload: { mood: "calm", scene: "study", limit: 10 },
+    });
+    expect(res.statusCode).toBe(200);
+    const { candidates } = res.json<{ candidates: TrackCandidate[] }>();
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(candidates[0]!.id).toBe("t01");
+  });
+
+  it("search_catalog ranks energetic+gym matches high", async () => {
+    // t10 has mood=energetic + scene=gym — should be #1
+    const res = await engine.app.inject({
+      method: "POST",
+      url: "/search_catalog",
+      payload: { mood: "energetic", scene: "gym", limit: 10 },
+    });
+    expect(res.statusCode).toBe(200);
+    const { candidates } = res.json<{ candidates: TrackCandidate[] }>();
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(candidates[0]!.id).toBe("t10");
   });
 
   it("search_catalog rejects a missing scene", async () => {
@@ -78,7 +105,7 @@ describe("music-engine HTTP", () => {
     const res = await engine.app.inject({
       method: "POST",
       url: "/plan_tracklist",
-      payload: { mode: "provisional", intent: { mood: "calm", scene: "studying" } },
+      payload: { mode: "provisional", intent: { mood: "calm", scene: "study" } },
     });
     expect(res.statusCode).toBe(200);
     const { result } = res.json<{ result: FlowResult }>();
@@ -90,7 +117,7 @@ describe("music-engine HTTP", () => {
     const res = await engine.app.inject({
       method: "POST",
       url: "/plan_tracklist",
-      payload: { intent: { mood: "calm", scene: "studying" } },
+      payload: { intent: { mood: "calm", scene: "study" } },
     });
     expect(res.statusCode).toBe(200);
     const body = res.json<{ result: FlowResult; violations: unknown[]; candidates: TrackCandidate[] }>();
@@ -123,7 +150,7 @@ describe("music-engine HTTP", () => {
         tempo: 90,
         genre: "g",
         mood: "calm",
-        scene: "studying",
+        scene: "study",
         filePath: "",
         introOffsetMs: null,
         instrumental: true,
@@ -143,13 +170,31 @@ describe("music-engine HTTP", () => {
     }
     const flow = new CapturingFlow();
     const deps = { embedder: stubEmbedder, flowModel: flow, tracks: () => [row("a", 2), row("b", 4)] };
-    const base = { intent: { mood: "calm", scene: "studying", duration_min: 25 }, playedIds: [], played: [], lastPlayedEnergy: null, remainingSlots: 2 };
+    const base = { intent: { mood: "calm", scene: "study", duration_min: 25 }, playedIds: [], played: [], lastPlayedEnergy: null, remainingSlots: 2 };
 
     await replan(deps, { ...base, memories: "prefers lighter energy" });
     expect(flow.last?.memories).toBe("prefers lighter energy");
 
     await replan(deps, base);
     expect(flow.last?.memories).toBe("");
+  });
+
+  it("treats mem0 facts as explicit planning guidance in the Flow prompt (P1-2)", () => {
+    const prompt = buildPrompt({
+      intent: { mood: "calm", scene: "study", duration_min: 25 },
+      memories: "- prefers lighter energy",
+      played: [],
+      lastPlayedEnergy: null,
+      remainingSlots: 2,
+      candidates: [
+        { id: "a", energy: 2, tempo: 80, genre: "ambient", mood: "calm", scene: "study" },
+        { id: "b", energy: 5, tempo: 140, genre: "club", mood: "intense", scene: "workout" },
+      ],
+    });
+
+    expect(prompt).toContain("User profile:\n- prefers lighter energy");
+    expect(prompt).toContain("prefer matching candidates");
+    expect(prompt).toContain("explain any necessary tradeoff");
   });
 
   it("GET /tracks/:id returns metadata incl. genreSlug, 404 for unknown", async () => {

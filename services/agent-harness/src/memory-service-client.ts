@@ -7,6 +7,7 @@ export type ResolveSessionUserResult =
 
 export interface MemoryServiceClient {
   recall(query: string, userId: string): Promise<string>;
+  recallForIntent(userId: string, mood: string, scene: string): Promise<string>;
   remember(fact: string, sessionId: string, userId: string): Promise<void>;
   recordEvent(sessionId: string, userId: string, eventType: string, payload: unknown): Promise<void>;
   skipRateByEnergy(userId: string, recentSessions: number): Promise<Partial<Record<number, number>>>;
@@ -31,6 +32,15 @@ export class HttpMemoryServiceClient implements MemoryServiceClient {
 
   async recall(query: string, userId: string): Promise<string> {
     const body = await this.postJson<{ memories: string }>("/memory/recall", { query, user_id: userId });
+    return body.memories;
+  }
+
+  async recallForIntent(userId: string, mood: string, scene: string): Promise<string> {
+    const body = await this.postJson<{ memories: string }>("/memory/recall-intent", {
+      user_id: userId,
+      mood,
+      scene,
+    });
     return body.memories;
   }
 

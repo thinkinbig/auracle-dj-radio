@@ -29,8 +29,14 @@ export interface SessionState {
   refineListeners: Set<() => void>;
   /** Set when skip_track fires; cleared by the next now_playing to time the skip round trip. */
   pendingSkipAtMs?: number;
+  /** Brief guard for duplicate tool bursts where a pure skip is also misread as mood_change. */
+  skipOnlyUntilMs?: number;
   /** Timestamp (ms) when the current track started; set by now_playing. Used to measure listen time before a skip. */
   trackStartedAtMs?: number;
+  /** Current run of quick skips at the same energy, used for high-signal mem0 writes. */
+  quickSkipRun?: { energy: number; count: number };
+  /** Energies already written to mem0 for repeated quick skips in this session. */
+  rememberedQuickSkipEnergies: Set<number>;
 }
 
 /** In-memory session state machine. Memory-service is the sole owner of session state. */
@@ -73,6 +79,7 @@ export class SessionStore {
       mem0Context: params.mem0Context,
       planRefined: false,
       refineListeners: new Set(),
+      rememberedQuickSkipEnergies: new Set(),
     };
     this.sessions.set(state.id, state);
     return state;

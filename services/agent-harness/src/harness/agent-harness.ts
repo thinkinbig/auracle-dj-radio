@@ -7,8 +7,11 @@ import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
 import { buildAndPushCue } from "../session/cue.js";
 import type { OrchestrationDeps } from "../session/replan.js";
-import { SessionStore } from "../session/store.js";
+import { SessionStore, type SessionState } from "../session/store.js";
 import { runTool, type ToolCall } from "../session/tool-runner.js";
+
+const QUICK_SKIP_MEMORY_THRESHOLD = 2;
+const QUICK_SKIP_MAX_LISTEN_MS = 60_000;
 
 export interface AgentHarnessDeps {
   store: SessionStore;
@@ -53,9 +56,7 @@ export class AgentHarness {
     const [mem0Context, energyWeights, taste]: [string, Partial<Record<number, number>> | undefined, TastePreference[] | undefined] =
       condition === "C"
         ? await Promise.all([
-            this.deps.memory
-              .recall(`music preferences for a ${intent.mood} ${intent.scene} session`, userId)
-              .catch(() => ""),
+            this.deps.memory.recallForIntent(userId, intent.mood, intent.scene).catch(() => ""),
             this.deps.memory.skipRateByEnergy(userId, 10).catch(() => undefined),
             this.deps.memory.tasteWeights(userId).catch(() => []),
           ])
@@ -148,20 +149,32 @@ export class AgentHarness {
       await this.deps.memory
         .recordEvent(state.id, state.userId, "skip_latency", { ms, from_index: prevIndex, to_index: state.currentTrackIndex, energy })
         .catch((err) => this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "record skip_latency failed"));
-      if (state.condition === "C" && listenedMs != null && listenedMs >= 0 && listenedMs < 60_000) {
-        void this.deps.memory
-          .remember(
-            `User skipped a track after ${Math.round(listenedMs / 1000)}s during a "${state.intent.mood}" ${state.intent.scene} session${energy != null ? ` (energy ${energy}/5)` : ""}.`,
-            state.id,
-            state.userId,
-          )
-          .catch(() => {});
-      }
+      this.maybeRememberRepeatedQuickSkip(state, listenedMs, energy);
       this.deps.log?.info({ sessionId: state.id, ms }, "skip round-trip latency");
     }
     state.trackStartedAtMs = Date.now();
 
     return { current_track_index: state.currentTrackIndex, remaining: this.deps.store.remaining(state) };
+  }
+
+  private maybeRememberRepeatedQuickSkip(state: SessionState, listenedMs: number | null, energy: number | null): void {
+    if (state.condition !== "C" || listenedMs == null || listenedMs < 0 || listenedMs >= QUICK_SKIP_MAX_LISTEN_MS || energy == null) {
+      state.quickSkipRun = undefined;
+      return;
+    }
+
+    const previous = state.quickSkipRun;
+    state.quickSkipRun = previous?.energy === energy ? { energy, count: previous.count + 1 } : { energy, count: 1 };
+    if (state.quickSkipRun.count < QUICK_SKIP_MEMORY_THRESHOLD || state.rememberedQuickSkipEnergies.has(energy)) return;
+
+    state.rememberedQuickSkipEnergies.add(energy);
+    void this.deps.memory
+      .remember(
+        `User repeatedly skipped energy ${energy}/5 tracks quickly during a "${state.intent.mood}" ${state.intent.scene} session; prefer a different energy level for this context.`,
+        state.id,
+        state.userId,
+      )
+      .catch(() => {});
   }
 
   async cue(id: string, kind: "break" | "outro"): Promise<boolean> {

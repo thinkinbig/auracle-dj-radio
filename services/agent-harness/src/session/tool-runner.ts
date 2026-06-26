@@ -3,6 +3,8 @@ import { parseHostMode } from "@auracle/shared";
 import type { SessionState } from "./store.js";
 import { replanAndPush, type OrchestrationDeps } from "./replan.js";
 
+const SKIP_ONLY_TOOL_GUARD_MS = 1_500;
+
 /** Gemini function call forwarded from the proxy (Lane 1). */
 export interface ToolCall {
   name: string;
@@ -31,7 +33,9 @@ export async function runTool(
       await deps.memory.recordEvent(state.id, state.userId, "skip_track", {});
       // Browser is the sole playhead writer: this ui_event makes it advance, and the
       // next now_playing closes the loop. Stamp the start to time that round trip.
-      state.pendingSkipAtMs = Date.now();
+      const now = Date.now();
+      state.pendingSkipAtMs = now;
+      state.skipOnlyUntilMs = now + SKIP_ONLY_TOOL_GUARD_MS;
       return { gemini_result: { ok: true }, ui_events: [{ type: "intent", intent: { type: "skip_track" } }] };
     }
     case "pause_playback": {
@@ -75,6 +79,17 @@ export async function runTool(
     case "mood_change": {
       const mood = String(args.mood ?? state.intent.mood);
       const energy_delta = (args.energy_delta as "lighter" | "heavier" | "same") ?? "same";
+      if (state.skipOnlyUntilMs != null && Date.now() < state.skipOnlyUntilMs) {
+        return {
+          gemini_result: {
+            ok: true,
+            ignored: true,
+            reason: "skip_only_guard",
+            note: "Skip was already handled. Do not announce playlist changes unless the user explicitly asked for a new mood or energy.",
+          },
+          ui_events: [],
+        };
+      }
       // Ack now (Lane 1) and run the slow Flow-LLM replan in the background; the
       // new tracklist is pushed via the proxy (Lane 3) when it lands, so the DJ
       // never waits on the replan (see perf-first-start / refactor-three-services).

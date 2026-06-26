@@ -20,6 +20,7 @@ class FakeMemoryService implements MemoryServiceClient {
   facts: { fact: string; userId: string }[] = [];
   events: { sessionId: string; userId: string; eventType: string; payload: unknown }[] = [];
   skipCalls: { userId: string; recentSessions: number }[] = [];
+  recallIntentCalls: { userId: string; mood: string; scene: string }[] = [];
   /** Bearer token → user id; tokens absent here (and no token) resolve anonymous. */
   tokenToUser = new Map<string, string>();
   recallValue = "";
@@ -32,6 +33,10 @@ class FakeMemoryService implements MemoryServiceClient {
   async tasteWeights(userId: string): Promise<TastePreference[]> {
     this.tasteCalls.push(userId);
     return this.tasteValue;
+  }
+  async recallForIntent(userId: string, mood: string, scene: string): Promise<string> {
+    this.recallIntentCalls.push({ userId, mood, scene });
+    return this.recallValue;
   }
   async remember(fact: string, _sessionId: string, userId: string): Promise<void> {
     this.facts.push({ fact, userId });
@@ -61,7 +66,7 @@ class FakeMusicEngine implements MusicEngineClient {
     const candidates =
       req.mode === "replan"
         ? [candidate("d", 2), candidate("e", 4)]
-        : [candidate("a", 1), candidate("b", 3), candidate("c", 5)];
+        : [candidate("a", 3), candidate("b", 3), candidate("c", 5)];
     const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "fake" }));
     return {
       result: { session_title: "Fake Set, vol. 1", session_subtitle: "25 min · building", arc: "build", tracklist },
@@ -174,6 +179,109 @@ describe("agent-harness", () => {
     await app.close();
   });
 
+  it("writes high-signal mem0 only after repeated quick skips at the same energy in condition C", async () => {
+    const now = vi.spyOn(Date, "now");
+    now.mockReturnValue(1_000);
+    const { app, memory } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "C" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    now.mockReturnValue(1_100);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "a" } });
+    now.mockReturnValue(1_200);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
+    now.mockReturnValue(1_210);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
+    expect(memory.facts).toEqual([]);
+
+    now.mockReturnValue(1_300);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
+    now.mockReturnValue(1_310);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "c" } });
+
+    await vi.waitFor(() => expect(memory.facts).toHaveLength(1));
+    expect(memory.facts[0]).toEqual({
+      fact: 'User repeatedly skipped energy 3/5 tracks quickly during a "calm" studying session; prefer a different energy level for this context.',
+      userId: ANONYMOUS_USER_ID,
+    });
+    now.mockRestore();
+    await app.close();
+  });
+
+  it("does not write quick-skip mem0 for condition B", async () => {
+    const now = vi.spyOn(Date, "now");
+    now.mockReturnValue(2_000);
+    const { app, memory } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "B" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    now.mockReturnValue(2_100);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "a" } });
+    now.mockReturnValue(2_200);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
+    now.mockReturnValue(2_210);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
+    now.mockReturnValue(2_300);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
+    now.mockReturnValue(2_310);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "c" } });
+
+    expect(memory.facts).toEqual([]);
+    now.mockRestore();
+    await app.close();
+  });
+
+  it("ignores a mood_change tool burst immediately after a plain skip", async () => {
+    const now = vi.spyOn(Date, "now");
+    now.mockReturnValue(1_000);
+    const { app, music, proxy } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
+    now.mockReturnValue(1_100);
+    const ignored = await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "mood_change", args: { mood: "darker", energy_delta: "heavier" } },
+    });
+
+    expect(ignored.statusCode).toBe(200);
+    expect(ignored.json<{ gemini_result: { ignored?: boolean; reason?: string } }>().gemini_result).toMatchObject({
+      ignored: true,
+      reason: "skip_only_guard",
+    });
+    expect(music.planCalls.some((c) => c.mode === "replan")).toBe(false);
+    expect(proxy.injectCalls).toEqual([]);
+    now.mockRestore();
+    await app.close();
+  });
+
+  it("allows mood_change after the skip-only guard expires", async () => {
+    const now = vi.spyOn(Date, "now");
+    now.mockReturnValue(2_000);
+    const { app, music, proxy } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
+    now.mockReturnValue(4_000);
+    await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "mood_change", args: { mood: "darker", energy_delta: "heavier" } },
+    });
+
+    await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true));
+    expect(proxy.injectCalls.length).toBe(1);
+    now.mockRestore();
+    await app.close();
+  });
+
   it("binds an unauthenticated session to the anonymous user (P0-1)", async () => {
     const { app, memory } = buildTestApp();
     await app.ready();
@@ -222,6 +330,7 @@ describe("agent-harness", () => {
     await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "B" } });
     expect(memory.skipCalls).toEqual([]);
     expect(memory.tasteCalls).toEqual([]);
+    expect(memory.recallIntentCalls).toEqual([]);
     expect(music.planCalls[0]?.memories).toBe("");
     expect(music.planCalls[0]?.energyWeights).toBeUndefined();
     expect(music.planCalls[0]?.taste).toBeUndefined();
@@ -241,6 +350,7 @@ describe("agent-harness", () => {
       payload: { mood: "calm", scene: "studying", condition: "C" },
     });
     const { session_id } = created.json<{ session_id: string }>();
+    expect(memory.recallIntentCalls).toEqual([{ userId: ANONYMOUS_USER_ID, mood: "calm", scene: "studying" }]);
     expect(music.planCalls[0]).toMatchObject({ memories: "prefers lighter energy", energyWeights: { 5: 0.3 }, taste });
 
     await app.inject({
