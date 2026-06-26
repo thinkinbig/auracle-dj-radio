@@ -181,7 +181,7 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
     case 'enter_break':
       return state.inBreak ? state : { ...state, inBreak: true };
     case 'start_talk':
-      if (state.phase === 'idle' || state.phase === 'curating' || state.phase === 'paused') return state;
+      if (state.phase === 'idle' || state.phase === 'curating') return state;
       return { ...state, isTalking: true };
     case 'stop_talk':
       return { ...state, isTalking: false };

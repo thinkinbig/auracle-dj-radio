@@ -24,12 +24,14 @@ interface LiveConnectionInput {
 
 /**
  * Open mic while music plays (hands-free talk via Gemini VAD) and during the
- * end-of-track listening window. Mute it while the DJ speaks on speakers — an
- * open mic would feed the DJ's own voice back and self-interrupt; deliberate
- * barge-in over the DJ stays on hold-to-talk (isTalking).
+ * end-of-track listening window. Also keep it open while paused so the user can
+ * resume hands-free ("play"/"continue") — pause stops the music but not the DJ's
+ * ears. Mute it while the DJ speaks on speakers — an open mic would feed the
+ * DJ's own voice back and self-interrupt; deliberate barge-in over the DJ stays
+ * on hold-to-talk (isTalking).
  */
 function micShouldBeOpen(phase: UiPhase, isTalking: boolean): boolean {
-  return phase === 'playing' || phase === 'listening' || isTalking;
+  return phase === 'playing' || phase === 'listening' || phase === 'paused' || isTalking;
 }
 
 /** WebRTC live session to the proxy: DJ stream, transcripts, phase sync, intents, mic. */

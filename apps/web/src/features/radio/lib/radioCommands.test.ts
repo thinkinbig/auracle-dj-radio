@@ -130,10 +130,19 @@ describe('radioCommands.talk', () => {
     ]);
   });
 
-  it('ignores startTalk when paused or already talking', () => {
+  it('takes the floor while paused so the user can talk the DJ back on', () => {
     const paused = harness({ phase: 'paused' });
     paused.commands.startTalk();
-    expect(paused.log).toEqual([]);
+    expect(paused.log).toEqual([
+      { ch: 'bus', call: 'skipDj' },
+      { ch: 'dispatch', action: { type: 'start_talk' } },
+    ]);
+  });
+
+  it('ignores startTalk when already talking', () => {
+    const talking = harness({ phase: 'playing', isTalking: true });
+    talking.commands.startTalk();
+    expect(talking.log).toEqual([]);
   });
 });
 
@@ -148,13 +157,23 @@ describe('radioCommands.sendText', () => {
     ]);
   });
 
-  it('is a no-op for blank text or when idle/curating/paused', () => {
+  it('is a no-op for blank text or when idle/curating', () => {
     const blank = harness({ phase: 'playing' });
     blank.commands.sendText('   ');
     expect(blank.log).toEqual([]);
 
+    const idle = harness({ phase: 'idle' });
+    idle.commands.sendText('hello');
+    expect(idle.log).toEqual([]);
+  });
+
+  it('sends while paused so the user can type the DJ back on', () => {
     const paused = harness({ phase: 'paused' });
-    paused.commands.sendText('hello');
-    expect(paused.log).toEqual([]);
+    paused.commands.sendText('play it');
+    expect(paused.log).toEqual([
+      { ch: 'bus', call: 'skipDj' },
+      { ch: 'live', call: 'sendText', text: 'play it' },
+      { ch: 'dispatch', action: { type: 'transcript', role: 'user', text: 'play it' } },
+    ]);
   });
 });

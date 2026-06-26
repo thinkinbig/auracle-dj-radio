@@ -90,7 +90,7 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
 
     startTalk(): void {
       const s = deps.getState();
-      if (s.phase === 'idle' || s.phase === 'curating' || s.phase === 'paused' || s.isTalking) return;
+      if (s.phase === 'idle' || s.phase === 'curating' || s.isTalking) return;
       // Take the floor like Siri: silence any in-flight DJ voice instantly (local,
       // zero round-trip). The music cut + restore is owned by the duck policy,
       // which now reads isTalking — so a mid-hold phase frame can't undo it.
@@ -110,7 +110,7 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
 
     sendText(text: string): void {
       const s = deps.getState();
-      if (s.phase === 'idle' || s.phase === 'curating' || s.phase === 'paused') return;
+      if (s.phase === 'idle' || s.phase === 'curating') return;
       const trimmed = text.trim();
       if (!trimmed) return;
       // Barge in like push-to-talk: silence any in-flight DJ voice instantly
