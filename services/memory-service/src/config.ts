@@ -12,6 +12,8 @@ export interface Config {
   eventsDbPath: string;
   /** Lightweight user auth DB for the web app login flow. */
   authDbPath: string;
+  /** Per-user structured taste preferences DB (Epic #3, S2). */
+  tastePrefsDbPath: string;
   /** mem0 cross-session memory (degrades to no-op when absent). */
   geminiApiKey: string | undefined;
   flowModel: string;
@@ -24,6 +26,7 @@ export const config: Config = {
   port: Number(process.env.MEMORY_SERVICE_PORT ?? 3020),
   eventsDbPath: process.env.MEMORY_EVENTS_DB_PATH ?? resolve(here, "../auracle-events.sqlite"),
   authDbPath: process.env.AUTH_DB_PATH ?? resolve(here, "../auracle-auth.sqlite"),
+  tastePrefsDbPath: process.env.TASTE_PREFS_DB_PATH ?? resolve(here, "../auracle-taste.sqlite"),
   geminiApiKey: process.env.GEMINI_API_KEY || undefined,
   flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
   mem0EmbedModel: process.env.GEMINI_MEM0_EMBED_MODEL ?? "gemini-embedding-001",

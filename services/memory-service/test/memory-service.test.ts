@@ -2,16 +2,35 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { ANONYMOUS_USER_ID } from "@auracle/shared";
+import { ANONYMOUS_USER_ID, type CatalogManifest, type TasteProfileResponse } from "@auracle/shared";
 import { AuthStore } from "../src/auth-store.js";
+import { buildCatalogIndex, type CatalogIndex } from "../src/catalog-index.js";
 import { EventsDb } from "../src/events-db.js";
 import type { MemoryClient } from "../src/memory/client.js";
+import { TasteStore } from "../src/taste-store.js";
 import { buildServer } from "../src/server.js";
+
+/** Deterministic test catalog (independent of the seeded 16-track manifest). */
+function testManifest(artistId = "a-lana-delay"): CatalogManifest {
+  return {
+    artists: [{ id: artistId, name: "Lana Delay", slug: "lana-del-delay" }],
+    albums: [{ id: "alb-lana-delay-midnight", title: "Born to Delay", slug: "lana-del-delay/born-to-delay", artistId }],
+    tracks: [{ id: "t01" }, { id: "t02" }],
+  } as unknown as CatalogManifest;
+}
+
+function testCatalog(artistId?: string, revision = "test-rev-001"): CatalogIndex {
+  return buildCatalogIndex(
+    testManifest(artistId),
+    { genres: [{ slug: "lo-fi", label: "Lo-Fi" }, { slug: "house", label: "House" }], mapping: {} },
+    revision,
+  );
+}
 
 class RecordingMemory implements MemoryClient {
   readonly enabled = true;
   readonly degraded = false;
-  facts: { fact: string; userId: string }[] = [];
+  facts: { fact: string; sessionId: string; userId: string }[] = [];
   recalls: { query: string; userId: string }[] = [];
   async recall(query: string, userId: string): Promise<string> {
     this.recalls.push({ query, userId });
@@ -30,8 +49,11 @@ class RecordingMemory implements MemoryClient {
     if (query.includes("studying sessions")) return "- likes sparse piano\n- dislikes harsh drums";
     return "";
   }
-  async remember(fact: string, _sessionId: string, userId: string): Promise<void> {
-    this.facts.push({ fact, userId });
+  async remember(fact: string, sessionId: string, userId: string): Promise<void> {
+    this.facts.push({ fact, sessionId, userId });
+  }
+  async forget(sessionId: string, userId: string): Promise<void> {
+    this.facts = this.facts.filter((f) => !(f.sessionId === sessionId && f.userId === userId));
   }
 }
 
@@ -39,14 +61,17 @@ let app: ReturnType<typeof buildServer>;
 let events: EventsDb;
 let auth: AuthStore;
 let memory: RecordingMemory;
+let taste: TasteStore;
 
 beforeAll(async () => {
   const dbPath = join(mkdtempSync(join(tmpdir(), "memory-service-")), "events.sqlite");
   const authDbPath = join(mkdtempSync(join(tmpdir(), "memory-service-auth-")), "auth.sqlite");
+  const tasteDbPath = join(mkdtempSync(join(tmpdir(), "memory-service-taste-")), "taste.sqlite");
   events = new EventsDb(dbPath);
   auth = new AuthStore(authDbPath);
+  taste = new TasteStore(tasteDbPath);
   memory = new RecordingMemory();
-  app = buildServer({ events, memory, auth });
+  app = buildServer({ events, memory, auth, taste, catalog: testCatalog() });
   await app.ready();
 });
 
@@ -54,7 +79,15 @@ afterAll(async () => {
   await app.close();
   events.close();
   auth.close();
+  taste.close();
 });
+
+/** Register a fresh user and return its id + bearer token. */
+async function registerUser(email: string): Promise<{ id: string; token: string }> {
+  const res = await app.inject({ method: "POST", url: "/auth/register", payload: { email, password: "secret123" } });
+  const body = res.json<{ user: { id: string }; token: string }>();
+  return { id: body.user.id, token: body.token };
+}
 
 describe("memory-service /auth", () => {
   it("registers, restores the current user, rejects duplicate email, and logs out", async () => {
@@ -184,7 +217,7 @@ describe("memory-service internal memory/events API", () => {
       url: "/memory/remember",
       payload: { fact: "loves dub techno", session_id: "iso-s1", user_id: "user-a" },
     });
-    expect(memory.facts.at(-1)).toEqual({ fact: "loves dub techno", userId: "user-a" });
+    expect(memory.facts.at(-1)).toEqual({ fact: "loves dub techno", sessionId: "iso-s1", userId: "user-a" });
 
     await app.inject({ method: "POST", url: "/memory/recall", payload: { query: "q", user_id: "user-b" } });
     expect(memory.recalls.at(-1)).toEqual({ query: "q", userId: "user-b" });
@@ -227,5 +260,188 @@ describe("memory-service internal memory/events API", () => {
 
     const skipRate = await app.inject({ method: "POST", url: "/events/skip-rate-by-energy", payload: {} });
     expect(skipRate.statusCode).toBe(400);
+  });
+});
+
+describe("memory-service /users/me/taste (S2)", () => {
+  it("requires authentication for read and write", async () => {
+    const get = await app.inject({ method: "GET", url: "/users/me/taste" });
+    expect(get.statusCode).toBe(401);
+    const put = await app.inject({ method: "PUT", url: "/users/me/taste", payload: { preferences: [] } });
+    expect(put.statusCode).toBe(401);
+  });
+
+  it("saves and reloads a profile, resolving slugs and dual-writing a mem0 summary", async () => {
+    const { id, token } = await registerUser("taste-save@example.com");
+    const headers = { authorization: `Bearer ${token}` };
+    const before = memory.facts.length;
+
+    const put = await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers,
+      payload: {
+        preferences: [
+          { entityType: "genre", entityId: "lo-fi", polarity: "prefer", source: "onboarding", strength: 2 },
+          { entityType: "artist", entityId: "lana-del-delay", polarity: "prefer", source: "onboarding" },
+          { entityType: "track", entityId: "t01", polarity: "avoid", source: "session" },
+        ],
+        freeText: "more jazzy today",
+      },
+    });
+    expect(put.statusCode).toBe(200);
+    const saved = put.json<TasteProfileResponse>();
+    expect(saved.catalogRevisionAtSave).toBe("test-rev-001");
+    // artist slug resolves to the current catalog id.
+    const artist = saved.preferences.find((p) => p.entityType === "artist");
+    expect(artist?.resolvedId).toBe("a-lana-delay");
+    expect(artist?.status).toBe("active");
+
+    // mem0 dual-write fired for this user with a human-readable summary.
+    expect(memory.facts.length).toBe(before + 1);
+    const fact = memory.facts.at(-1)!;
+    expect(fact.userId).toBe(id);
+    expect(fact.fact).toContain("Lo-Fi"); // catalog label, not the raw slug
+    expect(fact.fact).toContain("Lana Delay"); // artist display name, not the slug
+    expect(fact.fact).toContain("more jazzy today");
+
+    // Reload returns the same profile.
+    const get = await app.inject({ method: "GET", url: "/users/me/taste", headers });
+    expect(get.statusCode).toBe(200);
+    const reloaded = get.json<TasteProfileResponse>();
+    expect(reloaded.preferences).toHaveLength(3);
+    expect(reloaded.freeText).toBe("more jazzy today");
+    expect(reloaded.preferences.every((p) => p.status === "active")).toBe(true);
+  });
+
+  it("rejects unknown entities and malformed preferences with 400", async () => {
+    const { token } = await registerUser("taste-invalid@example.com");
+    const headers = { authorization: `Bearer ${token}` };
+
+    const unknown = await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers,
+      payload: {
+        preferences: [
+          { entityType: "genre", entityId: "lo-fi", polarity: "prefer", source: "onboarding" },
+          { entityType: "artist", entityId: "no-such-artist", polarity: "prefer", source: "onboarding" },
+        ],
+      },
+    });
+    expect(unknown.statusCode).toBe(400);
+    expect(unknown.json<{ invalid: { entityId: string }[] }>().invalid).toEqual([
+      { entityType: "artist", entityId: "no-such-artist" },
+    ]);
+
+    const malformed = await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers,
+      payload: { preferences: [{ entityType: "genre", entityId: "lo-fi", polarity: "love", source: "onboarding" }] },
+    });
+    expect(malformed.statusCode).toBe(400);
+
+    const duplicate = await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers,
+      payload: {
+        preferences: [
+          { entityType: "genre", entityId: "lo-fi", polarity: "prefer", source: "onboarding" },
+          { entityType: "genre", entityId: "lo-fi", polarity: "avoid", source: "session" },
+        ],
+      },
+    });
+    expect(duplicate.statusCode).toBe(400);
+    expect(duplicate.json<{ error: string }>().error).toContain("duplicates");
+
+    // Nothing persisted from the rejected writes.
+    const get = await app.inject({ method: "GET", url: "/users/me/taste", headers });
+    expect(get.json<TasteProfileResponse>().preferences).toHaveLength(0);
+  });
+
+  it("replaces (not accumulates) the mem0 summary when a profile is re-saved", async () => {
+    const { id, token } = await registerUser("taste-replace@example.com");
+    const headers = { authorization: `Bearer ${token}` };
+    const tasteFacts = () => memory.facts.filter((f) => f.userId === id);
+
+    await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers,
+      payload: { preferences: [{ entityType: "genre", entityId: "house", polarity: "prefer", source: "onboarding" }] },
+    });
+    expect(tasteFacts()).toHaveLength(1);
+
+    // Re-save with the opposite polarity: the stale "prefers house" fact must
+    // not survive alongside the new one.
+    await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers,
+      payload: { preferences: [{ entityType: "genre", entityId: "house", polarity: "avoid", source: "session" }] },
+    });
+    const facts = tasteFacts();
+    expect(facts).toHaveLength(1);
+    expect(facts[0].fact).toContain("Avoids");
+    expect(facts[0].fact).not.toContain("Prefers");
+  });
+
+  it("isolates one user's profile from another", async () => {
+    const a = await registerUser("taste-a@example.com");
+    const b = await registerUser("taste-b@example.com");
+
+    await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers: { authorization: `Bearer ${a.token}` },
+      payload: { preferences: [{ entityType: "genre", entityId: "house", polarity: "prefer", source: "onboarding" }] },
+    });
+
+    const bView = await app.inject({
+      method: "GET",
+      url: "/users/me/taste",
+      headers: { authorization: `Bearer ${b.token}` },
+    });
+    expect(bView.json<TasteProfileResponse>().preferences).toHaveLength(0);
+  });
+
+  it("re-resolves slug-based prefs to new ids after a catalog rebuild (orphans track ids)", async () => {
+    const { token } = await registerUser("taste-reload@example.com");
+    const headers = { authorization: `Bearer ${token}` };
+
+    await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers,
+      payload: {
+        preferences: [
+          { entityType: "artist", entityId: "lana-del-delay", polarity: "prefer", source: "onboarding" },
+          { entityType: "track", entityId: "t02", polarity: "prefer", source: "onboarding" },
+        ],
+      },
+    });
+
+    // Rebuild the catalog: artist keeps its slug but gets a new id; track t02 is gone.
+    const reloaded = buildCatalogIndex(
+      { artists: [{ id: "a-lana-delay-v2", name: "Lana Delay", slug: "lana-del-delay" }], albums: [], tracks: [{ id: "t01" }] } as unknown as CatalogManifest,
+      { genres: [{ slug: "lo-fi", label: "Lo-Fi" }], mapping: {} },
+      "test-rev-002",
+    );
+    const app2 = buildServer({ events, memory, auth, taste, catalog: reloaded });
+    await app2.ready();
+    try {
+      const get = await app2.inject({ method: "GET", url: "/users/me/taste", headers });
+      const profile = get.json<TasteProfileResponse>();
+      expect(profile.catalogRevision).toBe("test-rev-002");
+      const artist = profile.preferences.find((p) => p.entityType === "artist");
+      expect(artist?.status).toBe("active");
+      expect(artist?.resolvedId).toBe("a-lana-delay-v2"); // slug survived the id change
+      const track = profile.preferences.find((p) => p.entityType === "track");
+      expect(track?.status).toBe("orphaned"); // removed track id no longer resolves
+    } finally {
+      await app2.close();
+    }
   });
 });

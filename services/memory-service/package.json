@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@auracle/catalog": "workspace:*",
     "@auracle/shared": "workspace:*",
     "better-sqlite3": "^11.6.0",
     "dotenv": "^16.4.5",

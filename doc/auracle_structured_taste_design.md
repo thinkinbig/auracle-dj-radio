@@ -245,3 +245,61 @@ Epic #3 实现切片 S1–S4 交付 Sound 页；**Studio 明确不做**。
 - 曲库流水线：`docs/adr/0003-catalog-manifest-staged-cli.md`
 - Embedding 阶段：`docs/adr/0002-phased-catalog-embedding.md`
 - 父 Epic：[GitHub #3](https://github.com/thinkinbig/auracle-dj-radio/issues/3)
+
+---
+
+## 附录 A：Taste API（S2 实现，[#5](https://github.com/thinkinbig/auracle-dj-radio/issues/5)）
+
+memory-service（:3020）持久化 per-user 结构化口味，并在保存时向 mem0 双写一条人读摘要。
+**必须登录**（`Authorization: Bearer <token>`）；匿名身份不持久化口味（§8）。
+存储：SQLite `taste_profile`（user_id 主键 + `catalog_revision_at_save` + `free_text`）与
+归一化 `taste_prefs(user_id, entity_type, entity_id, polarity, strength, source)`。
+
+### `GET /users/me/taste`
+
+读取当前用户口味，按 **live catalog（S1）** 解析 slug → 当前 `id`，对失效项填 `status: "orphaned"`（不持久化）。
+
+**200**
+
+```json
+{
+  "preferences": [
+    { "entityType": "artist", "entityId": "lana-del-delay", "polarity": "prefer",
+      "source": "onboarding", "status": "active", "resolvedId": "a-lana-delay" },
+    { "entityType": "track", "entityId": "t99", "polarity": "avoid",
+      "source": "session", "status": "orphaned" }
+  ],
+  "freeText": "more jazzy today",
+  "catalogRevisionAtSave": "f6d80daa2a0f7ab3",
+  "catalogRevision": "f6d80daa2a0f7ab3"
+}
+```
+
+`401` 未认证。
+
+### `PUT /users/me/taste`
+
+整档替换。对每个 `entityId` 按 live catalog 校验（genre→taxonomy slug、artist/album→slug、track→trackId）；
+任一不可解析 → `400`，不落库。保存成功后向 mem0 `add()` 一条摘要（per `user_id`，§3 mem0 层）。
+
+**Request**
+
+```json
+{
+  "preferences": [
+    { "entityType": "genre", "entityId": "lo-fi", "polarity": "prefer", "source": "onboarding", "strength": 2 }
+  ],
+  "freeText": "more jazzy today"
+}
+```
+
+**200** — 同 `GET` 形状（已解析），`catalogRevisionAtSave` = 当前 revision。
+
+**400**
+
+```json
+{ "error": "unknown taste entities",
+  "invalid": [{ "entityType": "artist", "entityId": "no-such-artist" }] }
+```
+
+字段形状非法（未知 `entityType`/`polarity`/`source`、空 `entityId`、`strength` ∉ {1,2,3}）同样 `400`。`401` 未认证。

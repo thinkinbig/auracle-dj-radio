@@ -85,6 +85,9 @@ importers:
 
   services/memory-service:
     dependencies:
+      '@auracle/catalog':
+        specifier: workspace:*
+        version: link:../../packages/catalog
       '@auracle/shared':
         specifier: workspace:*
         version: link:../../packages/shared
