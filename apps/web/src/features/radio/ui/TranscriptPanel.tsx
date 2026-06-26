@@ -22,9 +22,25 @@ export function TranscriptPanel({ djName }: TranscriptPanelProps) {
   const curating = isCurating(state.phase);
 
   useEffect(() => {
-    if (!state.activeTranscriptId || !scrollRef.current) return;
-    const el = scrollRef.current.querySelector(`[data-id="${state.activeTranscriptId}"]`);
-    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const scroller = scrollRef.current;
+    if (!state.activeTranscriptId || !scroller) return;
+
+    const el = scroller.querySelector<HTMLElement>(`[data-id="${state.activeTranscriptId}"]`);
+    if (!el) return;
+
+    const visibleTop = scroller.scrollTop;
+    const visibleBottom = visibleTop + scroller.clientHeight;
+    const targetTop = el.offsetTop;
+    const targetBottom = targetTop + el.offsetHeight;
+
+    if (targetTop < visibleTop) {
+      scroller.scrollTo({ top: targetTop, behavior: 'smooth' });
+      return;
+    }
+
+    if (targetBottom > visibleBottom) {
+      scroller.scrollTo({ top: targetBottom - scroller.clientHeight, behavior: 'smooth' });
+    }
   }, [state.activeTranscriptId]);
 
   return (

@@ -16,10 +16,19 @@
 :global([data-layout='split']) .root {
   flex: 1 1 0;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   border-radius: var(--radius-inner);
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.3);
   padding: var(--space-lg);
+}
+
+:global([data-layout='split']) .root::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 :global([data-layout='split']) .header {
@@ -30,6 +39,14 @@
   max-height: clamp(3rem, 14vh, 5.5rem);
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+:global([data-layout='split']) .loreScroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .header {
@@ -401,8 +418,9 @@
 }
 
 :global([data-layout='stack']) .root {
-  flex: 1 1 auto;
-  overflow: visible;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 @media (max-width: 767px) {

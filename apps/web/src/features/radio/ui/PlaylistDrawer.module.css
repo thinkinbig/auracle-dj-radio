@@ -78,11 +78,19 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
   padding: var(--space-xs) var(--space-md) var(--space-md);
+}
+
+.list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .item {
