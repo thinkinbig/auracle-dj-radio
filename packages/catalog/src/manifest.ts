@@ -130,16 +130,3 @@ export function toTrackMeta(track: Track): TrackMeta {
     introOffsetMs: track.introOffsetMs,
   };
 }
-
-/** Rich text for Phase 1 catalog embedding (ADR-0002). */
-export function buildRichEmbedText(track: Pick<Track, "artist" | "albumTitle" | "mood" | "scene" | "energy" | "genre" | "lore">): string {
-  return [
-    `artist: ${track.artist}`,
-    `album: ${track.albumTitle}`,
-    `mood: ${track.mood}`,
-    `scene: ${track.scene}`,
-    `energy: ${track.energy}`,
-    `genre: ${track.genre}`,
-    `lore: ${track.lore}`,
-  ].join(" | ");
-}

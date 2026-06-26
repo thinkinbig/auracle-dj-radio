@@ -1,5 +1,4 @@
 import type { Track, TrackCandidate } from "@auracle/shared";
-import { buildRichEmbedText } from "../catalog/manifest.js";
 
 const EMBED_DIM = 768;
 
@@ -19,28 +18,21 @@ export interface Embedder {
   embedQuery(mood: string, scene: string): Promise<number[]>;
 }
 
-/** Retrieval query text — mood/scene are listener feel + doing (SessionIntent). */
+/** Retrieval query text — mood/scene match track metadata fields for embedding overlap. */
 export function formatEmbedQuery(mood: string, scene: string): string {
-  return `task: search result | query: feel: ${mood} | doing: ${scene}`;
+  return `mood: ${mood} | scene: ${scene}`;
 }
 
 function queryText(mood: string, scene: string): string {
-  // Hash embedder: keep mood/scene tokens so offline vectors overlap track metadata.
-  return `${formatEmbedQuery(mood, scene)} | mood: ${mood} | scene: ${scene}`;
+  return formatEmbedQuery(mood, scene);
 }
 
+/**
+ * HashEmbedder track text — only fields that overlap with query tokens.
+ * Artist/album/lore are excluded because hash-based embedding cannot interpret
+ * them semantically; they only add noise that dilutes cosine similarity.
+ */
 function trackText(t: EmbedTrackInput): string {
-  if (t.lore && t.artist && t.albumTitle) {
-    return buildRichEmbedText({
-      artist: t.artist,
-      albumTitle: t.albumTitle,
-      mood: t.mood,
-      scene: t.scene,
-      energy: t.energy,
-      genre: t.genre,
-      lore: t.lore,
-    });
-  }
   return [`mood: ${t.mood}`, `scene: ${t.scene}`, `energy: ${t.energy}`, `genre: ${t.genre}`].join(" | ");
 }
 

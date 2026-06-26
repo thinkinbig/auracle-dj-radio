@@ -27,6 +27,7 @@ import os
 import threading
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+# pyrefly: ignore [missing-import]
 from RealtimeSTT import AudioToTextRecorder
 
 # Main model produces the final transcription; the (smaller) realtime model
