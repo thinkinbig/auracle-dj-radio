@@ -119,10 +119,6 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
           ) : (
             <span className={styles.brandPlaceholder} aria-hidden />
           )}
-          <nav className={styles.nav} aria-label="Primary">
-            <a href="#listen">Listen</a>
-            <a href="#sound">Sound</a>
-          </nav>
           <button
             className={styles.ghostButton}
             type="button"
