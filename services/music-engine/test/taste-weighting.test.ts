@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TastePreference } from "@auracle/shared";
-import { buildTasteWeighting, tasteCacheKey, type WeightableTrack } from "../src/flow/taste-weighting.js";
+import { scoreRetrievalCandidate, normalizeCosineScore } from "../src/flow/retrieve.js";
+import { buildTasteScorer, tasteCacheKey, type WeightableTrack } from "../src/flow/taste-weighting.js";
 
 const track: WeightableTrack = { id: "t01", genreSlug: "house", artistSlug: "lana-del-delay", albumSlug: "born-to-delay" };
 
@@ -9,46 +10,59 @@ function pref(p: Partial<TastePreference> & Pick<TastePreference, "entityType" |
 }
 
 describe("taste-weighting", () => {
-  it("boosts preferred and penalises avoided tracks", () => {
-    const prefer = buildTasteWeighting([pref({ entityType: "genre", entityId: "house", polarity: "prefer" })]);
-    const avoid = buildTasteWeighting([pref({ entityType: "genre", entityId: "house", polarity: "avoid" })]);
-    expect(prefer.multiplierFor(track)).toBeGreaterThan(1);
-    expect(avoid.multiplierFor(track)).toBeLessThan(1);
+  it("scores preferred and avoided tracks in opposite directions", () => {
+    const prefer = buildTasteScorer([pref({ entityType: "genre", entityId: "house", polarity: "prefer" })]);
+    const avoid = buildTasteScorer([pref({ entityType: "genre", entityId: "house", polarity: "avoid" })]);
+    expect(prefer.scoreFor(track)).toBeGreaterThan(0);
+    expect(avoid.scoreFor(track)).toBeLessThan(0);
   });
 
   it("scales with strength", () => {
-    const weak = buildTasteWeighting([pref({ entityType: "genre", entityId: "house", polarity: "avoid", strength: 1 })]);
-    const strong = buildTasteWeighting([pref({ entityType: "genre", entityId: "house", polarity: "avoid", strength: 3 })]);
-    expect(strong.multiplierFor(track)).toBeLessThan(weak.multiplierFor(track));
+    const weak = buildTasteScorer([pref({ entityType: "genre", entityId: "house", polarity: "avoid", strength: 1 })]);
+    const strong = buildTasteScorer([pref({ entityType: "genre", entityId: "house", polarity: "avoid", strength: 3 })]);
+    expect(strong.scoreFor(track)).toBeLessThan(weak.scoreFor(track));
   });
 
-  it("applies the most specific match: track > album > artist > genre", () => {
-    // genre says avoid, but a track-level prefer must win for this track.
-    const w = buildTasteWeighting([
+  it("adds matching taste signals but keeps them bounded", () => {
+    const mixed = buildTasteScorer([
       pref({ entityType: "genre", entityId: "house", polarity: "avoid", strength: 3 }),
       pref({ entityType: "track", entityId: "t01", polarity: "prefer", strength: 3 }),
     ]);
-    expect(w.multiplierFor(track)).toBeGreaterThan(1);
+    expect(mixed.scoreFor(track)).toBeGreaterThan(0);
+    expect(mixed.scoreFor(track)).toBeLessThanOrEqual(1);
 
-    // artist prefer overrides genre avoid; album avoid overrides artist prefer.
-    const artistOverGenre = buildTasteWeighting([
-      pref({ entityType: "genre", entityId: "house", polarity: "avoid" }),
-      pref({ entityType: "artist", entityId: "lana-del-delay", polarity: "prefer" }),
+    const stacked = buildTasteScorer([
+      pref({ entityType: "track", entityId: "t01", polarity: "prefer", strength: 3 }),
+      pref({ entityType: "album", entityId: "born-to-delay", polarity: "prefer", strength: 3 }),
+      pref({ entityType: "artist", entityId: "lana-del-delay", polarity: "prefer", strength: 3 }),
+      pref({ entityType: "genre", entityId: "house", polarity: "prefer", strength: 3 }),
     ]);
-    expect(artistOverGenre.multiplierFor(track)).toBeGreaterThan(1);
-
-    const albumOverArtist = buildTasteWeighting([
-      pref({ entityType: "artist", entityId: "lana-del-delay", polarity: "prefer" }),
-      pref({ entityType: "album", entityId: "born-to-delay", polarity: "avoid" }),
-    ]);
-    expect(albumOverArtist.multiplierFor(track)).toBeLessThan(1);
+    expect(stacked.scoreFor(track)).toBe(1);
   });
 
   it("is a no-op for unmatched tracks and empty prefs", () => {
-    const w = buildTasteWeighting([pref({ entityType: "genre", entityId: "ambient", polarity: "avoid" })]);
-    expect(w.multiplierFor(track)).toBe(1); // track is house, not ambient
-    expect(buildTasteWeighting([]).empty).toBe(true);
-    expect(buildTasteWeighting([]).multiplierFor(track)).toBe(1);
+    const w = buildTasteScorer([pref({ entityType: "genre", entityId: "ambient", polarity: "avoid" })]);
+    expect(w.scoreFor(track)).toBe(0); // track is house, not ambient
+    expect(buildTasteScorer([]).empty).toBe(true);
+    expect(buildTasteScorer([]).scoreFor(track)).toBe(0);
+  });
+
+  it("normalizes cosine before applying additive retrieval signals", () => {
+    expect(normalizeCosineScore(-1)).toBe(0);
+    expect(normalizeCosineScore(0)).toBe(0.5);
+    expect(normalizeCosineScore(1)).toBe(1);
+
+    const avoid = buildTasteScorer([pref({ entityType: "genre", entityId: "house", polarity: "avoid", strength: 3 })]);
+    const neutral = scoreRetrievalCandidate({ ...track, energy: 3 }, -0.4).score;
+    const avoided = scoreRetrievalCandidate({ ...track, energy: 3 }, -0.4, { taste: avoid }).score;
+    expect(avoided).toBeLessThan(neutral);
+  });
+
+  it("applies skip-energy as a penalty separate from taste", () => {
+    const prefer = buildTasteScorer([pref({ entityType: "genre", entityId: "house", polarity: "prefer", strength: 3 })]);
+    const noPenalty = scoreRetrievalCandidate({ ...track, energy: 5 }, 0.6, { taste: prefer }).score;
+    const skippedEnergy = scoreRetrievalCandidate({ ...track, energy: 5 }, 0.6, { taste: prefer, energyWeights: { 5: 0.7 } }).score;
+    expect(skippedEnergy).toBeLessThan(noPenalty);
   });
 
   it("produces a stable, order-independent cache key", () => {

@@ -1,22 +1,24 @@
 import type { TastePreference, TasteEntityType } from "@auracle/shared";
 
 /**
- * Structured-taste retrieval weighting (Epic #3, S4). Turns a user's prefer/avoid
- * preferences into a per-track score multiplier applied during Step 1 retrieval,
- * so taste measurably shifts the candidate pool (and therefore the final plan),
- * not just DJ narration.
+ * Structured-taste retrieval scoring (Epic #3, S4). Turns a user's prefer/avoid
+ * preferences into a bounded additive signal for retrieval reranking. Semantic
+ * similarity remains the anchor; taste nudges the candidate pool without
+ * directly multiplying raw cosine values from whichever embedder is active.
  *
- * Conflict rule (design §6): the most *specific* matching preference wins —
- * track > album > artist > genre. Preferences are matched by the stable slug
- * fields the catalog already carries, so they survive a catalog rebuild.
+ * Matching uses the stable slug fields the catalog already carries, so
+ * genre/artist/album preferences survive catalog rebuilds. Multiple matching
+ * prefs can contribute, but the final taste signal is clamped to avoid a pile-up
+ * overpowering semantic relevance.
  */
 
-/** prefer multiplier = 1 + PREFER_STEP·strength (strength 1–3, default 2). Capped at 1.45 to preserve cosine relevance ranking. */
-const PREFER_STEP = 0.15;
-/** avoid multiplier = max(MIN_MULT, 1 − AVOID_STEP·strength) — decisive enough to drop tracks below the top-K cut. */
-const AVOID_STEP = 0.25;
-const MIN_MULT = 0.05;
 const DEFAULT_STRENGTH = 2;
+const SCORE_BY_TYPE: Record<TasteEntityType, number> = {
+  track: 1,
+  album: 0.7,
+  artist: 0.5,
+  genre: 0.3,
+};
 
 /** Minimal track view needed to match preferences (a TrackRow satisfies this). */
 export interface WeightableTrack {
@@ -26,21 +28,25 @@ export interface WeightableTrack {
   albumSlug: string;
 }
 
-export interface TasteWeighting {
-  /** True when there are no preferences — callers can skip the multiplier entirely. */
+export interface TasteScorer {
+  /** True when there are no preferences — callers can skip scoring entirely. */
   readonly empty: boolean;
-  /** Score multiplier for one track from its most specific matching preference (1 = no effect). */
-  multiplierFor(track: WeightableTrack): number;
+  /** Bounded taste score for one track: -1 = strong avoid, 0 = no signal, 1 = strong prefer. */
+  scoreFor(track: WeightableTrack): number;
 }
 
-function multiplier(pref: TastePreference): number {
-  const strength = pref.strength ?? DEFAULT_STRENGTH;
-  if (pref.polarity === "prefer") return 1 + PREFER_STEP * strength;
-  return Math.max(MIN_MULT, 1 - AVOID_STEP * strength);
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
-/** Build an indexed weighting from a user's (active) preferences. */
-export function buildTasteWeighting(prefs: TastePreference[]): TasteWeighting {
+function contribution(pref: TastePreference): number {
+  const strength = clamp(pref.strength ?? DEFAULT_STRENGTH, 1, 3) / 3;
+  const polarity = pref.polarity === "prefer" ? 1 : -1;
+  return polarity * SCORE_BY_TYPE[pref.entityType] * strength;
+}
+
+/** Build an indexed scorer from a user's active preferences. */
+export function buildTasteScorer(prefs: TastePreference[]): TasteScorer {
   const byType: Record<TasteEntityType, Map<string, TastePreference>> = {
     track: new Map(),
     album: new Map(),
@@ -51,13 +57,14 @@ export function buildTasteWeighting(prefs: TastePreference[]): TasteWeighting {
 
   return {
     empty: prefs.length === 0,
-    multiplierFor(track) {
-      const match =
-        byType.track.get(track.id) ??
-        byType.album.get(track.albumSlug) ??
-        byType.artist.get(track.artistSlug) ??
-        byType.genre.get(track.genreSlug);
-      return match ? multiplier(match) : 1;
+    scoreFor(track) {
+      const matches = [
+        byType.track.get(track.id),
+        byType.album.get(track.albumSlug),
+        byType.artist.get(track.artistSlug),
+        byType.genre.get(track.genreSlug),
+      ].filter((pref): pref is TastePreference => Boolean(pref));
+      return clamp(matches.reduce((sum, pref) => sum + contribution(pref), 0), -1, 1);
     },
   };
 }
