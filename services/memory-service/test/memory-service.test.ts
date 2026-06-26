@@ -7,7 +7,7 @@ import { AuthStore } from "../src/auth-store.js";
 import { buildCatalogIndex, type CatalogIndex } from "../src/catalog-index.js";
 import { EventsDb } from "../src/events-db.js";
 import type { MemoryClient } from "../src/memory/client.js";
-import { TasteStore } from "../src/taste-store.js";
+import { TasteStore } from "../src/taste/taste-store.js";
 import { buildServer } from "../src/server.js";
 
 /** Deterministic test catalog (independent of the seeded 16-track manifest). */

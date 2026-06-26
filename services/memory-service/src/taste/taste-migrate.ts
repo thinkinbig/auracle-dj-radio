@@ -1,6 +1,6 @@
 import type { TastePreference } from "@auracle/shared";
-import { config } from "./config.js";
-import { loadCatalogIndex, type CatalogIndex } from "./catalog-index.js";
+import { config } from "../config.js";
+import { loadCatalogIndex, type CatalogIndex } from "../catalog-index.js";
 import { resolvePreferences } from "./taste.js";
 import { TasteStore } from "./taste-store.js";
 
