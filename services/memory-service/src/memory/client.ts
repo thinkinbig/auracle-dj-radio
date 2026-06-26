@@ -108,7 +108,8 @@ class Mem0Memory implements MemoryClient {
       const m = await this.client();
       await m.add(fact, { userId, runId: sessionId });
     } catch (err) {
-      console.error("[mem0] remember failed:", (err as Error).message);
+      this.broken = true;
+      console.error("[mem0] remember failed, disabling memory:", (err as Error).message);
     }
   }
 
@@ -118,7 +119,8 @@ class Mem0Memory implements MemoryClient {
       const m = await this.client();
       await m.deleteAll({ userId, runId: sessionId });
     } catch (err) {
-      console.error("[mem0] forget failed:", (err as Error).message);
+      this.broken = true;
+      console.error("[mem0] forget failed, disabling memory:", (err as Error).message);
     }
   }
 }

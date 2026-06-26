@@ -8,7 +8,8 @@ import { config } from "../src/config.js";
 import { HashEmbedder, type Embedder } from "../src/flow/embedder.js";
 import type { FlowInput, FlowModel } from "../src/flow/flow-model.js";
 import { buildPrompt } from "../src/flow/gemini.js";
-import { replan } from "../src/flow/plan.js";
+import { createPlan, replan } from "../src/flow/plan.js";
+import { energyWeightsFromMemories, mergeEnergyWeights } from "../src/flow/memory-energy.js";
 import { resolveCatalogPath, tracksWithAssets } from "../src/catalog/manifest.js";
 import { buildServer, type MusicEngine } from "../src/server.js";
 
@@ -195,6 +196,71 @@ describe("music-engine HTTP", () => {
     expect(prompt).toContain("User profile:\n- prefers lighter energy");
     expect(prompt).toContain("prefer matching candidates");
     expect(prompt).toContain("explain any necessary tradeoff");
+  });
+
+  it("derives bounded energy penalties from high-signal mem0 facts", () => {
+    expect(energyWeightsFromMemories("- User prefers lighter energy during studying sessions")).toEqual({ 4: 0.45, 5: 0.7 });
+    expect(energyWeightsFromMemories("User skipped energy 3 tracks quickly")).toEqual({ 3: 0.7 });
+    expect(mergeEnergyWeights({ 5: 0.2, 2: 0.4 }, { 5: 0.7, 4: 0.45 })).toEqual({ 2: 0.4, 4: 0.45, 5: 0.7 });
+  });
+
+  it("uses memory-derived energy penalties to shift the deterministic candidate pool", async () => {
+    const stubEmbedder: Embedder = {
+      async embedTrack() {
+        return [1, 0];
+      },
+      async embedQuery() {
+        return [1, 0];
+      },
+    };
+    const row = (id: string, energy: 2 | 5): TrackRow =>
+      ({
+        id,
+        title: id,
+        artist: "a",
+        artistId: "ar",
+        albumId: "al",
+        albumTitle: "al",
+        lore: "",
+        albumCoverPath: "",
+        artistPhotoPath: "",
+        energy,
+        tempo: 90,
+        genre: energy === 5 ? "club" : "ambient",
+        genreSlug: energy === 5 ? "club" : "ambient",
+        artistSlug: "a",
+        albumSlug: "al",
+        mood: "calm",
+        scene: "study",
+        filePath: "",
+        introOffsetMs: null,
+        instrumental: true,
+        embedding: [1, 0],
+      }) as TrackRow;
+    class FirstEightFlow implements FlowModel {
+      async plan(input: FlowInput): Promise<FlowResult> {
+        return {
+          session_title: "t",
+          session_subtitle: "s",
+          arc: "build",
+          tracklist: input.candidates.slice(0, 8).map((c, i) => ({ id: c.id, flow_position: i + 1, reason: `candidate ${i}` })),
+        };
+      }
+    }
+    const tracks = [
+      ...Array.from({ length: 15 }, (_, i) => row(`high-${i}`, 5)),
+      ...Array.from({ length: 15 }, (_, i) => row(`low-${i}`, 2)),
+    ];
+    const deps = { embedder: stubEmbedder, flowModel: new FirstEightFlow(), tracks: () => tracks };
+    const intent = { mood: "calm", scene: "study", duration_min: 25 };
+    const avgEnergy = (p: Awaited<ReturnType<typeof createPlan>>) =>
+      p.result.tracklist.reduce((sum, ref) => sum + (p.candidatesById.get(ref.id)?.energy ?? 0), 0) / p.result.tracklist.length;
+
+    const baseline = await createPlan(deps, intent, "");
+    const personalized = await createPlan(deps, intent, "- User prefers lighter energy during studying sessions");
+
+    expect(avgEnergy(baseline)).toBe(5);
+    expect(avgEnergy(personalized)).toBe(2);
   });
 
   it("GET /tracks/:id returns metadata incl. genreSlug, 404 for unknown", async () => {

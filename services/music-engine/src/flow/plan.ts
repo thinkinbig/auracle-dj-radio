@@ -3,6 +3,7 @@ import { ARC_BANDS, FULL_SESSION_LENGTH } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
 import type { Embedder } from "./embedder.js";
 import type { FlowModel, FlowInput } from "./flow-model.js";
+import { energyWeightsFromMemories, mergeEnergyWeights } from "./memory-energy.js";
 import { repairTracklist } from "./repair.js";
 import { retrieveCandidates } from "./retrieve.js";
 import { tasteCacheKey } from "./taste-weighting.js";
@@ -149,11 +150,12 @@ export async function createPlan(
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
 ): Promise<PlanResult> {
+  const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
   const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
     mood: intent.mood,
     scene: intent.scene,
     limit: 24,
-    energyWeights,
+    energyWeights: effectiveEnergyWeights,
     taste,
   });
   return runFlow(deps.flowModel, {
@@ -181,12 +183,13 @@ export interface ReplanInput {
 
 /** Mid-session replan: re-fill only the remaining slots, excluding played tracks. */
 export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanResult> {
+  const effectiveEnergyWeights = mergeEnergyWeights(input.energyWeights, energyWeightsFromMemories(input.memories ?? ""));
   const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
     mood: input.intent.mood,
     scene: input.intent.scene,
     excludeIds: new Set(input.playedIds),
     limit: Math.max(24, input.remainingSlots * 3),
-    energyWeights: input.energyWeights,
+    energyWeights: effectiveEnergyWeights,
     taste: input.taste,
   });
   return runFlow(deps.flowModel, {
