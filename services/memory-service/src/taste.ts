@@ -41,9 +41,13 @@ export function parseSaveTasteRequest(raw: unknown): SaveTasteRequest | { error:
     return { error: "freeText must be a string" };
   }
   const preferences: TastePreference[] = [];
+  const seen = new Set<string>();
   for (let i = 0; i < body.preferences.length; i++) {
     const pref = parsePreference(body.preferences[i]);
     if (!pref) return { error: `preferences[${i}] is malformed` };
+    const key = `${pref.entityType}\0${pref.entityId}`;
+    if (seen.has(key)) return { error: `preferences[${i}] duplicates an earlier preference` };
+    seen.add(key);
     preferences.push(pref);
   }
   const freeText = typeof body.freeText === "string" ? body.freeText.trim() : undefined;

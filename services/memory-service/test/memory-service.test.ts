@@ -308,6 +308,20 @@ describe("memory-service /users/me/taste (S2)", () => {
     });
     expect(malformed.statusCode).toBe(400);
 
+    const duplicate = await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers,
+      payload: {
+        preferences: [
+          { entityType: "genre", entityId: "lo-fi", polarity: "prefer", source: "onboarding" },
+          { entityType: "genre", entityId: "lo-fi", polarity: "avoid", source: "session" },
+        ],
+      },
+    });
+    expect(duplicate.statusCode).toBe(400);
+    expect(duplicate.json<{ error: string }>().error).toContain("duplicates");
+
     // Nothing persisted from the rejected writes.
     const get = await app.inject({ method: "GET", url: "/users/me/taste", headers });
     expect(get.json<TasteProfileResponse>().preferences).toHaveLength(0);
