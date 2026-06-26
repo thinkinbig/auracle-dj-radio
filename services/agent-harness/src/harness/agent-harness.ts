@@ -58,7 +58,7 @@ export class AgentHarness {
         ? await Promise.all([
             this.deps.memory.recallForIntent(userId, intent.mood, intent.scene).catch(() => ""),
             this.deps.memory.skipRateByEnergy(userId, 10).catch(() => undefined),
-            this.deps.memory.tasteWeights(userId).catch(() => []),
+            this.deps.memory.tasteWeights(userId).catch(() => undefined),
           ])
         : ["", undefined, undefined];
     const plan = await this.deps.music.planTracklist({ intent, mode: "full", memories: mem0Context, energyWeights, taste });

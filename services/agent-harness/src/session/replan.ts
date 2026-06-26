@@ -45,12 +45,13 @@ export async function applyReplan(
   const before = deps.store.remaining(state).map((r) => r.id);
 
   const personalized = state.condition === "C";
+  const taste = personalized ? await deps.memory.tasteWeights(state.userId).catch(() => undefined) : undefined;
   const { result, violations, candidates } = await deps.music.planTracklist({
     intent,
     mode: "replan",
     memories: personalized ? state.mem0Context : "",
     energyWeights: personalized ? state.energyWeights : undefined,
-    taste: personalized ? state.taste : undefined,
+    taste,
     replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: remainingCount },
   });
 

@@ -360,8 +360,10 @@ describe("agent-harness", () => {
     });
     await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true));
     const replan = music.planCalls.find((c) => c.mode === "replan");
-    // taste is loaded once at create and reused on replan (same array contents).
+    // taste is refreshed on each replan from memory-service, so changes mid-session are reflected.
     expect(replan?.taste).toEqual(taste);
+    // verify that taste was re-fetched (tasteWeights called again for replan).
+    expect(memory.tasteCalls.length).toBeGreaterThan(1);
     await app.close();
   });
 

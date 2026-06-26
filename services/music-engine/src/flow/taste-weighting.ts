@@ -11,10 +11,10 @@ import type { TastePreference, TasteEntityType } from "@auracle/shared";
  * fields the catalog already carries, so they survive a catalog rebuild.
  */
 
-/** prefer multiplier = 1 + PREFER_STEP·strength (strength 1–3, default 2). */
-const PREFER_STEP = 0.3;
+/** prefer multiplier = 1 + PREFER_STEP·strength (strength 1–3, default 2). Capped at 1.45 to preserve cosine relevance ranking. */
+const PREFER_STEP = 0.15;
 /** avoid multiplier = max(MIN_MULT, 1 − AVOID_STEP·strength) — decisive enough to drop tracks below the top-K cut. */
-const AVOID_STEP = 0.3;
+const AVOID_STEP = 0.25;
 const MIN_MULT = 0.05;
 const DEFAULT_STRENGTH = 2;
 
