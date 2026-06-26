@@ -327,7 +327,8 @@ describe("agent-harness", () => {
     memory.skipWeights = { 5: 0.3 };
     await app.ready();
     memory.tasteValue = [{ entityType: "genre", entityId: "house", polarity: "avoid", source: "onboarding" }];
-    await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "B" } });
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "B" } });
+    expect(created.json<{ mem0_context: string }>().mem0_context).toBe("");
     expect(memory.skipCalls).toEqual([]);
     expect(memory.tasteCalls).toEqual([]);
     expect(memory.recallIntentCalls).toEqual([]);
@@ -349,7 +350,8 @@ describe("agent-harness", () => {
       url: "/sessions",
       payload: { mood: "calm", scene: "studying", condition: "C" },
     });
-    const { session_id } = created.json<{ session_id: string }>();
+    const { session_id, mem0_context } = created.json<{ session_id: string; mem0_context: string }>();
+    expect(mem0_context).toBe("prefers lighter energy");
     expect(memory.recallIntentCalls).toEqual([{ userId: ANONYMOUS_USER_ID, mood: "calm", scene: "studying" }]);
     expect(music.planCalls[0]).toMatchObject({ memories: "prefers lighter energy", energyWeights: { 5: 0.3 }, taste });
 

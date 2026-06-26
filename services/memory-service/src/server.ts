@@ -37,7 +37,7 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
   const { events, memory, auth, taste, catalog } = deps;
   const app = Fastify({ logger: true });
 
-  app.get("/health", async () => ({ ok: true }));
+  app.get("/health", async () => ({ ok: true, memory: { enabled: memory.enabled, degraded: memory.degraded } }));
 
   app.post("/memory/recall", async (req, reply) => {
     const { query, user_id } = (req.body ?? {}) as { query?: string; user_id?: string };
