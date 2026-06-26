@@ -30,14 +30,17 @@ function testCatalog(artistId?: string, revision = "test-rev-001"): CatalogIndex
 class RecordingMemory implements MemoryClient {
   readonly enabled = true;
   readonly degraded = false;
-  facts: { fact: string; userId: string }[] = [];
+  facts: { fact: string; sessionId: string; userId: string }[] = [];
   recalls: { query: string; userId: string }[] = [];
   async recall(query: string, userId: string): Promise<string> {
     this.recalls.push({ query, userId });
     return "";
   }
-  async remember(fact: string, _sessionId: string, userId: string): Promise<void> {
-    this.facts.push({ fact, userId });
+  async remember(fact: string, sessionId: string, userId: string): Promise<void> {
+    this.facts.push({ fact, sessionId, userId });
+  }
+  async forget(sessionId: string, userId: string): Promise<void> {
+    this.facts = this.facts.filter((f) => !(f.sessionId === sessionId && f.userId === userId));
   }
 }
 
@@ -187,7 +190,7 @@ describe("memory-service internal memory/events API", () => {
       url: "/memory/remember",
       payload: { fact: "loves dub techno", session_id: "iso-s1", user_id: "user-a" },
     });
-    expect(memory.facts.at(-1)).toEqual({ fact: "loves dub techno", userId: "user-a" });
+    expect(memory.facts.at(-1)).toEqual({ fact: "loves dub techno", sessionId: "iso-s1", userId: "user-a" });
 
     await app.inject({ method: "POST", url: "/memory/recall", payload: { query: "q", user_id: "user-b" } });
     expect(memory.recalls.at(-1)).toEqual({ query: "q", userId: "user-b" });
@@ -268,7 +271,8 @@ describe("memory-service /users/me/taste (S2)", () => {
     expect(memory.facts.length).toBe(before + 1);
     const fact = memory.facts.at(-1)!;
     expect(fact.userId).toBe(id);
-    expect(fact.fact).toContain("lo-fi");
+    expect(fact.fact).toContain("Lo-Fi"); // catalog label, not the raw slug
+    expect(fact.fact).toContain("Lana Delay"); // artist display name, not the slug
     expect(fact.fact).toContain("more jazzy today");
 
     // Reload returns the same profile.
@@ -325,6 +329,33 @@ describe("memory-service /users/me/taste (S2)", () => {
     // Nothing persisted from the rejected writes.
     const get = await app.inject({ method: "GET", url: "/users/me/taste", headers });
     expect(get.json<TasteProfileResponse>().preferences).toHaveLength(0);
+  });
+
+  it("replaces (not accumulates) the mem0 summary when a profile is re-saved", async () => {
+    const { id, token } = await registerUser("taste-replace@example.com");
+    const headers = { authorization: `Bearer ${token}` };
+    const tasteFacts = () => memory.facts.filter((f) => f.userId === id);
+
+    await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers,
+      payload: { preferences: [{ entityType: "genre", entityId: "house", polarity: "prefer", source: "onboarding" }] },
+    });
+    expect(tasteFacts()).toHaveLength(1);
+
+    // Re-save with the opposite polarity: the stale "prefers house" fact must
+    // not survive alongside the new one.
+    await app.inject({
+      method: "PUT",
+      url: "/users/me/taste",
+      headers,
+      payload: { preferences: [{ entityType: "genre", entityId: "house", polarity: "avoid", source: "session" }] },
+    });
+    const facts = tasteFacts();
+    expect(facts).toHaveLength(1);
+    expect(facts[0].fact).toContain("Avoids");
+    expect(facts[0].fact).not.toContain("Prefers");
   });
 
   it("isolates one user's profile from another", async () => {

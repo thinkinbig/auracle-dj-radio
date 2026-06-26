@@ -9,3 +9,5 @@ dist/
 *.db
 .DS_Store
 .codegraph/
+
+packages/catalog/data/.audio-backups

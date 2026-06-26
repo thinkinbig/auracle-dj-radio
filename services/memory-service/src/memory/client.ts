@@ -18,6 +18,9 @@ export interface MemoryClient {
   recall(query: string, userId: string): Promise<string>;
   /** Extract and persist a preference fact for `userId`'s future sessions. */
   remember(fact: string, sessionId: string, userId: string): Promise<void>;
+  /** Drop all facts for `userId` under `sessionId` (run scope) — used to replace
+   *  a regenerated summary instead of accumulating contradictory copies. */
+  forget(sessionId: string, userId: string): Promise<void>;
 }
 
 class NoopMemory implements MemoryClient {
@@ -27,6 +30,7 @@ class NoopMemory implements MemoryClient {
     return "";
   }
   async remember(): Promise<void> {}
+  async forget(): Promise<void> {}
 }
 
 class Mem0Memory implements MemoryClient {
@@ -72,6 +76,16 @@ class Mem0Memory implements MemoryClient {
       await m.add(fact, { userId, runId: sessionId });
     } catch (err) {
       console.error("[mem0] remember failed:", (err as Error).message);
+    }
+  }
+
+  async forget(sessionId: string, userId: string): Promise<void> {
+    if (this.broken) return;
+    try {
+      const m = await this.client();
+      await m.deleteAll({ userId, runId: sessionId });
+    } catch (err) {
+      console.error("[mem0] forget failed:", (err as Error).message);
     }
   }
 }

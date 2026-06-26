@@ -137,7 +137,10 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
     taste.saveProfile(user.id, parsed.preferences, parsed.freeText, catalog.revision);
 
     // Dual-write a human-readable summary fact for DJ recall (§3, mem0 layer).
-    const summary = summarizeTaste(parsed.preferences, parsed.freeText);
+    // PUT replaces the whole profile, so drop the prior taste fact first instead
+    // of letting contradictory copies accumulate in mem0.
+    await memory.forget(TASTE_RUN_ID, user.id);
+    const summary = summarizeTaste(parsed.preferences, catalog, parsed.freeText);
     if (summary) await memory.remember(summary, TASTE_RUN_ID, user.id);
 
     const body: TasteProfileResponse = {
