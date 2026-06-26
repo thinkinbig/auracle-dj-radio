@@ -6,8 +6,16 @@
   padding: var(--space-md);
   max-height: 220px;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(22px);
+}
+
+.root::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .header {
