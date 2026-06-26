@@ -14,7 +14,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "export-catalog": "tsx src/export-catalog.ts"
+    "export-catalog": "tsx src/export-catalog.ts",
+    "catalog-qc": "tsx src/catalog-qc.ts",
+    "test": "tsx --test test/*.test.ts",
+    "catalog-normalize": "tsx src/catalog-normalize.ts",
+    "catalog-ingest": "tsx src/catalog-ingest.ts"
   },
   "dependencies": {
     "@auracle/shared": "workspace:*"

@@ -48,12 +48,15 @@ export function musicVolume(input: PlaybackPolicyInput): number {
 
 export function shouldPlayMusic(input: PlaybackPolicyInput): boolean {
   if (input.phase === 'paused' || input.phase === 'idle' || input.phase === 'curating') return false;
+  // Opening playback is started only by releaseOpening(). During the first React
+  // effect pass, openingReleased can still be the previous value; letting the
+  // generic policy auto-play here leaks music before the opening voice.
+  if (input.phase === 'opening') return false;
   if (isOpeningBlocked(input)) return false;
   return (
     input.phase === 'playing' ||
     input.phase === 'speaking' ||
-    input.phase === 'listening' ||
-    input.phase === 'opening'
+    input.phase === 'listening'
   );
 }
 

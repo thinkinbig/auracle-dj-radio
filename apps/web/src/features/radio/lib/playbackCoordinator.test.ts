@@ -9,6 +9,12 @@ describe('playbackCoordinator', () => {
     expect(shouldPlayMusic(input)).toBe(false);
   });
 
+  it('does not auto-play during opening even if the release state is briefly stale', () => {
+    const input = { phase: 'opening' as const, currentTrackIndex: 0, openingReleased: true };
+    expect(musicVolume(input)).toBe(MUSIC_VOLUME.full);
+    expect(shouldPlayMusic(input)).toBe(false);
+  });
+
   it('ducks during DJ turn after opening', () => {
     const input = { phase: 'speaking' as const, currentTrackIndex: 1, openingReleased: true };
     expect(musicVolume(input)).toBe(MUSIC_VOLUME.duck);

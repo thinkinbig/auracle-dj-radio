@@ -6,7 +6,7 @@ import { HOST_MODES } from "@auracle/shared";
 export const DJ_TOOLS: FunctionDeclaration[] = [
   {
     name: "skip_track",
-    description: "User wants to skip the current track and jump to the next one. Fire as soon as they ask, even mid-song.",
+    description: "User wants to skip the current track and jump to the next one. Fire as soon as they ask, even mid-song. A plain skip is not a mood or energy change; do not also call mood_change unless the user explicitly asks to change the remaining set.",
     parameters: { type: Type.OBJECT, properties: {} },
   },
   {
@@ -110,7 +110,7 @@ VOICE
 TOOLS
 - ${moodRule}
 - change_host_mode → switch speaking style only; playlist unchanged. NOT for music taste changes.
-- skip_track, pause_playback, record_preference as documented.
+- skip_track, pause_playback, record_preference as documented. For a plain "skip"/"next" request, call only skip_track; do not also call mood_change or record_preference unless the user explicitly states a taste, mood, or energy change.
 
 CONTEXT (preferences carried across sessions)
 ${context}

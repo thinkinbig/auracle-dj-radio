@@ -96,9 +96,16 @@ export class GeminiFlowModel implements FlowModel {
   }
 }
 
-function buildPrompt(input: FlowInput): string {
+export function buildPrompt(input: FlowInput): string {
+  const userProfile = input.memories
+    ? [
+        "User profile:",
+        input.memories,
+        "Treat these preferences as planning guidance: prefer matching candidates, avoid contradicting stated taste, and explain any necessary tradeoff in the affected track reason.",
+      ].join("\n")
+    : "User profile: (none)";
   const lines = [
-    input.memories ? `User profile: ${input.memories}` : "User profile: (none)",
+    userProfile,
     `Session intent: mood=${input.intent.mood}, scene=${input.intent.scene}, duration=${input.intent.duration_min}min`,
     `Already played: ${JSON.stringify(input.played)}`,
     `Last played energy: ${input.lastPlayedEnergy ?? "n/a (initial session)"}`,
