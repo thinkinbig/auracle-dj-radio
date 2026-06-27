@@ -17,13 +17,14 @@ function toPlanResponse(p: PlanResult): { result: PlanResult["result"]; violatio
 export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): void {
   // Step 1 retrieval: structured mood/scene scoring, return top-K candidates.
   app.post("/search_catalog", async (req, reply) => {
-    const b = (req.body ?? {}) as { mood?: string; scene?: string; excludeIds?: string[]; limit?: number };
+    const b = (req.body ?? {}) as { mood?: string; scene?: string; excludeIds?: string[]; limit?: number; tieBreakSeed?: string };
     if (!b.mood || !b.scene) return reply.code(400).send({ error: "mood and scene are required" });
     const candidates = retrieveCandidates(deps.tracks(), {
       mood: b.mood,
       scene: b.scene,
       excludeIds: b.excludeIds ? new Set(b.excludeIds) : undefined,
       limit: b.limit,
+      tieBreakSeed: b.tieBreakSeed,
     });
     return { candidates };
   });
@@ -40,13 +41,14 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
       taste?: TastePreference[];
       replan?: { playedIds?: string[]; played?: TrackCandidate[]; lastPlayedEnergy?: number | null; remainingSlots?: number };
       extend?: { playedIds?: string[]; appendSlots?: number; lastPlayedEnergy?: number | null };
+      tieBreakSeed?: string;
     };
     const intent = parseIntent(b.intent);
     if (!intent) return reply.code(400).send({ error: "intent.mood and intent.scene are required" });
 
     const mode = b.mode ?? "full";
     if (mode === "provisional") {
-      const p = await createProvisionalPlan(deps, intent, b.memories ?? "", b.energyWeights, b.taste);
+      const p = await createProvisionalPlan(deps, intent, b.memories ?? "", b.energyWeights, b.taste, b.tieBreakSeed);
       return { result: p.result, violations: [], candidates: [...p.candidatesById.values()] };
     }
     if (mode === "extend") {
@@ -59,6 +61,7 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
         energyWeights: b.energyWeights,
         memories: b.memories ?? "",
         taste: b.taste,
+        tieBreakSeed: b.tieBreakSeed,
       });
       return toPlanResponse(p);
     }
@@ -73,9 +76,10 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
         energyWeights: b.energyWeights,
         memories: b.memories ?? "",
         taste: b.taste,
+        tieBreakSeed: b.tieBreakSeed,
       });
       return toPlanResponse(p);
     }
-    return toPlanResponse(await createPlanCached(deps, intent, b.memories ?? "", b.energyWeights, b.taste));
+    return toPlanResponse(await createPlanCached(deps, intent, b.memories ?? "", b.energyWeights, b.taste, b.tieBreakSeed));
   });
 }

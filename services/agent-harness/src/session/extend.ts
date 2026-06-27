@@ -43,6 +43,7 @@ export async function extendQueue(
       energyWeights: personalized ? state.energyWeights : undefined,
       taste,
       extend: { playedIds, appendSlots: EXTEND_APPEND_SLOTS, lastPlayedEnergy },
+      tieBreakSeed: state.tieBreakSeed,
     });
 
     const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));

@@ -54,11 +54,12 @@ function planKey(
   memories: string,
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
+  tieBreakSeed?: string,
 ): string {
   const w = energyWeights && Object.keys(energyWeights).length > 0
     ? Object.entries(energyWeights).sort(([a], [b]) => Number(a) - Number(b)).map(([k, v]) => `${k}:${(v ?? 0).toFixed(2)}`).join(",")
     : "";
-  return [intent.mood, intent.scene, intent.duration_min, memories, w, tasteCacheKey(taste)].join(" ");
+  return [intent.mood, intent.scene, intent.duration_min, memories, w, tasteCacheKey(taste), tieBreakSeed ?? ""].join(" ");
 }
 
 /** Defensive copy so a cached plan can't be mutated by replan/store aliasing. */
@@ -77,12 +78,13 @@ export async function createPlanCached(
   memories = "",
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
+  tieBreakSeed?: string,
 ): Promise<PlanResult> {
-  const key = planKey(intent, memories, energyWeights, taste);
+  const key = planKey(intent, memories, energyWeights, taste, tieBreakSeed);
   const hit = cacheGet(key);
   if (hit) return clonePlan(hit);
 
-  const plan = await createPlan(deps, intent, memories, energyWeights, taste);
+  const plan = await createPlan(deps, intent, memories, energyWeights, taste, tieBreakSeed);
   if (plan.violations.length === 0) cacheSet(key, plan); // don't cache imperfect plans
   return clonePlan(plan);
 }
@@ -109,6 +111,7 @@ export async function createProvisionalPlan(
   memories = "",
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
+  tieBreakSeed?: string,
 ): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate> }> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
   const candidates = retrieveCandidates(deps.tracks(), {
@@ -118,6 +121,7 @@ export async function createProvisionalPlan(
     slots: FULL_SESSION_LENGTH,
     energyWeights: effectiveEnergyWeights,
     taste,
+    tieBreakSeed,
   });
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
   return {
@@ -161,6 +165,7 @@ export async function createPlan(
   memories = "",
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
+  tieBreakSeed?: string,
 ): Promise<PlanResult> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
   const candidates = retrieveCandidates(deps.tracks(), {
@@ -170,6 +175,7 @@ export async function createPlan(
     slots: FULL_SESSION_LENGTH,
     energyWeights: effectiveEnergyWeights,
     taste,
+    tieBreakSeed,
   });
   return runHeuristicFlow({
     intent,
@@ -192,6 +198,7 @@ export interface ReplanInput {
   memories?: string;
   /** Structured taste prefer/avoid (condition C); undefined for A/B. */
   taste?: TastePreference[];
+  tieBreakSeed?: string;
 }
 
 /** Mid-session replan: re-fill only the remaining slots, excluding played tracks. */
@@ -206,6 +213,7 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
     lastPlayedEnergy: input.lastPlayedEnergy,
     energyWeights: effectiveEnergyWeights,
     taste: input.taste,
+    tieBreakSeed: input.tieBreakSeed,
   });
   return runHeuristicFlow({
     intent: input.intent,
@@ -230,6 +238,7 @@ export interface ExtendInput {
   memories?: string;
   /** Structured taste prefer/avoid (condition C); undefined for A/B. */
   taste?: TastePreference[];
+  tieBreakSeed?: string;
 }
 
 /**
@@ -249,6 +258,7 @@ export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<Pl
     lastPlayedEnergy: input.lastPlayedEnergy,
     energyWeights: effectiveEnergyWeights,
     taste: input.taste,
+    tieBreakSeed: input.tieBreakSeed,
   });
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
   const tracklist = buildExtendChain(candidates, input.appendSlots, input.lastPlayedEnergy);

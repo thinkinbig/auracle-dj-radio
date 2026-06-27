@@ -12,6 +12,7 @@ export interface SessionState {
   energyWeights?: Partial<Record<number, number>>;
   /** Structured taste prefer/avoid for this user (condition C only); reused by replan. */
   taste?: TastePreference[];
+  tieBreakSeed: string;
   hostMode: HostMode;
   title: string;
   subtitle: string;
@@ -51,6 +52,7 @@ export class SessionStore {
     condition: Condition;
     energyWeights?: Partial<Record<number, number>>;
     taste?: TastePreference[];
+    tieBreakSeed: string;
     title: string;
     subtitle: string;
     arc: ArcStage;
@@ -70,6 +72,7 @@ export class SessionStore {
       condition: params.condition,
       energyWeights: params.energyWeights,
       taste: params.taste,
+      tieBreakSeed: params.tieBreakSeed,
       hostMode: inferHostModeFromScene(params.intent.scene),
       title: params.title,
       subtitle: params.subtitle,

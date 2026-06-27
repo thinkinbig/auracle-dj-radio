@@ -614,6 +614,7 @@ describe("applyReplan scopes (E2 mood_change nudge)", () => {
       userId: ANONYMOUS_USER_ID,
       intent: { mood: "calm", scene: "studying", duration_min: 25 },
       condition,
+      tieBreakSeed: "test-seed",
       title: "T",
       subtitle: "S",
       arc: "build",

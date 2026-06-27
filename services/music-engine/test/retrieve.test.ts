@@ -124,6 +124,20 @@ describe("retrieveCandidates (structured scorer)", () => {
     expect(ranked[0]!.id).toBe("match");
   });
 
+  it("rotates equal-score candidates by tieBreakSeed", () => {
+    const tracks = ["a", "b", "c", "d", "e", "f"].map((id) =>
+      row({ id, energy: 1, scene: "study", genreSlug: "ambient" }),
+    );
+
+    const first = retrieveCandidates(tracks, { mood: "calm", scene: "study", limit: 4, tieBreakSeed: "seed-a" });
+    const repeat = retrieveCandidates(tracks, { mood: "calm", scene: "study", limit: 4, tieBreakSeed: "seed-a" });
+    const second = retrieveCandidates(tracks, { mood: "calm", scene: "study", limit: 4, tieBreakSeed: "seed-b" });
+
+    expect(first.map((t) => t.id)).toEqual(["d", "e"]);
+    expect(repeat.map((t) => t.id)).toEqual(first.map((t) => t.id));
+    expect(second.map((t) => t.id)).toEqual(["c", "b"]);
+  });
+
   it("scores 30 tracks in under 100ms and 1000 in under 500ms", () => {
     const makeTracks = (n: number) =>
       Array.from({ length: n }, (_, i) =>
