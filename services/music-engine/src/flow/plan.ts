@@ -1,7 +1,8 @@
 import type { FlowResult, FlowTrackRef, SessionIntent, TastePreference, TrackCandidate } from "@auracle/shared";
 import { FULL_SESSION_LENGTH, energyTargetsForMood } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
-import type { FlowModel, FlowInput } from "./llm/flow-model.js";
+import { HeuristicFlowModel } from "./llm/heuristic-flow.js";
+import type { FlowInput } from "./llm/flow-model.js";
 import { energyWeightsFromMemories, mergeEnergyWeights } from "./weighting/memory-energy.js";
 import { retrieveCandidates } from "./retrieval/retrieve.js";
 import { tasteCacheKey } from "./weighting/taste-weighting.js";
@@ -9,7 +10,6 @@ import { validateTracklist, type Violation } from "./validation/validate.js";
 import { chooseNext } from "./selection/choose-next.js";
 
 export interface PlanDeps {
-  flowModel: FlowModel;
   /** Returns the full track library (read from SQLite at call time). */
   tracks: () => TrackRow[];
 }
@@ -147,7 +147,7 @@ export async function createPlan(
     energyWeights: effectiveEnergyWeights,
     taste,
   });
-  return runFlow(deps.flowModel, {
+  return runHeuristicFlow({
     intent,
     memories,
     played: [],
@@ -181,7 +181,7 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
     energyWeights: effectiveEnergyWeights,
     taste: input.taste,
   });
-  return runFlow(deps.flowModel, {
+  return runHeuristicFlow({
     intent: input.intent,
     memories: input.memories ?? "",
     played: input.played,
@@ -248,10 +248,10 @@ function buildExtendChain(candidates: TrackCandidate[], count: number, seedEnerg
   return slots;
 }
 
-/** Step 2 flow plan + safety-net validation (ADR-0001: no LLM retry/repair loop). */
-async function runFlow(flowModel: FlowModel, input: FlowInput): Promise<PlanResult> {
+/** Step 2 deterministic flow plan + safety-net validation (ADR-0001: no LLM retry/repair loop). */
+async function runHeuristicFlow(input: FlowInput): Promise<PlanResult> {
   const candidatesById = new Map(input.candidates.map((c) => [c.id, c]));
-  const result = await flowModel.plan(input);
+  const result = await new HeuristicFlowModel().plan(input);
   const violations = validateTracklist(result.tracklist, candidatesById);
   return { result, violations, candidatesById };
 }

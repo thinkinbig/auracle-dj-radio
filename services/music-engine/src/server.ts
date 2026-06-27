@@ -2,7 +2,6 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { CatalogDb } from "./catalog-db.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerPlanningRoutes } from "./routes/planning.js";
-import { buildFlowModel } from "./wiring.js";
 import type { PlanDeps } from "./flow/plan.js";
 
 export interface MusicEngine {
@@ -17,7 +16,6 @@ export interface MusicEngine {
 export function buildServer(dbPath: string): MusicEngine {
   const db = new CatalogDb(dbPath);
   const deps: PlanDeps = {
-    flowModel: buildFlowModel(),
     tracks: () => db.allTracks(),
   };
 

@@ -63,7 +63,7 @@ export class AgentHarness {
             this.deps.memory.tasteWeights(userId).catch(() => undefined),
           ])
         : ["", undefined, undefined];
-    const plan = await this.deps.music.planTracklist({ intent, mode: "full", memories: mem0Context, energyWeights, taste });
+    const plan = await this.deps.music.planTracklist({ intent, mode: "provisional", memories: mem0Context, energyWeights, taste });
     const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
     const state = this.deps.store.create({
       userId,
@@ -92,6 +92,8 @@ export class AgentHarness {
       this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "proxy register failed");
     }
 
+    void this.refineSessionCopywriting(state);
+
     return {
       session_id: state.id,
       session_title: state.title,
@@ -103,6 +105,62 @@ export class AgentHarness {
       proxy_url: this.deps.proxyPublicUrl,
       token,
     };
+  }
+
+  /**
+   * P3.1: start playback from the deterministic tracklist immediately, then let
+   * the full planner/copywriter improve title/subtitle/reasons in the background.
+   * Already-played/current tracks are never replaced, so the first track can keep
+   * playing at full speed while copy lands later.
+   */
+  private async refineSessionCopywriting(state: SessionState): Promise<void> {
+    try {
+      const plan = await this.deps.music.planTracklist({
+        intent: state.intent,
+        mode: "full",
+        memories: state.mem0Context,
+        energyWeights: state.energyWeights,
+        taste: state.taste,
+      });
+      const previousTitle = state.title;
+      const previousSubtitle = state.subtitle;
+      const previousRemaining = this.deps.store.remaining(state).map((r) => r.id).join(" ");
+
+      state.title = plan.result.session_title || state.title;
+      state.subtitle = plan.result.session_subtitle || state.subtitle;
+      state.arc = plan.result.arc;
+
+      const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
+      const lockedIds = new Set(state.tracklist.slice(0, state.currentTrackIndex + 1).map((r) => r.id));
+      const current = state.tracklist[state.currentTrackIndex];
+      const matchingCurrent = current ? plan.result.tracklist.find((r) => r.id === current.id) : undefined;
+      if (current && matchingCurrent) current.reason = matchingCurrent.reason;
+
+      const refinedRemaining = plan.result.tracklist.filter((r) => !lockedIds.has(r.id));
+      const remaining = this.deps.store.replaceRemaining(state, refinedRemaining, candidatesById);
+      this.deps.store.markRefined(state);
+
+      const nextRemaining = remaining.map((r) => r.id).join(" ");
+      const changed = previousTitle !== state.title || previousSubtitle !== state.subtitle || previousRemaining !== nextRemaining;
+      if (!changed) return;
+
+      await this.deps.proxy
+        .inject(state.id, {
+          ui_events: [
+            {
+              type: "tracklist_updated",
+              remaining,
+              session_title: state.title,
+              session_subtitle: state.subtitle,
+            },
+          ],
+        })
+        .catch((err) =>
+          this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "copywriting refine proxy push failed"),
+        );
+    } catch (err) {
+      this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "copywriting refine failed");
+    }
   }
 
   sessionSnapshot(id: string): Record<string, unknown> | undefined {

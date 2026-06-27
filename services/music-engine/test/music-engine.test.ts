@@ -4,9 +4,8 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FlowResult, GenreCount, TrackCandidate, TrackMeta } from "@auracle/shared";
 import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
-import type { FlowInput, FlowModel } from "../src/flow/llm/flow-model.js";
 import { HeuristicFlowModel } from "../src/flow/llm/heuristic-flow.js";
-import { replan, createPlan } from "../src/flow/plan.js";
+import { createPlan, replan } from "../src/flow/plan.js";
 import { energyWeightsFromMemories, mergeEnergyWeights } from "../src/flow/weighting/memory-energy.js";
 import { resolveCatalogPath, tracksWithAssets } from "../src/catalog/manifest.js";
 import { buildServer, type MusicEngine } from "../src/server.js";
@@ -121,24 +120,8 @@ describe("music-engine HTTP", () => {
     expect(body.candidates.length).toBeGreaterThan(0);
   }, 10_000);
 
-  it("createPlan does not retry flow model on violations (P2.3)", async () => {
-    let calls = 0;
-    class ViolatingFlow implements FlowModel {
-      async plan(input: FlowInput): Promise<FlowResult> {
-        calls++;
-        const [a, b] = input.candidates;
-        return {
-          session_title: "t",
-          session_subtitle: "s",
-          arc: "build",
-          tracklist: [
-            { id: a!.id, flow_position: 1, reason: "x" },
-            { id: b!.id, flow_position: 2, reason: "y" },
-          ],
-        };
-      }
-    }
-    const row = (id: string, genre: string): TrackRow =>
+  it("createPlan is deterministic and needs no Flow/Gemini model (P3.2)", async () => {
+    const row = (id: string, energy: number, genre: string): TrackRow =>
       ({
         id,
         title: id,
@@ -149,8 +132,8 @@ describe("music-engine HTTP", () => {
         lore: "",
         albumCoverPath: "",
         artistPhotoPath: "",
-        energy: 2,
-        tempo: 90,
+        energy,
+        tempo: 90 + energy,
         genre,
         mood: "calm",
         scene: "study",
@@ -158,14 +141,14 @@ describe("music-engine HTTP", () => {
         introOffsetMs: null,
         instrumental: true,
       }) as TrackRow;
-    const deps = {
-      flowModel: new ViolatingFlow(),
-      tracks: () => [row("a", "ambient"), row("b", "ambient")],
-    };
+    const deps = { tracks: () => [row("a", 1, "ambient"), row("b", 2, "ambient"), row("c", 3, "house")] };
 
-    const plan = await createPlan(deps, { mood: "calm", scene: "study", duration_min: 25 });
-    expect(calls).toBe(1);
-    expect(plan.violations.some((v) => v.kind === "genre_repeat")).toBe(true);
+    const first = await createPlan(deps, { mood: "calm", scene: "study", duration_min: 25 });
+    const second = await createPlan(deps, { mood: "calm", scene: "study", duration_min: 25 });
+
+    expect(first.result.tracklist.map((r) => r.id)).toEqual(second.result.tracklist.map((r) => r.id));
+    expect(first.result.session_title).toMatch(/^Calm Study, vol\. [1-9]$/);
+    expect(first.violations.some((v) => v.kind === "genre_repeat")).toBe(true);
   });
 
   it("heuristic flow orders calm sessions inside the low-energy arc", async () => {
@@ -243,7 +226,7 @@ describe("music-engine HTTP", () => {
     for (const ex of exclude) expect(trackIds).not.toContain(ex); // excludes played
   });
 
-  it("replan forwards mem0 recall into the flow input (P0-5)", async () => {
+  it("replan uses mem0 recall as deterministic retrieval weights (P0-5/P3.2)", async () => {
     const row = (id: string, energy: number): TrackRow =>
       ({
         id,
@@ -256,35 +239,23 @@ describe("music-engine HTTP", () => {
         albumCoverPath: "",
         artistPhotoPath: "",
         energy,
-        tempo: 90,
-        genre: "g",
+        tempo: 90 + energy,
+        genre: `g${id}`,
         mood: "calm",
         scene: "study",
         filePath: "",
         introOffsetMs: null,
         instrumental: true,
       }) as TrackRow;
-    class CapturingFlow implements FlowModel {
-      last?: FlowInput;
-      async plan(input: FlowInput): Promise<FlowResult> {
-        this.last = input;
-        return {
-          session_title: "t",
-          session_subtitle: "s",
-          arc: "build",
-          tracklist: input.candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "x" })),
-        };
-      }
-    }
-    const flow = new CapturingFlow();
-    const deps = { flowModel: flow, tracks: () => [row("a", 2), row("b", 4)] };
+    const deps = { tracks: () => [row("low", 2), row("high", 5), row("mid", 3)] };
     const base = { intent: { mood: "calm", scene: "study", duration_min: 25 }, playedIds: [], played: [], lastPlayedEnergy: null, remainingSlots: 2 };
 
-    await replan(deps, { ...base, memories: "prefers lighter energy" });
-    expect(flow.last?.memories).toBe("prefers lighter energy");
+    const weighted = await replan(deps, { ...base, memories: "User skipped energy 5 tracks quickly" });
+    const unweighted = await replan(deps, base);
 
-    await replan(deps, base);
-    expect(flow.last?.memories).toBe("");
+    expect(weighted.result.tracklist.map((r) => r.id)).not.toEqual([]);
+    expect(unweighted.result.tracklist.map((r) => r.id)).not.toEqual([]);
+    expect(weighted.candidatesById.has("high")).toBe(true);
   });
 
   it("derives bounded energy penalties from high-signal mem0 facts", () => {

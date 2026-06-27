@@ -330,7 +330,7 @@ Live 在 connect 前 gate；connect 后 10s 内无 audio 的 stream fault 计入
 |------|------|
 | `flow/retrieval/retrieve.ts` | Step 1 结构化打分 |
 | `flow/llm/heuristic-flow.ts` | Step 2 确定性能量弧线排序 |
-| `wiring.ts` | composition root：`buildFlowModel` → `HeuristicFlowModel` |
+| Step 2 planning | direct deterministic heuristic; no `flowModel` wiring/env |
 
 mem0 在 circuit open 时 skip；transient/auth 失败计入共享 breaker。
 
@@ -359,7 +359,7 @@ GEMINI_API_KEY=...
 QDRANT_URL=http://localhost:6333          # mem0 only
 AURACLE_MEM0_HISTORY_DB=./data/mem0/history.db
 
-GEMINI_FLOW_MODEL=gemini-3.1-flash-lite
+GEMINI_MEM0_LLM_MODEL=gemini-3.1-flash-lite
 GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview   # Demo Live DJ
 GEMINI_MEM0_EMBED_MODEL=gemini-embedding-001      # mem0 embedder only
 

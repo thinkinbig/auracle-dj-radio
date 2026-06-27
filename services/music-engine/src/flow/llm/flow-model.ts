@@ -10,8 +10,3 @@ export interface FlowInput {
   remainingSlots: number;
   candidates: TrackCandidate[];
 }
-
-/** Step 2 — orders candidates into an energy-arc tracklist. */
-export interface FlowModel {
-  plan(input: FlowInput): Promise<FlowResult>;
-}

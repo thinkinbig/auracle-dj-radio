@@ -1,10 +1,10 @@
 import type { FlowResult, FlowTrackRef, TrackCandidate } from "@auracle/shared";
 import { energyTargetsForMood } from "@auracle/shared";
 import { chooseNext } from "../selection/choose-next.js";
-import type { FlowModel, FlowInput } from "./flow-model.js";
+import type { FlowInput } from "./flow-model.js";
 
 /** Deterministic Flow model: orders candidates along the mood energy arc. */
-export class HeuristicFlowModel implements FlowModel {
+export class HeuristicFlowModel {
   async plan(input: FlowInput): Promise<FlowResult> {
     const targets = energyTargetsForMood(input.remainingSlots, input.intent.mood, input.lastPlayedEnergy);
     const pool = [...input.candidates];
