@@ -200,6 +200,73 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
   });
 }
 
+export interface ExtendInput {
+  intent: SessionIntent;
+  /** Already-played + currently-queued ids to exclude from the append pool. */
+  playedIds: string[];
+  /** How many fresh tracks to append (default 4). */
+  appendSlots: number;
+  /** Energy of the last queued track, to chain the continuation smoothly. */
+  lastPlayedEnergy: number | null;
+  energyWeights?: Partial<Record<number, number>>;
+  /** Cross-session preference recall (condition C); "" for A/B. */
+  memories?: string;
+  /** Structured taste prefer/avoid (condition C); undefined for A/B. */
+  taste?: TastePreference[];
+}
+
+/**
+ * Rolling extend (E1): deterministically append `appendSlots` fresh tracks so the
+ * station stays on air past the initial arc. Retrieval excludes everything already
+ * played/queued; ordering is a greedy nearest-energy chain from the last queued
+ * energy. No Flow LLM — extend is a fast background continuation, not a re-plan.
+ */
+export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<PlanResult> {
+  const effectiveEnergyWeights = mergeEnergyWeights(input.energyWeights, energyWeightsFromMemories(input.memories ?? ""));
+  const candidates = retrieveCandidates(deps.tracks(), {
+    mood: input.intent.mood,
+    scene: input.intent.scene,
+    excludeIds: new Set(input.playedIds),
+    limit: Math.max(24, input.appendSlots * 3),
+    energyWeights: effectiveEnergyWeights,
+    taste: input.taste,
+  });
+  const candidatesById = new Map(candidates.map((c) => [c.id, c]));
+  const tracklist = buildExtendChain(candidates, input.appendSlots, input.lastPlayedEnergy);
+  return {
+    result: { session_title: "", session_subtitle: "", arc: "peak", tracklist },
+    violations: [],
+    candidatesById,
+  };
+}
+
+/**
+ * Greedy nearest-energy chain of up to `count` score-ranked candidates, starting
+ * near `seedEnergy` (or the top-scored track when unknown). Deterministic.
+ */
+function buildExtendChain(candidates: TrackCandidate[], count: number, seedEnergy: number | null): FlowTrackRef[] {
+  const pool = [...candidates];
+  const slots: FlowTrackRef[] = [];
+  let prevEnergy = seedEnergy;
+  for (let pos = 1; pos <= count && pool.length > 0; pos++) {
+    let bestIdx = 0;
+    if (prevEnergy != null) {
+      let bestDist = Infinity;
+      for (let j = 0; j < pool.length; j++) {
+        const dist = Math.abs(pool[j]!.energy - prevEnergy);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = j;
+        }
+      }
+    }
+    const pick = pool.splice(bestIdx, 1)[0]!;
+    prevEnergy = pick.energy;
+    slots.push({ id: pick.id, flow_position: pos, reason: "rolling extend" });
+  }
+  return slots;
+}
+
 /**
  * Flow → validate → violation-aware retry → deterministic repair.
  * Retry passes violations back into the model; repair swaps bad slots locally.

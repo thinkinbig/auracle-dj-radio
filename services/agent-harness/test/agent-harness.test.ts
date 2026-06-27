@@ -63,6 +63,12 @@ class FakeMusicEngine implements MusicEngineClient {
   planCalls: PlanTracklistRequest[] = [];
   async planTracklist(req: PlanTracklistRequest): Promise<PlanResponse> {
     this.planCalls.push(req);
+    if (req.mode === "extend") {
+      const slots = req.extend?.appendSlots ?? 4;
+      const candidates = Array.from({ length: slots }, (_, i) => candidate(`x${i + 1}`, ((i % 5) + 1) as Energy));
+      const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "extend" }));
+      return { result: { session_title: "", session_subtitle: "", arc: "peak", tracklist }, violations: [], candidates };
+    }
     const candidates =
       req.mode === "replan"
         ? [candidate("d", 2), candidate("e", 4)]
@@ -384,6 +390,59 @@ describe("agent-harness", () => {
     expect(replan?.taste).toEqual(taste);
     // verify that taste was re-fetched (tasteWeights called again for replan).
     expect(memory.tasteCalls.length).toBeGreaterThan(1);
+    await app.close();
+  });
+
+  it("rolling-extends the queue when remaining drops to the threshold (E1)", async () => {
+    const { app, memory, music, proxy } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "C" },
+    });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    // tracklist is a,b,c; playing "a" leaves remaining [b,c] (== threshold 2) → extend.
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "a" } });
+
+    await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "extend")).toBe(true));
+    const extendCall = music.planCalls.find((c) => c.mode === "extend");
+    expect(extendCall?.extend?.appendSlots).toBe(4);
+    // excludes everything already queued (played + current + remaining).
+    expect(extendCall?.extend?.playedIds).toEqual(["a", "b", "c"]);
+
+    await vi.waitFor(() => expect(proxy.injectCalls.length).toBeGreaterThan(0));
+    const updated = proxy.injectCalls.at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
+      | { remaining: { id: string }[] }
+      | undefined;
+    expect(updated!.remaining.map((r) => r.id)).toEqual(["b", "c", "x1", "x2", "x3", "x4"]);
+
+    await vi.waitFor(() => expect(memory.events.some((e) => e.eventType === "queue_extended")).toBe(true));
+    const ext = memory.events.find((e) => e.eventType === "queue_extended")!;
+    expect(ext.payload).toMatchObject({ before_count: 2, after_count: 6 });
+
+    // Debounce: advancing into the now-long queue does not trigger another extend.
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
+    expect(music.planCalls.filter((c) => c.mode === "extend")).toHaveLength(1);
+    await app.close();
+  });
+
+  it("does not rolling-extend in condition A (ablation)", async () => {
+    const { app, music, proxy } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "A" },
+    });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "a" } });
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
+
+    expect(music.planCalls.some((c) => c.mode === "extend")).toBe(false);
+    expect(proxy.injectCalls).toEqual([]);
     await app.close();
   });
 
