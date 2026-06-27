@@ -76,16 +76,16 @@ export function ImportPlaylistScreen({ user, onClose }: ImportPlaylistScreenProp
           <button className={styles.backButton} type="button" onClick={onClose}>
             Back
           </button>
-          <span className={styles.contextLabel}>Auracle Archive</span>
+          <span className={styles.contextLabel}>Import Music</span>
         </div>
 
         <div className={styles.heroGrid}>
           <section className={styles.heroCopy} aria-labelledby="import-title">
             <p className={styles.eyebrow}>Playlist memory</p>
-            <h1 id="import-title">Distill your archive into radio.</h1>
+            <h1 id="import-title">Turn playlists into radio memory.</h1>
             <p>
-              Bring in years of tracks as clean metadata. Auracle turns the archive into long-term
-              taste context for future stations.
+              Bring in CSV, pasted tracks, or Spotify export metadata. Auracle reads the songs as
+              long-term taste context for future stations.
             </p>
           </section>
           <div className={styles.memoryCard} aria-hidden>
@@ -104,8 +104,8 @@ export function ImportPlaylistScreen({ user, onClose }: ImportPlaylistScreenProp
         {isGuest ? (
           <section className={styles.guestGate}>
             <p className={styles.kicker}>Login required</p>
-            <h2>Your playlist archive needs an account.</h2>
-            <p>Guest mode can preview the radio, but imported playlists are saved to your personal sound memory.</p>
+            <h2>Your music history needs an account.</h2>
+            <p>Guest mode can preview the radio, but imported playlists are saved to your personal taste memory.</p>
           </section>
         ) : (
           <>
@@ -114,7 +114,7 @@ export function ImportPlaylistScreen({ user, onClose }: ImportPlaylistScreenProp
                 <div className={styles.panelHeader}>
                   <div>
                     <p className={styles.kicker}>Source</p>
-                    <h2>Import metadata</h2>
+                    <h2>Add playlist data</h2>
                   </div>
                   <button className={styles.fileButton} type="button" onClick={() => fileRef.current?.click()}>
                     Choose file
@@ -204,9 +204,9 @@ export function ImportPlaylistScreen({ user, onClose }: ImportPlaylistScreenProp
                 ) : null}
 
                 <button className={styles.saveButton} type="button" disabled={!canSave} onClick={() => void save()}>
-                  {isSaving ? 'Saving archive...' : 'Save playlist memory'}
+                  {isSaving ? 'Saving music...' : 'Save Music Memory'}
                 </button>
-                {saved ? <p className={styles.success}>Saved {saved.trackCount} tracks to your archive.</p> : null}
+                {saved ? <p className={styles.success}>Saved {saved.trackCount} tracks to your music memory.</p> : null}
                 {error ? <p className={styles.error} role="alert">{error}</p> : null}
               </aside>
             </section>
@@ -214,8 +214,8 @@ export function ImportPlaylistScreen({ user, onClose }: ImportPlaylistScreenProp
             <section className={styles.savedPanel} aria-label="Imported playlists">
               <div className={styles.panelHeader}>
                 <div>
-                  <p className={styles.kicker}>Saved archives</p>
-                  <h2>Playlist memory</h2>
+                  <p className={styles.kicker}>Saved imports</p>
+                  <h2>Music memory</h2>
                 </div>
                 <span className={styles.countBadge}>{profiles.length}</span>
               </div>
@@ -227,7 +227,7 @@ export function ImportPlaylistScreen({ user, onClose }: ImportPlaylistScreenProp
                     <small>{profile.summary.topArtists.slice(0, 3).join(', ') || 'Mixed artists'}</small>
                   </article>
                 ))}
-                {profiles.length === 0 ? <p className={styles.empty}>No imported playlists yet.</p> : null}
+                {profiles.length === 0 ? <p className={styles.empty}>No imported music yet.</p> : null}
               </div>
             </section>
           </>

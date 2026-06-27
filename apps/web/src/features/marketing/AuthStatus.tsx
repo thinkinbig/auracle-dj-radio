@@ -50,7 +50,7 @@ export function AuthStatus({ user, onLogout, onOpenSound, onOpenImport }: AuthSt
       <button
         className={styles.avatarButton}
         type="button"
-        aria-label="Open Auracle account"
+        aria-label="Open Auracle account and shortcuts"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
@@ -74,8 +74,8 @@ export function AuthStatus({ user, onLogout, onOpenSound, onOpenImport }: AuthSt
           {view === 'overview' && (
             <>
               <div className={styles.meta}>
-                <span>Auracle account</span>
-                <strong>{user.id === 'guest' ? 'Demo station' : 'Your station'}</strong>
+                <span>Account</span>
+                <strong>{user.id === 'guest' ? 'Demo station' : 'Signed in'}</strong>
               </div>
 
               <div className={styles.menuList}>
@@ -86,8 +86,8 @@ export function AuthStatus({ user, onLogout, onOpenSound, onOpenImport }: AuthSt
                     onOpenSound();
                   }}
                 >
-                  <span>Sound</span>
-                  <small>Taste engineering — genres, learned prefs, signals</small>
+                  <span>My Sound</span>
+                  <small>Tune genres, artists, tracks, and listening preferences</small>
                 </button>
                 <button
                   type="button"
@@ -96,11 +96,11 @@ export function AuthStatus({ user, onLogout, onOpenSound, onOpenImport }: AuthSt
                     onOpenImport();
                   }}
                 >
-                  <span>Import playlist</span>
-                  <small>CSV, paste, or Spotify export metadata</small>
+                  <span>Import Music</span>
+                  <small>Add playlists so Auracle understands your history</small>
                 </button>
                 <button type="button" onClick={() => setView('profile')}>
-                  <span>Profile</span>
+                  <span>Account</span>
                   <small>Name and sign-in</small>
                 </button>
                 <div className={styles.activity}>

@@ -103,7 +103,10 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
               <span>{DJ_NAME}</span>
             </button>
           ) : (
-            <span className={styles.brandPlaceholder} aria-hidden />
+            <div className={styles.landingBrand} aria-label={DJ_NAME}>
+              <span aria-hidden />
+              <strong>{DJ_NAME}</strong>
+            </div>
           )}
           <button
             className={styles.ghostButton}
@@ -119,11 +122,15 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
           <>
             <main className={`${styles.hero} ${isBrandTransitioning ? styles.heroLeaving : ''}`}>
               <section className={styles.copy} aria-labelledby="landing-title">
-                <p className={styles.eyebrow}>Live AI radio for every mood</p>
-                <h1 id="landing-title">Auracle</h1>
+                <h1 id="landing-title">
+                  <span>Your Music</span>
+                  <span>
+                    Has a <em>DNA.</em>
+                  </span>
+                </h1>
                 <p className={styles.lede}>
-                  A polished web radio player that turns your mood into a hosted station, with DJ talk,
-                  smart queues, and a cinematic listening room.
+                  Years of playlists and listening history become a personal Taste DNA, then turn into
+                  an AI-hosted radio session for whatever you're doing today.
                 </p>
                 <div className={styles.actions}>
                   <button
@@ -132,173 +139,115 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                     onClick={() => showAuth('register')}
                     disabled={isBrandTransitioning}
                   >
-                    Start listening
-                  </button>
-                  <button
-                    className={styles.secondaryButton}
-                    type="button"
-                    onClick={() => enterApp(guestUser)}
-                    disabled={isBrandTransitioning}
-                  >
-                    Try demo
+                    Discover My DNA
                   </button>
                 </div>
-                <div className={styles.metrics} aria-label="Product highlights">
+                <div className={styles.metrics} aria-label="Taste DNA preview stats">
                   <span>
-                    <strong>24/7</strong>
-                    adaptive station
+                    <strong>Years of listening</strong>
                   </span>
                   <span>
-                    <strong>16</strong>
-                    curated tracks
+                    <strong>Songs you loved</strong>
                   </span>
                   <span>
-                    <strong>Live</strong>
-                    DJ voice
+                    <strong>Artists you return to</strong>
                   </span>
                 </div>
               </section>
 
-              <section className={styles.playerShowcase} aria-label="Auracle web player preview">
+              <section className={styles.playerShowcase} aria-label="Taste DNA preview">
                 <div className={styles.albumStack} aria-hidden>
                   <div className={styles.albumBack} />
                   <div className={styles.albumArt}>
                     <span />
                   </div>
                 </div>
-                <div className={styles.nowPlaying}>
-                  <div>
-                    <p className={styles.status}>On air now</p>
-                    <h2>Midnight Signal</h2>
-                    <p>Auracle DJ is blending soft house, vocal texture, and late-night focus.</p>
-                  </div>
-                  <div className={styles.waveform} aria-hidden>
-                    {Array.from({ length: 24 }, (_, index) => (
-                      <span
-                        key={index}
-                        style={{ '--level': `${24 + ((index * 17) % 54)}%` } as CSSProperties}
-                      />
+                <div
+                  className={styles.dnaHeroCard}
+                  aria-label="Taste DNA: Reflective. Nostalgic. Curious. After Dark."
+                >
+                  <div className={styles.dnaWordList} aria-hidden>
+                    {['Reflective.', 'Nostalgic.', 'Curious.', 'After Dark.'].map((word, index) => (
+                      <span key={word} style={{ '--dna-word-index': index } as CSSProperties}>
+                        {word}
+                      </span>
                     ))}
-                  </div>
-                  <div className={styles.trackRow}>
-                    <span>01</span>
-                    <div>
-                      <strong>Velvet Room</strong>
-                      <small>Nova Pulse</small>
-                    </div>
-                    <em>3:42</em>
-                  </div>
-                  <div className={styles.trackRow}>
-                    <span>02</span>
-                    <div>
-                      <strong>Glass Coast</strong>
-                      <small>Mirrorline</small>
-                    </div>
-                    <em>4:08</em>
                   </div>
                 </div>
               </section>
             </main>
 
-            <section className={styles.productGuide} aria-labelledby="guide-title">
-              <div className={styles.guideIntro}>
-                <p className={styles.eyebrow}>How Auracle works</p>
-                <h2 id="guide-title">Radio first. Personal by design.</h2>
-                <p>
-                  Auracle opens with a simple mood, then quietly turns your taste, listening behavior,
-                  and DJ memory into a station that feels made for the room you are in.
-                </p>
+            <section id="how" className={styles.productGuide} aria-labelledby="guide-title">
+              <div className={styles.historyFlow} aria-labelledby="guide-title">
+                <h2 id="guide-title">Every session starts here.</h2>
+                <div className={styles.flowSteps}>
+                  <article>
+                    <span>History</span>
+                  </article>
+                  <article>
+                    <span>DNA</span>
+                  </article>
+                  <article>
+                    <span>Moment</span>
+                  </article>
+                  <article>
+                    <span>Session</span>
+                  </article>
+                </div>
               </div>
 
-              <div className={styles.experienceStage} aria-label="Auracle product flow">
-                <div className={styles.experienceDevice} aria-hidden>
-                  <div className={styles.deviceChrome}>
-                    <span>Live station</span>
-                    <strong>Focus Drive</strong>
-                    <p>Soft house, vocal texture, late-night motion.</p>
-                    <div className={styles.signalMap}>
-                      <div className={styles.signalLayer}>
-                        <span>Mood</span>
-                        <i style={{ '--width': '76%' } as CSSProperties} />
-                        <em>Deep focus</em>
-                      </div>
-                      <div className={styles.signalLayer}>
-                        <span>Taste</span>
-                        <i style={{ '--width': '64%' } as CSSProperties} />
-                        <em>Warm vocals</em>
-                      </div>
-                      <div className={styles.signalLayer}>
-                        <span>Memory</span>
-                        <i style={{ '--width': '86%' } as CSSProperties} />
-                        <em>Late-night rooms</em>
-                      </div>
-                    </div>
-                    <div className={styles.deviceMeta}>
-                      <span>DJ memory</span>
-                      <span>3 signals live</span>
+              <div className={styles.exampleSession} aria-label="Example AI radio session">
+                <section className={styles.sessionCopy}>
+                  <p className={styles.eyebrow}>Example session</p>
+                  <h2>
+                    Writing. Focused.
+                    <span>Medium energy.</span>
+                  </h2>
+                  <p>Generated from your Taste DNA.</p>
+                  <button className={styles.listenLink} type="button" onClick={() => enterApp(guestUser)}>
+                    Preview session
+                    <span aria-hidden>→</span>
+                  </button>
+                </section>
+
+                <section className={styles.sessionPlayer} aria-label="AI DJ example">
+                  <p className={styles.status}>Now playing</p>
+                  <h3>Midnight Signal</h3>
+                  <p>Welcome back.</p>
+                  <div className={styles.sessionPlayback}>
+                    <button type="button" onClick={() => enterApp(guestUser)} aria-label="Play example session">
+                      ▶
+                    </button>
+                    <div className={styles.waveform} aria-hidden>
+                      {Array.from({ length: 34 }, (_, index) => (
+                        <span
+                          key={index}
+                          style={{ '--level': `${18 + ((index * 13) % 58)}%` } as CSSProperties}
+                        />
+                      ))}
                     </div>
                   </div>
-                </div>
-
-                <div className={styles.experienceSteps}>
-                  <article className={styles.experienceCard}>
-                    <span>01</span>
-                    <h3>Pick the moment.</h3>
-                    <p>
-                      Start with mood and context instead of searching. Auracle builds the first room
-                      around what you need now.
-                    </p>
-                  </article>
-                  <article className={styles.experienceCard}>
-                    <span>02</span>
-                    <h3>Let the DJ carry it.</h3>
-                    <p>
-                      The station keeps moving with voice, queueing, and transitions that stay in the
-                      background until they matter.
-                    </p>
-                  </article>
-                  <article className={styles.experienceCard}>
-                    <span>03</span>
-                    <h3>Tune once. Hear it everywhere.</h3>
-                    <p>
-                      Your Sound profile shapes genres, artists, albums, tracks, and memory across future
-                      sessions.
-                    </p>
-                  </article>
-                </div>
+                </section>
               </div>
 
-              <div className={styles.soundPreview} aria-label="Sound profile preview">
+              <section className={styles.finalCta} aria-label="Start your AI radio">
                 <div>
-                  <p className={styles.status}>Core personalization</p>
-                  <h3>Sound profile</h3>
+                  <h2>
+                    Every playlist
+                    <span>tells a story.</span>
+                    <span>Yours is waiting.</span>
+                  </h2>
                   <p>
-                    Prefer what should pull the station closer. Avoid what should stay out. Auracle uses those
-                    choices alongside listening signals and DJ memory.
+                    Import your music history. Auracle will uncover the Taste DNA behind years of listening.
                   </p>
                 </div>
-                <div className={styles.profileSignal} aria-hidden>
-                  <span style={{ '--level': '68%' } as CSSProperties} />
-                  <span style={{ '--level': '44%' } as CSSProperties} />
-                  <span style={{ '--level': '78%' } as CSSProperties} />
-                  <span style={{ '--level': '54%' } as CSSProperties} />
-                  <span style={{ '--level': '88%' } as CSSProperties} />
+                <div className={styles.ctaVisual} aria-hidden>
+                  <i />
                 </div>
-                <ul>
-                  <li>
-                    <strong>Taste</strong>
-                    <span>Genres, artists, albums, tracks</span>
-                  </li>
-                  <li>
-                    <strong>Signals</strong>
-                    <span>Skips, completions, session flow</span>
-                  </li>
-                  <li>
-                    <strong>Memory</strong>
-                    <span>Things the DJ learns over time</span>
-                  </li>
-                </ul>
-              </div>
+                <button className={styles.primaryButton} type="button" onClick={() => showAuth('register')}>
+                  Discover My DNA
+                </button>
+              </section>
             </section>
           </>
         ) : (

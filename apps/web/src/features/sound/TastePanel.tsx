@@ -101,7 +101,7 @@ export function TastePanel() {
     <div className={styles.panel}>
       <section className={styles.overview} aria-label="Taste summary">
         <div>
-          <p className={styles.overline}>Profile signal</p>
+          <p className={styles.overline}>Taste summary</p>
           <p className={styles.summary} aria-live="polite">
             {summarize(selection)}
           </p>
@@ -131,7 +131,7 @@ export function TastePanel() {
       <fieldset className={styles.group}>
         <legend>
           <span>Genres</span>
-          <small>Set the station's center of gravity</small>
+          <small>Choose what the station should lean toward or avoid</small>
         </legend>
         <div className={styles.chipGrid}>
           {genres.map((g) => (
@@ -153,7 +153,7 @@ export function TastePanel() {
       <fieldset className={styles.group}>
         <legend>
           <span>Artists and albums</span>
-          <small>Guide the palette without locking the DJ in</small>
+          <small>Shape the palette without locking the DJ in</small>
         </legend>
         <div className={styles.artistList}>
           {catalog.artists.map((artist) => (
@@ -227,7 +227,7 @@ export function TastePanel() {
       <fieldset className={styles.group}>
         <legend>
           <span>Notes</span>
-          <small>Add the human texture the catalog cannot infer</small>
+          <small>Add anything the catalog cannot infer</small>
         </legend>
         <textarea
           className={styles.freeText}
@@ -261,7 +261,7 @@ export function TastePanel() {
       )}
 
       <div className={styles.actions}>
-        <span className={styles.saveHint}>Ready when the profile feels like you.</span>
+        <span className={styles.saveHint}>Save when the profile feels like you.</span>
         <button type="button" className={styles.saveBtn} disabled={editor.saveState === 'saving'} onClick={editor.save}>
           {editor.saveState === 'saving' ? 'Saving...' : 'Save taste'}
         </button>

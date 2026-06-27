@@ -11,6 +11,7 @@ import { MoodPickerScreen } from '@/features/radio/ui/MoodPickerScreen';
 import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import { SoundScreen } from '@/features/sound/SoundScreen';
 import type { AuthUser } from '@auracle/shared';
+import styles from './AppNav.module.css';
 
 function AppContent() {
   const state = useRadioState();
@@ -68,6 +69,23 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
         onClick={appView === 'playing' ? handleReturnToSetup : undefined}
         label={appView === 'playing' ? 'Set your station' : undefined}
       />
+      <nav className={styles.appNav} aria-label="Primary">
+        <button
+          type="button"
+          className={styles.active}
+          onClick={() => {
+            if (appView === 'playing') handleReturnToSetup();
+          }}
+        >
+          Listen
+        </button>
+        <button type="button" onClick={() => setShowImport(true)}>
+          Import Music
+        </button>
+        <button type="button" onClick={() => setShowSound(true)}>
+          My Sound
+        </button>
+      </nav>
       <AuthStatus
         user={user}
         onLogout={onLogout}
