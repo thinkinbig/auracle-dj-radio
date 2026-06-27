@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ANONYMOUS_USER_ID, type Energy, type FlowTrackRef, type TastePreference, type TrackCandidate, type TrackMeta } from "@auracle/shared";
+import { ANONYMOUS_USER_ID, type Condition, type Energy, type FlowTrackRef, type TastePreference, type TrackCandidate, type TrackMeta } from "@auracle/shared";
 import type { MemoryServiceClient } from "../src/memory-service-client.js";
 import type {
   MusicEngineClient,
@@ -10,6 +10,7 @@ import type {
 import type { InjectPayload, ProxyClient } from "../src/proxy-client.js";
 import type { Registration } from "../src/dj/registration.js";
 import { buildServer } from "../src/server.js";
+import { applyReplan, type OrchestrationDeps } from "../src/session/replan.js";
 import { SessionStore } from "../src/session/store.js";
 
 function candidate(id: string, energy: Energy): TrackCandidate {
@@ -171,8 +172,11 @@ describe("agent-harness", () => {
     const updated = proxy.injectCalls[0]!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
       | { remaining: { id: string }[] }
       | undefined;
-    expect(updated?.remaining.map((r) => r.id)).toEqual(["d", "e"]);
-    expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
+    // Default mood_change is a nudge (E2): of remaining [b,c,f] only the next 2 slots
+    // are re-filled (→ d,e); the tail "f" is kept. remainingSlots asked for is 2.
+    expect(updated?.remaining.map((r) => r.id)).toEqual(["d", "e", "f"]);
+    const replanCall = music.planCalls.find((c) => c.mode === "replan");
+    expect(replanCall?.replan?.remainingSlots).toBe(2);
     expect(memory.facts.at(-1)?.fact).toContain("darker");
     await app.close();
   });
@@ -544,5 +548,147 @@ describe("agent-harness", () => {
     expect(replan?.energyWeights).toBeUndefined();
     expect(replan?.taste).toBeUndefined();
     await app.close();
+  });
+});
+
+/**
+ * Configurable replan engine for the nudge unit tests: returns exactly the
+ * requested `remainingSlots` fresh tracks (n1..nN), each at the requested
+ * `lastPlayedEnergy` so energy direction is observable.
+ */
+class NudgeMusicEngine implements MusicEngineClient {
+  planCalls: PlanTracklistRequest[] = [];
+  async planTracklist(req: PlanTracklistRequest): Promise<PlanResponse> {
+    this.planCalls.push(req);
+    const n = req.replan?.remainingSlots ?? 0;
+    const energy = Math.min(5, Math.max(1, req.replan?.lastPlayedEnergy ?? 3)) as Energy;
+    const candidates = Array.from({ length: n }, (_, i) => candidate(`n${i + 1}`, energy));
+    const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "replan" }));
+    return { result: { session_title: "", session_subtitle: "", arc: "build", tracklist }, violations: [], candidates };
+  }
+  async searchCatalog(): Promise<{ candidates: TrackCandidate[] }> {
+    return { candidates: [] };
+  }
+  async getTrack(): Promise<TrackMeta | undefined> {
+    return undefined;
+  }
+}
+
+describe("applyReplan scopes (E2 mood_change nudge)", () => {
+  // tracklist t1(1) t2(2) t3(3) t4(4) t5(5); current = t1 unless markStarted moves it.
+  function makeSession(store: SessionStore, condition: Condition = "C") {
+    const tracklist: FlowTrackRef[] = ["t1", "t2", "t3", "t4", "t5"].map((id, i) => ({
+      id,
+      flow_position: i + 1,
+      reason: "seed",
+    }));
+    const candidatesById = new Map(tracklist.map((r, i) => [r.id, candidate(r.id, (i + 1) as Energy)]));
+    return store.create({
+      userId: ANONYMOUS_USER_ID,
+      intent: { mood: "calm", scene: "studying", duration_min: 25 },
+      condition,
+      title: "T",
+      subtitle: "S",
+      arc: "build",
+      tracklist,
+      candidatesById,
+      mem0Context: "",
+    });
+  }
+
+  function makeDeps(store: SessionStore, music: MusicEngineClient): { deps: OrchestrationDeps; memory: FakeMemoryService; proxy: FakeProxyClient } {
+    const memory = new FakeMemoryService();
+    const proxy = new FakeProxyClient();
+    return { deps: { store, memory, music, proxy }, memory, proxy };
+  }
+
+  it("nudge (default) re-fills only the next 1–2 slots and keeps the tail", async () => {
+    const store = new SessionStore();
+    const state = makeSession(store);
+    const music = new NudgeMusicEngine();
+    const { deps } = makeDeps(store, music);
+
+    const outcome = await applyReplan(deps, state, { mood: "darker", energy_delta: "same" });
+
+    expect(outcome.replanned).toBe(true);
+    // remaining was [t2,t3,t4,t5]; only the next 2 (t2,t3) are replaced, tail (t4,t5) kept.
+    expect(state.tracklist.map((r) => r.id)).toEqual(["t1", "n1", "n2", "t4", "t5"]);
+    expect(outcome.remaining.map((r) => r.id)).toEqual(["n1", "n2", "t4", "t5"]);
+    // exactly two ids changed.
+    expect(music.planCalls[0]?.replan?.remainingSlots).toBe(2);
+    // exclude set covers played/current AND the kept tail, never the replaced slots.
+    expect(music.planCalls[0]?.replan?.playedIds).toEqual(["t1", "t4", "t5"]);
+    // flow_position stays contiguous after the surgery.
+    state.tracklist.forEach((r, i) => expect(r.flow_position).toBe(i + 1));
+  });
+
+  it("scope:full replaces the whole remaining queue (Regenerate path)", async () => {
+    const store = new SessionStore();
+    const state = makeSession(store);
+    const music = new NudgeMusicEngine();
+    const { deps } = makeDeps(store, music);
+
+    const outcome = await applyReplan(deps, state, { mood: "darker", energy_delta: "same", scope: "full" });
+
+    expect(music.planCalls[0]?.replan?.remainingSlots).toBe(4);
+    expect(state.tracklist.map((r) => r.id)).toEqual(["t1", "n1", "n2", "n3", "n4"]);
+    expect(outcome.remaining.map((r) => r.id)).toEqual(["n1", "n2", "n3", "n4"]);
+  });
+
+  it("records scope:\"nudge\" in the replan event", async () => {
+    const store = new SessionStore();
+    const state = makeSession(store);
+    const { deps, memory } = makeDeps(store, new NudgeMusicEngine());
+
+    await applyReplan(deps, state, { mood: "darker" });
+
+    const ev = memory.events.find((e) => e.eventType === "replan");
+    expect(ev?.payload).toMatchObject({ scope: "nudge" });
+  });
+
+  it("nudge moves the next track's energy in the requested direction", async () => {
+    const store = new SessionStore();
+    // current = t3 (energy 3) for both; heavier → seed 4, lighter → seed 2.
+    const heavier = makeSession(store);
+    store.markStarted(heavier, "t3");
+    const heavierMusic = new NudgeMusicEngine();
+    await applyReplan(makeDeps(store, heavierMusic).deps, heavier, { mood: "x", energy_delta: "heavier" });
+
+    const lighter = makeSession(store);
+    store.markStarted(lighter, "t3");
+    const lighterMusic = new NudgeMusicEngine();
+    await applyReplan(makeDeps(store, lighterMusic).deps, lighter, { mood: "x", energy_delta: "lighter" });
+
+    const nextEnergy = (s: typeof heavier) => s.energyById.get(s.tracklist[s.currentTrackIndex + 1]!.id)!;
+    expect(nextEnergy(heavier)).toBeGreaterThan(nextEnergy(lighter));
+    expect(heavierMusic.planCalls[0]?.replan?.lastPlayedEnergy).toBe(4);
+    expect(lighterMusic.planCalls[0]?.replan?.lastPlayedEnergy).toBe(2);
+  });
+
+  it("is a noop in condition A (ablation)", async () => {
+    const store = new SessionStore();
+    const state = makeSession(store, "A");
+    const music = new NudgeMusicEngine();
+    const { deps, proxy } = makeDeps(store, music);
+
+    const outcome = await applyReplan(deps, state, { mood: "darker" });
+
+    expect(outcome.replanned).toBe(false);
+    expect(music.planCalls).toEqual([]);
+    expect(proxy.injectCalls).toEqual([]);
+    expect(state.tracklist.map((r) => r.id)).toEqual(["t1", "t2", "t3", "t4", "t5"]);
+  });
+
+  it("is a noop when nothing is left to play", async () => {
+    const store = new SessionStore();
+    const state = makeSession(store);
+    store.markStarted(state, "t5"); // current = last slot → remaining empty
+    const music = new NudgeMusicEngine();
+    const { deps } = makeDeps(store, music);
+
+    const outcome = await applyReplan(deps, state, { mood: "darker" });
+
+    expect(outcome.replanned).toBe(false);
+    expect(music.planCalls).toEqual([]);
   });
 });

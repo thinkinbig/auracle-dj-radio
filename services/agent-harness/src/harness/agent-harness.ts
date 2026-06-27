@@ -232,6 +232,7 @@ export class AgentHarness {
     const outcome = await applyReplan(this.orchestration, state, {
       mood: state.intent.mood,
       energy_delta: "same",
+      scope: "full", // Regenerate replaces the whole remaining queue, not a nudge.
     });
 
     await this.deps.memory.recordEvent(id, state.userId, "playlist_regenerate_requested", {
