@@ -66,6 +66,14 @@ score(track, intent, taste, mem0) =
 
 All terms are deterministic integers or bounded floats. No cross-modal audio embedding, no catalog Qdrant.
 
+> **Implementation note**: the live ranker (`retrieveCandidates`) realises the energy
+> envelope as **bucket stratification** — it takes top-K per arc-energy bucket ranked by
+> the energy-independent `fit` (scene + genre + taste − skip) — rather than as an additive
+> `−k·(energy−center)²` penalty, which would collapse the pool to one energy level and kill
+> arc variety. The closed-form `score()` above (with the energy penalty) lives in
+> `scoreRetrievalCandidate`, which shares the same `fit` core and is the unit-tested
+> reference scorer.
+
 **Future option (not MVP)**: **text-to-text** retrieval — offline `embedContent` on each track's tag string (e.g. `"mood: calm scene: study energy: 2 genre: lo-fi"`), runtime embed on the query, cosine Top-K **within the mood energy envelope**. Same model as mem0 (`gemini-embedding-001`, native 3072). Can hybrid with structured scoring (hard filter + embed rerank).
 
 ### 3. Ordering: Arc Amplitude = f(mood)
@@ -93,13 +101,20 @@ function arcAmplitude(mood: string, k = 2): { min: number; max: number } {
 
 `track.mood` field: demoted to display-only. Only `track.energy` enters scoring.
 
-### 5. Gemini: From Selection to Copywriting (Async)
+### 5. Gemini: Removed from Selection; Copywriting is Deterministic Templates (Async)
 
-Remove Gemini from ordering (Step 2). Keep it for:
-- **session_title** / **session_subtitle** / **per-track reason** (copywriting).
-- **Async, non-blocking**: First track plays immediately; title/reason arrive later (or use static templates as fallback).
+Remove Gemini from ordering (Step 2). Copywriting (**session_title** / **session_subtitle** /
+**per-track reason**) does **not** call Gemini either — it is generated from deterministic
+templates (`HeuristicFlowModel`, e.g. `"<Mood> <Scene>, vol. N"`).
 
-Eliminates 5–20s first-start latency (currently bottleneck per perf-first-start memory).
+> **Update (superseding the original "keep Gemini for copywriting" plan)**: the Gemini
+> copywriting layer was dropped, not just made async. The instant provisional plan and the
+> background "full" refine both run the deterministic planner; the refine only upgrades the
+> static title/subtitle/reasons and re-sequences not-yet-played slots. There is no LLM on the
+> session-create path at all.
+
+Eliminates the 5–20s first-start latency (previously the Gemini bottleneck per
+perf-first-start memory) by removing the call outright rather than deferring it.
 
 ### 6. Validation → Assertion Only
 
@@ -116,7 +131,7 @@ Validation becomes **unit-test assertions** and **safety-net checks** (not repai
 - **No starvation**: Soft Gaussian prevents catalog underflow; can expand catalog safely.
 - **Fast**: Retrieval is ~O(catalog) scoring + sort; no embedding calls, no Qdrant latency on the **catalog path**.
 - **Simpler catalog ops**: music-engine no longer depends on Qdrant or embed APIs. **mem0** (memory-service) still uses Qdrant + `gemini-embedding-001` for cross-session user memory — unchanged.
-- **Cacheable**: Deterministic ordering + fixed session intent = deterministic tracklist. Cache invalidation is trivial (taste or memories changed? → cache miss).
+- **Cacheable**: Deterministic ordering + fixed session intent = deterministic tracklist. Cache invalidation is trivial (taste or memories changed? → cache miss). The in-process plan cache is **LRU-bounded** (keys include per-user memories/taste, so it would otherwise grow unbounded).
 
 ### ⚠ Tradeoffs
 - **Loss of semantic audio matching**: Gemini **audio** embedding was "heard the song" signal. MVP relies on structural metadata tags. **Text embedding** on tags can restore semantic matching without cross-modal noise — deferred post-MVP.
@@ -129,13 +144,13 @@ Validation becomes **unit-test assertions** and **safety-net checks** (not repai
 2. **Rewrite `retrieveCandidates`**: Delete embedding calls; add structured scorer.
 3. **Rewrite `energyTargets`**: `arc = f(mood)` instead of unconditional full arc.
 4. **Rewrite `chooseNext`**: Track `adjacentStepPenalty` during selection, not post-validate.
-5. **Async Gemini copywriting**: Move title/reason generation outside critical path.
+5. **Deterministic copywriting (async refine)**: title/subtitle/reason come from templates; a background "full" pass refines copy and re-sequences pending slots off the critical path (Gemini copywriting dropped — see §5).
 6. **Delete** (cross-modal / audio catalog embed path only):
    - `GeminiEmbedder`, `HashEmbedder`, `embedder.ts`, `audio-clip.ts`, `fallback.ts` embedding fallback.
    - Catalog-side Qdrant wiring (mem0 Qdrant in memory-service **stays**).
    - `repair.ts` (validation loop).
    - `track.embedding` SQLite column (re-add later if/when text embed index ships).
-7. **Update tests and callers**: Use `selectMoodEnergySequence` directly in structured scorer tests and call sites.
+7. **Update tests and callers**: tests assert the production paths directly (`createPlan` / `retrieveCandidates` / `scoreRetrievalCandidate`); the interim `selectMoodEnergySequence` shim was deleted.
 8. **Mark ADR-0002 (phased catalog embedding) as Superseded**.
 
 ## Notes
