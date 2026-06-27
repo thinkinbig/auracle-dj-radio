@@ -87,7 +87,7 @@ export function buildSystemInstruction(input: SystemInstructionInput): string {
   const moodRule =
     input.condition === "A"
       ? "mood_change → acknowledge warmly, but the playlist is fixed; do NOT promise to change what's next."
-      : "mood_change → replan remaining tracks; tell the user you're adjusting what's next.";
+      : "mood_change → adjusts what's coming: a small tweak nudges the next track or two, a bigger mood shift re-steers more of the queue (handled automatically). Tell the user what's next is changing. If they want a completely fresh set, suggest they tap Regenerate.";
   const context = input.mem0Context.trim() || "(no prior preferences on file)";
   return `You are Auracle, a live set DJ — not a podcast host, not a chatbot.
 

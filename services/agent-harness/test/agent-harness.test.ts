@@ -10,6 +10,7 @@ import type {
 import type { InjectPayload, ProxyClient } from "../src/proxy-client.js";
 import type { Registration } from "../src/dj/registration.js";
 import { buildServer } from "../src/server.js";
+import { editDistance, routeMoodScope } from "../src/session/mood-scope.js";
 import { applyReplan, type OrchestrationDeps } from "../src/session/replan.js";
 import { SessionStore } from "../src/session/store.js";
 
@@ -716,5 +717,71 @@ describe("applyReplan scopes (E2 mood_change nudge)", () => {
 
     expect(outcome.replanned).toBe(false);
     expect(music.planCalls).toEqual([]);
+  });
+
+  it("scope:steer re-fills the latter half and keeps the head (E5)", async () => {
+    const store = new SessionStore();
+    const state = makeSession(store); // current t1; remaining [t2,t3,t4,t5]
+    const music = new NudgeMusicEngine();
+    const { deps } = makeDeps(store, music);
+
+    const outcome = await applyReplan(deps, state, { mood: "energetic", energy_delta: "same", scope: "steer" });
+
+    // remaining 4 → ceil(4/2)=2 replaced from the tail; head [t2,t3] preserved.
+    expect(state.tracklist.map((r) => r.id)).toEqual(["t1", "t2", "t3", "n1", "n2"]);
+    expect(outcome.remaining.map((r) => r.id)).toEqual(["t2", "t3", "n1", "n2"]);
+    expect(music.planCalls[0]?.replan?.remainingSlots).toBe(2);
+    // exclude set keeps played/current + the kept head; only t4,t5 are up for replacement.
+    expect(music.planCalls[0]?.replan?.playedIds).toEqual(["t1", "t2", "t3"]);
+    // chain seeds from the slot just before the window (t3, energy 3), not the current track.
+    expect(music.planCalls[0]?.replan?.lastPlayedEnergy).toBe(3);
+    state.tracklist.forEach((r, i) => expect(r.flow_position).toBe(i + 1));
+  });
+});
+
+describe("routeMoodScope (E5 intent tiers)", () => {
+  it("an energy-only tweak is always a nudge, even with a different mood word", () => {
+    expect(routeMoodScope("calm", "energetic", "heavier")).toBe("nudge");
+    expect(routeMoodScope("calm", "energetic", "lighter")).toBe("nudge");
+  });
+
+  it("an unchanged or lightly-inflected mood stays a nudge", () => {
+    expect(routeMoodScope("calm", "calm", "same")).toBe("nudge");
+    expect(routeMoodScope("calm", "calmer", "same")).toBe("nudge"); // inflection
+    expect(routeMoodScope("chill", "chilled", undefined)).toBe("nudge"); // substring
+  });
+
+  it("a significantly different mood escalates to steer", () => {
+    expect(routeMoodScope("calm", "energetic", "same")).toBe("steer");
+    expect(routeMoodScope("calm", "darker", "same")).toBe("steer");
+    expect(routeMoodScope("happy", "melancholic", "same")).toBe("steer");
+  });
+
+  it("editDistance is symmetric and zero on equal strings", () => {
+    expect(editDistance("calm", "calm")).toBe(0);
+    expect(editDistance("calm", "calmer")).toBe(editDistance("calmer", "calm"));
+  });
+});
+
+describe("mood_change routing end-to-end (E5)", () => {
+  it("routes a significant mood change to steer and keeps the head of the queue", async () => {
+    const { app, memory } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    // created tracklist a,b,c,f; current a; remaining [b,c,f]. "energetic" ≫ "calm" → steer.
+    await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "mood_change", args: { mood: "energetic", energy_delta: "same" } },
+    });
+
+    await vi.waitFor(() => expect(memory.events.some((e) => e.eventType === "replan")).toBe(true));
+    const ev = memory.events.find((e) => e.eventType === "replan")!;
+    expect(ev.payload).toMatchObject({ scope: "steer" });
+    // steer keeps the head ("b") and re-fills the latter half (c,f → d,e).
+    expect((ev.payload as { after: string[] }).after).toEqual(["b", "d", "e"]);
+    await app.close();
   });
 });

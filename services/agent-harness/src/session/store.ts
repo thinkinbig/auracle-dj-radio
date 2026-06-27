@@ -153,30 +153,38 @@ export class SessionStore {
   }
 
   /**
-   * Replace not-yet-played slots with `newRefs`, keeping played slots and the
-   * current track fixed and renumbering flow_position contiguously. With `slotCount`
-   * (E2 nudge), only the first `slotCount` remaining slots are replaced and the tail
-   * beyond them is preserved; omit it to replace the whole remaining queue (full /
-   * regenerate). Fresh refs are capped to the replaced window and de-duplicated
-   * against the kept tail. Returns the new remaining queue (fresh slots + kept tail).
+   * Replace a contiguous `window` of the not-yet-played slots with `newRefs`,
+   * keeping played slots and the current track fixed and renumbering flow_position
+   * contiguously. The window is `{ start, count }` measured within the remaining
+   * queue: nudge (E2) passes `{ count: 1–2 }` (replace the front, keep the tail);
+   * steer (E5) passes `{ start: ~half }` (keep the head, replace the latter half);
+   * omitting `window` replaces the whole remaining queue (full / regenerate). Fresh
+   * refs are capped to the window and de-duplicated against the kept head + tail.
+   * Returns the new remaining queue.
    */
   replaceRemaining(
     state: SessionState,
     newRefs: FlowTrackRef[],
     candidatesById: Map<string, TrackCandidate>,
-    slotCount?: number,
+    window?: { start?: number; count?: number },
   ): FlowTrackRef[] {
     const offset = state.currentTrackIndex + 1;
     const head = state.tracklist.slice(0, offset);
     const remaining = state.tracklist.slice(offset);
-    const window = slotCount == null ? remaining.length : Math.max(0, Math.min(slotCount, remaining.length));
-    const tail = remaining.slice(window);
-    const tailIds = new Set(tail.map((r) => r.id));
+    const start = Math.max(0, Math.min(window?.start ?? 0, remaining.length));
+    const count = Math.max(0, Math.min(window?.count ?? remaining.length - start, remaining.length - start));
+    const keptHead = remaining.slice(0, start);
+    const keptTail = remaining.slice(start + count);
+    const keptIds = new Set([...keptHead, ...keptTail].map((r) => r.id));
     const fresh = [...newRefs]
-      .filter((r) => !tailIds.has(r.id))
+      .filter((r) => !keptIds.has(r.id))
       .sort((a, b) => a.flow_position - b.flow_position)
-      .slice(0, window);
-    const merged = [...fresh, ...tail].map((r, i) => ({ id: r.id, flow_position: offset + i + 1, reason: r.reason }));
+      .slice(0, count);
+    const merged = [...keptHead, ...fresh, ...keptTail].map((r, i) => ({
+      id: r.id,
+      flow_position: offset + i + 1,
+      reason: r.reason,
+    }));
     state.tracklist = [...head, ...merged];
     for (const ref of fresh) {
       const c = candidatesById.get(ref.id);

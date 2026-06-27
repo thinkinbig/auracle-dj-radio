@@ -15,8 +15,10 @@ export interface OrchestrationDeps {
 /**
  * On-air adjustment tier (design §2.2):
  * - `nudge` — default for `mood_change`: re-fill only the next 1–2 slots, keep the tail.
+ * - `steer` — significant mood-text change (E5): re-fill the latter ~half, keep the head.
  * - `full`  — UI Regenerate / explicit "new batch": replace the whole remaining queue.
- * `steer` (re-fill the latter half) is routed in E5 (#25); until then it falls back to full.
+ * `mood_change` routes nudge vs steer in the tool-runner (see `routeMoodScope`);
+ * `full` is reserved for the explicit Regenerate path.
  */
 export type ReplanScope = "nudge" | "steer" | "full";
 
@@ -29,6 +31,16 @@ export interface ReplanParams {
 
 /** nudge re-fills at most this many of the next not-yet-played slots (design §2.2). */
 const NUDGE_SLOTS = 2;
+
+/** Which remaining slots a scope rewrites (design §2.2): nudge=front 1–2, steer=latter ~half, full=all. */
+function scopeWindow(scope: ReplanScope, remainingCount: number): { start: number; count: number } {
+  if (scope === "nudge") return { start: 0, count: Math.min(NUDGE_SLOTS, remainingCount) };
+  if (scope === "steer") {
+    const count = Math.ceil(remainingCount / 2);
+    return { start: remainingCount - count, count };
+  }
+  return { start: 0, count: remainingCount }; // full
+}
 
 export interface ReplanOutcome {
   replanned: boolean;
@@ -54,20 +66,25 @@ export async function applyReplan(
     return { replanned: false, remaining: deps.store.remaining(state) };
   }
 
-  // nudge (default) touches only the next 1–2 slots; full replaces the whole
-  // remaining queue. The slot count drives both how many tracks we ask the engine
-  // for and how many remaining slots we overwrite (design §2.2).
+  // nudge touches the next 1–2 slots, steer the latter ~half, full the whole
+  // remaining queue. The window drives how many tracks we ask the engine for and
+  // which remaining slots we overwrite (design §2.2).
   const scope: ReplanScope = params.scope ?? "nudge";
-  const slotCount = scope === "nudge" ? Math.min(NUDGE_SLOTS, remainingCount) : remainingCount;
+  const { start, count } = scopeWindow(scope, remainingCount);
 
-  const seed = deps.store.currentEnergy(state);
+  // Seed the new chain from the energy of the track just before the replaced window
+  // (the current track for nudge/full; the last kept head slot for steer) so the
+  // refill glides on smoothly.
+  const seedTrack = state.tracklist[state.currentTrackIndex + start];
+  const seed = seedTrack ? (state.energyById.get(seedTrack.id) ?? null) : null;
   const lastPlayedEnergy = nudge(seed, params.energy_delta);
-  // Exclude played + current AND the tail we're keeping, so fresh nudge picks never
-  // duplicate a track that stays in the queue.
-  const keptTailIds = deps.store.remaining(state).slice(slotCount).map((r) => r.id);
-  const playedIds = [...state.tracklist.slice(0, state.currentTrackIndex + 1).map((r) => r.id), ...keptTailIds];
+  // Exclude played + current AND every remaining slot we keep (head + tail of the
+  // window), so fresh picks never duplicate a track that stays in the queue.
+  const remainingRefs = deps.store.remaining(state);
+  const keptIds = [...remainingRefs.slice(0, start), ...remainingRefs.slice(start + count)].map((r) => r.id);
+  const playedIds = [...state.tracklist.slice(0, state.currentTrackIndex + 1).map((r) => r.id), ...keptIds];
   const intent = { ...state.intent, mood: params.mood };
-  const before = deps.store.remaining(state).map((r) => r.id);
+  const before = remainingRefs.map((r) => r.id);
 
   const personalized = state.condition === "C";
   const taste = personalized ? await deps.memory.tasteWeights(state.userId).catch(() => undefined) : undefined;
@@ -77,11 +94,11 @@ export async function applyReplan(
     memories: personalized ? state.mem0Context : "",
     energyWeights: personalized ? state.energyWeights : undefined,
     taste,
-    replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: slotCount },
+    replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: count },
   });
 
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
-  const nextRemaining = deps.store.replaceRemaining(state, result.tracklist, candidatesById, slotCount);
+  const nextRemaining = deps.store.replaceRemaining(state, result.tracklist, candidatesById, { start, count });
   state.intent = intent; // future replans build on the new mood
 
   await deps.memory.recordEvent(state.id, state.userId, "replan", {
