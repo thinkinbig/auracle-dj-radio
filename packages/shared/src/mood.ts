@@ -1,4 +1,4 @@
-/** Closed-form mood → energy center (ADR-0001). Only `track.energy` enters scoring. */
+/** Closed-form mood -> energy center (ADR-0001). Only `track.energy` enters scoring. */
 export const MOOD_ENERGY_CENTER = {
   calm: 1,
   mellow: 2,
@@ -15,24 +15,46 @@ export type MoodEnergyEnvelope = { center: number; min: number; max: number };
 
 export type EnergyPenaltyFn = (energy: number, center: number, k?: number) => number;
 
-/** Default Gaussian steepness — larger k = stricter mood envelope. */
+export interface MoodEnergyProfile {
+  mood: string;
+  center: number;
+  k: number;
+  envelope: MoodEnergyEnvelope;
+  penalty(energy: number): number;
+  targetPenalty(energy: number, target: number): number;
+  targets(slots: number, lastPlayedEnergy: number | null): number[];
+}
+
+/** Default Gaussian steepness: larger k = stricter mood envelope. */
 export const DEFAULT_ENERGY_PENALTY_K = 2;
+
+const MIN_TRACK_ENERGY = 1;
+const MAX_TRACK_ENERGY = 5;
+const DEFAULT_TARGET_WEIGHT = 0.25;
 
 export function moodEnergyCenter(mood: string): number {
   return MOOD_ENERGY_CENTER[mood as MoodKey] ?? 3;
 }
 
-/** Soft Gaussian penalty: k · (energy − center)². Returns a non-negative cost. */
+/** Soft Gaussian penalty: k * (energy - center)^2. Returns a non-negative cost. */
 export function energyPenalty(energy: number, center: number, k: number = DEFAULT_ENERGY_PENALTY_K): number {
   const delta = energy - center;
   return k * delta * delta;
 }
 
-/** Mood-dependent arc bounds — calm stays flat, euphoric rises high. */
+function toleranceForPenaltyK(k: number): number {
+  return 0.5 + 1 / Math.max(k, 0.01);
+}
+
+function clampEnergy(value: number): number {
+  return Math.min(MAX_TRACK_ENERGY, Math.max(MIN_TRACK_ENERGY, value));
+}
+
+/** Mood-dependent arc bounds: calm stays flat, euphoric rises high. */
 export function arcAmplitude(mood: string, k: number = DEFAULT_ENERGY_PENALTY_K): { min: number; max: number } {
   const center = moodEnergyCenter(mood);
-  const tolerance = 0.5 + k / 3;
-  return { min: Math.max(1, center - tolerance), max: Math.min(5, center + tolerance) };
+  const tolerance = toleranceForPenaltyK(k);
+  return { min: clampEnergy(center - tolerance), max: clampEnergy(center + tolerance) };
 }
 
 export function moodEnergyEnvelope(mood: string, k: number = DEFAULT_ENERGY_PENALTY_K): MoodEnergyEnvelope {
@@ -41,15 +63,28 @@ export function moodEnergyEnvelope(mood: string, k: number = DEFAULT_ENERGY_PENA
   return { center, min, max };
 }
 
-/** Per-slot target energies: full session arc within mood envelope; replan glides to floor. */
-export function energyTargetsForMood(
-  slots: number,
-  mood: string,
-  lastPlayedEnergy: number | null,
-  k: number = DEFAULT_ENERGY_PENALTY_K,
-): number[] {
+export function createMoodEnergyProfile(mood: string, k: number = DEFAULT_ENERGY_PENALTY_K): MoodEnergyProfile {
+  const envelope = moodEnergyEnvelope(mood, k);
+  return {
+    mood,
+    center: envelope.center,
+    k,
+    envelope,
+    penalty(energy: number): number {
+      return energyPenalty(energy, envelope.center, k);
+    },
+    targetPenalty(energy: number, target: number): number {
+      return energyPenalty(energy, target, k);
+    },
+    targets(slots: number, lastPlayedEnergy: number | null): number[] {
+      return energyTargetsFromEnvelope(slots, envelope, lastPlayedEnergy);
+    },
+  };
+}
+
+function energyTargetsFromEnvelope(slots: number, envelope: MoodEnergyEnvelope, lastPlayedEnergy: number | null): number[] {
   if (slots <= 0) return [];
-  const { min, max } = arcAmplitude(mood, k);
+  const { min, max } = envelope;
 
   if (lastPlayedEnergy === null) {
     if (slots === 1) return [Math.round((min + max) / 2)];
@@ -65,17 +100,41 @@ export function energyTargetsForMood(
   );
 }
 
+/** Per-slot target energies: full session arc within mood envelope; replan glides to floor. */
+export function energyTargetsForMood(
+  slots: number,
+  mood: string,
+  lastPlayedEnergy: number | null,
+  k: number = DEFAULT_ENERGY_PENALTY_K,
+): number[] {
+  return createMoodEnergyProfile(mood, k).targets(slots, lastPlayedEnergy);
+}
+
 export type EnergyPickable = { id: string; energy: number };
 
-/** Greedy unique-track fill: mood envelope + per-slot targets; soft penalty escapes starvation. */
-export function selectTracksForMoodSlots<T extends EnergyPickable>(
+export interface MoodEnergySequenceOptions<T extends EnergyPickable> {
+  profile: MoodEnergyProfile;
+  slots: number;
+  lastPlayedEnergy?: number | null;
+  excludeIds?: ReadonlySet<string>;
+  targetWeight?: number;
+  transitionPenalty?: (prev: T, cur: T) => number;
+}
+
+/** Greedy unique-track fill: mood profile + per-slot targets; soft penalty escapes starvation. */
+export function selectMoodEnergySequence<T extends EnergyPickable>(
   catalog: T[],
-  mood: string,
-  slots: number,
-  k: number = DEFAULT_ENERGY_PENALTY_K,
+  options: MoodEnergySequenceOptions<T>,
 ): T[] {
-  const targets = energyTargetsForMood(slots, mood, null, k);
-  const center = moodEnergyCenter(mood);
+  const {
+    profile,
+    slots,
+    lastPlayedEnergy = null,
+    excludeIds,
+    targetWeight = DEFAULT_TARGET_WEIGHT,
+    transitionPenalty,
+  } = options;
+  const targets = profile.targets(slots, lastPlayedEnergy);
   const used = new Set<string>();
   const picks: T[] = [];
 
@@ -84,7 +143,11 @@ export function selectTracksForMoodSlots<T extends EnergyPickable>(
     let bestCost = Infinity;
     for (const track of catalog) {
       if (used.has(track.id)) continue;
-      const cost = energyPenalty(track.energy, center, k) + 0.25 * energyPenalty(track.energy, target, k);
+      if (excludeIds?.has(track.id)) continue;
+      const prev = picks[picks.length - 1];
+      const transitionCost = prev && transitionPenalty ? transitionPenalty(prev, track) : 0;
+      const cost =
+        profile.penalty(track.energy) + targetWeight * profile.targetPenalty(track.energy, target) + transitionCost;
       if (cost < bestCost) {
         bestCost = cost;
         best = track;
@@ -95,6 +158,16 @@ export function selectTracksForMoodSlots<T extends EnergyPickable>(
     picks.push(best);
   }
   return picks;
+}
+
+/** Back-compatible wrapper for tests and callers that only need mood + slot count. */
+export function selectTracksForMoodSlots<T extends EnergyPickable>(
+  catalog: T[],
+  mood: string,
+  slots: number,
+  k: number = DEFAULT_ENERGY_PENALTY_K,
+): T[] {
+  return selectMoodEnergySequence(catalog, { profile: createMoodEnergyProfile(mood, k), slots });
 }
 
 /** Bound implementation of {@link EnergyPenaltyFn} for injection / composition. */

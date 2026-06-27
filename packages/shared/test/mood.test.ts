@@ -4,11 +4,13 @@ import {
   DEFAULT_ENERGY_PENALTY_K,
   MOOD_ENERGY_CENTER,
   arcAmplitude,
+  createMoodEnergyProfile,
   energyPenalty,
   energyPenaltyFn,
   energyTargetsForMood,
   moodEnergyCenter,
   moodEnergyEnvelope,
+  selectMoodEnergySequence,
   selectTracksForMoodSlots,
   type EnergyPenaltyFn,
   type MoodEnergyEnvelope,
@@ -55,6 +57,21 @@ test("moodEnergyEnvelope exports center within arc bounds", () => {
   assert.ok(env.max >= env.center);
 });
 
+test("larger k narrows the mood arc envelope", () => {
+  const loose = moodEnergyEnvelope("focused", 0.5);
+  const strict = moodEnergyEnvelope("focused", 4);
+  assert.ok(strict.min > loose.min);
+  assert.ok(strict.max < loose.max);
+});
+
+test("createMoodEnergyProfile concentrates center, penalty, envelope, and targets", () => {
+  const profile = createMoodEnergyProfile("calm");
+  assert.equal(profile.center, MOOD_ENERGY_CENTER.calm);
+  assert.deepEqual(profile.envelope, moodEnergyEnvelope("calm"));
+  assert.equal(profile.penalty(3), energyPenalty(3, MOOD_ENERGY_CENTER.calm));
+  assert.deepEqual(profile.targets(3, null), energyTargetsForMood(3, "calm", null));
+});
+
 test("energyPenaltyFn satisfies EnergyPenaltyFn contract", () => {
   const fn: EnergyPenaltyFn = energyPenaltyFn;
   assert.equal(fn(4, 3), energyPenalty(4, 3));
@@ -69,6 +86,24 @@ test("calm + 5 slots fills without repeating track ids", () => {
   assert.equal(picks.length, 5);
   assert.equal(new Set(picks.map((t) => t.id)).size, 5);
   assert.ok(picks.every((t) => t.energy <= 2));
+});
+
+test("selectMoodEnergySequence supports excludes and transition penalties", () => {
+  const catalog = [
+    { id: "skip", energy: 1, family: "a" },
+    { id: "a1", energy: 1, family: "a" },
+    { id: "b1", energy: 1, family: "b" },
+  ];
+  const picks = selectMoodEnergySequence(catalog, {
+    profile: createMoodEnergyProfile("calm"),
+    slots: 2,
+    excludeIds: new Set(["skip"]),
+    transitionPenalty: (prev, cur) => (prev.family === cur.family ? 10 : 0),
+  });
+  assert.deepEqual(
+    picks.map((p) => p.id),
+    ["a1", "b1"],
+  );
 });
 
 test("starvation: calm borrows higher energy before reusing a track", () => {
