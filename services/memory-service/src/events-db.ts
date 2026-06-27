@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS session_events (
   payload_json TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_events_session ON session_events(session_id);
-CREATE INDEX IF NOT EXISTS idx_events_user ON session_events(user_id);
 `;
 
 export class EventsDb {
@@ -24,6 +23,8 @@ export class EventsDb {
     this.db = new Database(path);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA);
+    this.migrate();
+    this.db.exec("CREATE INDEX IF NOT EXISTS idx_events_user ON session_events(user_id)");
   }
 
   recordEvent(sessionId: string, userId: string, eventType: string, payload: unknown): void {
@@ -73,5 +74,12 @@ export class EventsDb {
 
   close(): void {
     this.db.close();
+  }
+
+  private migrate(): void {
+    const columns = this.db.prepare("PRAGMA table_info(session_events)").all() as { name: string }[];
+    if (!columns.some((column) => column.name === "user_id")) {
+      this.db.exec(`ALTER TABLE session_events ADD COLUMN user_id TEXT NOT NULL DEFAULT '${ANONYMOUS_USER_ID}'`);
+    }
   }
 }
