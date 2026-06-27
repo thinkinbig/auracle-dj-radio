@@ -11,8 +11,6 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "smoke:memory": "node scripts/memory-effectiveness-smoke.mjs",
-    "dev:infra": "docker compose -f docker-compose.dev.yml up -d --build qdrant",
-    "dev:infra:down": "docker compose -f docker-compose.dev.yml down",
     "dev": "bash scripts/dev-stack.sh",
     "dev:web": "API_PROXY_TARGET=http://localhost:3001 pnpm --filter @auracle/web dev",
     "docker:prod": "docker compose -f docker-compose.prod.yml up -d --build",
