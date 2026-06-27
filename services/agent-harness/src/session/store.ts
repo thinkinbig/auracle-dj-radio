@@ -132,6 +132,25 @@ export class SessionStore {
   }
 
   /**
+   * Swap just the next not-yet-played slot (remaining[0]) for `candidate`, keeping
+   * its flow_position and the rest of the queue fixed. Used by the deterministic
+   * skip-swap (E4) — a single-slot surgery, not a remaining-wide replan. Returns
+   * the swapped-out/in ids, or null if there is no next slot.
+   */
+  swapNext(
+    state: SessionState,
+    candidate: TrackCandidate,
+    reason: string,
+  ): { before: string; after: string } | null {
+    const idx = state.currentTrackIndex + 1;
+    const existing = state.tracklist[idx];
+    if (!existing) return null;
+    state.tracklist[idx] = { id: candidate.id, flow_position: existing.flow_position, reason };
+    state.energyById.set(candidate.id, candidate.energy);
+    return { before: existing.id, after: candidate.id };
+  }
+
+  /**
    * Replace the not-yet-played slots with `newRefs`, keeping played slots and the
    * current track fixed and renumbering flow_position contiguously. Returns the
    * appended (new remaining) refs.

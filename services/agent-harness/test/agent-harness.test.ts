@@ -61,12 +61,13 @@ class FakeMemoryService implements MemoryServiceClient {
 
 class FakeMusicEngine implements MusicEngineClient {
   planCalls: PlanTracklistRequest[] = [];
+  searchCalls: SearchCatalogRequest[] = [];
   async planTracklist(req: PlanTracklistRequest): Promise<PlanResponse> {
     this.planCalls.push(req);
     const candidates =
       req.mode === "replan"
         ? [candidate("d", 2), candidate("e", 4)]
-        : [candidate("a", 3), candidate("b", 3), candidate("c", 5)];
+        : [candidate("a", 3), candidate("b", 3), candidate("c", 5), candidate("f", 2)];
     const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "fake" }));
     return {
       result: { session_title: "Fake Set, vol. 1", session_subtitle: "25 min · building", arc: "build", tracklist },
@@ -74,8 +75,11 @@ class FakeMusicEngine implements MusicEngineClient {
       candidates,
     };
   }
-  async searchCatalog(_req: SearchCatalogRequest): Promise<{ candidates: TrackCandidate[] }> {
-    return { candidates: [candidate("a", 1)] };
+  async searchCatalog(req: SearchCatalogRequest): Promise<{ candidates: TrackCandidate[] }> {
+    this.searchCalls.push(req);
+    // Fresh candidates not in the planned tracklist; s1 shares the skipped energy (3),
+    // s2 differs (5) so the swap can prefer a different energy band.
+    return { candidates: [candidate("s1", 3), candidate("s2", 5)] };
   }
   async getTrack(id: string): Promise<TrackMeta | undefined> {
     if (id !== "a") return undefined;
@@ -132,7 +136,7 @@ describe("agent-harness", () => {
     const res = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     expect(res.statusCode).toBe(200);
     const body = res.json<{ session_id: string; tracklist: FlowTrackRef[]; proxy_url: string; token: string }>();
-    expect(body.tracklist.map((t) => t.id)).toEqual(["a", "b", "c"]);
+    expect(body.tracklist.map((t) => t.id)).toEqual(["a", "b", "c", "f"]);
     expect(body.proxy_url).toBe("http://proxy.test");
     expect(body.token).toBeTruthy();
     expect(music.planCalls[0]).toMatchObject({ mode: "full" });
@@ -384,6 +388,76 @@ describe("agent-harness", () => {
     expect(replan?.taste).toEqual(taste);
     // verify that taste was re-fetched (tasteWeights called again for replan).
     expect(memory.tasteCalls.length).toBeGreaterThan(1);
+    await app.close();
+  });
+
+  it("swaps the next track deterministically after repeated same-energy quick skips, no Flow LLM (E4)", async () => {
+    const now = vi.spyOn(Date, "now");
+    now.mockReturnValue(1_000);
+    const { app, memory, music, proxy } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "C" },
+    });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    // tracklist is a(3), b(3), c(5), f(2). Quick-skip a then b — two skips at energy 3.
+    now.mockReturnValue(1_100);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "a" } });
+    now.mockReturnValue(1_200);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
+    now.mockReturnValue(1_210); // listened 110ms < 60s → quick skip #1 (energy 3, no swap yet)
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
+    expect(proxy.injectCalls).toEqual([]); // below threshold: no swap on the first quick skip
+
+    now.mockReturnValue(1_300);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
+    now.mockReturnValue(1_310); // quick skip #2 at energy 3 → threshold → swap remaining[0] ("f")
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "c" } });
+
+    await vi.waitFor(() => expect(proxy.injectCalls.length).toBeGreaterThan(0));
+    const updated = proxy.injectCalls.at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
+      | { remaining: { id: string }[]; changed_ids?: string[] }
+      | undefined;
+    expect(updated).toBeTruthy();
+    expect(updated!.remaining.map((r) => r.id)).toEqual(["s2"]); // s2(5) preferred over s1(3 = skipped energy)
+    expect(updated!.changed_ids).toEqual(["s2"]); // "f" swapped out
+    // deterministic: search_catalog only, never a Flow plan/replan beyond the initial full plan.
+    expect(music.searchCalls).toHaveLength(1);
+    expect(music.planCalls.filter((c) => c.mode !== "full")).toEqual([]);
+    await vi.waitFor(() => expect(memory.events.map((e) => e.eventType)).toContain("skip_queue_adjusted"));
+    now.mockRestore();
+    await app.close();
+  });
+
+  it("does not swap the queue on repeated quick skips in condition A (ablation)", async () => {
+    const now = vi.spyOn(Date, "now");
+    now.mockReturnValue(5_000);
+    const { app, music, proxy } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "A" },
+    });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    now.mockReturnValue(5_100);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "a" } });
+    now.mockReturnValue(5_200);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
+    now.mockReturnValue(5_210);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
+    now.mockReturnValue(5_300);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
+    now.mockReturnValue(5_310);
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "c" } });
+
+    expect(music.searchCalls).toEqual([]);
+    expect(proxy.injectCalls).toEqual([]);
+    now.mockRestore();
     await app.close();
   });
 
