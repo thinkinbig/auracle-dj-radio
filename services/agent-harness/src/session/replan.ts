@@ -12,10 +12,23 @@ export interface OrchestrationDeps {
   proxy: ProxyClient;
 }
 
+/**
+ * On-air adjustment tier (design §2.2):
+ * - `nudge` — default for `mood_change`: re-fill only the next 1–2 slots, keep the tail.
+ * - `full`  — UI Regenerate / explicit "new batch": replace the whole remaining queue.
+ * `steer` (re-fill the latter half) is routed in E5 (#25); until then it falls back to full.
+ */
+export type ReplanScope = "nudge" | "steer" | "full";
+
 export interface ReplanParams {
   mood: string;
   energy_delta?: "lighter" | "heavier" | "same";
+  /** Adjustment tier; defaults to `nudge` (the mid-session default per design §2.2). */
+  scope?: ReplanScope;
 }
+
+/** nudge re-fills at most this many of the next not-yet-played slots (design §2.2). */
+const NUDGE_SLOTS = 2;
 
 export interface ReplanOutcome {
   replanned: boolean;
@@ -23,10 +36,13 @@ export interface ReplanOutcome {
 }
 
 /**
- * Re-plan the not-yet-played slots for a new mood (the Live `mood_change` tool
- * calls this). The current track keeps playing; only the slots after it change.
- * Condition A leaves the playlist fixed (noop). Sources the new arc from
- * music-engine over HTTP (refactor-three-services).
+ * Re-plan not-yet-played slots for a new mood (the Live `mood_change` tool calls
+ * this). The current track keeps playing. Defaults to a `nudge` — only the next
+ * 1–2 slots change, the rest of the queue is untouched — so a between-track mood
+ * tweak is felt without churning the whole list (design §2.2); Regenerate passes
+ * `scope: "full"` to replace all remaining. Condition A leaves the playlist fixed
+ * (noop), as does an empty remaining queue. Sources the new arc from music-engine
+ * over HTTP (refactor-three-services).
  */
 export async function applyReplan(
   deps: OrchestrationDeps,
@@ -38,9 +54,18 @@ export async function applyReplan(
     return { replanned: false, remaining: deps.store.remaining(state) };
   }
 
+  // nudge (default) touches only the next 1–2 slots; full replaces the whole
+  // remaining queue. The slot count drives both how many tracks we ask the engine
+  // for and how many remaining slots we overwrite (design §2.2).
+  const scope: ReplanScope = params.scope ?? "nudge";
+  const slotCount = scope === "nudge" ? Math.min(NUDGE_SLOTS, remainingCount) : remainingCount;
+
   const seed = deps.store.currentEnergy(state);
   const lastPlayedEnergy = nudge(seed, params.energy_delta);
-  const playedIds = state.tracklist.slice(0, state.currentTrackIndex + 1).map((r) => r.id);
+  // Exclude played + current AND the tail we're keeping, so fresh nudge picks never
+  // duplicate a track that stays in the queue.
+  const keptTailIds = deps.store.remaining(state).slice(slotCount).map((r) => r.id);
+  const playedIds = [...state.tracklist.slice(0, state.currentTrackIndex + 1).map((r) => r.id), ...keptTailIds];
   const intent = { ...state.intent, mood: params.mood };
   const before = deps.store.remaining(state).map((r) => r.id);
 
@@ -52,18 +77,19 @@ export async function applyReplan(
     memories: personalized ? state.mem0Context : "",
     energyWeights: personalized ? state.energyWeights : undefined,
     taste,
-    replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: remainingCount },
+    replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: slotCount },
   });
 
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
-  const appended = deps.store.replaceRemaining(state, result.tracklist, candidatesById);
+  const nextRemaining = deps.store.replaceRemaining(state, result.tracklist, candidatesById, slotCount);
   state.intent = intent; // future replans build on the new mood
 
   await deps.memory.recordEvent(state.id, state.userId, "replan", {
     mood: params.mood,
     energy_delta: params.energy_delta ?? "same",
+    scope,
     before,
-    after: appended.map((r) => r.id),
+    after: nextRemaining.map((r) => r.id),
     violations,
   });
 
@@ -78,7 +104,7 @@ export async function applyReplan(
       .catch(() => {});
   }
 
-  return { replanned: true, remaining: appended };
+  return { replanned: true, remaining: nextRemaining };
 }
 
 /**

@@ -151,25 +151,35 @@ export class SessionStore {
   }
 
   /**
-   * Replace the not-yet-played slots with `newRefs`, keeping played slots and the
-   * current track fixed and renumbering flow_position contiguously. Returns the
-   * appended (new remaining) refs.
+   * Replace not-yet-played slots with `newRefs`, keeping played slots and the
+   * current track fixed and renumbering flow_position contiguously. With `slotCount`
+   * (E2 nudge), only the first `slotCount` remaining slots are replaced and the tail
+   * beyond them is preserved; omit it to replace the whole remaining queue (full /
+   * regenerate). Fresh refs are capped to the replaced window and de-duplicated
+   * against the kept tail. Returns the new remaining queue (fresh slots + kept tail).
    */
   replaceRemaining(
     state: SessionState,
     newRefs: FlowTrackRef[],
     candidatesById: Map<string, TrackCandidate>,
+    slotCount?: number,
   ): FlowTrackRef[] {
     const offset = state.currentTrackIndex + 1;
-    const kept = state.tracklist.slice(0, offset);
-    const appended = [...newRefs]
+    const head = state.tracklist.slice(0, offset);
+    const remaining = state.tracklist.slice(offset);
+    const window = slotCount == null ? remaining.length : Math.max(0, Math.min(slotCount, remaining.length));
+    const tail = remaining.slice(window);
+    const tailIds = new Set(tail.map((r) => r.id));
+    const fresh = [...newRefs]
+      .filter((r) => !tailIds.has(r.id))
       .sort((a, b) => a.flow_position - b.flow_position)
-      .map((r, i) => ({ id: r.id, flow_position: offset + i + 1, reason: r.reason }));
-    state.tracklist = [...kept, ...appended];
-    for (const ref of appended) {
+      .slice(0, window);
+    const merged = [...fresh, ...tail].map((r, i) => ({ id: r.id, flow_position: offset + i + 1, reason: r.reason }));
+    state.tracklist = [...head, ...merged];
+    for (const ref of fresh) {
       const c = candidatesById.get(ref.id);
       if (c) state.energyById.set(ref.id, c.energy);
     }
-    return appended;
+    return merged;
   }
 }
