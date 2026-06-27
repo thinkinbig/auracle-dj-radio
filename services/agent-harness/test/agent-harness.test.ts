@@ -15,7 +15,7 @@ import { applyReplan, type OrchestrationDeps } from "../src/session/replan.js";
 import { SessionStore } from "../src/session/store.js";
 
 function candidate(id: string, energy: Energy): TrackCandidate {
-  return { id, energy, tempo: 90 + energy * 5, genre: `g${id}`, mood: "calm", scene: "studying" };
+  return { id, energy, tempo: 90 + energy * 5, genre: `g${id}`, scene: "studying" };
 }
 
 class FakeMemoryService implements MemoryServiceClient {

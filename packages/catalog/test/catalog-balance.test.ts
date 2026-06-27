@@ -60,9 +60,9 @@ const mini: CatalogManifest = {
 
 test("ranks calm+study by energy before scene-only matches", () => {
   const tracks = [
-    { id: "e1", energy: 1, scene: "study", genreSlug: "ambient", artistSlug: "lana-del-delay", albumSlug: "a", mood: "calm" },
-    { id: "e5", energy: 5, scene: "study", genreSlug: "house", artistSlug: "x", albumSlug: "b", mood: "euphoric" },
-    { id: "e1c", energy: 1, scene: "chill", genreSlug: "ambient", artistSlug: "y", albumSlug: "c", mood: "calm" },
+    { id: "e1", energy: 1, scene: "study", genreSlug: "ambient", artistSlug: "lana-del-delay", albumSlug: "a" },
+    { id: "e5", energy: 5, scene: "study", genreSlug: "house", artistSlug: "x", albumSlug: "b" },
+    { id: "e1c", energy: 1, scene: "chill", genreSlug: "ambient", artistSlug: "y", albumSlug: "c" },
   ];
   const ranked = rankForIntent(tracks, "calm", "study");
   assert.equal(ranked[0]!.id, "e1");
@@ -71,12 +71,12 @@ test("ranks calm+study by energy before scene-only matches", () => {
 
 test("genre prefer cannot override calm envelope", () => {
   const low = scoreTrack(
-    { id: "low", energy: 1, scene: "study", genreSlug: "ambient", artistSlug: "a", albumSlug: "al", mood: "calm" },
+    { id: "low", energy: 1, scene: "study", genreSlug: "ambient", artistSlug: "a", albumSlug: "al" },
     "calm",
     "study",
   );
   const high = scoreTrack(
-    { id: "high", energy: 5, scene: "study", genreSlug: "house", artistSlug: "b", albumSlug: "al", mood: "euphoric" },
+    { id: "high", energy: 5, scene: "study", genreSlug: "house", artistSlug: "b", albumSlug: "al" },
     "calm",
     "study",
     [{ entityType: "genre", entityId: "house", polarity: "prefer", source: "onboarding", strength: 3 }],

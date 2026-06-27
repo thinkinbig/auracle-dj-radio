@@ -8,6 +8,8 @@ export interface TrackDisplay {
   albumCoverUrl: string;
   artistPhotoUrl: string;
   lore: string;
+  /** Display-only curator tag; selection uses energy, not mood (ADR-0001). */
+  mood: string;
   durationSec: number;
 }
 
@@ -40,6 +42,7 @@ function fromApiTrack(t: TrackMeta): TrackDisplay {
     albumCoverUrl: t.albumCoverUrl,
     artistPhotoUrl: t.artistPhotoUrl,
     lore: t.lore,
+    mood: t.mood,
     durationSec: cache[t.id]?.durationSec ?? 180,
   };
 }
@@ -54,6 +57,7 @@ export function getTrackMeta(id: string): TrackDisplay {
       albumCoverUrl: '',
       artistPhotoUrl: '',
       lore: '',
+      mood: '',
       durationSec: 180,
     }
   );

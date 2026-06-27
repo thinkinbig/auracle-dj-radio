@@ -27,6 +27,7 @@ export interface Track {
   artistSlug: string;
   /** Stable slug of the album (denormalized from the manifest). */
   albumSlug: string;
+  /** Display-only curator tag (UI + offline prompts). Selection uses `energy`. */
   mood: string;
   scene: string;
   filePath: string;
@@ -43,16 +44,15 @@ export interface Track {
   artistPersona?: string;
 }
 
-/** The subset of track metadata handed to the Flow model as a candidate. */
+/** Flow/retrieval candidate — selection fields only (ADR-0001). */
 export interface TrackCandidate {
   id: string;
   energy: Energy;
   tempo: number;
   genre: string;
-  mood: string;
   scene: string;
 }
 
 export function toCandidate(t: Track): TrackCandidate {
-  return { id: t.id, energy: t.energy, tempo: t.tempo, genre: t.genre, mood: t.mood, scene: t.scene };
+  return { id: t.id, energy: t.energy, tempo: t.tempo, genre: t.genre, scene: t.scene };
 }

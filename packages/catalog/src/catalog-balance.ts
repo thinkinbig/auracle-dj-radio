@@ -18,7 +18,6 @@ export interface BalanceTrack {
   genreSlug: string;
   artistSlug: string;
   albumSlug: string;
-  mood: string;
 }
 
 export interface BalanceCheck {
@@ -111,7 +110,6 @@ export function manifestBalanceTracks(manifest: CatalogManifest): BalanceTrack[]
     genreSlug: t.genreSlug,
     artistSlug: t.artistSlug,
     albumSlug: t.albumSlug,
-    mood: t.mood,
   }));
 }
 

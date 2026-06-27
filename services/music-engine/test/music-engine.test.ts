@@ -158,7 +158,6 @@ describe("music-engine HTTP", () => {
       energy,
       tempo: 80 + i,
       genre: `g${i}`,
-      mood: "calm",
       scene: "study",
     }));
 
@@ -182,7 +181,6 @@ describe("music-engine HTTP", () => {
       energy,
       tempo: 90 + i,
       genre: `g${i}`,
-      mood: "euphoric",
       scene: "party",
     }));
 

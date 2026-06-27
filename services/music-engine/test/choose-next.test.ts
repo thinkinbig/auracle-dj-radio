@@ -9,7 +9,6 @@ function candidate(
   partial: Partial<TrackCandidate> & Pick<TrackCandidate, "id" | "energy" | "tempo" | "genre">,
 ): TrackCandidate {
   return {
-    mood: "calm",
     scene: "study",
     ...partial,
   };

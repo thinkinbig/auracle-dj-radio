@@ -32,6 +32,7 @@ describe('trackCatalog', () => {
               albumCoverUrl: '/covers/a.jpg',
               artistPhotoUrl: '',
               lore: 'Lore',
+              mood: 'calm',
             },
           ],
         }),
@@ -43,6 +44,7 @@ describe('trackCatalog', () => {
     expect(versions).toEqual([1]);
     expect(isCatalogLoaded()).toBe(true);
     expect(getTrackMeta('t1').title).toBe('Song One');
+    expect(getTrackMeta('t1').mood).toBe('calm');
   });
 
   it('does not notify when the catalog fetch fails', async () => {

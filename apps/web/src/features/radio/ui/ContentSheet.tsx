@@ -1,5 +1,5 @@
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
-import { useCatalogLoaded } from '@/shared/hooks/useTrackCatalog';
+import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
 import { formatTime } from '@/shared/lib/formatTime';
 import { DJ_NAME } from '@/shared/lib/constants';
@@ -26,6 +26,7 @@ export function ContentSheet() {
   const idle = isIdle(state.phase);
   const curating = isCurating(state.phase);
   const catalogLoaded = useCatalogLoaded();
+  const track = useTrackMeta(state.trackId);
   const showSkeleton = curating || (idle && !catalogLoaded);
   const showOnboarding = idle;
   const showTranscript = !showOnboarding;
@@ -79,6 +80,7 @@ export function ContentSheet() {
                     <span>{state.artist}</span>
                     {state.albumTitle ? <small>{state.albumTitle}</small> : null}
                   </p>
+                  {track.mood ? <p className={styles.trackMood}>{track.mood}</p> : null}
                 </div>
               </div>
             </div>

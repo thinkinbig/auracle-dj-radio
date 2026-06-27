@@ -42,6 +42,7 @@ export interface CatalogTrack {
   energy: 1 | 2 | 3 | 4 | 5;
   tempo: number;
   genre: string;
+  /** Display-only curator tag (UI + offline prompts). Selection uses `energy`. */
   mood: string;
   scene: string;
   filePath: string;
@@ -104,6 +105,7 @@ export interface TrackMeta {
   artistSlug: string;
   /** Stable slug of the album. */
   albumSlug: string;
+  /** Display-only curator tag shown in the player UI. Selection uses `energy`. */
   mood: string;
   scene: string;
   filePath: string;
