@@ -1,5 +1,16 @@
 # Phased catalog embedding: rich text first, then audio-native
 
+**Date**: 2026-06 (prior)  
+**Status**: Superseded  
+**Superseded by**: [ADR-0001: Deterministic Structured Music Selection](./0001-deterministic-structured-selection.md)
+
+Catalog retrieval no longer uses cross-modal audio/text embeddings. Track selection is
+deterministic structured scoring over SQLite metadata tags (see superseding ADR).
+
+---
+
+## Historical decision (pre-supersession)
+
 Track retrieval embeds the **first 180 seconds** of each mp3 with
 `gemini-embedding-2`. Runtime mood/scene queries embed as **text** (with
 `task: search result | query: …`) and retrieve against **audio** vectors

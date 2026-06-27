@@ -63,7 +63,7 @@ _Avoid_: synopsis, description, prompt.
 | Albums | **6** |
 | Structured taste | `genre_taxonomy.json` + per-entity `slug` / `genreSlug` in manifest |
 | Static export | `pnpm --filter @auracle/catalog export-catalog` → `tracks.json`, `track/tXX.json`, `genres.json` |
-| Runtime DB | `pnpm --filter @auracle/music-engine seed` → SQLite (`tracks` table) |
+| Runtime DB | `pnpm --filter @auracle/music-engine seed` → SQLite (`tracks` table, structured metadata tags) |
 
 `docs/generated_music_catalog.md` records **original MiniMax generation prompts** for the same `tXX.mp3` files; runtime titles/artists/lore follow the manifest (pun-artist universe), not that doc.
 
