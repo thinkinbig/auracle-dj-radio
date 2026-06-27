@@ -1,0 +1,143 @@
+{
+  "tracks": {
+    "t01": {
+      "fingerprint": "8ab5ce695fd46ce1"
+    },
+    "t02": {
+      "fingerprint": "cb2753dce0bdd023"
+    },
+    "t03": {
+      "fingerprint": "1a954c3ad0eb87ce"
+    },
+    "t04": {
+      "fingerprint": "06b49cd4360faf95"
+    },
+    "t05": {
+      "fingerprint": "6d566f0da7b10f42"
+    },
+    "t06": {
+      "fingerprint": "f9baf0a9fc908019"
+    },
+    "t07": {
+      "fingerprint": "0c7b269b0a013052"
+    },
+    "t08": {
+      "fingerprint": "17721b3f64d6c37d"
+    },
+    "t09": {
+      "fingerprint": "4e3979077d5d15db"
+    },
+    "t10": {
+      "fingerprint": "5fdbe87615ff621e"
+    },
+    "t11": {
+      "fingerprint": "1f151434af87f8e1"
+    },
+    "t12": {
+      "fingerprint": "de6f26d69bc568c1"
+    },
+    "t13": {
+      "fingerprint": "a28c5a6c12526b47"
+    },
+    "t14": {
+      "fingerprint": "06cda0b21b242838"
+    },
+    "t15": {
+      "fingerprint": "89a69744a4783b5c"
+    },
+    "t16": {
+      "fingerprint": "79a1934a26ea4510"
+    },
+    "t17": {
+      "fingerprint": "d81277ab9995450e"
+    },
+    "t18": {
+      "fingerprint": "e3a84c69d7058f3d"
+    },
+    "t19": {
+      "fingerprint": "508bde211887842c"
+    },
+    "t20": {
+      "fingerprint": "e43dd6adfb0fc937"
+    },
+    "t21": {
+      "fingerprint": "317c9e6d76b7e211"
+    },
+    "t22": {
+      "fingerprint": "5db7a5a89eb47ba1"
+    },
+    "t23": {
+      "fingerprint": "847e15e7427ff0a0"
+    },
+    "t24": {
+      "fingerprint": "a0fa47dba2703d8b"
+    },
+    "t25": {
+      "fingerprint": "bbd08bb2dc294d86"
+    },
+    "t26": {
+      "fingerprint": "5551d0b630e3a506"
+    },
+    "t27": {
+      "fingerprint": "4dd5eecb1f658040"
+    },
+    "t28": {
+      "fingerprint": "1d0852e13deada6a"
+    },
+    "t29": {
+      "fingerprint": "c3d75ae3379a6532"
+    },
+    "t30": {
+      "fingerprint": "1d4686477f464ca8"
+    }
+  },
+  "covers": {
+    "alb-lana-delay-midnight": {
+      "fingerprint": "fe06cf7eb69c1776"
+    },
+    "alb-jay-zzz-nap": {
+      "fingerprint": "0623a2e2d57812bf"
+    },
+    "alb-justin-tiger-suit": {
+      "fingerprint": "9a57259e9dbe6658"
+    },
+    "alb-east-coast": {
+      "fingerprint": "862c76a3fdb21938"
+    },
+    "alb-kayan-neon": {
+      "fingerprint": "b79c366a23e4a052"
+    },
+    "alb-taylor-drift": {
+      "fingerprint": "2fec3cf7994b7e55"
+    },
+    "alb-jay-zzz-rem": {
+      "fingerprint": "2b1a9d861ec74ba9"
+    },
+    "alb-justin-night": {
+      "fingerprint": "7ea69d11600b70d8"
+    },
+    "alb-dua-debut": {
+      "fingerprint": "7210bc1fde1cc91f"
+    }
+  },
+  "artistPhotos": {
+    "a-lana-delay": {
+      "fingerprint": "2220a2cc8b7ba926"
+    },
+    "a-jay-zzz": {
+      "fingerprint": "5d3ed83cc64f1bd7"
+    },
+    "a-justin-tiger": {
+      "fingerprint": "10c6775256400329"
+    },
+    "a-kayan-east": {
+      "fingerprint": "bbd664740a3eabb5"
+    },
+    "a-taylor-drift": {
+      "fingerprint": "3fa9bdde54c32720"
+    },
+    "a-dua-lift-a": {
+      "fingerprint": "47fa379cf6668232"
+    }
+  }
+}

@@ -6,8 +6,8 @@ Offline generation is split into separate CLI steps rather than one monolithic
 build, matching the existing `generate-tracks` pattern (`--track`, `--all`,
 `--dry-run`, `--force`).
 
-Steps: `catalog:compose` (Gemini → manifest) → `catalog:covers` (image gen) →
-`generate-tracks` (MiniMax) → `export-catalog` (manifest → static JSON) →
+Steps: `catalog:compose` (Gemini → manifest) → `generate-covers` (MiniMax image-01) →
+`generate-tracks` (MiniMax music-2.6) → `export-catalog` (manifest → static JSON) →
 `seed` (text embed) → `catalog:embed-audio` (Phase 2). Each step reads or updates
 the manifest and can be re-run independently when one stage fails or assets change.
 

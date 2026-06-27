@@ -18,10 +18,15 @@
     "catalog-qc": "tsx src/catalog-qc.ts",
     "test": "tsx --test test/*.test.ts",
     "catalog-normalize": "tsx src/catalog-normalize.ts",
-    "catalog-ingest": "tsx src/catalog-ingest.ts"
+    "catalog-ingest": "tsx src/catalog-ingest.ts",
+    "catalog-balance-check": "tsx src/catalog-balance-check.ts",
+    "generate-tracks": "tsx src/generate-tracks.ts",
+    "generate-covers": "tsx src/generate-covers.ts"
   },
   "dependencies": {
-    "@auracle/shared": "workspace:*"
+    "@auracle/shared": "workspace:*",
+    "dotenv": "^16.4.5",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

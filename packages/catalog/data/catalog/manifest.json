@@ -51,6 +51,17 @@
       "photoFile": "a-taylor-drift.jpg",
       "photoSubject": "1989 album-cover portrait: platinum-blonde woman, cherry-red lips, soft waves, thick white Polaroid frame, seagulls, seagull-blue sky. Glamorous blonde mid-drift in white sports coupe — fierce smile, windblown hair, tire smoke on mountain touge. 2014 pop-album daylight. Reads as 1989 cover meets street racing.",
       "slug": "taylor-drift"
+    },
+    {
+      "id": "a-dua-lift-a",
+      "name": "Dua Lift-a",
+      "persona": "Pop-disco producer for the gym floor — every drop is a rep, every chorus is a PR. Instrumental only; no celebrity faces.",
+      "punOf": "Dua Lipa (Lipa → Lift-a, Future Nostalgia gym remix)",
+      "visualHomage": "Dua Lipa Future Nostalgia era: silver-blue disco futurism, club-mirror gradients, roller-rink chrome — merged with dumbbell geometry, barbell chrome hearts, and HIIT timer numerals. Pop-disco graphic design without any face likeness.",
+      "vocalHomage": "Future Nostalgia-era bright pop-disco vocal: crisp hooks, disco-funk ad-libs, confident chest voice on peaks — redirected into instrumental nu-disco/house with lift metaphors and four-on-the-floor grit. Never impersonate a real singer.",
+      "photoFile": "a-dua-lift-a.jpg",
+      "photoSubject": "Stylized fictional DJ — NOT a real-person lookalike. Silver-blue mirror-ball lighting, chrome dumbbell held like a microphone, roller-rink floor reflections. Future Nostalgia palette without face likeness.",
+      "slug": "dua-lift-a"
     }
   ],
   "albums": [
@@ -107,6 +118,33 @@
       "coverFile": "alb-taylor-drift.jpg",
       "coverSubject": "Echo Taylor Swift 1989 cover layout: thick white Polaroid instant-film border dominates — inside the window, matte white sports coupe mid-powerslide on touge with tire smoke instead of a portrait. Seagulls and seagull-blue sky beyond the frame. SWIFT pop portrait → DRIFT racing pun. Soft 2014 film grain.",
       "slug": "1989-drift"
+    },
+    {
+      "id": "alb-jay-zzz-rem",
+      "artistId": "a-jay-zzz",
+      "title": "Snooze Protocol",
+      "concept": "Jay-Zzz's white-noise appendix — softer than The Blueprint Nap, built for desks that never alarm.",
+      "coverFile": "alb-jay-zzz-rem.jpg",
+      "coverSubject": "Echo Blueprint grid paper but every line dissolves into Zzz and desk-lamp halos; cobalt technical drawing meets pillow-soft gradients. Blueprint NAP → SNOOZE PROTOCOL pun reads on cover.",
+      "slug": "snooze-protocol"
+    },
+    {
+      "id": "alb-justin-night",
+      "artistId": "a-justin-tiger",
+      "title": "Night Shift Stripes",
+      "concept": "Justin Tiger's overnight metro sketches — tiger stripes under fluorescent platforms, hooks that dissolve into platform reverb.",
+      "coverFile": "alb-justin-night.jpg",
+      "coverSubject": "Purpose-era lavender haze meets empty subway platform at 2am; orange-black tiger stripes reflect in wet tiles and turnstile gold. Night shift pun foreground.",
+      "slug": "night-shift-stripes"
+    },
+    {
+      "id": "alb-dua-debut",
+      "artistId": "a-dua-lift-a",
+      "title": "Future Nostalgia Rep",
+      "concept": "Dua Lift-a's HIIT gospel — silver disco for the gym floor, every track counts reps in four-on-the-floor.",
+      "coverFile": "alb-dua-debut.jpg",
+      "coverSubject": "Future Nostalgia silver-blue mirror ball over a gym floor; chrome dumbbells arranged like disco lights; roller-rink circle becomes squat-rack outline. REP pun in layout.",
+      "slug": "future-nostalgia-rep"
     }
   ],
   "tracks": [
@@ -539,6 +577,174 @@
       "introOffsetMs": null,
       "lore": "Taylor Drift's victory lap — platinum-blonde optimism in the rearview, matte white coupe crowned by pink taillights on the last straight home.",
       "genreSlug": "synthwave"
+    },
+    {
+      "id": "t31",
+      "albumId": "alb-jay-zzz-rem",
+      "title": "Desk Fog",
+      "energy": 1,
+      "tempo": 64,
+      "genre": "lo-fi",
+      "mood": "calm",
+      "scene": "study",
+      "filePath": "data/tracks/t31.mp3",
+      "introOffsetMs": null,
+      "lore": "Jay-Zzz mixed this so quietly the desk lamp flicker became the sidechain — if you notice the kick, you are awake wrong.",
+      "genreSlug": "lo-fi"
+    },
+    {
+      "id": "t32",
+      "albumId": "alb-jay-zzz-rem",
+      "title": "Library Loop",
+      "energy": 1,
+      "tempo": 60,
+      "genre": "ambient",
+      "mood": "calm",
+      "scene": "study",
+      "filePath": "data/tracks/t32.mp3",
+      "introOffsetMs": null,
+      "lore": "Sampled from a library HVAC vent and stretched until the due dates stopped mattering — Jay-Zzz calls it reference material.",
+      "genreSlug": "ambient"
+    },
+    {
+      "id": "t33",
+      "albumId": "alb-jay-zzz-rem",
+      "title": "Pillow Logic",
+      "energy": 2,
+      "tempo": 78,
+      "genre": "chillhop",
+      "mood": "mellow",
+      "scene": "focus",
+      "filePath": "data/tracks/t33.mp3",
+      "introOffsetMs": null,
+      "lore": "Built from a pillow impression on a MIDI pad — Jay-Zzz insists the groove improves if you do not lift your head.",
+      "genreSlug": "chillhop"
+    },
+    {
+      "id": "t34",
+      "albumId": "alb-justin-night",
+      "title": "Last Platform",
+      "energy": 2,
+      "tempo": 76,
+      "genre": "jazztronica",
+      "mood": "mellow",
+      "scene": "commute",
+      "filePath": "data/tracks/t34.mp3",
+      "introOffsetMs": null,
+      "lore": "Recorded after the last train left — Justin Tiger kept the platform reverb and deleted every hook louder than a whisper.",
+      "genreSlug": "jazztronica"
+    },
+    {
+      "id": "t35",
+      "albumId": "alb-justin-night",
+      "title": "Fluorescent Pocket",
+      "energy": 3,
+      "tempo": 94,
+      "genre": "jazztronica",
+      "mood": "uplifting",
+      "scene": "commute",
+      "filePath": "data/tracks/t35.mp3",
+      "introOffsetMs": null,
+      "lore": "Justin Tiger locked a funk pocket to the flicker rate of platform fluorescents — tiger stripes optional, head-nod mandatory.",
+      "genreSlug": "jazztronica"
+    },
+    {
+      "id": "t36",
+      "albumId": "alb-justin-night",
+      "title": "Tiger Focus",
+      "energy": 3,
+      "tempo": 90,
+      "genre": "jazztronica",
+      "mood": "focused",
+      "scene": "focus",
+      "filePath": "data/tracks/t36.mp3",
+      "introOffsetMs": null,
+      "lore": "A deep-focus sketch for overnight ticket inspectors — Justin Tiger says the bass only moves if your attention drifts.",
+      "genreSlug": "jazztronica"
+    },
+    {
+      "id": "t37",
+      "albumId": "alb-dua-debut",
+      "title": "Warm Set",
+      "energy": 3,
+      "tempo": 108,
+      "genre": "nu-disco",
+      "mood": "uplifting",
+      "scene": "gym",
+      "filePath": "data/tracks/t37.mp3",
+      "introOffsetMs": null,
+      "lore": "Dua Lift-a wrote this for the first five minutes on the treadmill — silver disco that refuses to peak before you're warm.",
+      "genreSlug": "nu-disco"
+    },
+    {
+      "id": "t38",
+      "albumId": "alb-dua-debut",
+      "title": "Squat Drop",
+      "energy": 4,
+      "tempo": 116,
+      "genre": "house",
+      "mood": "energetic",
+      "scene": "gym",
+      "filePath": "data/tracks/t38.mp3",
+      "introOffsetMs": null,
+      "lore": "The drop lands on the downbeat of every squat — Dua Lift-a timed it with a metronome clipped to a barbell collar.",
+      "genreSlug": "house"
+    },
+    {
+      "id": "t39",
+      "albumId": "alb-dua-debut",
+      "title": "PR Hour",
+      "energy": 5,
+      "tempo": 124,
+      "genre": "nu-disco",
+      "mood": "euphoric",
+      "scene": "gym",
+      "filePath": "data/tracks/t39.mp3",
+      "introOffsetMs": null,
+      "lore": "Recorded in a mirror-walled gym at closing — Dua Lift-a says the last rep and the last chorus must finish together.",
+      "genreSlug": "nu-disco"
+    },
+    {
+      "id": "t40",
+      "albumId": "alb-dua-debut",
+      "title": "Dancefloor Rep",
+      "energy": 5,
+      "tempo": 126,
+      "genre": "house",
+      "mood": "euphoric",
+      "scene": "party",
+      "filePath": "data/tracks/t40.mp3",
+      "introOffsetMs": null,
+      "lore": "Dua Lift-a dragged the squat rack onto the dancefloor for one night — the kick still counts reps even when nobody's lifting.",
+      "genreSlug": "house"
+    },
+    {
+      "id": "t41",
+      "albumId": "alb-dua-debut",
+      "title": "Mirror Ballast",
+      "energy": 4,
+      "tempo": 118,
+      "genre": "nu-disco",
+      "mood": "energetic",
+      "scene": "party",
+      "filePath": "data/tracks/t41.mp3",
+      "introOffsetMs": null,
+      "lore": "A silver disco ball weighted like a dumbbell inspired the low end — Dua Lift-a insists balance training applies to basslines.",
+      "genreSlug": "nu-disco"
+    },
+    {
+      "id": "t42",
+      "albumId": "alb-dua-debut",
+      "title": "One More Set",
+      "energy": 5,
+      "tempo": 128,
+      "genre": "nu-disco",
+      "mood": "euphoric",
+      "scene": "party",
+      "filePath": "data/tracks/t42.mp3",
+      "introOffsetMs": null,
+      "lore": "The encore nobody asked for and everybody needed — Dua Lift-a loops the chorus until the house lights pretend they're strobes.",
+      "genreSlug": "nu-disco"
     }
   ]
 }

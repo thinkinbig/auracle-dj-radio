@@ -21,13 +21,14 @@ _Avoid_: playlist, session, release (unless speaking about the offline pipeline 
 
 **Artist photo**:
 Square press-portrait of the fictional **Artist** — stylized character, not a celebrity likeness.
-Generated offline via MiniMax; served at `/artists/:file` and shown in the now-playing UI beside the artist credit.
+Generated offline via **MiniMax** `image-01`; prompt from `photoSubject` + `visualHomage` in `image-prompt.ts`.
+Served at `/artists/:file` and shown in the now-playing UI beside the artist credit.
 _Avoid_: avatar (too generic for product copy), headshot (implies real person).
 
 **Album cover**:
 The square artwork image for an album, generated offline and shown in the listener UI.
-Pipeline: **MiniMax** `image-01` generates background art (no text); **sharp** composites artist + album title in DejaVu Sans.
-Prompts use `punOf` + `visualHomage` so the model evokes the reference era without celebrity likeness.
+Pipeline: **MiniMax** `image-01` generates background art (no text); **sharp** composites album title in DejaVu Sans.
+Prompts use `coverSubject` + `visualHomage` — evoke the reference era without celebrity likeness; never put `punOf` names in image prompts.
 _Avoid_: thumbnail, artwork (too generic).
 
 **Lore**:
@@ -66,6 +67,8 @@ _Avoid_: synopsis, description, prompt.
 | Runtime DB | `pnpm --filter @auracle/music-engine seed` → SQLite (`tracks` table, structured metadata tags) |
 
 `docs/generated_music_catalog.md` records **original MiniMax generation prompts** for the same `tXX.mp3` files; runtime titles/artists/lore follow the manifest (pun-artist universe), not that doc.
+
+**Offline assets are sticky:** t01–t30 MP3s and existing covers/photos are not regenerated when prompt templates change — only when the relevant manifest fields change, or for new tracks. See `doc/catalog_music_generation.md` § Regeneration policy.
 
 ## Flagged ambiguities
 
