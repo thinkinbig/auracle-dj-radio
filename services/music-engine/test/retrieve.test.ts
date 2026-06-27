@@ -43,6 +43,15 @@ describe("retrieveCandidates (structured scorer)", () => {
     expect(ranked.every((t) => t.energy <= 2 || ranked.indexOf(t) >= 2)).toBe(true);
   });
 
+  it("ignores track mood when ranking candidates", () => {
+    const tracks = [
+      row({ id: "display-mood", energy: 1, scene: "study", genreSlug: "ambient", mood: "stormy archive note" }),
+      row({ id: "catalog-mood", energy: 5, scene: "study", genreSlug: "ambient", mood: "calm" }),
+    ];
+    const ranked = retrieveCandidates(tracks, { mood: "calm", scene: "study", limit: 2 });
+    expect(ranked.map((t) => t.id)).toEqual(["display-mood", "catalog-mood"]);
+  });
+
   it("euphoric + party includes energy 4 and 5 in the candidate pool", () => {
     const tracks = Array.from({ length: 10 }, (_, i) =>
       row({

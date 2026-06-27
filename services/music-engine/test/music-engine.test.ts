@@ -63,7 +63,7 @@ describe("music-engine HTTP", () => {
     expect(candidates[0]).toHaveProperty("id");
   });
 
-  it("search_catalog ranks exact mood+scene matches highest", async () => {
+  it("search_catalog ranks session mood by energy envelope and scene", async () => {
     // t01 has energy=1 + scene=study — best fit for calm+study structured scoring
     const res = await engine.app.inject({
       method: "POST",

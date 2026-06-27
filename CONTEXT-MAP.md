@@ -8,4 +8,4 @@
 ## Relationships
 
 - **Catalog → Live Audio**: a **Track** beginning playback triggers a **Cue**, which may reference **Artist** name and **Lore** in the DJ turn; the listener still skips **Tracks**, not **Albums**.
-- **Catalog → Flow**: Step 1 retrieval scores **Track** candidates deterministically from SQLite metadata tags (mood envelope, scene, genre, taste); Step 2 planning orders within the mood energy arc. **Album** groups metadata for display, not for arc scheduling.
+- **Catalog → Flow**: Step 1 retrieval scores **Track** candidates deterministically from SQLite metadata tags (session mood energy envelope, scene, genre, taste); Step 2 planning orders within the mood energy arc. **Album** groups metadata for display, not for arc scheduling.

@@ -15,7 +15,7 @@ import {
   type MoodEnergyEnvelope,
 } from "../src/mood.js";
 
-test("MOOD_ENERGY_CENTER covers all seven catalog moods", () => {
+test("MOOD_ENERGY_CENTER covers all seven session moods", () => {
   assert.deepEqual(Object.keys(MOOD_ENERGY_CENTER).sort(), [
     "calm",
     "energetic",
