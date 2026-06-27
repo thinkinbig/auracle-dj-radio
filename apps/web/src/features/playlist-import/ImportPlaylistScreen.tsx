@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { AuthUser, ImportedPlaylistProfile, PlaylistImportSource, PlaylistImportTrack } from '@auracle/shared';
+import { AppBrand } from '@/features/marketing/AppBrand';
 import { cn } from '@/shared/lib/cn';
 import { describePlaylistImportError, fetchImportedPlaylists, saveImportedPlaylist } from './playlistImportApi';
 import { parsePlaylistInput, sourceLabel } from './playlistImportParser';
@@ -71,6 +72,7 @@ export function ImportPlaylistScreen({ user, onClose }: ImportPlaylistScreenProp
 
   return (
     <div className={`${styles.page} ${isGuest ? styles.guestPage : ''}`}>
+      <AppBrand onClick={onClose} label="Back to Auracle" />
       <header className={styles.header}>
         <div className={styles.navRow}>
           <button className={styles.backButton} type="button" onClick={onClose}>

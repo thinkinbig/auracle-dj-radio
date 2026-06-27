@@ -1,4 +1,5 @@
 import type { AuthUser } from '@auracle/shared';
+import { AppBrand } from '@/features/marketing/AppBrand';
 import { TastePanel } from './TastePanel';
 import styles from './SoundScreen.module.css';
 
@@ -13,6 +14,7 @@ export function SoundScreen({ user, onClose, onOpenImport }: SoundScreenProps) {
 
   return (
     <div className={`${styles.page} ${isGuest ? styles.guestPage : ''}`}>
+      <AppBrand onClick={onClose} label="Back to Auracle" />
       <header className={styles.header}>
         <div className={styles.navRow}>
           <button className={styles.backButton} type="button" onClick={onClose}>

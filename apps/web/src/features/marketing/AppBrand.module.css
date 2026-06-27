@@ -1,29 +1,37 @@
 .brand {
   position: fixed;
-  top: 24px;
+  top: 19px;
   left: max(20px, calc((100vw - 1180px) / 2), env(safe-area-inset-left, 0px));
   z-index: 100;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  color: #f8fafc;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0;
+  gap: 14px;
+  padding: 0;
+  color: rgba(248, 250, 252, 0.92);
   border: 0;
   background: transparent;
   font-family: inherit;
 }
 
-.wordmark {
-  left: max(30px, calc((100vw - 1160px) / 2 + 10px), env(safe-area-inset-left, 0px));
-  gap: 0;
-  padding: 6px 0;
-  color: rgba(248, 250, 252, 0.86);
-  font-size: 0.98rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-shadow: none;
+.mark {
+  display: block;
+  flex: 0 0 auto;
+  width: 36px;
+  aspect-ratio: 1;
+  overflow: visible;
+  filter:
+    drop-shadow(0 0 18px rgba(141, 247, 167, 0.2))
+    drop-shadow(0 0 22px rgba(216, 141, 255, 0.08));
+}
+
+.brand strong {
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.38em;
+  line-height: 1;
+  text-transform: uppercase;
+  transform: translateY(1px);
 }
 
 button.brand {
@@ -34,7 +42,7 @@ button.brand {
 }
 
 button.brand:hover {
-  opacity: 0.82;
+  opacity: 0.86;
   transform: translateY(-1px);
 }
 
@@ -46,13 +54,7 @@ button.brand:focus-visible {
 
 @media (max-width: 900px) {
   .brand {
-    top: calc(12px + env(safe-area-inset-top, 0px));
-    left: calc(var(--space-md) + env(safe-area-inset-left, 0px));
-  }
-}
-
-@media (max-width: 767px) {
-  .wordmark:not(button) {
-    display: none;
+    top: 18px;
+    left: max(14px, env(safe-area-inset-left, 0px));
   }
 }
