@@ -2,7 +2,7 @@ import type { FlowResult, SessionIntent, TastePreference, TrackCandidate, TrackM
 
 export interface PlanTracklistRequest {
   intent: SessionIntent;
-  mode?: "provisional" | "full" | "replan";
+  mode?: "provisional" | "full" | "replan" | "extend";
   memories?: string;
   /** Energy-level skip weights (1–5 → 0–0.7) from user history; passed to retrieval scoring. */
   energyWeights?: Partial<Record<number, number>>;
@@ -13,6 +13,12 @@ export interface PlanTracklistRequest {
     played?: TrackCandidate[];
     lastPlayedEnergy?: number | null;
     remainingSlots?: number;
+  };
+  /** Rolling extend (E1): append fresh tracks, excluding already-played/queued ids. */
+  extend?: {
+    playedIds?: string[];
+    appendSlots?: number;
+    lastPlayedEnergy?: number | null;
   };
 }
 

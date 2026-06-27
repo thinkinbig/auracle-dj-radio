@@ -6,6 +6,7 @@ import type { MemoryServiceClient } from "../memory-service-client.js";
 import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
 import { buildAndPushCue } from "../session/cue.js";
+import { extendQueue } from "../session/extend.js";
 import { applyReplan, type OrchestrationDeps } from "../session/replan.js";
 import { swapNextOnQuickSkip } from "../session/skip-swap.js";
 import { SessionStore, type SessionState } from "../session/store.js";
@@ -161,6 +162,10 @@ export class AgentHarness {
       this.deps.log?.info({ sessionId: state.id, ms }, "skip round-trip latency");
     }
     state.trackStartedAtMs = Date.now();
+
+    // Rolling extend (E1): keep the station on air when the queue runs low.
+    // Fire-and-forget and debounced inside the module so it never blocks now_playing.
+    void extendQueue(this.orchestration, state, this.deps.log);
 
     return { current_track_index: state.currentTrackIndex, remaining: this.deps.store.remaining(state) };
   }

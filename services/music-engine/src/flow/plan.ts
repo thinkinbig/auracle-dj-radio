@@ -191,6 +191,63 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
   });
 }
 
+export interface ExtendInput {
+  intent: SessionIntent;
+  /** Already-played + currently-queued ids to exclude from the append pool. */
+  playedIds: string[];
+  /** How many fresh tracks to append (default 4). */
+  appendSlots: number;
+  /** Energy of the last queued track, to chain the continuation smoothly. */
+  lastPlayedEnergy: number | null;
+  energyWeights?: Partial<Record<number, number>>;
+  /** Cross-session preference recall (condition C); "" for A/B. */
+  memories?: string;
+  /** Structured taste prefer/avoid (condition C); undefined for A/B. */
+  taste?: TastePreference[];
+}
+
+/**
+ * Rolling extend (E1): deterministically append `appendSlots` fresh tracks so the
+ * station stays on air past the initial arc. Retrieval excludes everything already
+ * played/queued; ordering chains from the last queued energy via chooseNext. No Flow
+ * LLM — extend is a fast background continuation, not a re-plan.
+ */
+export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<PlanResult> {
+  const effectiveEnergyWeights = mergeEnergyWeights(input.energyWeights, energyWeightsFromMemories(input.memories ?? ""));
+  const candidates = retrieveCandidates(deps.tracks(), {
+    mood: input.intent.mood,
+    scene: input.intent.scene,
+    excludeIds: new Set(input.playedIds),
+    limit: Math.max(24, input.appendSlots * 3),
+    energyWeights: effectiveEnergyWeights,
+    taste: input.taste,
+  });
+  const candidatesById = new Map(candidates.map((c) => [c.id, c]));
+  const tracklist = buildExtendChain(candidates, input.appendSlots, input.lastPlayedEnergy);
+  return {
+    result: { session_title: "", session_subtitle: "", arc: "peak", tracklist },
+    violations: [],
+    candidatesById,
+  };
+}
+
+/** Greedy energy chain of up to `count` candidates, starting near `seedEnergy`. */
+function buildExtendChain(candidates: TrackCandidate[], count: number, seedEnergy: number | null): FlowTrackRef[] {
+  const pool = [...candidates];
+  const slots: FlowTrackRef[] = [];
+  let prev: TrackCandidate | undefined;
+
+  for (let pos = 1; pos <= count && pool.length > 0; pos++) {
+    const target = prev?.energy ?? seedEnergy ?? pool[0]!.energy;
+    const pick = chooseNext(pool, target, prev);
+    if (!pick) break;
+    pool.splice(pool.indexOf(pick), 1);
+    slots.push({ id: pick.id, flow_position: pos, reason: "rolling extend" });
+    prev = pick;
+  }
+  return slots;
+}
+
 /** Step 2 flow plan + safety-net validation (ADR-0001: no LLM retry/repair loop). */
 async function runFlow(flowModel: FlowModel, input: FlowInput): Promise<PlanResult> {
   const candidatesById = new Map(input.candidates.map((c) => [c.id, c]));

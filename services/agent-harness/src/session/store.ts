@@ -37,6 +37,8 @@ export interface SessionState {
   quickSkipRun?: { energy: number; count: number };
   /** Energies already written to mem0 for repeated quick skips in this session. */
   rememberedQuickSkipEnergies: Set<number>;
+  /** Debounce flag: true while a rolling extend (E1) is in flight, to avoid append storms. */
+  extendPending?: boolean;
 }
 
 /** In-memory session state machine. Memory-service is the sole owner of session state. */
@@ -166,6 +168,31 @@ export class SessionStore {
       .sort((a, b) => a.flow_position - b.flow_position)
       .map((r, i) => ({ id: r.id, flow_position: offset + i + 1, reason: r.reason }));
     state.tracklist = [...kept, ...appended];
+    for (const ref of appended) {
+      const c = candidatesById.get(ref.id);
+      if (c) state.energyById.set(ref.id, c.energy);
+    }
+    return appended;
+  }
+
+  /**
+   * Append `newRefs` after the queue tail (rolling extend, E1) — grow-only: played
+   * slots, the current track and existing remaining stay fixed. Skips ids already
+   * in the tracklist (dedup) and renumbers flow_position contiguously from the tail.
+   * Returns the appended refs (empty if all were duplicates).
+   */
+  appendTracks(
+    state: SessionState,
+    newRefs: FlowTrackRef[],
+    candidatesById: Map<string, TrackCandidate>,
+  ): FlowTrackRef[] {
+    const existing = new Set(state.tracklist.map((r) => r.id));
+    const base = state.tracklist.length;
+    const appended = [...newRefs]
+      .filter((r) => !existing.has(r.id))
+      .sort((a, b) => a.flow_position - b.flow_position)
+      .map((r, i) => ({ id: r.id, flow_position: base + i + 1, reason: r.reason }));
+    state.tracklist = [...state.tracklist, ...appended];
     for (const ref of appended) {
       const c = candidatesById.get(ref.id);
       if (c) state.energyById.set(ref.id, c.energy);

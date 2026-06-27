@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { SessionIntent, TastePreference, TrackCandidate } from "@auracle/shared";
-import { createPlanCached, createProvisionalPlan, replan, type PlanDeps, type PlanResult } from "../flow/plan.js";
+import { createPlanCached, createProvisionalPlan, extendPlan, replan, type PlanDeps, type PlanResult } from "../flow/plan.js";
 import { retrieveCandidates } from "../flow/retrieval/retrieve.js";
 
 function parseIntent(raw: unknown): SessionIntent | undefined {
@@ -29,15 +29,17 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
   });
 
   // Step 2 planning: order candidates into an energy-arc tracklist.
-  // mode: "provisional" (instant, LLM-free) | "full" (cached) | "replan" (mid-session).
+  // mode: "provisional" (instant, LLM-free) | "full" (cached) | "replan" (mid-session)
+  //       | "extend" (append fresh tracks, LLM-free rolling continuation).
   app.post("/plan_tracklist", async (req, reply) => {
     const b = (req.body ?? {}) as {
-      mode?: "provisional" | "full" | "replan";
+      mode?: "provisional" | "full" | "replan" | "extend";
       intent?: unknown;
       memories?: string;
       energyWeights?: Partial<Record<number, number>>;
       taste?: TastePreference[];
       replan?: { playedIds?: string[]; played?: TrackCandidate[]; lastPlayedEnergy?: number | null; remainingSlots?: number };
+      extend?: { playedIds?: string[]; appendSlots?: number; lastPlayedEnergy?: number | null };
     };
     const intent = parseIntent(b.intent);
     if (!intent) return reply.code(400).send({ error: "intent.mood and intent.scene are required" });
@@ -46,6 +48,19 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
     if (mode === "provisional") {
       const p = await createProvisionalPlan(deps, intent, b.energyWeights, b.taste);
       return { result: p.result, violations: [], candidates: [...p.candidatesById.values()] };
+    }
+    if (mode === "extend") {
+      const e = b.extend ?? {};
+      const p = await extendPlan(deps, {
+        intent,
+        playedIds: e.playedIds ?? [],
+        appendSlots: e.appendSlots ?? 4,
+        lastPlayedEnergy: e.lastPlayedEnergy ?? null,
+        energyWeights: b.energyWeights,
+        memories: b.memories ?? "",
+        taste: b.taste,
+      });
+      return toPlanResponse(p);
     }
     if (mode === "replan") {
       const r = b.replan ?? {};

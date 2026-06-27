@@ -170,6 +170,32 @@ describe("music-engine HTTP", () => {
     expect(picked.every((energy) => energy >= 4)).toBe(true);
   });
 
+  it("plan_tracklist (extend) appends fresh tracks excluding played ids (E1)", async () => {
+    const search = await engine.app.inject({
+      method: "POST",
+      url: "/search_catalog",
+      payload: { mood: "calm", scene: "study", limit: 5 },
+    });
+    const exclude = search.json<{ candidates: TrackCandidate[] }>().candidates.slice(0, 2).map((c) => c.id);
+
+    const res = await engine.app.inject({
+      method: "POST",
+      url: "/plan_tracklist",
+      payload: {
+        mode: "extend",
+        intent: { mood: "calm", scene: "study" },
+        extend: { playedIds: exclude, appendSlots: 4, lastPlayedEnergy: 2 },
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ result: FlowResult; candidates: TrackCandidate[] }>();
+    expect(body.result.tracklist.length).toBeGreaterThan(0);
+    expect(body.result.tracklist.length).toBeLessThanOrEqual(4);
+    body.result.tracklist.forEach((ref, i) => expect(ref.flow_position).toBe(i + 1)); // contiguous
+    const trackIds = body.result.tracklist.map((r) => r.id);
+    for (const ex of exclude) expect(trackIds).not.toContain(ex); // excludes played
+  });
+
   it("replan forwards mem0 recall into the flow input (P0-5)", async () => {
     const row = (id: string, energy: number): TrackRow =>
       ({
