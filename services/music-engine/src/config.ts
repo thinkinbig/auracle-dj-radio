@@ -17,15 +17,12 @@ loadEnv({ path: resolve(here, "../../../.env") });
 
 export interface Config {
   port: number;
-  /** Music-engine owns its own catalog SQLite (tracks + embeddings only — no session_events). */
+  /** Music-engine owns its own catalog SQLite (structured track metadata — no session_events). */
   dbPath: string;
   /** Catalog data directory (manifest.json + audio/cover/photo assets) — @auracle/catalog. */
   catalogDataDir: string;
   geminiApiKey: string | undefined;
   flowModel: string;
-  embedModel: string;
-  /** "hash" (offline/tests) or "gemini" (catalog retrieval until ADR-0001 lands). */
-  embedder: "hash" | "gemini";
 }
 
 export const config: Config = {
@@ -34,11 +31,4 @@ export const config: Config = {
   catalogDataDir: resolveConfiguredPath(process.env.CATALOG_DATA_DIR, resolve(repoRoot, "packages/catalog/data")),
   geminiApiKey: process.env.GEMINI_API_KEY || undefined,
   flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
-  embedModel: process.env.GEMINI_EMBED_MODEL ?? "gemini-embedding-2",
-  embedder:
-    process.env.AURACLE_EMBEDDER === "hash"
-      ? "hash"
-      : process.env.GEMINI_API_KEY
-        ? "gemini"
-        : "hash",
 };

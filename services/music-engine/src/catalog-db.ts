@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import type { Track, Energy, TrackMeta } from "@auracle/shared";
 import { toTrackMeta } from "./catalog/manifest.js";
 
-// Catalog-only store: tracks + their embedding vectors. Session analytics
+// Catalog-only store: structured track metadata. Session analytics
 // (session_events) belong to memory-service, not here (refactor-three-services).
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS tracks (
@@ -24,8 +24,7 @@ CREATE TABLE IF NOT EXISTS tracks (
   mood            TEXT NOT NULL,
   scene           TEXT NOT NULL,
   file_path       TEXT NOT NULL,
-  intro_offset_ms INTEGER,
-  embedding_json  TEXT
+  intro_offset_ms INTEGER
 );
 `;
 
@@ -38,10 +37,7 @@ const ADDITIVE_COLUMNS: ReadonlyArray<[name: string, decl: string]> = [
   ["album_slug", "TEXT NOT NULL DEFAULT ''"],
 ];
 
-/** A track plus its stored embedding vector (kept out of the shared Track type). */
-export interface TrackRow extends Track {
-  embedding: number[] | null;
-}
+export type TrackRow = Track;
 
 interface RawTrackRow {
   id: string;
@@ -63,7 +59,6 @@ interface RawTrackRow {
   scene: string;
   file_path: string;
   intro_offset_ms: number | null;
-  embedding_json: string | null;
 }
 
 export class CatalogDb {
@@ -91,17 +86,17 @@ export class CatalogDb {
       .prepare(
         `INSERT INTO tracks (
            id, title, artist, artist_id, album_id, album_title, lore, album_cover_path, artist_photo_path,
-           energy, tempo, genre, genre_slug, artist_slug, album_slug, mood, scene, file_path, intro_offset_ms, embedding_json
+           energy, tempo, genre, genre_slug, artist_slug, album_slug, mood, scene, file_path, intro_offset_ms
          )
          VALUES (
            @id, @title, @artist, @artist_id, @album_id, @album_title, @lore, @album_cover_path, @artist_photo_path,
-           @energy, @tempo, @genre, @genre_slug, @artist_slug, @album_slug, @mood, @scene, @file_path, @intro_offset_ms, @embedding_json
+           @energy, @tempo, @genre, @genre_slug, @artist_slug, @album_slug, @mood, @scene, @file_path, @intro_offset_ms
          )
          ON CONFLICT(id) DO UPDATE SET
            title=@title, artist=@artist, artist_id=@artist_id, album_id=@album_id,
            album_title=@album_title, lore=@lore, album_cover_path=@album_cover_path, artist_photo_path=@artist_photo_path,
            energy=@energy, tempo=@tempo, genre=@genre, genre_slug=@genre_slug, artist_slug=@artist_slug, album_slug=@album_slug,
-           mood=@mood, scene=@scene, file_path=@file_path, intro_offset_ms=@intro_offset_ms, embedding_json=@embedding_json`,
+           mood=@mood, scene=@scene, file_path=@file_path, intro_offset_ms=@intro_offset_ms`,
       )
       .run({
         id: t.id,
@@ -123,7 +118,6 @@ export class CatalogDb {
         scene: t.scene,
         file_path: t.filePath,
         intro_offset_ms: t.introOffsetMs,
-        embedding_json: t.embedding ? JSON.stringify(t.embedding) : null,
       });
   }
 
@@ -169,6 +163,5 @@ function rowToTrack(row: RawTrackRow): TrackRow {
     filePath: row.file_path,
     introOffsetMs: row.intro_offset_ms,
     instrumental: true,
-    embedding: row.embedding_json ? (JSON.parse(row.embedding_json) as number[]) : null,
   };
 }

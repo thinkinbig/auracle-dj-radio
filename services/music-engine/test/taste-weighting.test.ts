@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { TastePreference } from "@auracle/shared";
-import { scoreRetrievalCandidate, normalizeCosineScore } from "../src/flow/retrieval/retrieve.js";
+import { scoreRetrievalCandidate } from "../src/flow/retrieval/retrieve.js";
 import { buildTasteScorer, tasteCacheKey, type WeightableTrack } from "../src/flow/weighting/taste-weighting.js";
 
-const track: WeightableTrack = { id: "t01", genreSlug: "house", artistSlug: "lana-del-delay", albumSlug: "born-to-delay" };
+const track: WeightableTrack & { energy: number; scene: string } = {
+  id: "t01",
+  genreSlug: "house",
+  artistSlug: "lana-del-delay",
+  albumSlug: "born-to-delay",
+  energy: 3,
+  scene: "study",
+};
 
 function pref(p: Partial<TastePreference> & Pick<TastePreference, "entityType" | "entityId" | "polarity">): TastePreference {
   return { source: "onboarding", ...p };
@@ -47,21 +54,20 @@ describe("taste-weighting", () => {
     expect(buildTasteScorer([]).scoreFor(track)).toBe(0);
   });
 
-  it("normalizes cosine before applying additive retrieval signals", () => {
-    expect(normalizeCosineScore(-1)).toBe(0);
-    expect(normalizeCosineScore(0)).toBe(0.5);
-    expect(normalizeCosineScore(1)).toBe(1);
-
+  it("applies taste as additive structured retrieval signal", () => {
     const avoid = buildTasteScorer([pref({ entityType: "genre", entityId: "house", polarity: "avoid", strength: 3 })]);
-    const neutral = scoreRetrievalCandidate({ ...track, energy: 3 }, -0.4).score;
-    const avoided = scoreRetrievalCandidate({ ...track, energy: 3 }, -0.4, { taste: avoid }).score;
+    const neutral = scoreRetrievalCandidate(track, { mood: "focused", scene: "study" }).score;
+    const avoided = scoreRetrievalCandidate(track, { mood: "focused", scene: "study", taste: avoid }).score;
     expect(avoided).toBeLessThan(neutral);
   });
 
   it("applies skip-energy as a penalty separate from taste", () => {
     const prefer = buildTasteScorer([pref({ entityType: "genre", entityId: "house", polarity: "prefer", strength: 3 })]);
-    const noPenalty = scoreRetrievalCandidate({ ...track, energy: 5 }, 0.6, { taste: prefer }).score;
-    const skippedEnergy = scoreRetrievalCandidate({ ...track, energy: 5 }, 0.6, { taste: prefer, energyWeights: { 5: 0.7 } }).score;
+    const noPenalty = scoreRetrievalCandidate({ ...track, energy: 5 }, { mood: "euphoric", scene: "party", taste: prefer }).score;
+    const skippedEnergy = scoreRetrievalCandidate(
+      { ...track, energy: 5 },
+      { mood: "euphoric", scene: "party", taste: prefer, energyWeights: { 5: 0.7 } },
+    ).score;
     expect(skippedEnergy).toBeLessThan(noPenalty);
   });
 

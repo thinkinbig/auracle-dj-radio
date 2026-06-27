@@ -1,7 +1,6 @@
 import type { FlowResult, FlowTrackRef, SessionIntent, TastePreference, TrackCandidate } from "@auracle/shared";
 import { ARC_BANDS, FULL_SESSION_LENGTH } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
-import type { Embedder } from "./llm/embedder.js";
 import type { FlowModel, FlowInput } from "./llm/flow-model.js";
 import { energyWeightsFromMemories, mergeEnergyWeights } from "./weighting/memory-energy.js";
 import { repairTracklist } from "./validation/repair.js";
@@ -10,7 +9,6 @@ import { tasteCacheKey } from "./weighting/taste-weighting.js";
 import { formatViolationsForRetry, validateTracklist, type Violation } from "./validation/validate.js";
 
 export interface PlanDeps {
-  embedder: Embedder;
   flowModel: FlowModel;
   /** Returns the full track library (read from SQLite at call time). */
   tracks: () => TrackRow[];
@@ -91,7 +89,7 @@ export async function createProvisionalPlan(
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
 ): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate> }> {
-  const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
+  const candidates = retrieveCandidates(deps.tracks(), {
     mood: intent.mood,
     scene: intent.scene,
     limit: 24,
@@ -151,7 +149,7 @@ export async function createPlan(
   taste?: TastePreference[],
 ): Promise<PlanResult> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
-  const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
+  const candidates = retrieveCandidates(deps.tracks(), {
     mood: intent.mood,
     scene: intent.scene,
     limit: 24,
@@ -184,7 +182,7 @@ export interface ReplanInput {
 /** Mid-session replan: re-fill only the remaining slots, excluding played tracks. */
 export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanResult> {
   const effectiveEnergyWeights = mergeEnergyWeights(input.energyWeights, energyWeightsFromMemories(input.memories ?? ""));
-  const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
+  const candidates = retrieveCandidates(deps.tracks(), {
     mood: input.intent.mood,
     scene: input.intent.scene,
     excludeIds: new Set(input.playedIds),

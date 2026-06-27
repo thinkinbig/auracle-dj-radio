@@ -2,14 +2,10 @@ import type { TastePreference, TasteEntityType } from "@auracle/shared";
 
 /**
  * Structured-taste retrieval scoring (Epic #3, S4). Turns a user's prefer/avoid
- * preferences into a bounded additive signal for retrieval reranking. Semantic
- * similarity remains the anchor; taste nudges the candidate pool without
- * directly multiplying raw cosine values from whichever embedder is active.
- *
- * Matching uses the stable slug fields the catalog already carries, so
- * genre/artist/album preferences survive catalog rebuilds. Multiple matching
- * prefs can contribute, but the final taste signal is clamped to avoid a pile-up
- * overpowering semantic relevance.
+ * preferences into a bounded additive signal for retrieval reranking within the
+ * mood energy envelope (ADR-0001). Matching uses stable slug fields the catalog
+ * already carries. Multiple matching prefs can contribute, but the final taste
+ * signal is clamped so taste cannot overpower the energy envelope.
  */
 
 const DEFAULT_STRENGTH = 2;

@@ -15,11 +15,11 @@ function toPlanResponse(p: PlanResult): { result: PlanResult["result"]; violatio
 }
 
 export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): void {
-  // Step 1 retrieval: embed mood/scene, return top-K candidates by cosine.
+  // Step 1 retrieval: structured mood/scene scoring, return top-K candidates.
   app.post("/search_catalog", async (req, reply) => {
     const b = (req.body ?? {}) as { mood?: string; scene?: string; excludeIds?: string[]; limit?: number };
     if (!b.mood || !b.scene) return reply.code(400).send({ error: "mood and scene are required" });
-    const candidates = await retrieveCandidates(deps.embedder, deps.tracks(), {
+    const candidates = retrieveCandidates(deps.tracks(), {
       mood: b.mood,
       scene: b.scene,
       excludeIds: b.excludeIds ? new Set(b.excludeIds) : undefined,

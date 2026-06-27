@@ -1,7 +1,7 @@
 /** Energy is an integer 1–5 (1 = lightest, 5 = most intense). */
 export type Energy = 1 | 2 | 3 | 4 | 5;
 
-/** A track in the offline library. `embedding` lives only in the DB layer. */
+/** A track in the offline library. */
 export interface Track {
   id: string;
   title: string;

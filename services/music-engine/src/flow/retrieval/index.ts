@@ -1,1 +1,12 @@
-export { retrieveCandidates, type RetrieveInput, type Scored, type RetrievalScoreInput, type RetrievalScoreBreakdown, normalizeCosineScore, scoreRetrievalCandidate } from "./retrieve.js";
+export {
+  retrieveCandidates,
+  scoreRetrievalCandidate,
+  normalizeScene,
+  sceneFit,
+  genreFit,
+  preferredGenresFromTaste,
+  type RetrieveInput,
+  type Scored,
+  type RetrievalScoreInput,
+  type RetrievalScoreBreakdown,
+} from "./retrieve.js";

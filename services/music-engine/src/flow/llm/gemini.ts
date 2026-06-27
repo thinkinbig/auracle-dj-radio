@@ -2,44 +2,8 @@ import { Type } from "@google/genai";
 import type { FlowResult } from "@auracle/shared";
 import { buildHardRulesText } from "@auracle/shared";
 import { config } from "../../config.js";
-import { resolveCatalogPath } from "../../catalog/manifest.js";
 import { createGeminiClient } from "../../gemini/client.js";
-import type { Embedder, EmbedTrackInput } from "./embedder.js";
-import { formatEmbedQuery } from "./embedder.js";
-import { readAudioEmbedClip } from "./audio-clip.js";
 import type { FlowModel, FlowInput } from "./flow-model.js";
-
-function resolveAudioPath(filePath: string): string {
-  return filePath.startsWith("/") ? filePath : resolveCatalogPath(filePath);
-}
-
-/** Catalog embeddings via gemini-embedding-2 (first 180s audio, cross-modal query). */
-export class GeminiEmbedder implements Embedder {
-  private readonly ai = createGeminiClient();
-
-  async embedTrack(t: EmbedTrackInput): Promise<number[]> {
-    const audioPath = resolveAudioPath(t.filePath);
-    const clip = await readAudioEmbedClip(audioPath);
-    const res = await this.ai.models.embedContent({
-      model: config.embedModel,
-      contents: [{ inlineData: { mimeType: "audio/mpeg", data: clip.toString("base64") } }],
-    });
-    const values = res.embeddings?.[0]?.values;
-    if (!values) throw new Error("Gemini embedContent returned no audio embedding");
-    return values;
-  }
-
-  async embedQuery(mood: string, scene: string): Promise<number[]> {
-    return this.embedText(formatEmbedQuery(mood, scene));
-  }
-
-  private async embedText(text: string): Promise<number[]> {
-    const res = await this.ai.models.embedContent({ model: config.embedModel, contents: text });
-    const values = res.embeddings?.[0]?.values;
-    if (!values) throw new Error("Gemini embedContent returned no embedding");
-    return values;
-  }
-}
 
 const FLOW_SCHEMA = {
   type: Type.OBJECT,
