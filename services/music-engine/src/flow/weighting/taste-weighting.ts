@@ -1,11 +1,23 @@
 import type { TastePreference, TasteEntityType } from "@auracle/shared";
 
 /**
- * Structured-taste retrieval scoring (Epic #3, S4). Turns a user's prefer/avoid
- * preferences into a bounded additive signal for retrieval reranking within the
- * mood energy envelope (ADR-0001). Matching uses stable slug fields the catalog
- * already carries. Multiple matching prefs can contribute, but the final taste
- * signal is clamped so taste cannot overpower the energy envelope.
+ * Structured-taste retrieval scoring (Epic #3, S4).
+ *
+ * Priority order for retrieval is fixed:
+ * 1. Mood energy envelope decides which energies are viable for the session.
+ * 2. Structured taste reranks only within that envelope.
+ * 3. mem0 energy skip weights are a tie-break / micro-adjustment only.
+ *
+ * This scorer implements step 2 only. It turns prefer/avoid preferences into a
+ * bounded additive signal, matched via stable catalog slugs already present on
+ * each track. Multiple matching prefs can contribute, but the final taste
+ * signal is clamped so taste cannot overpower the mood envelope.
+ *
+ * Examples:
+ * - `calm` + preferred artist still picks that artist's calm-adjacent tracks
+ *   before the same artist's high-energy tracks.
+ * - mem0 skip-energy penalties may break ties between similarly valid calm
+ *   tracks, but they never pull a calm session toward euphoric energy.
  */
 
 const DEFAULT_STRENGTH = 2;
@@ -41,7 +53,7 @@ function contribution(pref: TastePreference): number {
   return polarity * SCORE_BY_TYPE[pref.entityType] * strength;
 }
 
-/** Build an indexed scorer from a user's active preferences. */
+/** Build an indexed scorer for the structured-taste rerank layer only. */
 export function buildTasteScorer(prefs: TastePreference[]): TasteScorer {
   const byType: Record<TasteEntityType, Map<string, TastePreference>> = {
     track: new Map(),
