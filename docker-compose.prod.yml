@@ -1,4 +1,4 @@
-# Prod / demo: qdrant + music-engine + memory-service + agent-harness + rt-llm-proxy + web.
+# Prod / demo: music-engine + memory-service + agent-harness + rt-llm-proxy + web (+ qdrant for mem0).
 # web (nginx) serves the SPA *and* the static catalog/audio/images (api+web merge).
 # Only web (host :8080) and the host-networked proxy are reachable from outside.
 # Requires repo-root .env (see .env.example). Circuit breaker defaults ON via NODE_ENV=production.
@@ -29,7 +29,6 @@ services:
       MUSIC_ENGINE_PORT: "3010"
       MUSIC_ENGINE_DB_PATH: /data/auracle-catalog.sqlite
       CATALOG_DATA_DIR: /app/data
-      AURACLE_EMBEDDER: hash
     volumes:
       - music_engine_data:/data
     healthcheck:

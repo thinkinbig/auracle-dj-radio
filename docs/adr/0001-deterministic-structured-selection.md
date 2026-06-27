@@ -69,16 +69,16 @@ All terms are deterministic integers or bounded floats. No embedding, no Qdrant,
 Currently, `energyTargets` generates a full arc warm-up(1-2) → build(3-4) → peak(5-6) → wind-down(2) regardless of mood. Replace with:
 
 ```typescript
-function arcAmplitude(mood: string): { min: number; max: number } {
+function arcAmplitude(mood: string, k = 2): { min: number; max: number } {
   const center = MOOD_ENERGY_CENTER[mood];
-  const tolerance = 0.5 + (k / 3); // tolerance grows as k shrinks
+  const tolerance = 0.5 + 1 / Math.max(k, 0.01); // tolerance grows as k shrinks
   return { min: Math.max(1, center - tolerance), max: Math.min(5, center + tolerance) };
 }
 ```
 
-- calm → [0.5, 1.5] (nearly flat)
-- euphoric → [4.5, 5.5] (allows 5)
-- Smooth glide on replan (wind-down floor stays 2, but glide target is arc amplitude's floor, not unconditional 2).
+- calm → [1, 2] with default k=2 (nearly flat after clamping)
+- euphoric → [4, 5] with default k=2 (allows 5)
+- Smooth glide on replan targets the arc amplitude's floor, not unconditional energy 2.
 
 ### 4. Taste Reranking: Priority Order
 

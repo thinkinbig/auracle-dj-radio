@@ -243,7 +243,7 @@ Epic #3 实现切片 S1–S4 交付 Sound 页；**Studio 明确不做**。
 - 产品 IA（Station / Sound）：`auracle_sound_ia.md`
 - 个性化路线图：`auracle_personalization_plan.md`
 - 曲库流水线：`docs/adr/0003-catalog-manifest-staged-cli.md`
-- Embedding 阶段：`docs/adr/0002-phased-catalog-embedding.md`
+- 曲库检索（确定性结构化打分）：`docs/adr/0001-deterministic-structured-selection.md`（取代已废止的 `docs/adr/0002-phased-catalog-embedding.md`）
 - 父 Epic：[GitHub #3](https://github.com/thinkinbig/auracle-dj-radio/issues/3)
 
 ---
