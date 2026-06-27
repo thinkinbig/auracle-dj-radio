@@ -25,7 +25,7 @@ export const MAX_TEMPO_JUMP_BPM = 15;
 export const MAX_ENERGY_JUMP = 1;
 
 /**
- * Single source of truth for the hard-rule prose injected into the Gemini
+ * Single source of truth for the deterministic planning hard rules and legacy prompt prose
  * system instruction. Derived from the constants above so a rule change
  * updates both the validator and the prompt automatically.
  */

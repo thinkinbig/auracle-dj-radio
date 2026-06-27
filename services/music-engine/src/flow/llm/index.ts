@@ -1,2 +1,2 @@
 export { HeuristicFlowModel } from "./heuristic-flow.js";
-export { type FlowModel, type FlowInput } from "./flow-model.js";
+export { type FlowInput } from "./flow-model.js";

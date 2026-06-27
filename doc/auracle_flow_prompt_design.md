@@ -42,7 +42,7 @@ playing ──track end──▶ between_tracks ──Live DJ──▶ playing
 ## Step 2 — Flow 编排（确定性能量弧线）
 
 **调用方**：`agent-harness` → `music-engine` HTTP  
-**模型**：`HeuristicFlowModel`（`chooseNext` + mood 能量弧线；ADR-0001）  
+**模型**：deterministic heuristic（`chooseNext` + mood 能量弧线；ADR-0001），无 Gemini ordering  
 **触发**：创建 session；以及 intent `mood_change` / `explicit_pick` / `full_replan`
 
 ### 能量曲线约束
@@ -68,7 +68,7 @@ playing ──track end──▶ between_tracks ──Live DJ──▶ playing
 
 ### Plan 编排流水线（`flow/plan.ts`）
 
-1. `flowModel.plan` 一次（无 violation retry）  
+1. deterministic heuristic planning 一次（无 LLM / 无 violation retry）  
 2. `validateTracklist` — safety-net 断言，返回 `violations`（可能非空，若候选池无解）  
 3. 无 `repair.ts` / 无 `repairHint` / 无 Gemini 违规重试（P2.3）
 

@@ -118,7 +118,7 @@ export const memory = new Memory({
     provider: "google",
     config: {
       apiKey: process.env.GEMINI_API_KEY!,
-      model: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
+      model: process.env.GEMINI_MEM0_LLM_MODEL ?? "gemini-3.1-flash-lite",
     },
   },
   vectorStore: {
@@ -144,7 +144,7 @@ await memory.add("User prefers lighter energy during study sessions.", {
 | 变量 | 默认 | 说明 |
 |------|------|------|
 | `GEMINI_API_KEY` | — | mem0 LLM + embedder 共用 |
-| `GEMINI_FLOW_MODEL` | `gemini-3.1-flash-lite` | Flow 编排 + mem0 记忆抽取 |
+| `GEMINI_MEM0_LLM_MODEL` | `gemini-3.1-flash-lite` | mem0 记忆抽取；Flow ordering 无 Gemini |
 | `GEMINI_MEM0_EMBED_MODEL` | `gemini-embedding-001` | mem0 向量（native 3072 维；曲库检索不再 embed） |
 | `QDRANT_URL` | `http://localhost:6333` | 本地 Qdrant |
 | `AURACLE_MEM0_HISTORY_DB` | `./data/mem0/history.db` | mem0 变更审计 |

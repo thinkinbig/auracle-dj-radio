@@ -14,7 +14,7 @@ export interface FlowTrackRef {
   reason: string;
 }
 
-/** Raw output shape of the Step-2 Flow model (Gemini Flash JSON). */
+/** Output shape of deterministic Step-2 flow planning plus async copy text. */
 export interface FlowResult {
   session_title: string;
   session_subtitle: string;

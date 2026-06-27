@@ -65,8 +65,14 @@ class FakeMusicEngine implements MusicEngineClient {
   searchCalls: SearchCatalogRequest[] = [];
   /** Optional tail tracks appended to the default full-plan set (E4 needs a longer queue). */
   extraTracks: TrackCandidate[] = [];
+  fullGate?: Promise<void>;
+  fullStarted = 0;
   async planTracklist(req: PlanTracklistRequest): Promise<PlanResponse> {
     this.planCalls.push(req);
+    if (req.mode === "full") {
+      this.fullStarted++;
+      await this.fullGate;
+    }
     if (req.mode === "extend") {
       const slots = req.extend?.appendSlots ?? 4;
       const candidates = Array.from({ length: slots }, (_, i) => candidate(`x${i + 1}`, ((i % 5) + 1) as Energy));
@@ -148,9 +154,29 @@ describe("agent-harness", () => {
     expect(body.tracklist.map((t) => t.id)).toEqual(["a", "b", "c", "f"]);
     expect(body.proxy_url).toBe("http://proxy.test");
     expect(body.token).toBeTruthy();
-    expect(music.planCalls[0]).toMatchObject({ mode: "full" });
+    expect(music.planCalls[0]).toMatchObject({ mode: "provisional" });
     expect(memory.countEvents(body.session_id)).toBe(1);
     expect(proxy.calls.at(-1)?.reg.systemInstruction).toContain("Fake Set, vol. 1");
+    await app.close();
+  });
+
+  it("does not wait for full copywriting before returning a playable session (P3.1)", async () => {
+    const { app, music } = buildTestApp();
+    let releaseFull!: () => void;
+    music.fullGate = new Promise<void>((resolve) => {
+      releaseFull = resolve;
+    });
+    await app.ready();
+
+    const res = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ tracklist: FlowTrackRef[] }>();
+    expect(body.tracklist.map((t) => t.id)).toEqual(["a", "b", "c", "f"]);
+    expect(music.planCalls[0]?.mode).toBe("provisional");
+    expect(music.fullStarted).toBe(1);
+
+    releaseFull();
     await app.close();
   });
 
@@ -440,7 +466,7 @@ describe("agent-harness", () => {
     expect(updated!.changed_ids).toEqual(["s2"]); // "f" swapped out
     // deterministic: search_catalog only, never a Flow plan/replan beyond the initial full plan.
     expect(music.searchCalls).toHaveLength(1);
-    expect(music.planCalls.filter((c) => c.mode !== "full")).toEqual([]);
+    expect(music.planCalls.filter((c) => c.mode !== "provisional" && c.mode !== "full")).toEqual([]);
     await vi.waitFor(() => expect(memory.events.map((e) => e.eventType)).toContain("skip_queue_adjusted"));
     now.mockRestore();
     await app.close();

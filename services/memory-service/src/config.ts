@@ -18,7 +18,7 @@ export interface Config {
   playlistDbPath: string;
   /** mem0 cross-session memory (degrades to no-op when absent). */
   geminiApiKey: string | undefined;
-  flowModel: string;
+  mem0LlmModel: string;
   mem0EmbedModel: string;
   qdrantUrl: string;
   mem0HistoryDb: string;
@@ -31,7 +31,7 @@ export const config: Config = {
   tastePrefsDbPath: process.env.TASTE_PREFS_DB_PATH ?? resolve(here, "../auracle-taste.sqlite"),
   playlistDbPath: process.env.PLAYLIST_ARCHIVE_DB_PATH ?? resolve(here, "../auracle-playlists.sqlite"),
   geminiApiKey: process.env.GEMINI_API_KEY || undefined,
-  flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
+  mem0LlmModel: process.env.GEMINI_MEM0_LLM_MODEL ?? "gemini-3.1-flash-lite",
   mem0EmbedModel: process.env.GEMINI_MEM0_EMBED_MODEL ?? "gemini-embedding-001",
   qdrantUrl: process.env.QDRANT_URL ?? "http://localhost:6333",
   mem0HistoryDb: process.env.AURACLE_MEM0_HISTORY_DB ?? resolve(here, "../mem0-history.db"),
