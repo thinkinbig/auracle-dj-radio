@@ -27,7 +27,27 @@ export interface PlanResult {
  * memories means a new recorded preference (which changes recall) busts the
  * cache, preserving Condition C fidelity.
  */
+const PLAN_CACHE_MAX = 256;
 const planCache = new Map<string, PlanResult>();
+
+/** Read with LRU recency bump so hot intents survive eviction. */
+function cacheGet(key: string): PlanResult | undefined {
+  const hit = planCache.get(key);
+  if (hit) {
+    planCache.delete(key);
+    planCache.set(key, hit);
+  }
+  return hit;
+}
+
+/** Insert and evict the least-recently-used entry past the cap (per-user memories/taste keys are unbounded otherwise). */
+function cacheSet(key: string, value: PlanResult): void {
+  planCache.set(key, value);
+  if (planCache.size > PLAN_CACHE_MAX) {
+    const oldest = planCache.keys().next().value;
+    if (oldest !== undefined) planCache.delete(oldest);
+  }
+}
 
 function planKey(
   intent: SessionIntent,
@@ -59,11 +79,11 @@ export async function createPlanCached(
   taste?: TastePreference[],
 ): Promise<PlanResult> {
   const key = planKey(intent, memories, energyWeights, taste);
-  const hit = planCache.get(key);
+  const hit = cacheGet(key);
   if (hit) return clonePlan(hit);
 
   const plan = await createPlan(deps, intent, memories, energyWeights, taste);
-  if (plan.violations.length === 0) planCache.set(key, plan); // don't cache imperfect plans
+  if (plan.violations.length === 0) cacheSet(key, plan); // don't cache imperfect plans
   return clonePlan(plan);
 }
 
@@ -86,15 +106,17 @@ export function peekPlanCache(
 export async function createProvisionalPlan(
   deps: PlanDeps,
   intent: SessionIntent,
+  memories = "",
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
 ): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate> }> {
+  const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
   const candidates = retrieveCandidates(deps.tracks(), {
     mood: intent.mood,
     scene: intent.scene,
     limit: 24,
     slots: FULL_SESSION_LENGTH,
-    energyWeights,
+    energyWeights: effectiveEnergyWeights,
     taste,
   });
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));

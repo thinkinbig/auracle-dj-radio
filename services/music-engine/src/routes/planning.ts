@@ -46,7 +46,7 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
 
     const mode = b.mode ?? "full";
     if (mode === "provisional") {
-      const p = await createProvisionalPlan(deps, intent, b.energyWeights, b.taste);
+      const p = await createProvisionalPlan(deps, intent, b.memories ?? "", b.energyWeights, b.taste);
       return { result: p.result, violations: [], candidates: [...p.candidatesById.values()] };
     }
     if (mode === "extend") {

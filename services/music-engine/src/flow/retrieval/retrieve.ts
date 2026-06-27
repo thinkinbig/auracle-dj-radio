@@ -71,19 +71,39 @@ export function preferredGenresFromTaste(prefs: TastePreference[] | undefined): 
   return set;
 }
 
-export function scoreRetrievalCandidate(
-  track: Pick<TrackRow, "energy" | "id" | "genreSlug" | "artistSlug" | "albumSlug" | "scene">,
-  input: RetrievalScoreInput = {},
-): RetrievalScoreBreakdown {
-  const mood = input.mood ?? "focused";
-  const profile = createMoodEnergyProfile(mood, input.k);
-  const energyPenalty = profile.penalty(track.energy);
+type FitTrack = Pick<TrackRow, "energy" | "id" | "genreSlug" | "artistSlug" | "albumSlug" | "scene">;
+
+interface FitBreakdown {
+  sceneFit: number;
+  genreFit: number;
+  tasteScore: number;
+  skipPenalty: number;
+  /** scene + genre + taste − skip; the energy-independent part shared by both scorers. */
+  fit: number;
+}
+
+/**
+ * Energy-independent fit: scene + genre + taste − skip. Production retrieval ranks
+ * within a fixed-energy bucket by this; `scoreRetrievalCandidate` adds the mood
+ * energy penalty on top. One core so the tested scorer matches the live ranker.
+ */
+function fitScore(track: FitTrack, input: Omit<RetrievalScoreInput, "mood" | "k">): FitBreakdown {
   const scene = sceneFit(track.scene, input.scene ?? "");
   const genre = genreFit(track.genreSlug, input.preferredGenres ?? new Set());
   const tasteScore = input.taste?.scoreFor(track) ?? 0;
   const skipPenalty = input.energyWeights?.[track.energy] ?? 0;
-  const score = -energyPenalty + scene + genre + TASTE_WEIGHT * tasteScore - SKIP_PENALTY_WEIGHT * skipPenalty;
-  return { energyPenalty, sceneFit: scene, genreFit: genre, tasteScore, skipPenalty, score };
+  const fit = scene + genre + TASTE_WEIGHT * tasteScore - SKIP_PENALTY_WEIGHT * skipPenalty;
+  return { sceneFit: scene, genreFit: genre, tasteScore, skipPenalty, fit };
+}
+
+export function scoreRetrievalCandidate(
+  track: FitTrack,
+  input: RetrievalScoreInput = {},
+): RetrievalScoreBreakdown {
+  const mood = input.mood ?? "focused";
+  const energyPenalty = createMoodEnergyProfile(mood, input.k).penalty(track.energy);
+  const f = fitScore(track, input);
+  return { energyPenalty, sceneFit: f.sceneFit, genreFit: f.genreFit, tasteScore: f.tasteScore, skipPenalty: f.skipPenalty, score: -energyPenalty + f.fit };
 }
 
 /**
@@ -132,15 +152,12 @@ function rankByFit(
   preferredGenres: ReadonlySet<string>,
   taste: TasteScorer | undefined,
   energyWeights: Partial<Record<number, number>> | undefined,
-  k: number,
+  limit: number,
 ): Scored<TrackRow>[] {
   const scored = tracks.map((item) => ({
     item,
-    score: sceneFit(item.scene, scene)
-      + genreFit(item.genreSlug, preferredGenres)
-      + TASTE_WEIGHT * (taste?.scoreFor(item) ?? 0)
-      - SKIP_PENALTY_WEIGHT * (energyWeights?.[item.energy] ?? 0),
+    score: fitScore(item, { scene, preferredGenres, taste, energyWeights }).fit,
   }));
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, k);
+  return scored.slice(0, limit);
 }
