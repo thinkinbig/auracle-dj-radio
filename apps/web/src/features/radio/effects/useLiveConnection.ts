@@ -116,7 +116,7 @@ export function useLiveConnection({
             void prefetchTracks(remainingIds);
             store.dispatchRef.current({
               type: 'tracklist_updated',
-              remainingIds,
+              remaining: msg.remaining,
               sessionTitle: msg.session_title,
               sessionSubtitle: msg.session_subtitle,
             });

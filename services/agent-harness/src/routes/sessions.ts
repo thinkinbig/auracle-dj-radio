@@ -73,6 +73,13 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     return result;
   });
 
+  app.post("/sessions/:id/regenerate", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const result = await harness.regenerateQueue(id);
+    if (!result) return reply.code(404).send({ error: "session not found" });
+    return result;
+  });
+
   app.post("/sessions/:id/events", async (req, reply) => {
     const { id } = req.params as { id: string };
     const { event_type, payload } = (req.body ?? {}) as { event_type?: string; payload?: unknown };

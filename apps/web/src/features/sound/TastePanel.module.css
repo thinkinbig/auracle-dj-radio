@@ -1,13 +1,66 @@
 .panel {
   display: grid;
-  gap: 16px;
+  gap: 22px;
+  padding-top: 8px;
+}
+
+.overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: end;
+  padding: 20px;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(141, 247, 167, 0.13), rgba(255, 255, 255, 0.045) 42%),
+    rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.overline {
+  margin-bottom: 8px;
+  color: rgba(141, 247, 167, 0.78);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .summary {
-  color: rgba(141, 247, 167, 0.86);
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  max-width: 680px;
+  color: rgba(248, 250, 252, 0.9);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 760;
+  line-height: 1.28;
+}
+
+.signalStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.signalStats span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px;
+  background: rgba(5, 6, 5, 0.64);
+  color: rgba(248, 250, 252, 0.46);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.signalStats strong {
+  color: #f8fafc;
+  font-size: 1rem;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .muted {
@@ -34,59 +87,73 @@
 
 .group {
   display: grid;
-  gap: 10px;
+  gap: 14px;
   margin: 0;
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.16);
+  padding: 0;
+  border: 0;
 }
 
 .group legend {
-  padding: 0 6px;
-  color: rgba(248, 250, 252, 0.7);
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 0 0 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.group legend span {
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 1rem;
+  font-weight: 820;
 }
 
 .group legend small {
-  margin-left: 6px;
-  color: rgba(248, 250, 252, 0.4);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: none;
+  color: rgba(248, 250, 252, 0.44);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.35;
+  text-align: right;
 }
 
-/* Polarity toggle */
 .polarity {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: repeat(3, minmax(58px, 1fr));
   flex: 0 0 auto;
-  gap: 4px;
+  gap: 2px;
+  min-width: 184px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.075);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .polarityBtn {
   min-height: 30px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(248, 250, 252, 0.66);
-  font-size: 0.74rem;
-  font-weight: 800;
+  border: 0;
+  background: transparent;
+  color: rgba(248, 250, 252, 0.58);
+  font-size: 0.7rem;
+  font-weight: 820;
   letter-spacing: 0.04em;
   cursor: pointer;
 }
 
+.polaritySm {
+  min-width: 166px;
+}
+
 .polaritySm .polarityBtn {
   min-height: 26px;
-  padding: 0 10px;
-  font-size: 0.68rem;
+  padding: 0 7px;
+  font-size: 0.62rem;
 }
 
 .polarityBtn:disabled {
-  opacity: 0.32;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
@@ -96,155 +163,196 @@
 }
 
 .polarityBtn.prefer {
-  color: #07150c;
-  background: rgba(141, 247, 167, 0.9);
-  border-color: rgba(141, 247, 167, 0.9);
+  color: #061209;
+  background: #8df7a7;
+  box-shadow: 0 8px 26px rgba(141, 247, 167, 0.2);
+}
+
+.polarityBtn.neutral {
+  color: rgba(248, 250, 252, 0.9);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .polarityBtn.avoid {
-  color: #1a0710;
-  background: rgba(244, 114, 182, 0.9);
-  border-color: rgba(244, 114, 182, 0.9);
+  color: #19050e;
+  background: #f472b6;
+  box-shadow: 0 8px 26px rgba(244, 114, 182, 0.18);
 }
 
-/* Genres */
 .chipGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .chipRow {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 6px 6px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 10px;
+  min-height: 42px;
+  padding: 6px 6px 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .chipLabel {
-  font-size: 0.86rem;
-  font-weight: 600;
+  color: rgba(248, 250, 252, 0.84);
+  font-size: 0.84rem;
+  font-weight: 720;
+  white-space: nowrap;
 }
 
 .chipLabel small {
-  margin-left: 4px;
-  color: rgba(248, 250, 252, 0.4);
-  font-size: 0.72rem;
+  margin-left: 5px;
+  color: rgba(248, 250, 252, 0.38);
+  font-size: 0.68rem;
 }
 
-/* Artists & albums */
 .artistList {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .artistCard {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  min-width: 0;
   padding: 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.075);
 }
 
 .artistHead {
-  display: flex;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
 }
 
 .avatar {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   object-fit: cover;
   background: rgba(255, 255, 255, 0.1);
 }
 
 .artistName {
-  flex: 1 1 auto;
-  font-size: 0.95rem;
-  font-weight: 700;
+  min-width: 0;
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 0.92rem;
+  font-weight: 780;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .albumList {
   display: grid;
-  gap: 4px;
-  padding-left: 44px;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
 }
 
 .albumRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 0;
+  gap: 10px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.albumCover {
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .albumTitle {
-  color: rgba(248, 250, 252, 0.74);
-  font-size: 0.84rem;
+  min-width: 0;
+  color: rgba(248, 250, 252, 0.66);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Tracks */
 .trackList {
   display: grid;
-  gap: 6px;
-  max-height: 340px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 420px;
+  padding-right: 4px;
   overflow-y: auto;
 }
 
 .trackRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  padding: 6px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  min-width: 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .cover {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 auto;
-  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
   object-fit: cover;
   background: rgba(255, 255, 255, 0.1);
 }
 
 .trackMeta {
-  flex: 1 1 auto;
   display: grid;
   min-width: 0;
+  gap: 2px;
 }
 
 .trackMeta strong {
-  font-size: 0.85rem;
-  white-space: nowrap;
+  min-width: 0;
+  color: rgba(248, 250, 252, 0.9);
+  font-size: 0.82rem;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .trackMeta small {
-  color: rgba(248, 250, 252, 0.46);
-  font-size: 0.74rem;
+  min-width: 0;
+  color: rgba(248, 250, 252, 0.42);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Free text */
 .freeText {
   width: 100%;
+  min-height: 96px;
   resize: vertical;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.24);
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.045);
   color: #f8fafc;
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.freeText::placeholder {
+  color: rgba(248, 250, 252, 0.34);
 }
 
 .freeText:focus-visible {
@@ -252,10 +360,11 @@
   box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.3);
 }
 
-/* Orphans */
 .orphanGroup {
-  border-color: rgba(244, 114, 182, 0.2);
-  background: rgba(244, 114, 182, 0.05);
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(244, 114, 182, 0.055);
+  border: 1px solid rgba(244, 114, 182, 0.16);
 }
 
 .orphanList {
@@ -268,32 +377,45 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: rgba(248, 250, 252, 0.5);
+  color: rgba(248, 250, 252, 0.55);
   font-size: 0.82rem;
 }
 
 .orphanRow code {
-  color: rgba(248, 250, 252, 0.66);
+  color: rgba(248, 250, 252, 0.7);
 }
 
 .removeBtn {
-  min-height: 26px;
+  min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  border: 1px solid rgba(244, 114, 182, 0.36);
+  border: 1px solid rgba(244, 114, 182, 0.34);
   background: transparent;
   color: rgba(244, 114, 182, 0.92);
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 820;
   cursor: pointer;
 }
 
-/* Actions */
 .actions {
-  display: flex;
+  position: static;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(9, 11, 10, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.saveHint {
+  min-width: 0;
+  color: rgba(248, 250, 252, 0.5);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .saveBtn {
@@ -301,8 +423,8 @@
   padding: 0 22px;
   border-radius: 999px;
   border: none;
-  background: rgba(141, 247, 167, 0.92);
-  color: #07150c;
+  background: #8df7a7;
+  color: #061209;
   font-size: 0.86rem;
   font-weight: 900;
   letter-spacing: 0.04em;
@@ -320,7 +442,86 @@
 }
 
 .saved {
+  grid-column: 1 / -1;
   color: rgba(141, 247, 167, 0.86);
   font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 720;
+}
+
+@media (max-width: 920px) {
+  .overview,
+  .artistList,
+  .trackList {
+    grid-template-columns: 1fr;
+  }
+
+  .signalStats {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .overview {
+    padding: 16px;
+  }
+
+  .signalStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .signalStats span {
+    padding: 10px;
+  }
+
+  .group legend {
+    display: grid;
+    gap: 5px;
+  }
+
+  .group legend small {
+    text-align: left;
+  }
+
+  .chipRow,
+  .artistHead,
+  .trackRow,
+  .albumRow {
+    grid-template-columns: 1fr;
+  }
+
+  .chipRow {
+    display: grid;
+    border-radius: 8px;
+  }
+
+  .artistHead,
+  .trackRow {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .artistHead .polarity,
+  .trackRow .polarity {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .albumRow {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .albumRow .polarity,
+  .chipRow .polarity {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .actions {
+    position: static;
+    grid-template-columns: 1fr;
+  }
+
+  .saveHint {
+    white-space: normal;
+  }
 }

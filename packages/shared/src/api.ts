@@ -30,6 +30,17 @@ export interface SessionStateResponse {
   mem0_context: string;
 }
 
+/** Response of POST /sessions/:id/regenerate. */
+export interface RegenerateSessionResponse {
+  ok: boolean;
+  replanned: boolean;
+  session_title: string;
+  session_subtitle: string;
+  current_track_index: number;
+  tracklist: FlowTrackRef[];
+  remaining: FlowTrackRef[];
+}
+
 /** Body of POST /sessions/:id/events. */
 export interface SessionEvent {
   event_type: string;

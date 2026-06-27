@@ -1,10 +1,8 @@
 import type { CSSProperties, FormEvent } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AuthUser } from '@auracle/shared';
 import { DJ_NAME } from '@/shared/lib/constants';
 import { evalMode } from '@/shared/lib/evalMode';
-import { formatTime } from '@/shared/lib/formatTime';
-import { useCatalogLoaded, useCatalogTracks } from '@/shared/hooks/useTrackCatalog';
 import { login, register } from './authApi';
 import styles from './LandingPage.module.css';
 
@@ -22,8 +20,6 @@ const guestUser: AuthUser = {
 };
 
 export function LandingPage({ onEnterApp }: LandingPageProps) {
-  const catalogLoaded = useCatalogLoaded();
-  const tracks = useCatalogTracks();
   const [view, setView] = useState<View>('landing');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authError, setAuthError] = useState<string | undefined>();
@@ -93,16 +89,6 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
     }
   }
 
-  const { featured, upNext } = useMemo(() => {
-    if (tracks.length === 0) return { featured: undefined, upNext: [] as typeof tracks };
-    const pick =
-      tracks.find((t) => t.id === 't11') ??
-      tracks[Math.min(10, tracks.length - 1)] ??
-      tracks[0];
-    const rest = tracks.filter((t) => t.id !== pick?.id);
-    return { featured: pick, upNext: rest.slice(0, 2) };
-  }, [tracks]);
-
   return (
     <div className={styles.page}>
       <div className={styles.shell}>
@@ -131,125 +117,189 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
 
         {view === 'landing' ? (
           <>
-          <main id="listen" className={`${styles.hero} ${isBrandTransitioning ? styles.heroLeaving : ''}`}>
-            <section className={styles.copy} aria-labelledby="landing-title">
-              <p className={styles.eyebrow}>Live AI radio for every mood</p>
-              <h1 id="landing-title">Auracle</h1>
-              <p className={styles.lede}>
-                A polished web radio player that turns your mood into a hosted station, with DJ talk,
-                smart queues, and a cinematic listening room.
-              </p>
-              <div className={styles.actions}>
-                <button
-                  className={styles.primaryButton}
-                  type="button"
-                  onClick={() => showAuth('register')}
-                  disabled={isBrandTransitioning}
-                >
-                  Start listening
-                </button>
-                {!evalMode ? (
-                <button
-                  className={styles.secondaryButton}
-                  type="button"
-                  onClick={() => enterApp(guestUser)}
-                  disabled={isBrandTransitioning}
-                >
-                  Try demo
-                </button>
-                ) : null}
-              </div>
-              <div className={styles.metrics} aria-label="Product highlights">
-                <span>
-                  <strong>24/7</strong>
-                  adaptive station
-                </span>
-                <span>
-                  <strong>{catalogLoaded ? tracks.length : '…'}</strong>
-                  curated tracks
-                </span>
-                <span>
-                  <strong>Live</strong>
-                  DJ voice
-                </span>
-              </div>
-            </section>
+            <main className={`${styles.hero} ${isBrandTransitioning ? styles.heroLeaving : ''}`}>
+              <section className={styles.copy} aria-labelledby="landing-title">
+                <p className={styles.eyebrow}>Live AI radio for every mood</p>
+                <h1 id="landing-title">Auracle</h1>
+                <p className={styles.lede}>
+                  A polished web radio player that turns your mood into a hosted station, with DJ talk,
+                  smart queues, and a cinematic listening room.
+                </p>
+                <div className={styles.actions}>
+                  <button
+                    className={styles.primaryButton}
+                    type="button"
+                    onClick={() => showAuth('register')}
+                    disabled={isBrandTransitioning}
+                  >
+                    Start listening
+                  </button>
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    onClick={() => enterApp(guestUser)}
+                    disabled={isBrandTransitioning}
+                  >
+                    Try demo
+                  </button>
+                </div>
+                <div className={styles.metrics} aria-label="Product highlights">
+                  <span>
+                    <strong>24/7</strong>
+                    adaptive station
+                  </span>
+                  <span>
+                    <strong>16</strong>
+                    curated tracks
+                  </span>
+                  <span>
+                    <strong>Live</strong>
+                    DJ voice
+                  </span>
+                </div>
+              </section>
 
-            <section className={styles.playerShowcase} aria-label="Auracle web player preview">
-              <div className={styles.albumStack} aria-hidden>
-                <div className={styles.albumBack} />
-                <div
-                  className={styles.albumArt}
-                  style={
-                    featured?.albumCoverUrl
-                      ? {
-                          backgroundImage: `url(${featured.albumCoverUrl})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                        }
-                      : undefined
-                  }
-                >
-                  {!featured?.albumCoverUrl ? <span /> : null}
+              <section className={styles.playerShowcase} aria-label="Auracle web player preview">
+                <div className={styles.albumStack} aria-hidden>
+                  <div className={styles.albumBack} />
+                  <div className={styles.albumArt}>
+                    <span />
+                  </div>
+                </div>
+                <div className={styles.nowPlaying}>
+                  <div>
+                    <p className={styles.status}>On air now</p>
+                    <h2>Midnight Signal</h2>
+                    <p>Auracle DJ is blending soft house, vocal texture, and late-night focus.</p>
+                  </div>
+                  <div className={styles.waveform} aria-hidden>
+                    {Array.from({ length: 24 }, (_, index) => (
+                      <span
+                        key={index}
+                        style={{ '--level': `${24 + ((index * 17) % 54)}%` } as CSSProperties}
+                      />
+                    ))}
+                  </div>
+                  <div className={styles.trackRow}>
+                    <span>01</span>
+                    <div>
+                      <strong>Velvet Room</strong>
+                      <small>Nova Pulse</small>
+                    </div>
+                    <em>3:42</em>
+                  </div>
+                  <div className={styles.trackRow}>
+                    <span>02</span>
+                    <div>
+                      <strong>Glass Coast</strong>
+                      <small>Mirrorline</small>
+                    </div>
+                    <em>4:08</em>
+                  </div>
+                </div>
+              </section>
+            </main>
+
+            <section className={styles.productGuide} aria-labelledby="guide-title">
+              <div className={styles.guideIntro}>
+                <p className={styles.eyebrow}>How Auracle works</p>
+                <h2 id="guide-title">Radio first. Personal by design.</h2>
+                <p>
+                  Auracle opens with a simple mood, then quietly turns your taste, listening behavior,
+                  and DJ memory into a station that feels made for the room you are in.
+                </p>
+              </div>
+
+              <div className={styles.experienceStage} aria-label="Auracle product flow">
+                <div className={styles.experienceDevice} aria-hidden>
+                  <div className={styles.deviceChrome}>
+                    <span>Live station</span>
+                    <strong>Focus Drive</strong>
+                    <p>Soft house, vocal texture, late-night motion.</p>
+                    <div className={styles.signalMap}>
+                      <div className={styles.signalLayer}>
+                        <span>Mood</span>
+                        <i style={{ '--width': '76%' } as CSSProperties} />
+                        <em>Deep focus</em>
+                      </div>
+                      <div className={styles.signalLayer}>
+                        <span>Taste</span>
+                        <i style={{ '--width': '64%' } as CSSProperties} />
+                        <em>Warm vocals</em>
+                      </div>
+                      <div className={styles.signalLayer}>
+                        <span>Memory</span>
+                        <i style={{ '--width': '86%' } as CSSProperties} />
+                        <em>Late-night rooms</em>
+                      </div>
+                    </div>
+                    <div className={styles.deviceMeta}>
+                      <span>DJ memory</span>
+                      <span>3 signals live</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.experienceSteps}>
+                  <article className={styles.experienceCard}>
+                    <span>01</span>
+                    <h3>Pick the moment.</h3>
+                    <p>
+                      Start with mood and context instead of searching. Auracle builds the first room
+                      around what you need now.
+                    </p>
+                  </article>
+                  <article className={styles.experienceCard}>
+                    <span>02</span>
+                    <h3>Let the DJ carry it.</h3>
+                    <p>
+                      The station keeps moving with voice, queueing, and transitions that stay in the
+                      background until they matter.
+                    </p>
+                  </article>
+                  <article className={styles.experienceCard}>
+                    <span>03</span>
+                    <h3>Tune once. Hear it everywhere.</h3>
+                    <p>
+                      Your Sound profile shapes genres, artists, albums, tracks, and memory across future
+                      sessions.
+                    </p>
+                  </article>
                 </div>
               </div>
-              <div className={styles.nowPlaying}>
+
+              <div className={styles.soundPreview} aria-label="Sound profile preview">
                 <div>
-                  <p className={styles.status}>On air now</p>
-                  <h2>{featured?.title ?? 'Midnight Signal'}</h2>
+                  <p className={styles.status}>Core personalization</p>
+                  <h3>Sound profile</h3>
                   <p>
-                    {featured
-                      ? `${featured.artist} — ${featured.lore}`
-                      : 'Auracle DJ is blending soft house, vocal texture, and late-night focus.'}
+                    Prefer what should pull the station closer. Avoid what should stay out. Auracle uses those
+                    choices alongside listening signals and DJ memory.
                   </p>
                 </div>
-                <div className={styles.waveform} aria-hidden>
-                  {Array.from({ length: 24 }, (_, index) => (
-                    <span
-                      key={index}
-                      style={{ '--level': `${24 + ((index * 17) % 54)}%` } as CSSProperties}
-                    />
-                  ))}
+                <div className={styles.profileSignal} aria-hidden>
+                  <span style={{ '--level': '68%' } as CSSProperties} />
+                  <span style={{ '--level': '44%' } as CSSProperties} />
+                  <span style={{ '--level': '78%' } as CSSProperties} />
+                  <span style={{ '--level': '54%' } as CSSProperties} />
+                  <span style={{ '--level': '88%' } as CSSProperties} />
                 </div>
-                {(upNext.length > 0 ? upNext : [undefined, undefined]).map((track, index) => (
-                  <div className={styles.trackRow} key={track?.id ?? `placeholder-${index}`}>
-                    <span>{String(index + 2).padStart(2, '0')}</span>
-                    <div>
-                      <strong>{track?.title ?? (index === 0 ? 'Velvet Room' : 'Glass Coast')}</strong>
-                      <small>{track?.artist ?? (index === 0 ? 'Nova Pulse' : 'Mirrorline')}</small>
-                    </div>
-                    <em>{track ? formatTime(track.durationSec) : index === 0 ? '3:42' : '4:08'}</em>
-                  </div>
-                ))}
+                <ul>
+                  <li>
+                    <strong>Taste</strong>
+                    <span>Genres, artists, albums, tracks</span>
+                  </li>
+                  <li>
+                    <strong>Signals</strong>
+                    <span>Skips, completions, session flow</span>
+                  </li>
+                  <li>
+                    <strong>Memory</strong>
+                    <span>Things the DJ learns over time</span>
+                  </li>
+                </ul>
               </div>
             </section>
-          </main>
-
-          <section id="sound" className={styles.pillarSection} aria-labelledby="sound-pillar-title">
-            <div className={styles.pillarCopy}>
-              <p className={styles.eyebrow}>Taste engineering</p>
-              <h2 id="sound-pillar-title">Your sound shapes every station.</h2>
-              <p>
-                Build a taste profile with genres and artists you love, see what the DJ learns from
-                conversation, and let skip patterns quietly steer the next mix — not EQ knobs, but
-                real personalization that shows up in the tracklist.
-              </p>
-            </div>
-            <ul className={styles.pillarList}>
-              <li>
-                <strong>Your taste</strong>
-                <span>Structured prefer / avoid on genres, artists, albums, and tracks.</span>
-              </li>
-              <li>
-                <strong>Learned</strong>
-                <span>Context the DJ picks up between songs — saved for future sessions.</span>
-              </li>
-              <li>
-                <strong>Signals</strong>
-                <span>Skip and completion patterns that nudge energy and replanning.</span>
-              </li>
-            </ul>
-          </section>
           </>
         ) : (
           <main className={styles.loginStage}>

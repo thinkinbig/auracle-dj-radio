@@ -8,6 +8,7 @@ import type { GenreCount, TrackMeta } from '@auracle/shared';
 export interface BrowseAlbum {
   slug: string;
   title: string;
+  coverUrl: string;
   trackIds: string[];
 }
 
@@ -45,7 +46,7 @@ export function groupCatalog(tracks: TrackMeta[]): BrowseCatalog {
     }
     let album = albums.get(t.albumSlug);
     if (!album) {
-      album = { slug: t.albumSlug, title: t.albumTitle, trackIds: [] };
+      album = { slug: t.albumSlug, title: t.albumTitle, coverUrl: t.albumCoverUrl, trackIds: [] };
       albums.set(t.albumSlug, album);
       artist.albums.push(album);
     }

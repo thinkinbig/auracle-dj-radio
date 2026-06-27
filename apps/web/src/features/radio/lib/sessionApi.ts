@@ -1,4 +1,4 @@
-import type { CreateSessionResponse, HostMode, SessionIntent } from '@auracle/shared';
+import type { CreateSessionResponse, HostMode, RegenerateSessionResponse, SessionIntent } from '@auracle/shared';
 import { clearStoredToken, jsonAuthHeaders } from '@/features/marketing/authApi';
 import { DEMO_SESSION } from '@/data/demoData';
 
@@ -38,6 +38,20 @@ export function postSessionEvent(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event_type: eventType, payload }),
   }).catch(() => {});
+}
+
+/** Ask the harness to regenerate the not-yet-played queue for this session. */
+export async function regenerateSession(sessionId: string): Promise<RegenerateSessionResponse | undefined> {
+  try {
+    const res = await fetch(`/sessions/${sessionId}/regenerate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) return undefined;
+    return (await res.json()) as RegenerateSessionResponse;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Mirror the playhead to memory-service so replan/cues target the right track. */

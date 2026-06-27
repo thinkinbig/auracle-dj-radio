@@ -165,6 +165,24 @@ describe("agent-harness", () => {
     await app.close();
   });
 
+  it("regenerates the remaining queue on request", async () => {
+    const { app, proxy, music, memory } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    const res = await app.inject({ method: "POST", url: `/sessions/${session_id}/regenerate` });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ replanned: boolean; remaining: FlowTrackRef[]; tracklist: FlowTrackRef[] }>();
+    expect(body.replanned).toBe(true);
+    expect(body.remaining.map((r) => r.id)).toEqual(["d", "e"]);
+    expect(body.tracklist.map((r) => r.id)).toEqual(["a", "d", "e"]);
+    expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
+    expect(memory.events.map((e) => e.eventType)).toContain("playlist_regenerate_requested");
+    expect(proxy.injectCalls.at(-1)?.payload.ui_events?.some((e) => e.type === "tracklist_updated")).toBe(true);
+    await app.close();
+  });
+
   it("mirrors now_playing and records skip latency through memory-service", async () => {
     const { app, memory } = buildTestApp();
     await app.ready();

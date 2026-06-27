@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { Condition, HostMode, SessionIntent, TastePreference, TrackMeta } from "@auracle/shared";
+import type { Condition, HostMode, RegenerateSessionResponse, SessionIntent, TastePreference, TrackMeta } from "@auracle/shared";
 import { parseHostMode } from "@auracle/shared";
 import { buildRegistration } from "../dj/registration.js";
 import type { MemoryServiceClient } from "../memory-service-client.js";
 import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
 import { buildAndPushCue } from "../session/cue.js";
-import type { OrchestrationDeps } from "../session/replan.js";
+import { applyReplan, type OrchestrationDeps } from "../session/replan.js";
 import { SessionStore, type SessionState } from "../session/store.js";
 import { runTool, type ToolCall } from "../session/tool-runner.js";
 
@@ -199,6 +199,51 @@ export class AgentHarness {
       });
     }
     return { ok: true, host_mode: nextMode, previous, changed };
+  }
+
+  async regenerateQueue(id: string): Promise<RegenerateSessionResponse | undefined> {
+    const state = this.deps.store.get(id);
+    if (!state) return undefined;
+
+    const before = this.deps.store.remaining(state).map((track) => track.id);
+    const outcome = await applyReplan(this.orchestration, state, {
+      mood: state.intent.mood,
+      energy_delta: "same",
+    });
+
+    await this.deps.memory.recordEvent(id, state.userId, "playlist_regenerate_requested", {
+      current_track_id: state.tracklist[state.currentTrackIndex]?.id ?? null,
+      before,
+      after: outcome.remaining.map((track) => track.id),
+      replanned: outcome.replanned,
+    });
+
+    if (outcome.replanned) {
+      await this.deps.proxy
+        .inject(id, {
+          ui_events: [
+            {
+              type: "tracklist_updated",
+              remaining: outcome.remaining,
+              session_title: state.title,
+              session_subtitle: state.subtitle,
+            },
+          ],
+        })
+        .catch((err) =>
+          this.deps.log?.warn({ err: (err as Error).message, sessionId: id }, "regenerate proxy push failed"),
+        );
+    }
+
+    return {
+      ok: true,
+      replanned: outcome.replanned,
+      session_title: state.title,
+      session_subtitle: state.subtitle,
+      current_track_index: state.currentTrackIndex,
+      tracklist: state.tracklist,
+      remaining: outcome.remaining,
+    };
   }
 
   async recordClientEvent(id: string, eventType: string, payload: unknown): Promise<boolean> {

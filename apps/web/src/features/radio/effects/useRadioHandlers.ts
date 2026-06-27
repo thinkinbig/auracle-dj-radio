@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { HostMode, SessionIntent } from '@auracle/shared';
 import { createAudioBus } from '../lib/liveAudio';
-import { createSession, postHostMode, postSessionEvent, SessionAuthError } from '../lib/sessionApi';
+import { createSession, postHostMode, postSessionEvent, regenerateSession, SessionAuthError } from '../lib/sessionApi';
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
 import type { RadioCommands } from '../lib/radioCommands';
@@ -124,6 +124,21 @@ export function useRadioHandlers({
         feedback,
         track_id: s.trackId,
         remaining_ids: s.remainingTrackIds,
+      });
+    }
+    if (feedback === 'regenerate' && s.sessionId) {
+      void regenerateSession(s.sessionId).then((result) => {
+        if (!result) {
+          store.dispatchRef.current({ type: 'playlist_feedback_failed', feedback });
+          return;
+        }
+        void prefetchTracks(result.remaining.map((track) => track.id));
+        store.dispatchRef.current({
+          type: 'tracklist_updated',
+          remaining: result.remaining,
+          sessionTitle: result.session_title,
+          sessionSubtitle: result.session_subtitle,
+        });
       });
     }
   }, [store]);

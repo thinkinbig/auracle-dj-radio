@@ -19,6 +19,7 @@ export interface TasteEditor {
   errorMessage: string;
   setFreeText: (value: string) => void;
   toggle: (entityType: TasteEntityType, entityId: string, polarity: TastePolarity) => void;
+  clear: (entityType: TasteEntityType, entityId: string) => void;
   removeOrphan: (entityType: TasteEntityType, entityId: string) => void;
   save: () => void;
 }
@@ -70,6 +71,11 @@ export function useTasteEditor(): TasteEditor {
     setSelection((sel) => togglePolarity(sel, entityType, entityId, polarity));
   }, []);
 
+  const clear = useCallback((entityType: TasteEntityType, entityId: string) => {
+    setSaveState('idle');
+    setSelection((sel) => setPolarity(sel, entityType, entityId, null));
+  }, []);
+
   const removeOrphan = useCallback((entityType: TasteEntityType, entityId: string) => {
     setSaveState('idle');
     setSelection((sel) => setPolarity(sel, entityType, entityId, null));
@@ -111,6 +117,7 @@ export function useTasteEditor(): TasteEditor {
     errorMessage,
     setFreeText,
     toggle,
+    clear,
     removeOrphan,
     save,
   };
