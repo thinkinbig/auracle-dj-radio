@@ -83,7 +83,7 @@ auracle-dj-radio/
 |------|-----|-------------------|
 | 曲间实时 DJ | Gemini **Live** | **`gemini-3.1-flash-live-preview`** |
 | Flow 重排 JSON | `generateContent` + schema | `gemini-3.1-flash-lite` |
-| 向量检索 | 暂不换模型 | SQLite + TS 余弦相似度 |
+| 曲库检索（Step 1） | 无 LLM | SQLite 元数据 + TS 结构化打分 |
 
 Live 与 Flow 同进程、同 SDK，共享 `GEMINI_API_KEY`。  
 Live 模型 env：`GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview`（见 `auracle_gemini_integration.md` § 3.1 约束）。
@@ -94,7 +94,7 @@ Live 模型 env：`GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview`（见 `aurac
 
 | 数据 | 存储 | 说明 |
 |------|------|------|
-| 曲库元数据 + embedding | SQLite `tracks` | embedding JSON 列 |
+| 曲库元数据 | SQLite `tracks` | mood/scene/energy/genre tags（无向量列） |
 | 打断 / 重排 / 播放事件 | SQLite `session_events` | 评估复现 |
 | Session plan、播放指针 | **Fastify 内存** | Demo 不持久化 |
 | 用户偏好 | **mem0 OSS**（进程内）+ **Qdrant** | `userId` + `metadata.run_id` |
@@ -103,7 +103,7 @@ Live 模型 env：`GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview`（见 `aurac
 **不需要 PostgreSQL。** mem0 向量走 Qdrant（`pnpm docker:dev` 或 `pnpm docker:prod`）；history 走 SQLite 文件。
 
 ```sql
--- tracks: id, title, artist, energy, tempo, genre, mood, embedding_json, file_path, intro_offset_ms NULL
+-- tracks: id, title, artist, energy, tempo, genre, mood, scene, file_path, intro_offset_ms NULL, …
 -- session_events: session_id, ts, event_type, payload_json
 -- auth_users / auth_sessions: 见 memory-service auth-store（评估 per-user）
 ```
@@ -124,11 +124,17 @@ mem0 `userId` 与 `skipRateByEnergy` 聚合均跟上述 id（⏳ P0 实施）。
 
 ---
 
-## 向量检索（Step 1）
+## 结构化检索（Step 1）
 
-- Fastify 内 TS 余弦相似度，500 首 < 50ms
-- **Embedding 模型**：`gemini-embedding-001`（native 3072 维，不截断），离线预计算写入 SQLite；运行时对 query 调同模型 embed → 余弦 Top-K。离线/测试用 HashEmbedder（768 维，确定性，无需 key）——两者向量空间不同，切换须重建索引
-- 换模型须全量重建索引；Demo 期间曲库固定，一次性建库即可
+- **MVP（当前）**：`music-engine` 内 TS 确定性打分 — mood → energy envelope + scene/genre fit + taste/skip 权重
+- 500 首 < 50ms；1000 首 < 500ms（**当前**不调用 embed API、曲库不连 Qdrant）
+- seed 只写元数据标签：`pnpm --filter @auracle/music-engine seed`
+
+**演进选项（非 MVP）**：**text embedding** — 离线对每首 tag 串做 `gemini-embedding-001` `embedContent`，运行时 embed query，在 energy envelope 内余弦 rerank。与 mem0 **同模型、同模态**（text↔text），不走 cross-modal audio。可 hybrid：结构化打分硬筛 + text embed 细排。
+
+- 设计依据：`docs/adr/0001-deterministic-structured-selection.md`（取代 ADR-0002 **audio** 向量建库；text embed 仍保留为可选路径）
+
+> **与 mem0 的边界**：Issue #31 移除的是 **cross-modal / audio** 曲库 embed 基础设施。`memory-service` 的 **mem0 + Qdrant + `gemini-embedding-001`** 仍是跨 session 用户记忆的核心。曲库日后若加 text embed，可复用同一 embed 模型（索引可仍放 SQLite，不必为曲库单独起 Qdrant）。
 
 ---
 

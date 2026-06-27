@@ -78,7 +78,7 @@ pnpm --filter memory-service dev
 |----|------|
 | 来源 | `session_events` 中 `skip_latency`（含 `energy`） |
 | 聚合 | **per `user_id`**，最近 N 个 session（⏳ P0） |
-| 作用 | Step 1 检索：该 energy 档位 cosine 分 × `(1 − weight)` |
+| 作用 | Step 1 检索：该 energy 档位结构化分 × `(1 − weight)` |
 | 条件 | **仅 Condition C**（A/B 不传 `energyWeights`） |
 
 与 mem0 文本事实互补：skip 权重为**隐式行为**；mem0 为**显式事实**。
@@ -110,7 +110,7 @@ export const memory = new Memory({
     provider: "google",
     config: {
       apiKey: process.env.GEMINI_API_KEY!,
-      model: process.env.GEMINI_EMBED_MODEL ?? "gemini-embedding-001",
+      model: process.env.GEMINI_MEM0_EMBED_MODEL ?? "gemini-embedding-001",
       // omit embeddingDims → use gemini-embedding-001 native 3072 dims
     },
   },
@@ -145,7 +145,7 @@ await memory.add("User prefers lighter energy during study sessions.", {
 |------|------|------|
 | `GEMINI_API_KEY` | — | mem0 LLM + embedder 共用 |
 | `GEMINI_FLOW_MODEL` | `gemini-3.1-flash-lite` | Flow 编排 + mem0 记忆抽取 |
-| `GEMINI_EMBED_MODEL` | `gemini-embedding-001` | mem0 向量（native 3072 维，与曲库 gemini embed 同口径） |
+| `GEMINI_MEM0_EMBED_MODEL` | `gemini-embedding-001` | mem0 向量（native 3072 维；曲库检索不再 embed） |
 | `QDRANT_URL` | `http://localhost:6333` | 本地 Qdrant |
 | `AURACLE_MEM0_HISTORY_DB` | `./data/mem0/history.db` | mem0 变更审计 |
 

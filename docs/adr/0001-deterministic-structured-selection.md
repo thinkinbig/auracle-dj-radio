@@ -10,7 +10,7 @@
 The current music selection pipeline has two quality issues:
 
 1. **Mood→Energy mismatch**: User selects `calm` mood but gets high-energy (5) tracks. Root cause: Energy arc (`energyTargets`) is mood-blind—it always climbs to peak(5-6) regardless of mood.
-2. **Cross-modal embedding noise**: Query (text: `"mood: X | scene: Y"`) matches against track embeddings (Gemini audio: 180s audio clip). Cross-modal cosine similarity is unreliable. With 30 clean-tagged tracks, embedding adds noise, not signal.
+2. **Cross-modal embedding noise**: Query (text: `"mood: X | scene: Y"`) matched against track embeddings (Gemini **audio**: 180s audio clip). Cross-modal cosine similarity is unreliable. With 30 clean-tagged tracks, that path adds noise, not signal. **Same-modality text embedding** (tag string vs query string via `gemini-embedding-001`) remains a valid future option — see Notes.
 3. **Unstable generation quality**: Gemini flow model non-determinism compounds the above. Energy-arc ordering depends on LLM respecting prompt constraints, which sometimes fail.
 
 ## Decision
@@ -20,7 +20,7 @@ Redesign the selection pipeline from **three independent channels** (embedding +
 | Dimension | Before | After |
 |---|---|---|
 | **Energy source** | Arc-blind (always peak 5-6) | mood → energy envelope (direct + soft Gaussian) |
-| **Retrieval** | Cross-modal embedding cosine | Structured scoring (energy penalty + scene/genre/taste fit) |
+| **Retrieval** | Cross-modal **audio** embedding cosine | Structured scoring (MVP); optional future **text** embedding layer |
 | **Ordering** | Gemini LLM (non-deterministic) | Deterministic arc (amplitude = f(mood)) |
 | **Schema** | Qdrant vectors | SQLite (no new DB) |
 
@@ -51,7 +51,9 @@ Where `k` is a tuning knob:
 
 This prevents starvation (30-track catalog) while guaranteeing low-mood sessions don't randomly get peak energy.
 
-### 2. Retrieval: Structured Scoring (Replaces Embedding)
+### 2. Retrieval: Structured Scoring (MVP; Replaces Cross-Modal Audio Embedding)
+
+**Current (MVP)**: deterministic structured scorer — no runtime embed API on the catalog path.
 
 ```typescript
 score(track, intent, taste, mem0) = 
@@ -62,7 +64,9 @@ score(track, intent, taste, mem0) =
   - SKIP_PENALTY * mem0EnergySkip(track.energy, mem0)       // energy preference (tie-break only)
 ```
 
-All terms are deterministic integers or bounded floats. No embedding, no Qdrant, no cross-modal noise.
+All terms are deterministic integers or bounded floats. No cross-modal audio embedding, no catalog Qdrant.
+
+**Future option (not MVP)**: **text-to-text** retrieval — offline `embedContent` on each track's tag string (e.g. `"mood: calm scene: study energy: 2 genre: lo-fi"`), runtime embed on the query, cosine Top-K **within the mood energy envelope**. Same model as mem0 (`gemini-embedding-001`, native 3072). Can hybrid with structured scoring (hard filter + embed rerank).
 
 ### 3. Ordering: Arc Amplitude = f(mood)
 
@@ -110,12 +114,12 @@ Validation becomes **unit-test assertions** and **safety-net checks** (not repai
 ### ✓ Wins
 - **Quality guaranteed**: Quality ∝ algorithm correctness, not LLM randomness. "calm → energy < 3" is a testable invariant.
 - **No starvation**: Soft Gaussian prevents catalog underflow; can expand catalog safely.
-- **Fast**: Retrieval is ~O(catalog) scoring + sort; no embedding calls, no Qdrant latency.
-- **Simpler ops**: One less stateful service (Qdrant). Deployments smaller, fewer failure modes.
+- **Fast**: Retrieval is ~O(catalog) scoring + sort; no embedding calls, no Qdrant latency on the **catalog path**.
+- **Simpler catalog ops**: music-engine no longer depends on Qdrant or embed APIs. **mem0** (memory-service) still uses Qdrant + `gemini-embedding-001` for cross-session user memory — unchanged.
 - **Cacheable**: Deterministic ordering + fixed session intent = deterministic tracklist. Cache invalidation is trivial (taste or memories changed? → cache miss).
 
 ### ⚠ Tradeoffs
-- **Loss of semantic audio matching**: Gemini audio embedding was "heard the song" signal. Now relying purely on structural metadata tags. Mitigation: Treat this as explicit tag-quality requirement. Expand tags (lore, duration, tempo, instrument keywords) as catalog grows.
+- **Loss of semantic audio matching**: Gemini **audio** embedding was "heard the song" signal. MVP relies on structural metadata tags. **Text embedding** on tags can restore semantic matching without cross-modal noise — deferred post-MVP.
 - **No LLM ordering "taste"**: Gemini LLM could (in theory) find subtle genre/mood combos. Now it's rules-based. Mitigation: Taste preference + weights are the new "knob."
 - **Tight coupling to mood taxonomy**: 7 moods is the inventory. Adding/changing moods requires code. Mitigation: Small enumerated set is fine for MVP; can table for future.
 
@@ -126,16 +130,17 @@ Validation becomes **unit-test assertions** and **safety-net checks** (not repai
 3. **Rewrite `energyTargets`**: `arc = f(mood)` instead of unconditional full arc.
 4. **Rewrite `chooseNext`**: Track `adjacentStepPenalty` during selection, not post-validate.
 5. **Async Gemini copywriting**: Move title/reason generation outside critical path.
-6. **Delete**:
+6. **Delete** (cross-modal / audio catalog embed path only):
    - `GeminiEmbedder`, `HashEmbedder`, `embedder.ts`, `audio-clip.ts`, `fallback.ts` embedding fallback.
-   - `Qdrant` dependency and all vector DB wiring.
+   - Catalog-side Qdrant wiring (mem0 Qdrant in memory-service **stays**).
    - `repair.ts` (validation loop).
-   - `track.embedding` SQLite column.
+   - `track.embedding` SQLite column (re-add later if/when text embed index ships).
 7. **Update tests and callers**: Use `selectMoodEnergySequence` directly in structured scorer tests and call sites.
 8. **Mark ADR-0002 (phased catalog embedding) as Superseded**.
 
 ## Notes
 
 - **Catalog expansion**: Structured scoring scales to thousands of tracks (no embedding bottleneck). Refine weights and tolerance bands (`k`) as catalog grows.
-- **Future: Rich tagging**: If we want audio-semantic matching back, add instrument tags / mood-color / production-year / etc. Tags → structured scoring, not embedding.
+- **Future: text embedding (same modality)**: Re-introduce `gemini-embedding-001` for catalog **text** vectors only — tag string at seed time, query string at runtime, cosine rerank inside the energy envelope. Shares embed model with mem0; catalog index can stay in SQLite (`embedding_json`) without a second Qdrant. Supersedes cross-modal audio embed (ADR-0002 Phase 2), not ADR-0002 Phase 1 text path.
+- **Future: Rich tagging**: Instrument tags / mood-color / production-year → structured scoring and/or richer text embed strings.
 - **Taste weighting**: See `taste-weighting.ts` already in codebase; this ADR clarifies its role (semantic only, within energy envelope).

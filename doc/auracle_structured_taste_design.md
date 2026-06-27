@@ -8,7 +8,7 @@
 
 ## 1. 背景
 
-当前个性化以 **mem0 自然语言事实** + **skip 能量权重** 为主，缺少与曲库实体对齐的结构化层（genre / artist / album / track）。曲库目标规模约 **~100 首**（非千曲平台）；流水线仍可 `catalog:compose → seed → embed` 重跑，但若口味绑定裸 `entityId`，用户偏好会在换库后失效。
+当前个性化以 **mem0 自然语言事实** + **skip 能量权重** 为主，缺少与曲库实体对齐的结构化层（genre / artist / album / track）。曲库目标规模约 **~100 首**（非千曲平台）；流水线仍可 `catalog:compose → seed` 重跑，但若口味绑定裸 `entityId`，用户偏好会在换库后失效。
 
 **首发必须迁移现有曲库**：当前 manifest / SQLite 中每首歌已有 metadata（`title`, `lore`, `energy`, `tempo`, `genre`, `mood`, `scene`, `filePath`, `introOffsetMs`, 人声字段等）**全部保留**；结构化改造只做 **additive** 字段（`slug`, `genreSlug`, `catalogRevision`），**不**重写或丢弃既有 tag。
 

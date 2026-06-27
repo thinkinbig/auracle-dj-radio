@@ -32,9 +32,9 @@ playing ──track end──▶ between_tracks ──Live DJ──▶ playing
 
 ## Step 1 — 检索（不用 LLM）
 
-- 输入：`mood` + `scene` + `energy_range`
-- 实现：SQLite `tracks.embedding_json` + TS 余弦相似度
-- 输出：20–30 首候选（id, energy, tempo, genre, mood）
+- 输入：`mood` + `scene`（+ 可选 `energyWeights` / structured taste）
+- 实现：SQLite `tracks` 元数据 + TS 结构化打分（energy penalty + scene/genre fit + taste/skip 权重；见 ADR-0001）
+- 输出：20–30 首候选（id, energy, tempo, genre, mood, scene）
 - 重排时：排除 `played_track_ids`，在 remaining 槽位数内重新召回
 
 ---
