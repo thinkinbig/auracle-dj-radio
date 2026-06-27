@@ -7,6 +7,7 @@ import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
 import { buildAndPushCue } from "../session/cue.js";
 import { applyReplan, type OrchestrationDeps } from "../session/replan.js";
+import { swapNextOnQuickSkip } from "../session/skip-swap.js";
 import { SessionStore, type SessionState } from "../session/store.js";
 import { runTool, type ToolCall } from "../session/tool-runner.js";
 
@@ -149,7 +150,14 @@ export class AgentHarness {
       await this.deps.memory
         .recordEvent(state.id, state.userId, "skip_latency", { ms, from_index: prevIndex, to_index: state.currentTrackIndex, energy })
         .catch((err) => this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "record skip_latency failed"));
-      this.maybeRememberRepeatedQuickSkip(state, listenedMs, energy);
+      const repeatedQuickSkipEnergy = this.trackRepeatedQuickSkip(state, listenedMs, energy);
+      if (repeatedQuickSkipEnergy != null) {
+        this.rememberRepeatedQuickSkip(state, repeatedQuickSkipEnergy);
+        // Deterministic next-track swap on repeated same-energy quick skips (E4):
+        // fire-and-forget so it never blocks the skip round trip; B and C only
+        // (A is excluded upstream). Failures are swallowed inside the module.
+        void swapNextOnQuickSkip(this.orchestration, state, repeatedQuickSkipEnergy);
+      }
       this.deps.log?.info({ sessionId: state.id, ms }, "skip round-trip latency");
     }
     state.trackStartedAtMs = Date.now();
@@ -157,16 +165,26 @@ export class AgentHarness {
     return { current_track_index: state.currentTrackIndex, remaining: this.deps.store.remaining(state) };
   }
 
-  private maybeRememberRepeatedQuickSkip(state: SessionState, listenedMs: number | null, energy: number | null): void {
-    if (state.condition !== "C" || listenedMs == null || listenedMs < 0 || listenedMs >= QUICK_SKIP_MAX_LISTEN_MS || energy == null) {
+  /**
+   * Track the run of quick skips at the same energy. Returns that energy once the
+   * user has quick-skipped it enough times to act on (mem0 write + queue swap),
+   * else null. Condition A never accumulates (ablation); B and C behave the same,
+   * so the swap fires for both.
+   */
+  private trackRepeatedQuickSkip(state: SessionState, listenedMs: number | null, energy: number | null): number | null {
+    if (state.condition === "A" || listenedMs == null || listenedMs < 0 || listenedMs >= QUICK_SKIP_MAX_LISTEN_MS || energy == null) {
       state.quickSkipRun = undefined;
-      return;
+      return null;
     }
 
     const previous = state.quickSkipRun;
     state.quickSkipRun = previous?.energy === energy ? { energy, count: previous.count + 1 } : { energy, count: 1 };
-    if (state.quickSkipRun.count < QUICK_SKIP_MEMORY_THRESHOLD || state.rememberedQuickSkipEnergies.has(energy)) return;
+    return state.quickSkipRun.count >= QUICK_SKIP_MEMORY_THRESHOLD ? energy : null;
+  }
 
+  /** Write a high-signal cross-session mem0 fact for a disliked energy — Condition C only, once per energy. */
+  private rememberRepeatedQuickSkip(state: SessionState, energy: number): void {
+    if (state.condition !== "C" || state.rememberedQuickSkipEnergies.has(energy)) return;
     state.rememberedQuickSkipEnergies.add(energy);
     void this.deps.memory
       .remember(

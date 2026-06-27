@@ -20,6 +20,13 @@ export type Intent =
 export type ServerMessage =
   | { type: "transcript"; role: "user" | "model"; text: string }
   | { type: "phase"; phase: Phase; track_index: number }
-  | { type: "tracklist_updated"; remaining: FlowTrackRef[]; session_title?: string; session_subtitle?: string }
+  | {
+      type: "tracklist_updated";
+      remaining: FlowTrackRef[];
+      session_title?: string;
+      session_subtitle?: string;
+      /** Ids of slots changed in this update, for UI highlight (deterministic skip-swap, E4). */
+      changed_ids?: string[];
+    }
   | { type: "intent"; intent: Intent }
   | { type: "error"; message: string; circuit_state?: string; retry_after_sec?: number };
