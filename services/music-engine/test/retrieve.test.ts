@@ -31,6 +31,19 @@ function pref(p: Partial<TastePreference> & Pick<TastePreference, "entityType" |
 }
 
 describe("retrieveCandidates (structured scorer)", () => {
+  it("calm scoring makes energy 5 effectively unreachable vs scene-matched low energy", () => {
+    const low = scoreRetrievalCandidate(row({ id: "e1", energy: 1, scene: "study", genreSlug: "ambient" }), {
+      mood: "calm",
+      scene: "study",
+    });
+    const high = scoreRetrievalCandidate(row({ id: "e5", energy: 5, scene: "study", genreSlug: "club" }), {
+      mood: "calm",
+      scene: "study",
+    });
+    expect(low.score).toBeGreaterThan(high.score);
+    expect(high.energyPenalty).toBe(32);
+  });
+
   it("calm + study prioritizes energy 1–2 tracks", () => {
     const tracks = [
       row({ id: "e5", energy: 5, scene: "study", genreSlug: "club" }),
