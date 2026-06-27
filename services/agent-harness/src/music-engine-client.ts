@@ -8,6 +8,7 @@ export interface PlanTracklistRequest {
   energyWeights?: Partial<Record<number, number>>;
   /** Structured taste prefer/avoid (Epic #3, S4); passed to retrieval weighting. */
   taste?: TastePreference[];
+  tieBreakSeed?: string;
   replan?: {
     playedIds?: string[];
     played?: TrackCandidate[];
@@ -34,6 +35,7 @@ export interface SearchCatalogRequest {
   scene: string;
   excludeIds?: string[];
   limit?: number;
+  tieBreakSeed?: string;
 }
 
 /**

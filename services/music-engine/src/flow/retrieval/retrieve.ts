@@ -16,6 +16,8 @@ export interface RetrieveInput {
   energyWeights?: Partial<Record<number, number>>;
   /** Structured taste prefer/avoid (Epic #3, S4): reranks matching tracks within the mood envelope. */
   taste?: TastePreference[];
+  /** Stable seed used to rotate equal-score tracks without catalog-order bias. */
+  tieBreakSeed?: string;
 }
 
 export interface Scored<T> {
@@ -129,7 +131,7 @@ export function retrieveCandidates(tracks: TrackRow[], input: RetrieveInput): Tr
   const candidates: TrackCandidate[] = [];
   for (const e of buckets) {
     const bucket = pool.filter((t) => t.energy === e);
-    const ranked = rankByFit(bucket, input.scene, preferredGenres, taste, input.energyWeights, perBucket);
+    const ranked = rankByFit(bucket, input.scene, preferredGenres, taste, input.energyWeights, perBucket, input.tieBreakSeed);
     for (const { item } of ranked) candidates.push(toCandidate(item));
   }
   return candidates;
@@ -153,11 +155,27 @@ function rankByFit(
   taste: TasteScorer | undefined,
   energyWeights: Partial<Record<number, number>> | undefined,
   limit: number,
+  tieBreakSeed: string | undefined,
 ): Scored<TrackRow>[] {
   const scored = tracks.map((item) => ({
     item,
     score: fitScore(item, { scene, preferredGenres, taste, energyWeights }).fit,
   }));
-  scored.sort((a, b) => b.score - a.score);
+  scored.sort((a, b) => {
+    const scoreDelta = b.score - a.score;
+    if (scoreDelta !== 0) return scoreDelta;
+    if (!tieBreakSeed) return 0;
+    return tieBreakValue(tieBreakSeed, a.item.id) - tieBreakValue(tieBreakSeed, b.item.id);
+  });
   return scored.slice(0, limit);
+}
+
+function tieBreakValue(seed: string, id: string): number {
+  let hash = 0x811c9dc5;
+  const input = seed + ":" + id;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
 }

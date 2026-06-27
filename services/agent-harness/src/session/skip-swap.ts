@@ -33,6 +33,7 @@ export async function swapNextOnQuickSkip(
       scene: state.intent.scene,
       excludeIds,
       limit: SWAP_CANDIDATE_LIMIT,
+      tieBreakSeed: state.tieBreakSeed,
     });
 
     // Prefer a different energy than the skipped track; fall back to the top candidate.

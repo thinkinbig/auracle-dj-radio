@@ -63,7 +63,8 @@ export class AgentHarness {
             this.deps.memory.tasteWeights(userId).catch(() => undefined),
           ])
         : ["", undefined, undefined];
-    const plan = await this.deps.music.planTracklist({ intent, mode: "provisional", memories: mem0Context, energyWeights, taste });
+    const tieBreakSeed = randomUUID();
+    const plan = await this.deps.music.planTracklist({ intent, mode: "provisional", memories: mem0Context, energyWeights, taste, tieBreakSeed });
     const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
     const state = this.deps.store.create({
       userId,
@@ -71,6 +72,7 @@ export class AgentHarness {
       condition,
       energyWeights,
       taste,
+      tieBreakSeed,
       title: plan.result.session_title,
       subtitle: plan.result.session_subtitle,
       arc: plan.result.arc,
@@ -121,6 +123,7 @@ export class AgentHarness {
         memories: state.mem0Context,
         energyWeights: state.energyWeights,
         taste: state.taste,
+        tieBreakSeed: state.tieBreakSeed,
       });
       const previousTitle = state.title;
       const previousSubtitle = state.subtitle;

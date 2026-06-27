@@ -95,6 +95,7 @@ export async function applyReplan(
     energyWeights: personalized ? state.energyWeights : undefined,
     taste,
     replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: count },
+    tieBreakSeed: state.tieBreakSeed,
   });
 
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
