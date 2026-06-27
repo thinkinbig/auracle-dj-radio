@@ -21,14 +21,12 @@ export function TrackQueue() {
   const { handlePlaylistFeedback } = useRadioActions();
   const catalogLoaded = useCatalogLoaded();
   const current = useTrackMeta(state.trackId);
-  const feedbackLabel =
-    state.playlistFeedback === 'like'
-      ? 'Station saved'
-      : state.playlistFeedback === 'dislike'
-        ? 'Tuning away'
-        : state.playlistFeedback === 'regenerate'
-          ? 'Queue refreshed'
-          : 'Feedback';
+  let feedbackLabel = 'Feedback';
+  if (state.queueRefreshStatus === 'pending') feedbackLabel = 'Regenerating...';
+  else if (state.queueRefreshStatus === 'complete') feedbackLabel = 'Queue refreshed';
+  else if (state.queueRefreshStatus === 'error') feedbackLabel = 'Try again';
+  else if (state.playlistFeedback === 'like') feedbackLabel = 'Station saved';
+  else if (state.playlistFeedback === 'dislike') feedbackLabel = 'Tuning away';
 
   return (
     <aside className={styles.root} aria-label="Up next" aria-busy={!catalogLoaded || undefined}>
@@ -62,6 +60,7 @@ export function TrackQueue() {
             className={cn(styles.action, state.playlistFeedback === 'regenerate' && styles.actionActive)}
             onClick={() => handlePlaylistFeedback('regenerate')}
             aria-pressed={state.playlistFeedback === 'regenerate'}
+            disabled={state.queueRefreshStatus === 'pending'}
           >
             Regenerate
           </button>

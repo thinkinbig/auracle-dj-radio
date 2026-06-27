@@ -114,21 +114,33 @@ describe('playbackReducer', () => {
     for (const feedback of ['like', 'dislike', 'regenerate'] as const) {
       const next = playbackReducer(base, { type: 'playlist_feedback', feedback });
       expect(next.playlistFeedback).toBe(feedback);
+      if (feedback === 'regenerate') {
+        expect(next.queueRefreshStatus).toBe('pending');
+      }
       // The queue and current track are left for the server's `tracklist_updated`.
       expect(next.remainingTrackIds).toEqual(base.remainingTrackIds);
       expect(next.trackId).toBe(base.trackId);
     }
   });
 
-  it('clears playlist feedback when the server pushes an updated tracklist', () => {
+  it('replaces remaining queue refs when the server pushes an updated tracklist', () => {
     const base = playbackReducer(createInitialPlaybackState(), {
       type: 'start',
       session: DEMO_SESSION,
     });
-    const liked = playbackReducer(base, { type: 'playlist_feedback', feedback: 'like' });
-    const updated = playbackReducer(liked, { type: 'tracklist_updated', remainingIds: ['a', 'b'] });
-    expect(updated.playlistFeedback).toBeNull();
+    const regenerating = playbackReducer(base, { type: 'playlist_feedback', feedback: 'regenerate' });
+    const updated = playbackReducer(regenerating, {
+      type: 'tracklist_updated',
+      remaining: [
+        { id: 'a', flow_position: 2, reason: 'fresh pivot' },
+        { id: 'b', flow_position: 3, reason: 'second fresh slot' },
+      ],
+    });
+    expect(updated.playlistFeedback).toBe('regenerate');
+    expect(updated.queueRefreshStatus).toBe('complete');
     expect(updated.remainingTrackIds).toEqual(['a', 'b']);
+    expect(updated.sessionTracklist.map((track) => track.id)).toEqual([base.trackId, 'a', 'b']);
+    expect(updated.sessionTracklist[1]?.reason).toBe('fresh pivot');
   });
 
   it('counts a fresh user utterance once, not per streamed chunk', () => {

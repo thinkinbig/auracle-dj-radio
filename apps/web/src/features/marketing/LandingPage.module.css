@@ -3,11 +3,11 @@
   color: #f8fafc;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: stretch;
   background:
-    radial-gradient(circle at 18% 18%, rgba(75, 222, 128, 0.2), transparent 28%),
-    radial-gradient(circle at 78% 12%, rgba(244, 114, 182, 0.18), transparent 30%),
-    linear-gradient(135deg, #070807 0%, #111513 44%, #050505 100%);
+    linear-gradient(118deg, rgba(141, 247, 167, 0.14), transparent 28%),
+    linear-gradient(242deg, rgba(255, 158, 92, 0.14), transparent 24%),
+    linear-gradient(135deg, #060806 0%, #101411 46%, #050505 100%);
   background-size: 120% 120%, 130% 130%, 100% 100%;
   overflow-x: hidden;
   overflow-y: auto;
@@ -19,6 +19,7 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  min-height: 100dvh;
 }
 
 .topbar {
@@ -107,6 +108,21 @@
 
 .hero {
   grid-template-columns: minmax(0, 0.95fr) minmax(340px, 1.05fr);
+  position: relative;
+  min-height: calc(100dvh - 138px);
+  padding: 8px 0 28px;
+  isolation: isolate;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  opacity: 0.78;
 }
 
 .heroLeaving .copy {
@@ -136,6 +152,7 @@
   font-size: clamp(4.2rem, 9vw, 8rem);
   line-height: 0.86;
   letter-spacing: 0;
+  text-wrap: balance;
 }
 
 .lede,
@@ -214,9 +231,10 @@
 
 .playerShowcase {
   position: relative;
-  min-height: 580px;
+  min-height: 540px;
   display: grid;
   align-items: end;
+  perspective: 1200px;
 }
 
 .albumStack {
@@ -274,7 +292,22 @@
   margin-left: auto;
   padding: 24px;
   border-radius: 24px;
+  overflow: hidden;
   animation: softEnter 760ms var(--ease-out) 120ms both;
+}
+
+.nowPlaying::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.08) 44%, transparent 62%);
+  transform: translateX(-120%);
+  animation: glassSweep 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.nowPlaying > * {
+  position: relative;
 }
 
 .nowPlaying h2 {
@@ -454,55 +487,281 @@
   font-weight: 800;
 }
 
-.pillarSection {
+.productGuide {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr);
-  gap: clamp(24px, 4vw, 48px);
-  padding: 12px 0 72px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  gap: clamp(46px, 7vw, 88px);
+  padding: clamp(18px, 3vw, 32px) 0 96px;
 }
 
-.pillarCopy {
+.guideIntro {
+  display: grid;
+  gap: 14px;
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.guideIntro h2 {
+  max-width: 880px;
+  font-size: clamp(2.8rem, 7vw, 6.4rem);
+  line-height: 0.92;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.guideIntro p,
+.soundPreview p,
+.experienceCard p,
+.deviceChrome p {
+  color: rgba(248, 250, 252, 0.68);
+  line-height: 1.62;
+}
+
+.experienceStage {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.72fr) minmax(0, 1.28fr);
+  gap: clamp(28px, 6vw, 86px);
+  align-items: start;
+}
+
+.experienceDevice {
+  position: sticky;
+  top: 92px;
+  min-height: 560px;
+  display: grid;
+  align-items: center;
+}
+
+.deviceChrome {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 22px;
+  min-height: 520px;
+  padding: clamp(18px, 4vw, 34px) clamp(18px, 3vw, 28px);
+  overflow: visible;
+}
+
+.deviceChrome::before {
+  content: '';
+  position: absolute;
+  inset: 16% -18% 10% -10%;
+  background:
+    radial-gradient(circle at 26% 24%, rgba(141, 247, 167, 0.22), transparent 36%),
+    linear-gradient(135deg, rgba(141, 247, 167, 0.16), rgba(255, 158, 92, 0.12));
+  filter: blur(34px);
+  opacity: 0.84;
+  transform: rotate(-6deg);
+}
+
+.deviceChrome::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 14%;
+  bottom: 80px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(141, 247, 167, 0.5), rgba(255, 255, 255, 0.12), transparent);
+}
+
+.deviceChrome > * {
+  position: relative;
+  z-index: 1;
+}
+
+.deviceChrome span,
+.deviceMeta {
+  color: rgba(141, 247, 167, 0.78);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.deviceChrome strong {
+  color: #ffffff;
+  max-width: 340px;
+  font-size: clamp(3.4rem, 6vw, 5.8rem);
+  line-height: 0.86;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.signalMap {
+  width: min(100%, 430px);
+  display: grid;
+  gap: 18px;
+  margin: 28px 0 22px;
+}
+
+.signalLayer {
+  display: grid;
+  grid-template-columns: 68px minmax(80px, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.signalLayer span {
+  color: rgba(248, 250, 252, 0.58);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.signalLayer i {
+  position: relative;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.signalLayer i::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--width);
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8df7a7, rgba(255, 255, 255, 0.94));
+  box-shadow: 0 0 28px rgba(141, 247, 167, 0.32);
+  animation: signalTrace 4.8s ease-in-out infinite;
+}
+
+.signalLayer em {
+  color: rgba(248, 250, 252, 0.78);
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.deviceMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  width: min(100%, 430px);
+  padding-top: 18px;
+}
+
+.experienceSteps {
+  display: grid;
+  gap: 16px;
+  padding: 64px 0;
+}
+
+.experienceCard {
+  display: grid;
+  gap: 14px;
+  min-height: 260px;
+  padding: clamp(22px, 4vw, 34px);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(22px);
+}
+
+.experienceCard span {
+  color: rgba(141, 247, 167, 0.82);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.experienceCard h3,
+.soundPreview h3 {
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.soundPreview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(90px, 150px) minmax(300px, 0.74fr);
+  gap: clamp(24px, 5vw, 64px);
+  align-items: center;
+  padding: clamp(24px, 5vw, 46px);
+  border-radius: 34px;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.09), transparent 36%),
+    linear-gradient(145deg, rgba(141, 247, 167, 0.12), rgba(255, 158, 92, 0.07) 52%, rgba(255, 255, 255, 0.035));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(28px);
+}
+
+.soundPreview > div:first-child {
   display: grid;
   gap: 12px;
   max-width: 560px;
 }
 
-.pillarCopy h2 {
-  font-size: clamp(1.8rem, 4vw, 2.6rem);
-  line-height: 1.1;
-}
-
-.pillarCopy p {
-  color: rgba(248, 250, 252, 0.68);
-  line-height: 1.65;
-}
-
-.pillarList {
+.profileSignal {
+  height: 220px;
   display: grid;
-  gap: 12px;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: end;
+  gap: 8px;
+}
+
+.profileSignal span {
+  height: var(--level);
+  min-height: 40px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff, #8df7a7 72%, rgba(141, 247, 167, 0.36));
+  opacity: 0.9;
+  box-shadow: 0 18px 48px rgba(141, 247, 167, 0.16);
+}
+
+.soundPreview ul {
+  display: grid;
+  gap: 1px;
   margin: 0;
-  padding: 0;
+  padding: 1px;
+  overflow: hidden;
+  border-radius: 20px;
   list-style: none;
+  background: rgba(255, 255, 255, 0.12);
 }
 
-.pillarList li {
-  display: grid;
-  gap: 4px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.soundPreview li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  background: rgba(4, 7, 5, 0.72);
 }
 
-.pillarList strong {
-  font-size: 0.92rem;
+.soundPreview strong {
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 0.94rem;
 }
 
-.pillarList span {
+.soundPreview li span {
   color: rgba(248, 250, 252, 0.58);
   font-size: 0.84rem;
-  line-height: 1.45;
+  line-height: 1.35;
+  text-align: right;
+}
+
+@supports (animation-timeline: view()) {
+  .guideIntro,
+  .experienceCard,
+  .soundPreview {
+    animation: revealOnScroll both var(--ease-out);
+    animation-timeline: view();
+    animation-range: entry 8% cover 34%;
+  }
+
+  .experienceDevice {
+    animation: deviceParallax both linear;
+    animation-timeline: view();
+    animation-range: contain 0% cover 80%;
+  }
 }
 
 @media (max-width: 900px) {
@@ -527,9 +786,38 @@
     padding: 32px 0 36px;
   }
 
-  .pillarSection {
+  .productGuide,
+  .soundPreview,
+  .experienceStage {
     grid-template-columns: 1fr;
-    padding-bottom: 48px;
+  }
+
+  .productGuide {
+    padding-bottom: 56px;
+  }
+
+  .guideIntro {
+    text-align: left;
+    margin: 0;
+  }
+
+  .experienceDevice {
+    position: relative;
+    top: auto;
+    min-height: auto;
+  }
+
+  .experienceSteps {
+    padding: 0;
+  }
+
+  .experienceCard {
+    min-height: auto;
+  }
+
+  .profileSignal {
+    height: 130px;
+    max-width: 260px;
   }
 
   .copy h1 {
@@ -566,32 +854,80 @@
     padding-inline: 12px;
   }
 
-  .actions,
+  .actions {
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin-top: 26px;
+  }
+
   .primaryButton,
   .secondaryButton {
-    width: 100%;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    padding-inline: 12px;
   }
 
   .playerShowcase {
-    min-height: 430px;
+    min-height: 252px;
   }
 
   .albumStack {
-    width: 86%;
-    right: 0;
+    display: none;
   }
 
   .nowPlaying {
     padding: 18px;
   }
 
+  .nowPlaying h2 {
+    font-size: clamp(2rem, 11vw, 2.7rem);
+  }
+
+  .nowPlaying p:not(.status) {
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .waveform {
+    height: 58px;
+    margin: 14px 0 0;
+    gap: 4px;
+  }
+
+  .trackRow {
+    display: none;
+  }
+
+  .metrics {
+    gap: 8px;
+    margin-top: 24px;
+  }
+
   .metrics span {
-    flex: 1 1 130px;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 12px;
+    border-radius: 16px;
+    font-size: 0.86rem;
+  }
+
+  .metrics strong {
+    font-size: 1rem;
   }
 
   .formRow {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .soundPreview li {
+    display: grid;
+    gap: 4px;
+  }
+
+  .soundPreview li span {
+    text-align: left;
   }
 }
 
@@ -676,6 +1012,51 @@
   }
 }
 
+@keyframes glassSweep {
+  0%,
+  42% {
+    transform: translateX(-120%);
+  }
+  58%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes signalTrace {
+  0%,
+  100% {
+    opacity: 0.68;
+    transform: scaleX(0.82);
+    transform-origin: left;
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+@keyframes revealOnScroll {
+  from {
+    opacity: 0;
+    transform: translateY(44px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes deviceParallax {
+  from {
+    transform: translateY(28px) rotateX(4deg);
+  }
+  to {
+    transform: translateY(-22px) rotateX(0deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page,
   .copy,
@@ -684,7 +1065,13 @@
   .heroLeaving .playerShowcase,
   .albumStack,
   .nowPlaying,
-  .waveform span {
+  .waveform span,
+  .nowPlaying::before,
+  .signalLayer i::after,
+  .guideIntro,
+  .experienceCard,
+  .soundPreview,
+  .experienceDevice {
     animation: none;
   }
 }

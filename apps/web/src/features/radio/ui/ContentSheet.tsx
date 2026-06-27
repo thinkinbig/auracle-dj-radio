@@ -13,6 +13,7 @@ import {
 import { IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/Icons';
 import { IntentOnboarding } from './IntentOnboarding';
 import { Skeleton } from '@/shared/ui/Skeleton';
+import { SessionSummary } from './SessionSummary';
 import { TranscriptPanel } from './TranscriptPanel';
 import { cn } from '@/shared/lib/cn';
 import styles from './ContentSheet.module.css';
@@ -146,7 +147,10 @@ export function ContentSheet() {
       {showOnboarding ? (
         <IntentOnboarding onStart={(intent) => void handleStart(intent)} disabled={curating} />
       ) : showTranscript ? (
-        <TranscriptPanel djName={DJ_NAME} />
+        <>
+          <SessionSummary />
+          <TranscriptPanel djName={DJ_NAME} />
+        </>
       ) : null}
     </section>
   );

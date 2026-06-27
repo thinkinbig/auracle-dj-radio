@@ -37,6 +37,7 @@ describe('groupCatalog', () => {
     expect(artists.map((a) => a.slug)).toEqual(['aria', 'zara']);
     const aria = artists[0]!;
     expect(aria.albums.map((al) => al.slug)).toEqual(['aria-one', 'aria-two']);
+    expect(aria.albums[0]!.coverUrl).toBe('/c/aria-one.jpg');
     expect(aria.albums[0]!.trackIds).toEqual(['t01', 't03']);
 
     // Flat track list sorted by id.

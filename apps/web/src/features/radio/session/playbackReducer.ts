@@ -1,4 +1,4 @@
-import type { CreateSessionResponse, Phase } from '@auracle/shared';
+import type { CreateSessionResponse, FlowTrackRef, Phase } from '@auracle/shared';
 import { getTrackMeta } from '@/data/trackCatalog';
 import { DEMO_SESSION } from '@/data/demoData';
 import type { PlaybackState, PlaylistFeedback, TranscriptLine, UiPhase } from '@/features/radio/session/types';
@@ -18,8 +18,9 @@ export type PlaybackAction =
   | { type: 'stop_talk' }
   | { type: 'transcript'; role: 'user' | 'model'; text: string }
   | { type: 'server_phase'; phase: Phase; trackIndex?: number }
-  | { type: 'tracklist_updated'; remainingIds: string[]; sessionTitle?: string; sessionSubtitle?: string }
+  | { type: 'tracklist_updated'; remaining: FlowTrackRef[]; sessionTitle?: string; sessionSubtitle?: string }
   | { type: 'playlist_feedback'; feedback: PlaylistFeedback }
+  | { type: 'playlist_feedback_failed'; feedback: PlaylistFeedback }
   | { type: 'set_host_mode'; hostMode: CreateSessionResponse['host_mode'] };
 
 export function createInitialPlaybackState(): PlaybackState {
@@ -44,6 +45,7 @@ export function createInitialPlaybackState(): PlaybackState {
     sessionElapsedSec: 0,
     transcript: [],
     activeTranscriptId: null,
+    sessionTracklist: DEMO_SESSION.tracklist,
     remainingTrackIds: DEMO_SESSION.tracklist.slice(1).map((t) => t.id),
     currentTrackIndex: 0,
     proxyUrl: null,
@@ -52,6 +54,7 @@ export function createInitialPlaybackState(): PlaybackState {
     isTalking: false,
     userUtteranceCount: 0,
     playlistFeedback: null,
+    queueRefreshStatus: 'idle',
   };
 }
 
@@ -95,6 +98,30 @@ function advanceTrack(state: PlaybackState): PlaybackState {
     currentTrackIndex: state.currentTrackIndex + 1,
     remainingTrackIds: state.remainingTrackIds.slice(1),
   };
+}
+
+function replaceRemainingTrackRefs(state: PlaybackState, remaining: FlowTrackRef[]): FlowTrackRef[] {
+  const currentCutoff = state.currentTrackIndex + 1;
+  const currentRef: FlowTrackRef = state.sessionTracklist[state.currentTrackIndex] ?? {
+    id: state.trackId,
+    flow_position: currentCutoff,
+    reason: 'Now playing',
+  };
+  const kept = state.sessionTracklist.length > 0
+    ? state.sessionTracklist.slice(0, currentCutoff)
+    : [currentRef];
+
+  if (!kept[state.currentTrackIndex]) {
+    kept[state.currentTrackIndex] = currentRef;
+  }
+
+  return [
+    ...kept,
+    ...remaining.map((ref, i) => ({
+      ...ref,
+      flow_position: currentCutoff + i + 1,
+    })),
+  ];
 }
 
 const SESSION_CLOCK_PHASES: UiPhase[] = ['playing', 'speaking', 'listening', 'opening'];
@@ -149,6 +176,7 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         sessionElapsedSec: 0,
         transcript: [],
         activeTranscriptId: null,
+        sessionTracklist: action.session.tracklist,
         remainingTrackIds: action.session.tracklist.slice(1).map((t) => t.id),
         currentTrackIndex: 0,
         proxyUrl: action.session.proxy_url,
@@ -157,6 +185,7 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         isTalking: false,
         userUtteranceCount: 0,
         playlistFeedback: null,
+        queueRefreshStatus: 'idle',
       };
     }
     case 'transcript': {
@@ -203,18 +232,33 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         activeTranscriptId: finalize ? null : state.activeTranscriptId,
       };
     }
-    case 'tracklist_updated':
+    case 'tracklist_updated': {
+      const sessionTracklist = replaceRemainingTrackRefs(state, action.remaining);
+      const wasRegenerating = state.queueRefreshStatus === 'pending';
       return {
         ...state,
-        remainingTrackIds: action.remainingIds,
+        sessionTracklist,
+        remainingTrackIds: action.remaining.map((ref) => ref.id),
         sessionTitle: action.sessionTitle ?? state.sessionTitle,
         sessionSubtitle: action.sessionSubtitle ?? state.sessionSubtitle,
-        playlistFeedback: null,
+        playlistFeedback: wasRegenerating ? 'regenerate' : null,
+        queueRefreshStatus: wasRegenerating ? 'complete' : state.queueRefreshStatus,
       };
+    }
     case 'playlist_feedback':
       // The signal is posted to the server for analytics/personalization; the
       // queue itself only changes when the server pushes `tracklist_updated`.
-      return { ...state, playlistFeedback: action.feedback };
+      return {
+        ...state,
+        playlistFeedback: action.feedback,
+        queueRefreshStatus: action.feedback === 'regenerate' ? 'pending' : 'idle',
+      };
+    case 'playlist_feedback_failed':
+      return {
+        ...state,
+        playlistFeedback: action.feedback,
+        queueRefreshStatus: action.feedback === 'regenerate' ? 'error' : state.queueRefreshStatus,
+      };
     case 'set_host_mode':
       return { ...state, hostMode: action.hostMode };
     case 'tick':

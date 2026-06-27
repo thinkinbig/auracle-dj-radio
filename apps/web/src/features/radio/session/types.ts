@@ -1,7 +1,8 @@
-import type { HostMode } from '@auracle/shared';
+import type { FlowTrackRef, HostMode } from '@auracle/shared';
 
 export type UiPhase = 'idle' | 'curating' | 'opening' | 'playing' | 'speaking' | 'listening' | 'paused';
 export type PlaylistFeedback = 'like' | 'dislike' | 'regenerate';
+export type QueueRefreshStatus = 'idle' | 'pending' | 'complete' | 'error';
 
 export interface TranscriptLine {
   id: string;
@@ -30,6 +31,7 @@ export interface PlaybackState {
   sessionElapsedSec: number;
   transcript: TranscriptLine[];
   activeTranscriptId: string | null;
+  sessionTracklist: FlowTrackRef[];
   remainingTrackIds: string[];
   currentTrackIndex: number;
   /** Proxy base URL + token for the browser↔proxy WebRTC session (null in demo fallback). */
@@ -43,4 +45,6 @@ export interface PlaybackState {
   userUtteranceCount: number;
   /** Last explicit playlist feedback action from the listener. */
   playlistFeedback: PlaylistFeedback | null;
+  /** Status for the explicit regenerate path. */
+  queueRefreshStatus: QueueRefreshStatus;
 }
