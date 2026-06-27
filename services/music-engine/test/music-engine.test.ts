@@ -6,7 +6,7 @@ import type { FlowResult, GenreCount, TrackCandidate, TrackMeta } from "@auracle
 import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
 import type { FlowInput, FlowModel } from "../src/flow/llm/flow-model.js";
 import { HeuristicFlowModel } from "../src/flow/llm/heuristic-flow.js";
-import { replan } from "../src/flow/plan.js";
+import { replan, createPlan } from "../src/flow/plan.js";
 import { energyWeightsFromMemories, mergeEnergyWeights } from "../src/flow/weighting/memory-energy.js";
 import { resolveCatalogPath, tracksWithAssets } from "../src/catalog/manifest.js";
 import { buildServer, type MusicEngine } from "../src/server.js";
@@ -120,6 +120,53 @@ describe("music-engine HTTP", () => {
     expect(Array.isArray(body.violations)).toBe(true);
     expect(body.candidates.length).toBeGreaterThan(0);
   }, 10_000);
+
+  it("createPlan does not retry flow model on violations (P2.3)", async () => {
+    let calls = 0;
+    class ViolatingFlow implements FlowModel {
+      async plan(input: FlowInput): Promise<FlowResult> {
+        calls++;
+        const [a, b] = input.candidates;
+        return {
+          session_title: "t",
+          session_subtitle: "s",
+          arc: "build",
+          tracklist: [
+            { id: a!.id, flow_position: 1, reason: "x" },
+            { id: b!.id, flow_position: 2, reason: "y" },
+          ],
+        };
+      }
+    }
+    const row = (id: string, genre: string): TrackRow =>
+      ({
+        id,
+        title: id,
+        artist: "a",
+        artistId: "ar",
+        albumId: "al",
+        albumTitle: "al",
+        lore: "",
+        albumCoverPath: "",
+        artistPhotoPath: "",
+        energy: 2,
+        tempo: 90,
+        genre,
+        mood: "calm",
+        scene: "study",
+        filePath: "",
+        introOffsetMs: null,
+        instrumental: true,
+      }) as TrackRow;
+    const deps = {
+      flowModel: new ViolatingFlow(),
+      tracks: () => [row("a", "ambient"), row("b", "ambient")],
+    };
+
+    const plan = await createPlan(deps, { mood: "calm", scene: "study", duration_min: 25 });
+    expect(calls).toBe(1);
+    expect(plan.violations.some((v) => v.kind === "genre_repeat")).toBe(true);
+  });
 
   it("heuristic flow orders calm sessions inside the low-energy arc", async () => {
     const model = new HeuristicFlowModel();
