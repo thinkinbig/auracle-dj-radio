@@ -3,10 +3,11 @@
     {
       "id": "a-lana-delay",
       "name": "Lana Del Delay",
-      "persona": "Ambient and lo-fi producer. Every track runs through at least three delay pedals — the name is the signal chain.",
+      "persona": "Cinematic dream-pop producer — baroque melancholy meets infinite tape delay. Every track runs through at least three delay pedals; the name is the signal chain.",
       "punOf": "Lana Del Rey (Del Rey → Del Delay, tape delay pedal)",
       "visualHomage": "2010s sad-girl americana album art: vintage California melancholy, film grain, faded Americana flags, motel neon, queen-of-sadness torch-singer palette — plus visible delay pedal / tape echo motifs instead of roses.",
       "vocalHomage": "Lana Del Rey-era cinematic alto: breathy noir delivery, slow vibrato, sad-girl americana phrasing — but delay-washed and more ambient/ethereal, as if sung through three tape-echo pedals. Never impersonate a real singer.",
+      "photoSubject": "Born To Die era sad-girl americana press portrait — young woman with dark wavy hair, cherry-red lips, vintage 1960s Hollywood glamour, soft film grain. Flower crown but roses swapped for glowing rack-mount delay pedals and coiled tape-echo cables. Faded Americana flag or motel neon bokeh behind her. Melancholy queen-of-sadness gaze, California twilight palette. Reads instantly as Lana Del Rey meets tape-delay pun. Stylized caricature homage, not photoreal celebrity impersonation.",
       "photoFile": "a-lana-delay.jpg",
       "slug": "lana-del-delay"
     },
@@ -17,6 +18,7 @@
       "punOf": "Jay-Z (Z → Zzz, asleep at the blueprint)",
       "visualHomage": "Late-90s NYC hip-hop album packaging like The Blueprint era: black-and-gold luxury minimalism, Brooklyn noir, executive cool — but every motif suggests sleep (pillows, bedside lamp, floating Zzz, drooping eyelids). No rapper portrait.",
       "vocalHomage": "Jay-Z Blueprint-era cool conversational flow: NYC cadence, executive confidence, punchy internal rhymes — but half-asleep delivery, slower BPM, mumble-chillhop diction, yawning between phrases. Never impersonate a real rapper.",
+      "photoSubject": "Blueprint-era NYC hip-hop executive press portrait — young Black producer in black-and-gold luxury hoodie with cobalt architectural blueprint-grid print on shoulders. Iconic cool confident rapper pose but hilariously half-asleep: heavy drooping eyelids, mid-yawn, head nodding toward a warm bedside desk lamp. Floating teal Zzz glyphs beside his shoulder. Short fade haircut, clean goatee optional. Reads instantly as 'Jay-Z fell asleep at the blueprint' pun. Stylized caricature homage to late-90s rap album press photos, not photoreal celebrity impersonation.",
       "photoFile": "a-jay-zzz.jpg",
       "slug": "jay-zzz"
     },
@@ -27,6 +29,7 @@
       "punOf": "Justin Bieber (Bieber → Tiger, teen-pop heartthrob + big-cat stripes)",
       "visualHomage": "2010s Justin Bieber album art vocabulary: Purpose-era lavender and soft glow, Believe neon purple-pink, Justice chrome-heart minimalism — merged with bold orange-black tiger-stripe fur and metro turnstile gold. Pop-idol graphic design without any face likeness.",
       "vocalHomage": "2010s teen-pop male tenor: youthful melodic hooks, R&B glide, sticky chorus phrasing — merged with jazztronica pocket and metro-commute rhythm, tiger-stripe funk in ad-libs. Never impersonate a real pop star.",
+      "photoSubject": "2010s teen-pop heartthrob press portrait — young male producer with classic Believe-era swooped side-part hair and soft Purpose lavender studio glow. Handsome pop-idol face visible, confident smile. Bold orange-black tiger-stripe fur collar over purple hoodie, chrome heart pendant, gold metro turnstile token on chain. Hands on compact jazztronica synth keys, neon purple-pink rim light. Pop-star charisma merged with big-cat stripes — reads instantly as Justin Bieber meets Tiger pun. Stylized caricature homage to 2010s Bieber album-era press photos, not photoreal celebrity impersonation.",
       "photoFile": "a-justin-tiger.jpg",
       "slug": "justin-tiger"
     },
@@ -161,7 +164,7 @@
       "coverFile": "alb-lana-delay-midnight.jpg",
       "coverSubject": "Echo Lana Del Rey Born to Die cover DNA: faded Americana flag texture, vintage California melancholy, soft film grain, highway twilight — but swap every rose and flower for glowing tape-delay pedals, coiled echo cables, and rack-mount DELAY units. Lantern glow instead of pop glamour. Born to DIE → Born to DELAY pun must read visually.",
       "slug": "born-to-delay",
-      "sonicBrief": "Cinematic ambient and downtempo palette: tape echo, soft pads, field recordings, brushed percussion, long reverb tails, intimate late-night dynamics."
+      "sonicBrief": "Cinematic dream-pop and baroque pop palette: orchestral strings, trip-hop kick-snare, tremolo guitar, vintage vinyl warmth, long tape-delay tails, Born to Die melancholy, intimate noir atmosphere."
     },
     {
       "id": "alb-jay-zzz-nap",
@@ -169,7 +172,7 @@
       "title": "The Blueprint Nap",
       "concept": "Jay-Zzz's study-session classic — one beat, zero alarms, four bars then repeat.",
       "coverFile": "alb-jay-zzz-nap.jpg",
-      "coverSubject": "Echo Jay-Z The Blueprint cover: cobalt blueprint drafting grid and technical paper texture filling the square, black-and-gold luxury framing — but every line droops into floating Zzz, pillow silhouettes, bedside lamp glow, and drooping eyelids. Hustle replaced by nap. Blueprint → Blueprint NAP pun obvious. No rapper portrait.",
+      "coverSubject": "Echo Jay-Z The Blueprint cover: full cobalt blueprint drafting grid wall filling the square, black-and-gold luxury framing — rumpled bed and single bedside desk lamp as the ONLY focal scene, warm lamp glow on pillow, floating Zzz and drooping eyelid motifs on the blueprint lines. Hustle replaced by nap. Blueprint → Blueprint NAP pun obvious. No rapper portrait.",
       "slug": "the-blueprint-nap",
       "sonicBrief": "Sleepy chillhop palette: dusty boom-bap drums, muted Rhodes, warm vinyl texture, soft sub bass, sparse hooks, low-volume study mix."
     },
@@ -184,12 +187,12 @@
       "sonicBrief": "Pop-leaning jazztronica palette: live electric bass, Rhodes chords, turnstile percussion, tiger-stripe funk guitar, clean commute-ready hooks."
     },
     {
-      "id": "alb-east-coast",
+      "id": "alb-east-of-the-bass",
       "artistId": "a-kayan-east",
       "title": "East of the Bass",
       "concept": "Garage subs and deep-house corridors — Kayan East takes the College Dropout warmth underground, bass pointing east.",
-      "coverFile": "alb-east-coast.jpg",
-      "coverSubject": "Echo Kanye College Dropout cover: warm orange-brown palette, dropout bear mascot posed like the source album — but bear wears a compass badge locked on EAST. UK garage subwoofers and concrete corridor beneath. Eastbound chevrons on floor. WEST → EAST pun dominates. No human face.",
+      "coverFile": "alb-east-of-the-bass.jpg",
+      "coverSubject": "East of the Bass — deep-house and UK future-garage album art, NOT East Coast hip-hop. Warm Dropout-orange concrete basement corridor with exposed subwoofers lining the walls, bass-waveform ripples in the air, shuffled two-step drum pattern as graphic ticks on the floor. Giant compass rose on the far wall, needle locked on E; eastbound chevrons on wet pavement. Small dropout-bear mascot sticker on a pillar — graphic accent only, not a streetwear figure. Sub bass and garage corridor are the hero. WEST → EAST compass pun dominates. No rapper portrait, no boom-bap imagery.",
       "slug": "east-of-the-bass",
       "sonicBrief": "Deep house and future-garage palette: warm sub bass, concrete-room reverb, shuffled drums, filtered chords, eastbound underground motion."
     },
@@ -199,7 +202,7 @@
       "title": "Neon District",
       "concept": "Kayan East's dancefloor gospel — Graduation pastels crashed into peak-hour house, every sign says EAST.",
       "coverFile": "alb-kayan-neon.jpg",
-      "coverSubject": "Echo Kanye Graduation cover: pastel dorm-sky sunset gradient and collegiate bear-graduate silhouette energy from the source — but sun rises from EAST horizon only, giant compass and east arrows over neon nightclub skyline. Campus replaced by peak-hour rave. WEST → EAST pun dominates. No celebrity face.",
+      "coverSubject": "Echo Kanye Graduation cover DNA: flat graphic poster layout, lavender-to-peach sky dome, large warm sun disk rising from the EAST horizon, dropout bear mascot in graduation cap — dynamic jump pose from the source album, NOT a static rooftop silhouette. Below: neon-sign nightclub district skyline with peak-hour marquee rigs, giant compass rose needle locked EAST, eastbound chevrons on the street. Soft pastel stadium glow (lavender, peach, mint) — explicitly NOT magenta synthwave, retrowave, or cyberpunk cityscape. Campus quad replaced by dancefloor district. WEST → EAST pun dominates. No celebrity face.",
       "slug": "neon-district",
       "sonicBrief": "Peak-hour house and nu-disco palette: four-on-the-floor kick, bright disco bass, filtered builds, pastel synth hooks, confident dancefloor lift."
     },
@@ -219,7 +222,7 @@
       "title": "Snooze Protocol",
       "concept": "Jay-Zzz's white-noise appendix — softer than The Blueprint Nap, built for desks that never alarm.",
       "coverFile": "alb-jay-zzz-rem.jpg",
-      "coverSubject": "Echo Blueprint grid paper but every line dissolves into Zzz and desk-lamp halos; cobalt technical drawing meets pillow-soft gradients. Blueprint NAP → SNOOZE PROTOCOL pun reads on cover.",
+      "coverSubject": "Jay-Zzz Snooze Protocol appendix — clinical sleep-lab document aesthetic, deliberately NOT a Blueprint cover repeat. Soft charcoal-to-fog grey field with fine white-noise static grain. Center: muted gold REM sleep-stage waveform (EEG theta traces, slow oscilloscope curves) on minimal graph paper — explicitly NO cobalt architectural blueprint grid, NO bed, NO pillow pile, NO desk lamp scene. Sparse monospace protocol step markers in corners. Black-and-gold executive border. Emptier, softer, colder than The Blueprint Nap. No rapper portrait.",
       "slug": "snooze-protocol",
       "sonicBrief": "Ultra-soft study palette: white-noise beds, desk-lamp ambience, sparse lo-fi drums, muted keys, very gentle transients, no intrusive lead lines."
     },
@@ -360,37 +363,37 @@
       "albumId": "alb-lana-delay-midnight",
       "title": "Paper Lanterns",
       "energy": 1,
-      "tempo": 62,
-      "genre": "ambient",
+      "tempo": 67,
+      "genre": "downtempo",
       "mood": "calm",
       "scene": "study",
       "filePath": "data/tracks/t01.mp3",
       "introOffsetMs": null,
       "lore": "Lana Del Delay taped crackling lantern footage from a Kyoto alley and built the pad around that loop — then ran it through delay until the lanterns echoed tomorrow.",
-      "genreSlug": "ambient",
-      "sonicBrief": "Very slow ambient instrumental. Start with lantern-like field texture and soft pad swell, no drums, long tape-delay repeats, gentle low drone, fade out quietly."
+      "genreSlug": "downtempo",
+      "sonicBrief": "Cinematic dream-pop ballad instrumental. Tremolo guitar, lush orchestral strings, soft trip-hop kick, lantern texture through long tape-delay, Born to Die melancholy, no formless ambient drone."
     },
     {
       "id": "t02",
       "albumId": "alb-lana-delay-midnight",
       "title": "Soft Static",
       "energy": 1,
-      "tempo": 68,
-      "genre": "lo-fi",
+      "tempo": 70,
+      "genre": "downtempo",
       "mood": "mellow",
       "scene": "study",
       "filePath": "data/tracks/t02.mp3",
       "introOffsetMs": null,
       "lore": "Recorded on a dying cassette deck; Lana Del Delay says the hiss is a feature — 'static is just delay that gave up on arriving.'",
-      "genreSlug": "lo-fi",
-      "sonicBrief": "Lo-fi study instrumental with cassette hiss, detuned Rhodes loop, soft brushed snare, barely-there kick, warm wobble, no bright lead or vocal chops."
+      "genreSlug": "downtempo",
+      "sonicBrief": "Vintage dream-pop instrumental. Cassette warmth, detuned tremolo guitar, breathy string pad, soft trip-hop snare, tape-delay on every phrase, sad-girl noir mood, no generic lo-fi study beat."
     },
     {
       "id": "t03",
       "albumId": "alb-lana-delay-midnight",
       "title": "Morning Steam",
       "energy": 2,
-      "tempo": 74,
+      "tempo": 76,
       "genre": "downtempo",
       "mood": "warm",
       "scene": "focus",
@@ -398,7 +401,7 @@
       "introOffsetMs": null,
       "lore": "Written while waiting for kettle steam to clear the window — the first chord lands three seconds late on purpose.",
       "genreSlug": "downtempo",
-      "sonicBrief": "Warm downtempo focus track. Kettle-steam ambience, mallet motif, delayed first chord feel, slow breakbeat, round bass, gradual lift without a drop."
+      "sonicBrief": "Warm baroque dream-pop instrumental. Orchestral strings, tremolo guitar, delayed first chord entry, slow trip-hop breakbeat, round sub bass, kettle-steam texture, cinematic lift without EDM drop."
     },
     {
       "id": "t04",
@@ -420,22 +423,22 @@
       "albumId": "alb-lana-delay-midnight",
       "title": "Tide Pool",
       "energy": 2,
-      "tempo": 84,
-      "genre": "ambient",
+      "tempo": 80,
+      "genre": "downtempo",
       "mood": "calm",
       "scene": "chill",
       "filePath": "data/tracks/t05.mp3",
       "introOffsetMs": null,
       "lore": "Field recordings from a tide pool at dawn; Lana Del Delay delayed each bubble until the tide came back twice.",
-      "genreSlug": "ambient",
-      "sonicBrief": "Calm ambient chill track. Tide-pool bubbles as texture, glassy pads, slow evolving chord bed, distant sub pulse, no obvious drums, spacious dawn reverb."
+      "genreSlug": "downtempo",
+      "sonicBrief": "Dream-pop chill instrumental. Glassy tremolo guitar, tide-pool texture, orchestral swells, gentle trip-hop drums, long reverb and tape-delay tails, dawn melancholy."
     },
     {
       "id": "t06",
       "albumId": "alb-lana-delay-midnight",
       "title": "Glass Garden",
       "energy": 3,
-      "tempo": 92,
+      "tempo": 86,
       "genre": "downtempo",
       "mood": "warm",
       "scene": "focus",
@@ -443,7 +446,7 @@
       "introOffsetMs": null,
       "lore": "Mallet hits sampled from wind chimes on a porch — still the 'uptempo' track on Born to Delay, which tells you everything.",
       "genreSlug": "downtempo",
-      "sonicBrief": "Medium downtempo instrumental. Wind-chime mallets, warm pad chords, relaxed breakbeat, subtle bass movement, mid-song layer lift, polished but gentle master."
+      "sonicBrief": "Baroque pop uptempo instrumental for the album. Wind-chime mallets plus string section, trip-hop breakbeat, tremolo guitar hook, warm vinyl master, cinematic not clubby."
     },
     {
       "id": "t07",
@@ -464,7 +467,7 @@
     },
     {
       "id": "t08",
-      "albumId": "alb-east-coast",
+      "albumId": "alb-east-of-the-bass",
       "title": "City Pulse",
       "energy": 3,
       "tempo": 104,
@@ -579,7 +582,7 @@
     },
     {
       "id": "t15",
-      "albumId": "alb-east-coast",
+      "albumId": "alb-east-of-the-bass",
       "title": "Cooldown",
       "energy": 2,
       "tempo": 82,
@@ -597,7 +600,7 @@
       "albumId": "alb-lana-delay-midnight",
       "title": "Last Light",
       "energy": 1,
-      "tempo": 66,
+      "tempo": 64,
       "genre": "downtempo",
       "mood": "calm",
       "scene": "chill",
@@ -605,37 +608,37 @@
       "introOffsetMs": null,
       "lore": "Lana Del Delay's closing sketch — one sustained note held until the bus reaches the depot, still echoing after everyone left.",
       "genreSlug": "downtempo",
-      "sonicBrief": "Calm downtempo closing instrumental. One sustained pad note, distant bus ambience, sparse mallet hits, soft bass bloom, long echo tails, quiet fade."
+      "sonicBrief": "Slow dream-pop closing ballad. Sustained string note, tremolo guitar echo, sparse trip-hop kick, bus-depot ambience, long tape-delay tail, emotional fade."
     },
     {
       "id": "t17",
       "albumId": "alb-lana-delay-midnight",
       "title": "Delay Lines",
       "energy": 2,
-      "tempo": 70,
-      "genre": "ambient",
+      "tempo": 72,
+      "genre": "downtempo",
       "mood": "mellow",
       "scene": "study",
       "filePath": "data/tracks/t17.mp3",
       "introOffsetMs": null,
       "lore": "Lana Del Delay traced the bus route on a map and assigned each stop a delay time — the pad only resolves when every line finally catches up.",
-      "genreSlug": "ambient",
-      "sonicBrief": "Mellow ambient study instrumental. Map-like delay patterns, layered pads resolving slowly, tiny percussive ticks, no drums up front, meditative stereo movement."
+      "genreSlug": "downtempo",
+      "sonicBrief": "Melancholic dream-pop study instrumental. Layered delay guitars resolving like bus routes, orchestral pads, soft trip-hop tick, meditative Born to Die mood."
     },
     {
       "id": "t18",
       "albumId": "alb-lana-delay-midnight",
       "title": "Feedback Room",
-      "energy": 3,
-      "tempo": 88,
-      "genre": "lo-fi",
+      "energy": 2,
+      "tempo": 84,
+      "genre": "downtempo",
       "mood": "warm",
       "scene": "focus",
       "filePath": "data/tracks/t18.mp3",
       "introOffsetMs": null,
       "lore": "Recorded in a rehearsal space where the monitors never quite stopped ringing — Lana Del Delay called the room a collaborator and billed it as co-producer.",
-      "genreSlug": "lo-fi",
-      "sonicBrief": "Warm lo-fi focus instrumental. Rehearsal-room feedback as pad, dusty drums, Rhodes chords, controlled monitor ring, gentle bass, medium energy without clutter."
+      "genreSlug": "downtempo",
+      "sonicBrief": "Warm baroque dream-pop instrumental. Rehearsal-room reverb, string stabs, trip-hop drums, tremolo guitar, Rhodes through tape delay, cinematic focus without club energy."
     },
     {
       "id": "t19",
@@ -701,7 +704,7 @@
     },
     {
       "id": "t23",
-      "albumId": "alb-east-coast",
+      "albumId": "alb-east-of-the-bass",
       "title": "Sub Corridor",
       "energy": 2,
       "tempo": 88,
@@ -716,7 +719,7 @@
     },
     {
       "id": "t24",
-      "albumId": "alb-east-coast",
+      "albumId": "alb-east-of-the-bass",
       "title": "Garage Receipt",
       "energy": 4,
       "tempo": 108,
@@ -763,7 +766,7 @@
     },
     {
       "id": "t27",
-      "albumId": "alb-east-coast",
+      "albumId": "alb-east-of-the-bass",
       "title": "Compass Fade",
       "energy": 1,
       "tempo": 60,

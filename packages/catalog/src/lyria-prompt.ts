@@ -3,8 +3,8 @@ import type { CatalogAlbum, CatalogArtist, CatalogTrack } from "@auracle/shared"
 /** Per-artist sonic identity — instruments and groove, not production FX jargon. */
 export const ARTIST_SONIC_CHARTER: Record<string, { anchor: string; forbid: string }> = {
   "lana-del-delay": {
-    anchor: "slow ambient pads, gentle delay washes, brushed or minimal drums",
-    forbid: "trap 808s, EDM drops, bright supersaw leads, aggressive vocals",
+    anchor: "cinematic dream-pop and baroque pop: tremolo guitar, orchestral strings, trip-hop beats, vintage vinyl warmth, heavy reverb and tape-delay washes, sad-girl americana mood",
+    forbid: "pure ambient drone beds, generic lo-fi study beats, EDM drops, trap 808s, bright supersaw leads",
   },
   "jay-zzz": {
     anchor: "mellow boom-bap drums, dusty jazz samples, sleepy swung groove",
@@ -15,7 +15,7 @@ export const ARTIST_SONIC_CHARTER: Record<string, { anchor: string; forbid: stri
     forbid: "generic house four-on-the-floor, trap hi-hats",
   },
   "kayan-east": {
-    anchor: "warm house subs, shuffled garage percussion, bold east-coast energy",
+    anchor: "warm house subs, shuffled garage percussion, bold eastbound groove",
     forbid: "acoustic folk, lo-fi bedroom hiss, slow ballad pacing",
   },
   "taylor-drift": {

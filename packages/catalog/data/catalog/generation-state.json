@@ -1,22 +1,22 @@
 {
   "tracks": {
     "t01": {
-      "fingerprint": "8ab5ce695fd46ce1"
+      "fingerprint": "c0aef6cb289cf936"
     },
     "t02": {
-      "fingerprint": "cb2753dce0bdd023"
+      "fingerprint": "653754658313299c"
     },
     "t03": {
-      "fingerprint": "1a954c3ad0eb87ce"
+      "fingerprint": "9d7e6117ff298d24"
     },
     "t04": {
       "fingerprint": "06b49cd4360faf95"
     },
     "t05": {
-      "fingerprint": "6d566f0da7b10f42"
+      "fingerprint": "872e99ff2c52e2a0"
     },
     "t06": {
-      "fingerprint": "f9baf0a9fc908019"
+      "fingerprint": "2cfd83cf141ce8f7"
     },
     "t07": {
       "fingerprint": "0c7b269b0a013052"
@@ -306,7 +306,7 @@
       "fingerprint": "fe06cf7eb69c1776"
     },
     "alb-jay-zzz-nap": {
-      "fingerprint": "0623a2e2d57812bf"
+      "fingerprint": "c9d7d6c6d1f1c8f9"
     },
     "alb-justin-tiger-suit": {
       "fingerprint": "9a57259e9dbe6658"
@@ -315,13 +315,13 @@
       "fingerprint": "862c76a3fdb21938"
     },
     "alb-kayan-neon": {
-      "fingerprint": "b79c366a23e4a052"
+      "fingerprint": "bdcaef05f0d4d7d7"
     },
     "alb-taylor-drift": {
       "fingerprint": "2fec3cf7994b7e55"
     },
     "alb-jay-zzz-rem": {
-      "fingerprint": "2b1a9d861ec74ba9"
+      "fingerprint": "e55e03eab09cf7c2"
     },
     "alb-justin-night": {
       "fingerprint": "7ea69d11600b70d8"
@@ -365,13 +365,13 @@
   },
   "artistPhotos": {
     "a-lana-delay": {
-      "fingerprint": "2220a2cc8b7ba926"
+      "fingerprint": "3c48309173006cf1"
     },
     "a-jay-zzz": {
-      "fingerprint": "5d3ed83cc64f1bd7"
+      "fingerprint": "7682977c238dffb6"
     },
     "a-justin-tiger": {
-      "fingerprint": "10c6775256400329"
+      "fingerprint": "b36e91180271b1e5"
     },
     "a-kayan-east": {
       "fingerprint": "bbd664740a3eabb5"
@@ -392,10 +392,10 @@
       "fingerprint": "7813bf73564e50ff"
     },
     "a-sawa-node": {
-      "fingerprint": "4d89091b6ce85a1d"
+      "fingerprint": "594c2609ae084491"
     },
     "a-zone-render": {
-      "fingerprint": "a147c4f904c83bf9"
+      "fingerprint": "c635de9a915f14ce"
     },
     "a-gtr-808": {
       "fingerprint": "e4c31d1b24368fe3"
