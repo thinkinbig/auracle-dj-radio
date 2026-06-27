@@ -11,7 +11,6 @@ import {
   moodEnergyCenter,
   moodEnergyEnvelope,
   selectMoodEnergySequence,
-  selectTracksForMoodSlots,
   type EnergyPenaltyFn,
   type MoodEnergyEnvelope,
 } from "../src/mood.js";
@@ -82,7 +81,7 @@ test("calm + 5 slots fills without repeating track ids", () => {
     id: `t${i}`,
     energy: i < 4 ? 1 : 2,
   }));
-  const picks = selectTracksForMoodSlots(catalog, "calm", 5);
+  const picks = selectMoodEnergySequence(catalog, { profile: createMoodEnergyProfile("calm"), slots: 5 });
   assert.equal(picks.length, 5);
   assert.equal(new Set(picks.map((t) => t.id)).size, 5);
   assert.ok(picks.every((t) => t.energy <= 2));
@@ -115,7 +114,7 @@ test("starvation: calm borrows higher energy before reusing a track", () => {
     { id: "e", energy: 3 },
     { id: "f", energy: 4 },
   ];
-  const picks = selectTracksForMoodSlots(catalog, "calm", 5, 0.25);
+  const picks = selectMoodEnergySequence(catalog, { profile: createMoodEnergyProfile("calm", 0.25), slots: 5 });
   assert.equal(picks.length, 5);
   assert.equal(new Set(picks.map((t) => t.id)).size, 5);
 });
@@ -130,7 +129,7 @@ test("euphoric + 8 slots includes energy 4 and 5", () => {
     id: `t${i}`,
     energy: (i % 5) + 1,
   }));
-  const picks = selectTracksForMoodSlots(catalog, "euphoric", 8);
+  const picks = selectMoodEnergySequence(catalog, { profile: createMoodEnergyProfile("euphoric"), slots: 8 });
   const energies = new Set(picks.map((t) => t.energy));
   assert.ok(energies.has(4));
   assert.ok(energies.has(5));

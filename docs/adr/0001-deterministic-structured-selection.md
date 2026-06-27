@@ -131,7 +131,7 @@ Validation becomes **unit-test assertions** and **safety-net checks** (not repai
    - `Qdrant` dependency and all vector DB wiring.
    - `repair.ts` (validation loop).
    - `track.embedding` SQLite column.
-7. **Update tests**: Replace embedding-based retrieval tests with structured scorer unit tests.
+7. **Update tests and callers**: Use `selectMoodEnergySequence` directly in structured scorer tests and call sites.
 8. **Mark ADR-0002 (phased catalog embedding) as Superseded**.
 
 ## Notes

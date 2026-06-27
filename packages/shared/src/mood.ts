@@ -160,15 +160,5 @@ export function selectMoodEnergySequence<T extends EnergyPickable>(
   return picks;
 }
 
-/** Back-compatible wrapper for tests and callers that only need mood + slot count. */
-export function selectTracksForMoodSlots<T extends EnergyPickable>(
-  catalog: T[],
-  mood: string,
-  slots: number,
-  k: number = DEFAULT_ENERGY_PENALTY_K,
-): T[] {
-  return selectMoodEnergySequence(catalog, { profile: createMoodEnergyProfile(mood, k), slots });
-}
-
 /** Bound implementation of {@link EnergyPenaltyFn} for injection / composition. */
 export const energyPenaltyFn: EnergyPenaltyFn = energyPenalty;
