@@ -19,7 +19,7 @@ apps/api (Fastify + TypeScript)  :3000
 **一个进程、一种语言** — Live 与编排同仓，无 Go 双后端。  
 Gemini 协议可参考 [thinkinbig/rt_llm_proxy](https://github.com/thinkinbig/rt_llm_proxy)，但 Demo **不依赖**该仓库。
 
-详细设计见 [`doc/`](doc/)。曲库检索为确定性结构化打分（见 [`docs/adr/0001-deterministic-structured-selection.md`](docs/adr/0001-deterministic-structured-selection.md)）。
+详细设计见 [`doc/`](doc/)。曲库检索 MVP 为确定性结构化打分（[`docs/adr/0001-deterministic-structured-selection.md`](docs/adr/0001-deterministic-structured-selection.md)）；日后可演进 **text embedding**（`gemini-embedding-001`，同模态 tag↔query，与 mem0 共用 embed 模型）。**跨 session 用户记忆仍走 mem0**（`memory-service` + Qdrant；见 [`doc/auracle_memory_decision.md`](doc/auracle_memory_decision.md)）。
 
 ## 本地开发
 
@@ -50,7 +50,7 @@ pnpm docker:prod                   # 构建并启动全栈（读 .env）
 pnpm docker:down                   # 停止容器，保留 volumes
 ```
 
-Compose：`docker-compose.prod.yml`（答辩/部署，全栈，仅暴露 web）。
+Compose：`docker-compose.prod.yml`（答辩/部署，全栈含 **Qdrant for mem0**，仅暴露 web）。
 
 Phase 1 Demo：**Desktop Chrome**。见 `doc/auracle_pwa_audio_notes.md`。
 
