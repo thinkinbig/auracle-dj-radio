@@ -6,6 +6,7 @@ import { AppBrand } from '@/features/marketing/AppBrand';
 import { AuthStatus } from '@/features/marketing/AuthStatus';
 import { LandingPage } from '@/features/marketing/LandingPage';
 import { logout, restoreUser } from '@/features/marketing/authApi';
+import { ImportPlaylistScreen } from '@/features/playlist-import/ImportPlaylistScreen';
 import { MoodPickerScreen } from '@/features/radio/ui/MoodPickerScreen';
 import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import { SoundScreen } from '@/features/sound/SoundScreen';
@@ -39,12 +40,26 @@ function AppContent() {
 
 function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const [showSound, setShowSound] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const state = useRadioState();
   const { handleReturnToSetup } = useRadioActions();
   const appView = getAppView(state.phase);
 
   if (showSound) {
-    return <SoundScreen user={user} onClose={() => setShowSound(false)} />;
+    return (
+      <SoundScreen
+        user={user}
+        onClose={() => setShowSound(false)}
+        onOpenImport={() => {
+          setShowSound(false);
+          setShowImport(true);
+        }}
+      />
+    );
+  }
+
+  if (showImport) {
+    return <ImportPlaylistScreen user={user} onClose={() => setShowImport(false)} />;
   }
 
   return (
@@ -53,7 +68,12 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
         onClick={appView === 'playing' ? handleReturnToSetup : undefined}
         label={appView === 'playing' ? 'Set your station' : undefined}
       />
-      <AuthStatus user={user} onLogout={onLogout} onOpenSound={() => setShowSound(true)} />
+      <AuthStatus
+        user={user}
+        onLogout={onLogout}
+        onOpenSound={() => setShowSound(true)}
+        onOpenImport={() => setShowImport(true)}
+      />
       <AppContent />
     </>
   );

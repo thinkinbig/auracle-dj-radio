@@ -6,11 +6,12 @@ interface AuthStatusProps {
   user: AuthUser;
   onLogout: () => void;
   onOpenSound: () => void;
+  onOpenImport: () => void;
 }
 
 type AccountView = 'overview' | 'profile';
 
-export function AuthStatus({ user, onLogout, onOpenSound }: AuthStatusProps) {
+export function AuthStatus({ user, onLogout, onOpenSound, onOpenImport }: AuthStatusProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<AccountView>('overview');
   const rootRef = useRef<HTMLDivElement>(null);
@@ -87,6 +88,16 @@ export function AuthStatus({ user, onLogout, onOpenSound }: AuthStatusProps) {
                 >
                   <span>Sound</span>
                   <small>Taste engineering — genres, learned prefs, signals</small>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onOpenImport();
+                  }}
+                >
+                  <span>Import playlist</span>
+                  <small>CSV, paste, or Spotify export metadata</small>
                 </button>
                 <button type="button" onClick={() => setView('profile')}>
                   <span>Profile</span>

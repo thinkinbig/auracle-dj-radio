@@ -219,8 +219,22 @@
   font-size: 0.84rem;
 }
 
+.importButton {
+  justify-self: start;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  color: #061209;
+  background: #8df7a7;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
 .backButton:focus-visible,
-.backToDemo:focus-visible {
+.backToDemo:focus-visible,
+.importButton:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.38);
 }

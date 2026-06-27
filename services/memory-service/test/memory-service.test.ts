@@ -7,6 +7,7 @@ import { AuthStore } from "../src/auth-store.js";
 import { buildCatalogIndex, type CatalogIndex } from "../src/catalog-index.js";
 import { EventsDb } from "../src/events-db.js";
 import type { MemoryClient } from "../src/memory/client.js";
+import { PlaylistStore } from "../src/playlist-store.js";
 import { TasteStore } from "../src/taste/taste-store.js";
 import { buildServer } from "../src/server.js";
 
@@ -61,17 +62,20 @@ let app: ReturnType<typeof buildServer>;
 let events: EventsDb;
 let auth: AuthStore;
 let memory: RecordingMemory;
+let playlists: PlaylistStore;
 let taste: TasteStore;
 
 beforeAll(async () => {
   const dbPath = join(mkdtempSync(join(tmpdir(), "memory-service-")), "events.sqlite");
   const authDbPath = join(mkdtempSync(join(tmpdir(), "memory-service-auth-")), "auth.sqlite");
   const tasteDbPath = join(mkdtempSync(join(tmpdir(), "memory-service-taste-")), "taste.sqlite");
+  const playlistDbPath = join(mkdtempSync(join(tmpdir(), "memory-service-playlists-")), "playlists.sqlite");
   events = new EventsDb(dbPath);
   auth = new AuthStore(authDbPath);
   taste = new TasteStore(tasteDbPath);
+  playlists = new PlaylistStore(playlistDbPath);
   memory = new RecordingMemory();
-  app = buildServer({ events, memory, auth, taste, catalog: testCatalog() });
+  app = buildServer({ events, memory, auth, taste, playlists, catalog: testCatalog() });
   await app.ready();
 });
 
@@ -80,6 +84,7 @@ afterAll(async () => {
   events.close();
   auth.close();
   taste.close();
+  playlists.close();
 });
 
 /** Register a fresh user and return its id + bearer token. */
@@ -454,7 +459,7 @@ describe("memory-service /users/me/taste (S2)", () => {
       { genres: [{ slug: "lo-fi", label: "Lo-Fi" }], mapping: {} },
       "test-rev-002",
     );
-    const app2 = buildServer({ events, memory, auth, taste, catalog: reloaded });
+    const app2 = buildServer({ events, memory, auth, taste, playlists, catalog: reloaded });
     await app2.ready();
     try {
       const get = await app2.inject({ method: "GET", url: "/users/me/taste", headers });
@@ -468,5 +473,76 @@ describe("memory-service /users/me/taste (S2)", () => {
     } finally {
       await app2.close();
     }
+  });
+});
+
+describe("memory-service /users/me/playlists", () => {
+  it("requires authentication", async () => {
+    const get = await app.inject({ method: "GET", url: "/users/me/playlists" });
+    expect(get.statusCode).toBe(401);
+    const post = await app.inject({
+      method: "POST",
+      url: "/users/me/playlists",
+      payload: { name: "Archive", source: "manual", tracks: [{ title: "A", artist: "B" }] },
+    });
+    expect(post.statusCode).toBe(401);
+  });
+
+  it("saves imported playlist metadata, lists it, and writes memory context", async () => {
+    const { id, token } = await registerUser("playlist-import@example.com");
+    const headers = { authorization: `Bearer ${token}` };
+    const before = memory.facts.length;
+
+    const post = await app.inject({
+      method: "POST",
+      url: "/users/me/playlists",
+      headers,
+      payload: {
+        name: "Fourteen years",
+        source: "spotify_export",
+        tracks: [
+          { title: "Night Drive", artist: "Nova Pulse", album: "After Hours", genre: "Synthwave", year: 2014 },
+          { title: "Glass Coast", artist: "Nova Pulse", genre: "Synthwave", year: 2018 },
+          { title: "Rain Study", artist: "Lana Delay", genre: "Ambient", year: 2021 },
+        ],
+      },
+    });
+    expect(post.statusCode).toBe(201);
+    const profile = post.json<{ profile: { id: string; trackCount: number; summary: { topArtists: string[]; topGenres: string[]; yearStart: number; yearEnd: number } } }>().profile;
+    expect(profile.trackCount).toBe(3);
+    expect(profile.summary.topArtists[0]).toBe("Nova Pulse");
+    expect(profile.summary.topGenres).toEqual(["Synthwave", "Ambient"]);
+    expect(profile.summary.yearStart).toBe(2014);
+    expect(profile.summary.yearEnd).toBe(2021);
+
+    const list = await app.inject({ method: "GET", url: "/users/me/playlists", headers });
+    expect(list.statusCode).toBe(200);
+    expect(list.json<{ playlists: { id: string }[] }>().playlists[0]?.id).toBe(profile.id);
+
+    expect(memory.facts.length).toBe(before + 1);
+    expect(memory.facts.at(-1)).toMatchObject({ userId: id });
+    expect(memory.facts.at(-1)?.fact).toContain("Fourteen years");
+    expect(memory.facts.at(-1)?.fact).toContain("Nova Pulse");
+  });
+
+  it("rejects malformed playlist imports", async () => {
+    const { token } = await registerUser("playlist-invalid@example.com");
+    const headers = { authorization: `Bearer ${token}` };
+
+    const badSource = await app.inject({
+      method: "POST",
+      url: "/users/me/playlists",
+      headers,
+      payload: { name: "Bad", source: "api", tracks: [{ title: "A", artist: "B" }] },
+    });
+    expect(badSource.statusCode).toBe(400);
+
+    const noTracks = await app.inject({
+      method: "POST",
+      url: "/users/me/playlists",
+      headers,
+      payload: { name: "Bad", source: "manual", tracks: [] },
+    });
+    expect(noTracks.statusCode).toBe(400);
   });
 });

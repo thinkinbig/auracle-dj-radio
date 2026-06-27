@@ -5,9 +5,10 @@ import styles from './SoundScreen.module.css';
 interface SoundScreenProps {
   user: AuthUser;
   onClose: () => void;
+  onOpenImport?: () => void;
 }
 
-export function SoundScreen({ user, onClose }: SoundScreenProps) {
+export function SoundScreen({ user, onClose, onOpenImport }: SoundScreenProps) {
   const isGuest = user.id === 'guest';
 
   return (
@@ -78,6 +79,19 @@ export function SoundScreen({ user, onClose }: SoundScreenProps) {
             </section>
 
             <div className={styles.supportGrid}>
+              <section className={styles.block} aria-labelledby="sound-archive-title">
+                <div className={styles.blockHeader}>
+                  <h2 id="sound-archive-title">Archive</h2>
+                  <span className={styles.badge}>Import</span>
+                </div>
+                <p className={styles.blockCopy}>
+                  Bring in a long-running playlist so Auracle can treat it as personal radio memory.
+                </p>
+                <button className={styles.importButton} type="button" onClick={onOpenImport}>
+                  Import playlist
+                </button>
+              </section>
+
               <section className={styles.block} aria-labelledby="sound-learned-title">
                 <div className={styles.blockHeader}>
                   <h2 id="sound-learned-title">Learned</h2>
