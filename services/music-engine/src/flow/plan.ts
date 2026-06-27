@@ -93,6 +93,7 @@ export async function createProvisionalPlan(
     mood: intent.mood,
     scene: intent.scene,
     limit: 24,
+    slots: FULL_SESSION_LENGTH,
     energyWeights,
     taste,
   });
@@ -144,6 +145,7 @@ export async function createPlan(
     mood: intent.mood,
     scene: intent.scene,
     limit: 24,
+    slots: FULL_SESSION_LENGTH,
     energyWeights: effectiveEnergyWeights,
     taste,
   });
@@ -178,6 +180,8 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
     scene: input.intent.scene,
     excludeIds: new Set(input.playedIds),
     limit: Math.max(24, input.remainingSlots * 3),
+    slots: input.remainingSlots,
+    lastPlayedEnergy: input.lastPlayedEnergy,
     energyWeights: effectiveEnergyWeights,
     taste: input.taste,
   });
@@ -219,6 +223,8 @@ export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<Pl
     scene: input.intent.scene,
     excludeIds: new Set(input.playedIds),
     limit: Math.max(24, input.appendSlots * 3),
+    slots: input.appendSlots,
+    lastPlayedEnergy: input.lastPlayedEnergy,
     energyWeights: effectiveEnergyWeights,
     taste: input.taste,
   });

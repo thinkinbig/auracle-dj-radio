@@ -1,5 +1,5 @@
 import type { TastePreference, TrackCandidate } from "@auracle/shared";
-import { createMoodEnergyProfile, toCandidate } from "@auracle/shared";
+import { FULL_SESSION_LENGTH, createMoodEnergyProfile, energyTargetsForMood, toCandidate } from "@auracle/shared";
 import type { TrackRow } from "../../catalog-db.js";
 import { buildTasteScorer, type TasteScorer } from "../weighting/taste-weighting.js";
 
@@ -8,6 +8,10 @@ export interface RetrieveInput {
   scene: string;
   excludeIds?: Set<string>;
   limit?: number;
+  /** Arc slot count used to compute energy buckets (defaults to FULL_SESSION_LENGTH). */
+  slots?: number;
+  /** Last played energy for replan glide; null/undefined = fresh session. */
+  lastPlayedEnergy?: number | null;
   /** Energy-level skip weights (1–5 → 0–0.7): penalises tracks at energies the user often skips. */
   energyWeights?: Partial<Record<number, number>>;
   /** Structured taste prefer/avoid (Epic #3, S4): reranks matching tracks within the mood envelope. */
@@ -82,24 +86,61 @@ export function scoreRetrievalCandidate(
   return { energyPenalty, sceneFit: scene, genreFit: genre, tasteScore, skipPenalty, score };
 }
 
-/** Step 1 — structured mood/scene scoring; no embedding (ADR-0001). */
+/**
+ * Step 1 — stratified candidate retrieval; no embedding (ADR-0001).
+ *
+ * Instead of a global mood-energy score that collapses the pool to a single
+ * energy level, we compute which energy buckets the arc actually visits
+ * (floor + ceil of each arc target) and take the top-K tracks per bucket
+ * ranked by scene/taste fit only. The heuristic flow then sequences them
+ * along the arc targets, giving a natural glide for replans and arc variety
+ * for fresh sessions.
+ */
 export function retrieveCandidates(tracks: TrackRow[], input: RetrieveInput): TrackCandidate[] {
   const pool = input.excludeIds ? tracks.filter((t) => !input.excludeIds!.has(t.id)) : tracks;
   const taste = input.taste && input.taste.length > 0 ? buildTasteScorer(input.taste) : undefined;
   const preferredGenres = preferredGenresFromTaste(input.taste);
-  const scoreInput: RetrievalScoreInput = {
-    mood: input.mood,
-    scene: input.scene,
-    taste,
-    energyWeights: input.energyWeights,
-    preferredGenres,
-  };
-  const ranked = rankByScore(pool, (t) => scoreRetrievalCandidate(t, scoreInput).score, input.limit ?? 24);
-  return ranked.map((s) => toCandidate(s.item));
+
+  const slots = input.slots ?? FULL_SESSION_LENGTH;
+  const arcTargets = energyTargetsForMood(slots, input.mood, input.lastPlayedEnergy ?? null);
+  const buckets = arcEnergyBuckets(arcTargets);
+  const perBucket = Math.ceil((input.limit ?? 24) / buckets.size);
+
+  const candidates: TrackCandidate[] = [];
+  for (const e of buckets) {
+    const bucket = pool.filter((t) => t.energy === e);
+    const ranked = rankByFit(bucket, input.scene, preferredGenres, taste, input.energyWeights, perBucket);
+    for (const { item } of ranked) candidates.push(toCandidate(item));
+  }
+  return candidates;
 }
 
-function rankByScore<T>(items: T[], scoreOf: (item: T) => number, k: number): Scored<T>[] {
-  const scored = items.map((item) => ({ item, score: scoreOf(item) }));
+/** Unique integer energy levels touched by the arc targets (floor + ceil of each target). */
+function arcEnergyBuckets(targets: number[]): Set<number> {
+  const buckets = new Set<number>();
+  for (const t of targets) {
+    buckets.add(Math.max(1, Math.floor(t)));
+    buckets.add(Math.min(5, Math.ceil(t)));
+  }
+  return buckets;
+}
+
+/** Score tracks within a single energy bucket by scene/taste fit (no mood energy penalty). */
+function rankByFit(
+  tracks: TrackRow[],
+  scene: string,
+  preferredGenres: ReadonlySet<string>,
+  taste: TasteScorer | undefined,
+  energyWeights: Partial<Record<number, number>> | undefined,
+  k: number,
+): Scored<TrackRow>[] {
+  const scored = tracks.map((item) => ({
+    item,
+    score: sceneFit(item.scene, scene)
+      + genreFit(item.genreSlug, preferredGenres)
+      + TASTE_WEIGHT * (taste?.scoreFor(item) ?? 0)
+      - SKIP_PENALTY_WEIGHT * (energyWeights?.[item.energy] ?? 0),
+  }));
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, k);
 }

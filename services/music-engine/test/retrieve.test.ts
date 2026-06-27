@@ -44,7 +44,7 @@ describe("retrieveCandidates (structured scorer)", () => {
     expect(high.energyPenalty).toBe(32);
   });
 
-  it("calm + study prioritizes energy 1–2 tracks", () => {
+  it("calm + study: only energy 1–2 candidates (arc buckets cover [1, 1.5] → {1, 2})", () => {
     const tracks = [
       row({ id: "e5", energy: 5, scene: "study", genreSlug: "club" }),
       row({ id: "e1", energy: 1, scene: "study", genreSlug: "ambient" }),
@@ -52,16 +52,18 @@ describe("retrieveCandidates (structured scorer)", () => {
       row({ id: "e2", energy: 2, scene: "study", genreSlug: "chillhop" }),
     ];
     const ranked = retrieveCandidates(tracks, { mood: "calm", scene: "study", limit: 4 });
-    expect(ranked.map((t) => t.id)).toEqual(["e1", "e2", "e3", "e5"]);
-    expect(ranked.every((t) => t.energy <= 2 || ranked.indexOf(t) >= 2)).toBe(true);
+    // e3 and e5 are outside the calm arc range and excluded by stratified retrieval
+    expect(ranked.map((t) => t.id)).toEqual(["e1", "e2"]);
+    expect(ranked.every((t) => t.energy <= 2)).toBe(true);
   });
 
-  it("ignores track mood when ranking candidates", () => {
+  it("ignores track.mood display field when ranking within-bucket candidates", () => {
+    // Both tracks are energy=1 (in calm arc bucket); scene match decides rank, not track.mood
     const tracks = [
       row({ id: "display-mood", energy: 1, scene: "study", genreSlug: "ambient", mood: "stormy archive note" }),
-      row({ id: "catalog-mood", energy: 5, scene: "study", genreSlug: "ambient", mood: "calm" }),
+      row({ id: "catalog-mood", energy: 1, scene: "gym",   genreSlug: "techno",  mood: "calm" }),
     ];
-    const ranked = retrieveCandidates(tracks, { mood: "calm", scene: "study", limit: 2 });
+    const ranked = retrieveCandidates(tracks, { mood: "calm", scene: "study" });
     expect(ranked.map((t) => t.id)).toEqual(["display-mood", "catalog-mood"]);
   });
 
