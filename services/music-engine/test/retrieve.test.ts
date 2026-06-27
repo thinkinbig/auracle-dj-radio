@@ -71,6 +71,26 @@ describe("retrieveCandidates (structured scorer)", () => {
     expect(low).toBeGreaterThan(highPreferred);
   });
 
+  it("treats mem0 skip penalties as a tie-break, not a mood override", () => {
+    const preferArtist = buildTasteScorer([
+      pref({ entityType: "artist", entityId: "fav-artist", polarity: "prefer", strength: 3 }),
+    ]);
+    const calmPreferred = scoreRetrievalCandidate(
+      row({ id: "calm-preferred", energy: 2, scene: "study", genreSlug: "ambient", artistSlug: "fav-artist" }),
+      { mood: "calm", scene: "study", taste: preferArtist },
+    ).score;
+    const calmPreferredSkipped = scoreRetrievalCandidate(
+      row({ id: "calm-preferred", energy: 2, scene: "study", genreSlug: "ambient", artistSlug: "fav-artist" }),
+      { mood: "calm", scene: "study", taste: preferArtist, energyWeights: { 2: 0.7 } },
+    ).score;
+    const highPreferredSkipped = scoreRetrievalCandidate(
+      row({ id: "high-preferred", energy: 5, scene: "study", genreSlug: "ambient", artistSlug: "fav-artist" }),
+      { mood: "calm", scene: "study", taste: preferArtist, energyWeights: { 2: 0.7 } },
+    ).score;
+    expect(calmPreferredSkipped).toBeLessThan(calmPreferred);
+    expect(calmPreferredSkipped).toBeGreaterThan(highPreferredSkipped);
+  });
+
   it("normalizes studying → study for scene fit", () => {
     const tracks = [
       row({ id: "match", energy: 1, scene: "study", genreSlug: "ambient" }),
