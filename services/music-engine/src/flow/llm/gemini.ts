@@ -1,9 +1,9 @@
 import { Type } from "@google/genai";
 import type { FlowResult } from "@auracle/shared";
 import { buildHardRulesText } from "@auracle/shared";
-import { config } from "../config.js";
-import { resolveCatalogPath } from "../catalog/manifest.js";
-import { createGeminiClient } from "../gemini/client.js";
+import { config } from "../../config.js";
+import { resolveCatalogPath } from "../../catalog/manifest.js";
+import { createGeminiClient } from "../../gemini/client.js";
 import type { Embedder, EmbedTrackInput } from "./embedder.js";
 import { formatEmbedQuery } from "./embedder.js";
 import { readAudioEmbedClip } from "./audio-clip.js";

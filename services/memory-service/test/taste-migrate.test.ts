@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CatalogManifest, TastePreference } from "@auracle/shared";
 import { buildCatalogIndex, type CatalogIndex } from "../src/catalog-index.js";
-import { planMigration, runMigration } from "../src/taste-migrate.js";
-import { TasteStore } from "../src/taste-store.js";
+import { planMigration, runMigration } from "../src/taste/taste-migrate.js";
+import { TasteStore } from "../src/taste/taste-store.js";
 
 function catalog(artistId: string, trackIds: string[], rev: string): CatalogIndex {
   const manifest = {

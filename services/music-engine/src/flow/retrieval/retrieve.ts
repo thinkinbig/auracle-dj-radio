@@ -1,8 +1,8 @@
 import type { TastePreference, TrackCandidate } from "@auracle/shared";
 import { toCandidate } from "@auracle/shared";
-import type { TrackRow } from "../catalog-db.js";
-import type { Embedder } from "./embedder.js";
-import { buildTasteScorer, type TasteScorer } from "./taste-weighting.js";
+import type { TrackRow } from "../../catalog-db.js";
+import type { Embedder } from "../llm/embedder.js";
+import { buildTasteScorer, type TasteScorer } from "../weighting/taste-weighting.js";
 
 export interface RetrieveInput {
   mood: string;

@@ -3,7 +3,7 @@ import { AuthStore } from "./auth-store.js";
 import { loadCatalogIndex } from "./catalog-index.js";
 import { EventsDb } from "./events-db.js";
 import { createMemoryClient } from "./memory/client.js";
-import { TasteStore } from "./taste-store.js";
+import { TasteStore } from "./taste/taste-store.js";
 import { buildServer } from "./server.js";
 
 const app = buildServer({

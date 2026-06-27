@@ -5,7 +5,7 @@ import type {
   TastePreference,
   TasteSource,
 } from "@auracle/shared";
-import type { CatalogIndex } from "./catalog-index.js";
+import type { CatalogIndex } from "../catalog-index.js";
 
 const ENTITY_TYPES = new Set<TasteEntityType>(["genre", "artist", "album", "track"]);
 const POLARITIES = new Set<TastePolarity>(["prefer", "avoid"]);

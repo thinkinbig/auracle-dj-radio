@@ -110,7 +110,8 @@ VOICE
 TOOLS
 - ${moodRule}
 - change_host_mode → switch speaking style only; playlist unchanged. NOT for music taste changes.
-- skip_track, pause_playback, record_preference as documented. For a plain "skip"/"next" request, call only skip_track; do not also call mood_change or record_preference unless the user explicitly states a taste, mood, or energy change.
+- pause_playback: action="pause" when user asks to pause/stop; action="resume" when user asks to continue/play/restart. Always respond with acknowledgment.
+- skip_track, record_preference as documented. For a plain "skip"/"next" request, call only skip_track; do not also call mood_change or record_preference unless the user explicitly states a taste, mood, or energy change.
 
 CONTEXT (preferences carried across sessions)
 ${context}
