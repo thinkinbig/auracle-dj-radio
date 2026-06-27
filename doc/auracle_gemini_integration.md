@@ -317,7 +317,7 @@ Next: "{next_title}".
 
 | 表面 | circuit open / 单次失败 | 本地 fallback |
 |------|-------------------------|---------------|
-| Flow 编排 | 跳过 Gemini | `HeuristicFlowModel`（确定性能量弧线） |
+| Flow 编排 | 无 Gemini 依赖 | `HeuristicFlowModel`（确定性能量弧线） |
 | Step 1 检索 | 无 Gemini 依赖 | 结构化打分始终本地运行 |
 | Live DJ | **拒绝 connect**，WS 推 `error` + `retry_after_sec` | 音乐播放继续，无口播 |
 | mem0 | 已有 `degraded` 标志 | recall → `""`，remember noop |
@@ -329,9 +329,8 @@ Live 在 connect 前 gate；connect 后 10s 内无 audio 的 stream fault 计入
 | 模块 | 职责 |
 |------|------|
 | `flow/retrieval/retrieve.ts` | Step 1 结构化打分 |
-| `flow/llm/fallback.ts` | `withFlowFallback` — Flow Gemini → heuristic |
-| `wiring.ts` | composition root：`buildFlowModel` |
-| `gemini/client.ts` | 共享 `GoogleGenAI` 构造（Flow LLM） |
+| `flow/llm/heuristic-flow.ts` | Step 2 确定性能量弧线排序 |
+| `wiring.ts` | composition root：`buildFlowModel` → `HeuristicFlowModel` |
 
 mem0 在 circuit open 时 skip；transient/auth 失败计入共享 breaker。
 

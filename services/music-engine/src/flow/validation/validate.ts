@@ -10,8 +10,9 @@ export interface Violation {
 }
 
 /**
- * Post-validation of a Flow result against the hard ordering rules
- * (packages/shared flow-rules + arc constants).
+ * Safety-net check of a Flow result against hard ordering rules
+ * (packages/shared flow-rules + arc constants). Adjacency is enforced at
+ * selection time (chooseNext); this does not drive repair or LLM retry.
  */
 export function validateTracklist(refs: FlowTrackRef[], byId: Map<string, TrackCandidate>): Violation[] {
   const violations: Violation[] = [];

@@ -39,10 +39,10 @@ playing ──track end──▶ between_tracks ──Live DJ──▶ playing
 
 ---
 
-## Step 2 — Flow 编排（Gemini Flash JSON）
+## Step 2 — Flow 编排（确定性能量弧线）
 
-**调用方**：Fastify `apps/api`  
-**模型**：`gemini-3.1-flash-lite` + structured output  
+**调用方**：`agent-harness` → `music-engine` HTTP  
+**模型**：`HeuristicFlowModel`（`chooseNext` + mood 能量弧线；ADR-0001）  
 **触发**：创建 session；以及 intent `mood_change` / `explicit_pick` / `full_replan`
 
 ### 能量曲线约束
@@ -60,7 +60,7 @@ playing ──track end──▶ between_tracks ──Live DJ──▶ playing
 
 ### 硬性规则
 
-常量与 prose 单一来源：`packages/shared/src/arc.ts`（`MAX_TEMPO_JUMP_BPM`、`MAX_ENERGY_JUMP`、`buildHardRulesText()`）+ `flow-rules.ts`（`isAdjacentStepLegal`、`adjacentStepPenalty`）。`validate.ts`、heuristic、`gemini.ts` system instruction 均从此派生。
+常量单一来源：`packages/shared/src/arc.ts`（`MAX_TEMPO_JUMP_BPM`、`MAX_ENERGY_JUMP`）+ `flow-rules.ts`（`isAdjacentStepLegal`、`adjacentStepPenalty`）。`chooseNext` 在选曲时施加邻接惩罚；`validate.ts` 仅作 safety-net 断言。
 
 - 相邻曲 tempo 差 ≤ 15 BPM  
 - 能量等级每次跳幅 ≤ 1 级  
@@ -68,31 +68,14 @@ playing ──track end──▶ between_tracks ──Live DJ──▶ playing
 
 ### Plan 编排流水线（`flow/plan.ts`）
 
-1. Flow 首次 `plan`  
-2. `validateTracklist` — 失败则带 `repairHint`（violations 文本）**再调一次** Gemini  
-3. 仍失败 → `repair.ts` 确定性换轨  
-4. 返回最终 `violations`（可能非空，若候选池无解）
-
-### Prompt 结构
-
-```
-System: You are a professional radio session curator…
-        [能量曲线规则 + remaining 槽位说明]
-
-User:   User profile: {mem0 memories}
-        Session intent: mood=…, scene=…
-        Already played: [{id, …}]
-        Last played energy: {last_played_energy}   ← 重排时必填
-        Remaining slots: {n}
-        Candidate tracks: [{id, energy, tempo, genre, mood}, …]
-
-Output: JSON — {session_title?, tracklist: [{id, flow_position, reason}]}
-```
+1. `flowModel.plan` 一次（无 violation retry）  
+2. `validateTracklist` — safety-net 断言，返回 `violations`（可能非空，若候选池无解）  
+3. 无 `repair.ts` / 无 `repairHint` / 无 Gemini 违规重试（P2.3）
 
 ### 设计原则
 
-1. **Structured output（JSON schema）**：可解析、可写 `session_events`  
-2. **`reason` 字段**：便于评估审查与 ablation 分析  
+1. **确定性选曲**：质量由 `chooseNext` + mood 弧线保证，不依赖 LLM 排序  
+2. **`reason` 字段**：heuristic 生成，便于评估审查  
 3. **输入含已播列表**：保证重排不重复已播曲目  
 
 每次重排写入 `session_events`：`event_type: replan`，payload 含 diff。
