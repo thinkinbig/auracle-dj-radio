@@ -12,6 +12,8 @@ export interface Track {
   albumTitle: string;
   /** Short backstory for UI and curator-mode DJ cues. */
   lore: string;
+  /** Offline music-generation direction from the manifest. */
+  sonicBrief?: string;
   /** Repo-relative cover asset, e.g. `data/covers/alb-lumen-midnight.svg`. */
   albumCoverPath: string;
   /** Repo-relative artist photo, e.g. `data/artists/a-lana-delay.jpg`. */

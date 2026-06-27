@@ -1,15 +1,65 @@
 {
   "genres": [
-    { "slug": "ambient", "label": "Ambient" },
-    { "slug": "lo-fi", "label": "Lo-Fi" },
-    { "slug": "downtempo", "label": "Downtempo" },
-    { "slug": "chillhop", "label": "Chillhop" },
-    { "slug": "jazztronica", "label": "Jazztronica" },
-    { "slug": "deep-house", "label": "Deep House" },
-    { "slug": "nu-disco", "label": "Nu-Disco" },
-    { "slug": "house", "label": "House" },
-    { "slug": "synthwave", "label": "Synthwave" },
-    { "slug": "future-garage", "label": "Future Garage" }
+    {
+      "slug": "ambient",
+      "label": "Ambient"
+    },
+    {
+      "slug": "lo-fi",
+      "label": "Lo-Fi"
+    },
+    {
+      "slug": "downtempo",
+      "label": "Downtempo"
+    },
+    {
+      "slug": "chillhop",
+      "label": "Chillhop"
+    },
+    {
+      "slug": "jazztronica",
+      "label": "Jazztronica"
+    },
+    {
+      "slug": "deep-house",
+      "label": "Deep House"
+    },
+    {
+      "slug": "nu-disco",
+      "label": "Nu-Disco"
+    },
+    {
+      "slug": "house",
+      "label": "House"
+    },
+    {
+      "slug": "synthwave",
+      "label": "Synthwave"
+    },
+    {
+      "slug": "future-garage",
+      "label": "Future Garage"
+    },
+    {
+      "slug": "k-pop",
+      "label": "K-Pop"
+    },
+    {
+      "slug": "afro-house",
+      "label": "Afro House"
+    },
+    {
+      "slug": "mecha",
+      "label": "Mecha"
+    },
+    {
+      "slug": "phonk",
+      "label": "Phonk"
+    },
+    {
+      "slug": "dnb",
+      "label": "DnB"
+    }
   ],
   "mapping": {
     "ambient": "ambient",
@@ -21,6 +71,11 @@
     "nu-disco": "nu-disco",
     "house": "house",
     "synthwave": "synthwave",
-    "future-garage": "future-garage"
+    "future-garage": "future-garage",
+    "k-pop": "k-pop",
+    "afro-house": "afro-house",
+    "mecha": "mecha",
+    "phonk": "phonk",
+    "dnb": "dnb"
   }
 }

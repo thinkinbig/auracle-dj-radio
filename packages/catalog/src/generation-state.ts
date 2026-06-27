@@ -55,6 +55,7 @@ export function trackGenerationFingerprint(
       instrumental: track.instrumental,
       lyrics: track.lyrics,
       lore: track.lore,
+      sonicBrief: track.sonicBrief,
     },
     artist: {
       slug: artist.slug,
@@ -64,6 +65,7 @@ export function trackGenerationFingerprint(
     album: {
       title: album.title,
       concept: album.concept,
+      sonicBrief: album.sonicBrief,
     },
   });
 }

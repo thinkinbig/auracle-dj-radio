@@ -116,7 +116,12 @@ async function main(): Promise<void> {
   if (dryRun) {
     for (const track of pending) {
       const { artist, album } = resolveTrack(track, artists, albums);
-      const spec = buildMinimaxMusicPrompt({ track, artist, album });
+      const spec = buildMinimaxMusicPrompt({
+        track,
+        artist,
+        album,
+        sonicBrief: [album.sonicBrief, track.sonicBrief].filter(Boolean).join(" ") || undefined,
+      });
       console.log(
         `\n── ${track.id} ${track.title} (${model}) ──\n` +
           `prompt: ${spec.prompt}\n` +
@@ -130,7 +135,12 @@ async function main(): Promise<void> {
 
   for (const track of pending) {
     const { artist, album, fingerprint, outPath } = resolveTrack(track, artists, albums);
-    const spec = buildMinimaxMusicPrompt({ track, artist, album });
+    const spec = buildMinimaxMusicPrompt({
+      track,
+      artist,
+      album,
+      sonicBrief: [album.sonicBrief, track.sonicBrief].filter(Boolean).join(" ") || undefined,
+    });
 
     console.log(`Generating ${track.id} (${track.title}) with ${model}…`);
     const audio = await generateMinimaxMusic({

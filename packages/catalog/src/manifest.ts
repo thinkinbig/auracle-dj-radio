@@ -83,6 +83,7 @@ export function manifestToTracks(manifest: CatalogManifest): Track[] {
       albumId: album.id,
       albumTitle: album.title,
       lore: t.lore,
+      sonicBrief: t.sonicBrief,
       albumCoverPath: `data/covers/${album.coverFile}`,
       artistPhotoPath: `data/artists/${artist.photoFile}`,
       energy: t.energy,

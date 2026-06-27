@@ -25,6 +25,8 @@ export interface CatalogAlbum {
   artistId: string;
   title: string;
   concept: string;
+  /** Offline music-generation direction. Keeps display concept free for UI/worldbuilding. */
+  sonicBrief?: string;
   /** Relative to repo `data/covers/`, e.g. `alb-lumen-midnight.svg`. */
   coverFile: string;
   /** Optional override for cover background generation. */
@@ -45,6 +47,8 @@ export interface CatalogTrack {
   filePath: string;
   introOffsetMs: number | null;
   lore: string;
+  /** Offline music-generation direction. More concrete than display lore. */
+  sonicBrief?: string;
   /** When false, generate with vocals. Defaults to true (instrumental). */
   instrumental?: boolean;
   /** Optional lyrics for vocal tracks. If omitted, MiniMax lyrics_optimizer is used. */

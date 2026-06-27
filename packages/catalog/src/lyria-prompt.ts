@@ -26,33 +26,74 @@ export const ARTIST_SONIC_CHARTER: Record<string, { anchor: string; forbid: stri
     anchor: "octave disco bass, live shaker, roller-rink energy, gym-ready drive",
     forbid: "ambient drone beds, slow ballad, lo-fi tape texture",
   },
+  "blacksync": {
+    anchor: "tight k-pop pop drums, bright synth brass, chant hooks, rap-sung verse pockets",
+    forbid: "slow ambient drone, acoustic folk, lo-fi tape hiss, sleepy ballad pacing",
+  },
+  "black-toffee": {
+    anchor: "warm log-drum sub bass, hand percussion, shakers, marimba plucks, sunset rooftop pads",
+    forbid: "cold techno, trap 808s, aggressive dubstep drops, acoustic folk strumming",
+  },
+  "nujean": {
+    anchor: "airy Y2K k-pop drums, soft sidechain bass, plucky synth bells, dreamy youthful hooks",
+    forbid: "aggressive rap-sung delivery, harsh EDM drops, girl-crush brass stabs, trap hi-hats",
+  },
+  "sawa-node": {
+    anchor: "orchestral brass and strings, taiko-like percussion, cinematic synth arpeggios, launch-sequence builds",
+    forbid: "lo-fi tape hiss, sleepy ballad pacing, acoustic folk strumming, four-on-the-floor disco groove",
+  },
+  "zone-render": {
+    anchor: "distorted anime-rock guitars, anthemic chant chorus, orchestral hits, mecha-OP energy",
+    forbid: "ambient drone beds, mellow jazz chords, soft bedroom pop, slow lo-fi drums",
+  },
+  "gtr-808": {
+    anchor: "Memphis cowbell, distorted 808 bass, drift-phonk groove, dark nightclub grit",
+    forbid: "orchestral strings, acoustic piano ballads, bright k-pop brass, ambient pad beds",
+  },
+  "smoke-shift": {
+    anchor: "warehouse cowbell, crushed 808 sub, gym-phonk aggression, smoke-stack reverb",
+    forbid: "orchestral score, acoustic guitar, soft pop hooks, slow ballad drums",
+  },
+  "amen-rush": {
+    anchor: "chopped amen break, reese bass wobble, rolling neurofunk drums, 170+ BPM drive",
+    forbid: "four-on-the-floor house kick, lo-fi tape hiss, acoustic folk, slow downtempo pacing",
+  },
 };
 
 const LEAD_BY_GENRE: Record<string, string> = {
-  ambient: "bowed pads and subtle field-recording texture",
+  "ambient": "bowed pads and subtle field-recording texture",
   "lo-fi": "detuned Rhodes or muted piano",
-  downtempo: "mallet hits over a slow breakbeat",
-  chillhop: "jazz guitar chops or muted piano",
-  jazztronica: "Rhodes stabs with live bass",
+  "downtempo": "mallet hits over a slow breakbeat",
+  "chillhop": "jazz guitar chops or muted piano",
+  "jazztronica": "Rhodes stabs with live bass",
   "deep-house": "warm sub bass and filtered chord stabs",
   "nu-disco": "octave disco bass and live shaker",
-  house: "punchy kick and open-hat groove",
-  synthwave: "arpeggiated Juno lead",
+  "house": "punchy kick and open-hat groove",
+  "synthwave": "arpeggiated Juno lead",
   "future-garage": "shuffled two-step drums and detuned vocal chops",
+  "afro-house": "log-drum bass with hand percussion and marimba plucks",
+  "k-pop": "tight pop drums, bright synth stabs, chant-ready hook stack",
+  "mecha": "orchestral brass swells, taiko percussion, cinematic synth lead, choir hits",
+  "phonk": "Memphis cowbell, distorted 808 sub, dark trap hats, drift-phonk groove",
+  "dnb": "reese bass, chopped amen break, fast rolling drums, neurofunk stab lead",
 };
 
 const SCENE_ATMOSPHERE: Record<string, string> = {
-  study: "late-night desk focus, headphones-on intimacy",
-  chill: "relaxed unwind, soft room ambience",
-  commute: "forward motion, city rhythm, transitional energy",
-  focus: "deep work, steady pulse, low distraction",
-  gym: "high drive, athletic momentum",
-  party: "peak-hour dancefloor, celebratory lift",
+  "study": "late-night desk focus, headphones-on intimacy",
+  "chill": "relaxed unwind, soft room ambience",
+  "commute": "forward motion, city rhythm, transitional energy",
+  "focus": "deep work, steady pulse, low distraction",
+  "gym": "high drive, athletic momentum",
+  "party": "peak-hour dancefloor, celebratory lift",
 };
 
 function durationSec(energy: CatalogTrack["energy"]): number {
-  if (energy <= 2) return 90;
-  if (energy === 3) return 105;
+  if (energy <= 2) {
+    return 90;
+  }
+  if (energy === 3) {
+    return 105;
+  }
   return 120;
 }
 

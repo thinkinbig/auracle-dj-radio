@@ -118,6 +118,39 @@
     },
     "alb-dua-debut": {
       "fingerprint": "7210bc1fde1cc91f"
+    },
+    "alb-blacksync-pink": {
+      "fingerprint": "4cf1618f16ce307b"
+    },
+    "alb-blacksync-hour": {
+      "fingerprint": "5aaf163d55124e0b"
+    },
+    "alb-black-toffee-rooftop": {
+      "fingerprint": "726897e35496df3b"
+    },
+    "alb-nujean-getup": {
+      "fingerprint": "db54bd93d26259c1"
+    },
+    "alb-nujean-shrink": {
+      "fingerprint": "a32f47196292cd4e"
+    },
+    "alb-sawa-mobile-frame": {
+      "fingerprint": "1b369dd3deb6792c"
+    },
+    "alb-sawa-cockpit": {
+      "fingerprint": "91c0d42d175a84e3"
+    },
+    "alb-zone-vector": {
+      "fingerprint": "0d5d11fa955b9b86"
+    },
+    "alb-gtr-cowbell-touge": {
+      "fingerprint": "ae14d7bae81b2256"
+    },
+    "alb-smoke-bell-rep": {
+      "fingerprint": "9b44e1aba6f37baf"
+    },
+    "alb-amen-neuro-rep": {
+      "fingerprint": "afe05d32a1e9cd5d"
     }
   },
   "artistPhotos": {
@@ -138,6 +171,30 @@
     },
     "a-dua-lift-a": {
       "fingerprint": "47fa379cf6668232"
+    },
+    "a-blacksync": {
+      "fingerprint": "935d2d9e7c3aa437"
+    },
+    "a-black-toffee": {
+      "fingerprint": "94b2dfa1deb8c7d9"
+    },
+    "a-nujean": {
+      "fingerprint": "7813bf73564e50ff"
+    },
+    "a-sawa-node": {
+      "fingerprint": "4d89091b6ce85a1d"
+    },
+    "a-zone-render": {
+      "fingerprint": "a147c4f904c83bf9"
+    },
+    "a-gtr-808": {
+      "fingerprint": "e4c31d1b24368fe3"
+    },
+    "a-smoke-shift": {
+      "fingerprint": "f218d373d00e353c"
+    },
+    "a-amen-rush": {
+      "fingerprint": "9c69827f6c6273bf"
     }
   }
 }

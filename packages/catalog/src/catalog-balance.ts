@@ -133,6 +133,14 @@ export const ARTIST_HOME_MOOD: Record<string, string> = {
   "dua-lift-a": "euphoric",
   "taylor-drift": "energetic",
   "the-bee-geeps": "uplifting",
+  "blacksync": "euphoric",
+  "nujean": "uplifting",
+  "black-toffee": "warm",
+  "sawa-node": "energetic",
+  "zone-render": "energetic",
+  "gtr-808": "energetic",
+  "smoke-shift": "energetic",
+  "amen-rush": "energetic",
 };
 
 const KEY_INTENTS: ReadonlyArray<[mood: string, scene: Scene]> = [

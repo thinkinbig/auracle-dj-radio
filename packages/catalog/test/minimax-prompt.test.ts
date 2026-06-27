@@ -43,6 +43,9 @@ test("buildMinimaxMusicPrompt marks instrumental tracks", () => {
   assert.match(spec.prompt, /instrumental only/i);
   assert.match(spec.prompt, /64 BPM/);
   assert.match(spec.prompt, /boom-bap/i);
+  assert.match(spec.prompt, /Song structure:/);
+  assert.match(spec.prompt, /Production:/);
+  assert.match(spec.prompt, /no spoken words/i);
 });
 
 test("vocal tracks pass lyrics or enable lyrics_optimizer", () => {
@@ -53,6 +56,7 @@ test("vocal tracks pass lyrics or enable lyrics_optimizer", () => {
   });
   assert.equal(withLyrics.lyricsOptimizer, false);
   assert.equal(withLyrics.lyrics, "[Verse]\nLine");
+  assert.match(withLyrics.prompt, /Vocal delivery:/);
 
   const improvise = buildMinimaxMusicPrompt({
     track: { ...track, instrumental: false },
@@ -60,4 +64,5 @@ test("vocal tracks pass lyrics or enable lyrics_optimizer", () => {
     album,
   });
   assert.equal(improvise.lyricsOptimizer, true);
+  assert.match(improvise.prompt, /write coherent original lyrics/i);
 });
