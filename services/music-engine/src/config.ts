@@ -24,7 +24,7 @@ export interface Config {
   geminiApiKey: string | undefined;
   flowModel: string;
   embedModel: string;
-  /** "hash" (deterministic, offline) or "gemini" (real embeddings). Phase 1 ships hash-only. */
+  /** "hash" (offline/tests) or "gemini" (catalog retrieval until ADR-0001 lands). */
   embedder: "hash" | "gemini";
 }
 
@@ -35,5 +35,10 @@ export const config: Config = {
   geminiApiKey: process.env.GEMINI_API_KEY || undefined,
   flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
   embedModel: process.env.GEMINI_EMBED_MODEL ?? "gemini-embedding-2",
-  embedder: process.env.AURACLE_EMBEDDER === "gemini" ? "gemini" : "hash",
+  embedder:
+    process.env.AURACLE_EMBEDDER === "hash"
+      ? "hash"
+      : process.env.GEMINI_API_KEY
+        ? "gemini"
+        : "hash",
 };

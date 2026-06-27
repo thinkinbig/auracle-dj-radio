@@ -19,9 +19,8 @@ export function buildFlowModel(): FlowModel {
 
 export function buildEmbedder(): Embedder {
   const fallback = new HashEmbedder();
-  // Gemini (3072-dim) and hash (768-dim) live in different vector spaces, so the
-  // runtime query embedder MUST match whatever seeded the catalog: gate both on
-  // AURACLE_EMBEDDER=gemini.
+  // Gemini and hash live in different vector spaces — runtime must match seed.
+  // config.embedder picks gemini when GEMINI_API_KEY is set (see config.ts).
   if (config.embedder !== "gemini" || !config.geminiApiKey) return fallback;
   return withEmbedFallback(new GeminiEmbedder(), fallback);
 }
