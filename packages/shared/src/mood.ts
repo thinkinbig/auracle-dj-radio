@@ -30,8 +30,6 @@ export const DEFAULT_ENERGY_PENALTY_K = 2;
 
 const MIN_TRACK_ENERGY = 1;
 const MAX_TRACK_ENERGY = 5;
-const DEFAULT_TARGET_WEIGHT = 0.25;
-
 const BASE_MOOD_ARC_BOUNDS: Record<MoodKey, { min: number; max: number }> = {
   calm: { min: 1, max: 1.5 },
   mellow: { min: 1, max: 2.5 },
@@ -117,56 +115,6 @@ export function energyTargetsForMood(
   k: number = DEFAULT_ENERGY_PENALTY_K,
 ): number[] {
   return createMoodEnergyProfile(mood, k).targets(slots, lastPlayedEnergy);
-}
-
-export type EnergyPickable = { id: string; energy: number };
-
-export interface MoodEnergySequenceOptions<T extends EnergyPickable> {
-  profile: MoodEnergyProfile;
-  slots: number;
-  lastPlayedEnergy?: number | null;
-  excludeIds?: ReadonlySet<string>;
-  targetWeight?: number;
-  transitionPenalty?: (prev: T, cur: T) => number;
-}
-
-/** Greedy unique-track fill: mood profile + per-slot targets; soft penalty escapes starvation. */
-export function selectMoodEnergySequence<T extends EnergyPickable>(
-  catalog: T[],
-  options: MoodEnergySequenceOptions<T>,
-): T[] {
-  const {
-    profile,
-    slots,
-    lastPlayedEnergy = null,
-    excludeIds,
-    targetWeight = DEFAULT_TARGET_WEIGHT,
-    transitionPenalty,
-  } = options;
-  const targets = profile.targets(slots, lastPlayedEnergy);
-  const used = new Set<string>();
-  const picks: T[] = [];
-
-  for (const target of targets) {
-    let best: T | undefined;
-    let bestCost = Infinity;
-    for (const track of catalog) {
-      if (used.has(track.id)) continue;
-      if (excludeIds?.has(track.id)) continue;
-      const prev = picks[picks.length - 1];
-      const transitionCost = prev && transitionPenalty ? transitionPenalty(prev, track) : 0;
-      const cost =
-        profile.penalty(track.energy) + targetWeight * profile.targetPenalty(track.energy, target) + transitionCost;
-      if (cost < bestCost) {
-        bestCost = cost;
-        best = track;
-      }
-    }
-    if (!best) break;
-    used.add(best.id);
-    picks.push(best);
-  }
-  return picks;
 }
 
 /** Bound implementation of {@link EnergyPenaltyFn} for injection / composition. */

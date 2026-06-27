@@ -39,6 +39,19 @@ describe("chooseNext", () => {
   it("returns undefined for an empty pool", () => {
     expect(chooseNext([], 3, undefined)).toBeUndefined();
   });
+
+  it("picks the track closest to the arc target energy", () => {
+    const near = candidate({ id: "near", energy: 2, tempo: 90, genre: "ambient" });
+    const far  = candidate({ id: "far",  energy: 5, tempo: 90, genre: "house" });
+    expect(chooseNext([near, far], 1, undefined)?.id).toBe("near");
+  });
+
+  it("starvation: borrows closest energy to target before picking far-away", () => {
+    const mid = candidate({ id: "mid", energy: 3, tempo: 90, genre: "ambient" });
+    const far = candidate({ id: "far", energy: 5, tempo: 90, genre: "house" });
+    // target=1, no energy-1 tracks; energy-3 (distance 2) wins over energy-5 (distance 4)
+    expect(chooseNext([mid, far], 1, undefined)?.id).toBe("mid");
+  });
 });
 
 describe("HeuristicFlowModel adjacent selection", () => {

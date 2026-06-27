@@ -10,7 +10,6 @@ import {
   energyTargetsForMood,
   moodEnergyCenter,
   moodEnergyEnvelope,
-  selectMoodEnergySequence,
   type EnergyPenaltyFn,
   type MoodEnergyEnvelope,
 } from "../src/mood.js";
@@ -106,63 +105,11 @@ test("energyPenaltyFn satisfies EnergyPenaltyFn contract", () => {
   assert.equal(fn(4, 3), energyPenalty(4, 3));
 });
 
-test("calm + 5 slots fills without repeating track ids", () => {
-  const catalog = Array.from({ length: 8 }, (_, i) => ({
-    id: `t${i}`,
-    energy: i < 4 ? 1 : 2,
-  }));
-  const picks = selectMoodEnergySequence(catalog, { profile: createMoodEnergyProfile("calm"), slots: 5 });
-  assert.equal(picks.length, 5);
-  assert.equal(new Set(picks.map((t) => t.id)).size, 5);
-  assert.ok(picks.every((t) => t.energy <= 2));
-});
-
-test("selectMoodEnergySequence supports excludes and transition penalties", () => {
-  const catalog = [
-    { id: "skip", energy: 1, family: "a" },
-    { id: "a1", energy: 1, family: "a" },
-    { id: "b1", energy: 1, family: "b" },
-  ];
-  const picks = selectMoodEnergySequence(catalog, {
-    profile: createMoodEnergyProfile("calm"),
-    slots: 2,
-    excludeIds: new Set(["skip"]),
-    transitionPenalty: (prev, cur) => (prev.family === cur.family ? 10 : 0),
-  });
-  assert.deepEqual(
-    picks.map((p) => p.id),
-    ["a1", "b1"],
-  );
-});
-
-test("starvation: calm borrows higher energy before reusing a track", () => {
-  const catalog = [
-    { id: "a", energy: 1 },
-    { id: "b", energy: 1 },
-    { id: "c", energy: 2 },
-    { id: "d", energy: 3 },
-    { id: "e", energy: 3 },
-    { id: "f", energy: 4 },
-  ];
-  const picks = selectMoodEnergySequence(catalog, { profile: createMoodEnergyProfile("calm", 0.25), slots: 5 });
-  assert.equal(picks.length, 5);
-  assert.equal(new Set(picks.map((t) => t.id)).size, 5);
-});
-
-test("euphoric + 8 slots includes energy 4 and 5", () => {
+test("euphoric + 8 slots arc targets include energy 4 and 5", () => {
   const targets = energyTargetsForMood(8, "euphoric", null);
   assert.equal(targets.length, 8);
   assert.ok(targets.includes(4));
   assert.ok(targets.includes(5));
-
-  const catalog = Array.from({ length: 12 }, (_, i) => ({
-    id: `t${i}`,
-    energy: (i % 5) + 1,
-  }));
-  const picks = selectMoodEnergySequence(catalog, { profile: createMoodEnergyProfile("euphoric"), slots: 8 });
-  const energies = new Set(picks.map((t) => t.energy));
-  assert.ok(energies.has(4));
-  assert.ok(energies.has(5));
 });
 
 test("calm targets stay within mood envelope", () => {
@@ -211,88 +158,12 @@ test("penalty increases monotonically with distance from center", () => {
   }
 });
 
-test("calm never selects energy 5 when lower energies are available", () => {
-  const catalog = [1, 2, 3, 4, 5].flatMap((energy) =>
-    Array.from({ length: 3 }, (_, i) => ({ id: `e${energy}-${i}`, energy })),
-  );
-  for (const slots of [3, 5, 8]) {
-    const picks = selectMoodEnergySequence(catalog, {
-      profile: createMoodEnergyProfile("calm"),
-      slots,
-    });
-    assert.ok(picks.every((t) => t.energy !== 5), `slots=${slots}`);
-  }
-});
-
-test("calm session max energy stays at or below 3", () => {
-  const catalog = Array.from({ length: 20 }, (_, i) => ({
-    id: `t${i}`,
-    energy: (i % 5) + 1,
-  }));
-  for (const slots of [3, 5, 8]) {
-    const picks = selectMoodEnergySequence(catalog, {
-      profile: createMoodEnergyProfile("calm"),
-      slots,
-    });
-    const max = Math.max(...picks.map((t) => t.energy));
-    assert.ok(max <= 3, `slots=${slots} max=${max}`);
-  }
-});
-
-test("euphoric session peak is at least energy 4", () => {
-  const catalog = Array.from({ length: 20 }, (_, i) => ({
-    id: `t${i}`,
-    energy: (i % 5) + 1,
-  }));
-  for (const slots of [3, 5, 8]) {
-    const picks = selectMoodEnergySequence(catalog, {
-      profile: createMoodEnergyProfile("euphoric"),
-      slots,
-    });
-    const max = Math.max(...picks.map((t) => t.energy));
-    assert.ok(max >= 4, `slots=${slots} max=${max}`);
-  }
-});
-
 test("euphoric targets always include energies 4 and 5 for 3+ slots", () => {
   for (let slots = 3; slots <= 8; slots++) {
     const targets = energyTargetsForMood(slots, "euphoric", null);
     assert.ok(targets.some((t) => t >= 4), `slots=${slots}`);
     assert.ok(targets.some((t) => t >= 5), `slots=${slots}`);
   }
-});
-
-test("starvation: calm borrows energy 3 before energy 5", () => {
-  const catalog = [
-    { id: "a", energy: 1 },
-    { id: "b", energy: 1 },
-    { id: "c", energy: 3 },
-    { id: "e5", energy: 5 },
-  ];
-  const picks = selectMoodEnergySequence(catalog, {
-    profile: createMoodEnergyProfile("calm"),
-    slots: 3,
-  });
-  assert.equal(picks.length, 3);
-  assert.equal(picks[2]!.energy, 3);
-  assert.ok(picks.every((t) => t.energy !== 5));
-});
-
-test("starvation: euphoric fills from high-energy pool without reusing tracks", () => {
-  const catalog = [
-    { id: "a", energy: 4 },
-    { id: "b", energy: 4 },
-    { id: "c", energy: 5 },
-    { id: "d", energy: 5 },
-    { id: "low", energy: 1 },
-  ];
-  const picks = selectMoodEnergySequence(catalog, {
-    profile: createMoodEnergyProfile("euphoric"),
-    slots: 4,
-  });
-  assert.equal(picks.length, 4);
-  assert.equal(new Set(picks.map((t) => t.id)).size, 4);
-  assert.ok(picks.every((t) => t.energy >= 4));
 });
 
 test("replan glide lowers targets from high lastPlayedEnergy toward calm floor", () => {

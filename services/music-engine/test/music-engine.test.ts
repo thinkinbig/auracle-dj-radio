@@ -173,6 +173,27 @@ describe("music-engine HTTP", () => {
     expect(picked.every((energy) => energy <= 2)).toBe(true);
   });
 
+  it("heuristic flow plan produces no duplicate track ids", async () => {
+    const model = new HeuristicFlowModel();
+    const candidates = ([1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2] as const).map((energy, i) => ({
+      id: `t${i}`,
+      energy,
+      tempo: 80 + i * 3,
+      genre: `g${i % 4}`,
+      scene: "study",
+    })) as TrackCandidate[];
+    const result = await model.plan({
+      intent: { mood: "focused", scene: "study", duration_min: 25 },
+      memories: "",
+      played: [],
+      lastPlayedEnergy: null,
+      remainingSlots: 8,
+      candidates,
+    });
+    const ids = result.tracklist.map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("heuristic flow gives euphoric sessions a high-energy peak", async () => {
     const model = new HeuristicFlowModel();
     const candidates: TrackCandidate[] = [4, 4, 4, 4, 5, 5, 5, 5, 1, 2].map((energy, i) => ({
