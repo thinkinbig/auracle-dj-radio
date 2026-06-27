@@ -146,9 +146,19 @@ Station on-air ──────────────┼── extend (appen
 
 ## 7. HITL 待决（E5）
 
-- [ ] steer 触发：纯规则（mood 编辑距离 / 关键词）vs LLM 分类
-- [ ] steer 比例：50% remaining vs 固定 3 首
-- [ ] extend 批次：4 首 vs 与 `FULL_SESSION_LENGTH/2` 对齐
+- [x] steer 触发：**纯规则**（mood label 归一化 + Levenshtein 比 ≥ 0.5 视为显著变化）。
+  `energy_delta` lighter/heavier 永远 nudge；同义/微调（含子串）保持 nudge；不引入 LLM 分类。
+  实现：`session/mood-scope.ts` `routeMoodScope()`。
+- [x] steer 比例：**后 50%**（`count = ceil(remaining/2)`，保留头部、重填尾部）。实现：`replan.ts` `scopeWindow()` + `store.replaceRemaining({ start, count })`。
+- [x] extend 批次：**4 首**（E1 已落地，`EXTEND_APPEND_SLOTS = 4`）。
+
+三档语义（E2 + E5 落地）：
+
+| scope | 触发 | 窗口 |
+|-------|------|------|
+| nudge | `mood_change` 默认 / `energy_delta` lighter·heavier / mood 微调 | 头部前 `min(2, remaining)` 槽，保留尾部 |
+| steer | `mood_change` 且 mood label 显著变化 | 尾部后 `ceil(remaining/2)` 槽，保留头部 |
+| full  | UI Regenerate（`scope:"full"`） | 全量 remaining |
 
 ---
 

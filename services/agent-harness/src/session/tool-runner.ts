@@ -1,6 +1,7 @@
 import type { ServerMessage } from "@auracle/shared";
 import { parseHostMode } from "@auracle/shared";
 import type { SessionState } from "./store.js";
+import { routeMoodScope } from "./mood-scope.js";
 import { replanAndPush, type OrchestrationDeps } from "./replan.js";
 
 const SKIP_ONLY_TOOL_GUARD_MS = 1_500;
@@ -90,10 +91,14 @@ export async function runTool(
           ui_events: [],
         };
       }
+      // Route the tier (E5): an energy-only tweak or a minor mood wording stays a
+      // nudge (next 1–2 slots); a significantly different mood steers the latter
+      // half. full is reserved for the explicit Regenerate button.
+      const scope = routeMoodScope(state.intent.mood, mood, energy_delta);
       // Ack now (Lane 1) and run the slow Flow-LLM replan in the background; the
       // new tracklist is pushed via the proxy (Lane 3) when it lands, so the DJ
       // never waits on the replan (see perf-first-start / refactor-three-services).
-      void replanAndPush(deps, state, { mood, energy_delta });
+      void replanAndPush(deps, state, { mood, energy_delta, scope });
       return {
         gemini_result: {
           ok: true,
