@@ -21,14 +21,10 @@ export interface Config {
   dbPath: string;
   /** Catalog data directory (manifest.json + audio/cover/photo assets) — @auracle/catalog. */
   catalogDataDir: string;
-  geminiApiKey: string | undefined;
-  flowModel: string;
 }
 
 export const config: Config = {
   port: Number(process.env.MUSIC_ENGINE_PORT ?? 3010),
   dbPath: process.env.MUSIC_ENGINE_DB_PATH ?? resolve(here, "../auracle-catalog.sqlite"),
   catalogDataDir: resolveConfiguredPath(process.env.CATALOG_DATA_DIR, resolve(repoRoot, "packages/catalog/data")),
-  geminiApiKey: process.env.GEMINI_API_KEY || undefined,
-  flowModel: process.env.GEMINI_FLOW_MODEL ?? "gemini-3.1-flash-lite",
 };

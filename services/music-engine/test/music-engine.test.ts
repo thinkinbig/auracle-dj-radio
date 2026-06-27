@@ -4,9 +4,8 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FlowResult, GenreCount, TrackCandidate, TrackMeta } from "@auracle/shared";
 import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
-import { config } from "../src/config.js";
 import type { FlowInput, FlowModel } from "../src/flow/llm/flow-model.js";
-import { buildPrompt } from "../src/flow/llm/gemini.js";
+import { HeuristicFlowModel } from "../src/flow/llm/heuristic-flow.js";
 import { replan } from "../src/flow/plan.js";
 import { energyWeightsFromMemories, mergeEnergyWeights } from "../src/flow/weighting/memory-energy.js";
 import { resolveCatalogPath, tracksWithAssets } from "../src/catalog/manifest.js";
@@ -35,7 +34,6 @@ async function seedTempDb(): Promise<string> {
 }
 
 beforeAll(async () => {
-  config.geminiApiKey = undefined;
   const dbPath = await seedTempDb();
   engine = buildServer(dbPath);
   await engine.app.ready();
@@ -123,6 +121,55 @@ describe("music-engine HTTP", () => {
     expect(body.candidates.length).toBeGreaterThan(0);
   }, 10_000);
 
+  it("heuristic flow orders calm sessions inside the low-energy arc", async () => {
+    const model = new HeuristicFlowModel();
+    const candidates: TrackCandidate[] = [1, 1, 1, 1, 2, 2, 2, 2, 4, 5].map((energy, i) => ({
+      id: `calm-${i}`,
+      energy,
+      tempo: 80 + i,
+      genre: `g${i}`,
+      mood: "calm",
+      scene: "study",
+    }));
+
+    const result = await model.plan({
+      intent: { mood: "calm", scene: "study", duration_min: 25 },
+      memories: "",
+      played: [],
+      lastPlayedEnergy: null,
+      remainingSlots: 8,
+      candidates,
+    });
+
+    const picked = result.tracklist.map((ref) => candidates.find((c) => c.id === ref.id)!.energy);
+    expect(picked.every((energy) => energy <= 2)).toBe(true);
+  });
+
+  it("heuristic flow gives euphoric sessions a high-energy peak", async () => {
+    const model = new HeuristicFlowModel();
+    const candidates: TrackCandidate[] = [4, 4, 4, 4, 5, 5, 5, 5, 1, 2].map((energy, i) => ({
+      id: `euphoric-${i}`,
+      energy,
+      tempo: 90 + i,
+      genre: `g${i}`,
+      mood: "euphoric",
+      scene: "party",
+    }));
+
+    const result = await model.plan({
+      intent: { mood: "euphoric", scene: "party", duration_min: 25 },
+      memories: "",
+      played: [],
+      lastPlayedEnergy: null,
+      remainingSlots: 8,
+      candidates,
+    });
+
+    const picked = result.tracklist.map((ref) => candidates.find((c) => c.id === ref.id)!.energy);
+    expect(Math.max(...picked)).toBeGreaterThanOrEqual(4);
+    expect(picked.every((energy) => energy >= 4)).toBe(true);
+  });
+
   it("replan forwards mem0 recall into the flow input (P0-5)", async () => {
     const row = (id: string, energy: number): TrackRow =>
       ({
@@ -165,24 +212,6 @@ describe("music-engine HTTP", () => {
 
     await replan(deps, base);
     expect(flow.last?.memories).toBe("");
-  });
-
-  it("treats mem0 facts as explicit planning guidance in the Flow prompt (P1-2)", () => {
-    const prompt = buildPrompt({
-      intent: { mood: "calm", scene: "study", duration_min: 25 },
-      memories: "- prefers lighter energy",
-      played: [],
-      lastPlayedEnergy: null,
-      remainingSlots: 2,
-      candidates: [
-        { id: "a", energy: 2, tempo: 80, genre: "ambient", mood: "calm", scene: "study" },
-        { id: "b", energy: 5, tempo: 140, genre: "club", mood: "intense", scene: "workout" },
-      ],
-    });
-
-    expect(prompt).toContain("User profile:\n- prefers lighter energy");
-    expect(prompt).toContain("prefer matching candidates");
-    expect(prompt).toContain("explain any necessary tradeoff");
   });
 
   it("derives bounded energy penalties from high-signal mem0 facts", () => {

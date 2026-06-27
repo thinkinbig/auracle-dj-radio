@@ -1,12 +1,12 @@
 import type { FlowResult, FlowTrackRef, SessionIntent, TastePreference, TrackCandidate } from "@auracle/shared";
-import { ARC_BANDS, FULL_SESSION_LENGTH } from "@auracle/shared";
+import { FULL_SESSION_LENGTH, energyTargetsForMood } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
 import type { FlowModel, FlowInput } from "./llm/flow-model.js";
 import { energyWeightsFromMemories, mergeEnergyWeights } from "./weighting/memory-energy.js";
-import { repairTracklist } from "./validation/repair.js";
 import { retrieveCandidates } from "./retrieval/retrieve.js";
 import { tasteCacheKey } from "./weighting/taste-weighting.js";
-import { formatViolationsForRetry, validateTracklist, type Violation } from "./validation/validate.js";
+import { validateTracklist, type Violation } from "./validation/validate.js";
+import { chooseNext } from "./selection/choose-next.js";
 
 export interface PlanDeps {
   flowModel: FlowModel;
@@ -102,36 +102,27 @@ export async function createProvisionalPlan(
       session_title: provisionalTitle(intent),
       session_subtitle: `${intent.duration_min} min`,
       arc: "warm_up",
-      tracklist: buildProvisionalArc(candidates),
+      tracklist: buildProvisionalArc(candidates, intent.mood),
     },
     candidatesById,
   };
 }
 
-/** Track 1 = lowest-energy top candidate (arc warm-up); slots 2..N fill by closest energy to each arc band. */
-function buildProvisionalArc(candidates: TrackCandidate[]): FlowTrackRef[] {
-  if (candidates.length === 0) return [];
-  // candidates are score-sorted desc, so the strict-less reduce keeps the best-scored among the lowest energy.
-  const first = candidates.reduce((a, b) => (b.energy < a.energy ? b : a));
-  const used = new Set([first.id]);
-  const slots: FlowTrackRef[] = [{ id: first.id, flow_position: 1, reason: "warm-up opener (provisional)" }];
-  for (let pos = 2; pos <= FULL_SESSION_LENGTH; pos++) {
-    const band = ARC_BANDS[pos]!;
-    const target = (band.min + band.max) / 2;
-    let best: TrackCandidate | undefined;
-    let bestDist = Infinity;
-    for (const c of candidates) {
-      if (used.has(c.id)) continue;
-      const dist = Math.abs(c.energy - target);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = c;
-      }
-    }
-    if (!best) break;
-    used.add(best.id);
-    slots.push({ id: best.id, flow_position: pos, reason: `${band.stage} (provisional)` });
-  }
+/** Fill starter slots by closest candidate energy to the mood-dependent arc targets. */
+function buildProvisionalArc(candidates: TrackCandidate[], mood: string): FlowTrackRef[] {
+  const pool = [...candidates];
+  const slots: FlowTrackRef[] = [];
+  const targets = energyTargetsForMood(FULL_SESSION_LENGTH, mood, null);
+  let prev: TrackCandidate | undefined;
+
+  targets.forEach((target, i) => {
+    const pick = chooseNext(pool, target, prev);
+    if (!pick) return;
+    pool.splice(pool.indexOf(pick), 1);
+    slots.push({ id: pick.id, flow_position: i + 1, reason: "mood arc target " + target.toFixed(1) + " (provisional)" });
+    prev = pick;
+  });
+
   return slots;
 }
 
@@ -200,28 +191,10 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
   });
 }
 
-/**
- * Flow → validate → violation-aware retry → deterministic repair.
- * Retry passes violations back into the model; repair swaps bad slots locally.
- */
+/** Step 2 flow plan + safety-net validation (ADR-0001: no LLM retry/repair loop). */
 async function runFlow(flowModel: FlowModel, input: FlowInput): Promise<PlanResult> {
   const candidatesById = new Map(input.candidates.map((c) => [c.id, c]));
-
-  let result = await flowModel.plan(input);
-  let violations = validateTracklist(result.tracklist, candidatesById);
-
-  if (violations.length > 0) {
-    result = await flowModel.plan({
-      ...input,
-      repairHint: formatViolationsForRetry(violations),
-    });
-    violations = validateTracklist(result.tracklist, candidatesById);
-  }
-
-  if (violations.length > 0) {
-    result = repairTracklist(result, candidatesById, input.candidates);
-    violations = validateTracklist(result.tracklist, candidatesById);
-  }
-
+  const result = await flowModel.plan(input);
+  const violations = validateTracklist(result.tracklist, candidatesById);
   return { result, violations, candidatesById };
 }

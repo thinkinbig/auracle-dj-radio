@@ -32,6 +32,16 @@ const MIN_TRACK_ENERGY = 1;
 const MAX_TRACK_ENERGY = 5;
 const DEFAULT_TARGET_WEIGHT = 0.25;
 
+const BASE_MOOD_ARC_BOUNDS: Record<MoodKey, { min: number; max: number }> = {
+  calm: { min: 1, max: 1.5 },
+  mellow: { min: 1, max: 2.5 },
+  warm: { min: 1.5, max: 3 },
+  focused: { min: 2, max: 4 },
+  uplifting: { min: 2.5, max: 4.5 },
+  energetic: { min: 3, max: 5 },
+  euphoric: { min: 4, max: 5 },
+};
+
 export function moodEnergyCenter(mood: string): number {
   return MOOD_ENERGY_CENTER[mood as MoodKey] ?? 3;
 }
@@ -42,10 +52,6 @@ export function energyPenalty(energy: number, center: number, k: number = DEFAUL
   return k * delta * delta;
 }
 
-function toleranceForPenaltyK(k: number): number {
-  return 0.5 + 1 / Math.max(k, 0.01);
-}
-
 function clampEnergy(value: number): number {
   return Math.min(MAX_TRACK_ENERGY, Math.max(MIN_TRACK_ENERGY, value));
 }
@@ -53,8 +59,12 @@ function clampEnergy(value: number): number {
 /** Mood-dependent arc bounds: calm stays flat, euphoric rises high. */
 export function arcAmplitude(mood: string, k: number = DEFAULT_ENERGY_PENALTY_K): { min: number; max: number } {
   const center = moodEnergyCenter(mood);
-  const tolerance = toleranceForPenaltyK(k);
-  return { min: clampEnergy(center - tolerance), max: clampEnergy(center + tolerance) };
+  const base = BASE_MOOD_ARC_BOUNDS[mood as MoodKey] ?? BASE_MOOD_ARC_BOUNDS.focused;
+  const scale = DEFAULT_ENERGY_PENALTY_K / Math.max(k, 0.01);
+  return {
+    min: clampEnergy(center - (center - base.min) * scale),
+    max: clampEnergy(center + (base.max - center) * scale),
+  };
 }
 
 export function moodEnergyEnvelope(mood: string, k: number = DEFAULT_ENERGY_PENALTY_K): MoodEnergyEnvelope {
@@ -87,16 +97,15 @@ function energyTargetsFromEnvelope(slots: number, envelope: MoodEnergyEnvelope, 
   const { min, max } = envelope;
 
   if (lastPlayedEnergy === null) {
-    if (slots === 1) return [Math.round((min + max) / 2)];
+    if (slots === 1) return [(min + max) / 2];
     return Array.from({ length: slots }, (_, i) => {
       const t = i / (slots - 1);
-      return Math.round(min + (max - min) * t);
+      return min + (max - min) * t;
     });
   }
 
-  const floor = Math.round(min);
   return Array.from({ length: slots }, (_, i) =>
-    Math.round(lastPlayedEnergy + ((floor - lastPlayedEnergy) * (i + 1)) / slots),
+    lastPlayedEnergy + ((min - lastPlayedEnergy) * (i + 1)) / slots,
   );
 }
 

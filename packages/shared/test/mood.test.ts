@@ -63,6 +63,36 @@ test("larger k narrows the mood arc envelope", () => {
   assert.ok(strict.max < loose.max);
 });
 
+test("default mood arc amplitudes match issue #32 bounds", () => {
+  assert.deepEqual(arcAmplitude("calm"), { min: 1, max: 1.5 });
+  assert.deepEqual(arcAmplitude("euphoric"), { min: 4, max: 5 });
+});
+
+test("energy targets stay within mood envelope for all moods and 3-8 slots", () => {
+  for (const mood of Object.keys(MOOD_ENERGY_CENTER)) {
+    const env = moodEnergyEnvelope(mood);
+    for (let slots = 3; slots <= 8; slots++) {
+      const targets = energyTargetsForMood(slots, mood, null);
+      assert.equal(targets.length, slots);
+      assert.ok(targets.every((target) => target >= env.min && target <= env.max), `${mood} ${slots}`);
+    }
+  }
+});
+
+test("energy targets interpolate smoothly for all moods and 3-8 slots", () => {
+  for (const mood of Object.keys(MOOD_ENERGY_CENTER)) {
+    for (let slots = 3; slots <= 8; slots++) {
+      const targets = energyTargetsForMood(slots, mood, null);
+      for (let i = 1; i < targets.length; i++) {
+        assert.ok(targets[i]! >= targets[i - 1]!, `${mood} ${slots} is monotonic`);
+      }
+      const deltas = targets.slice(1).map((target, i) => target - targets[i]!);
+      const first = deltas[0]!;
+      assert.ok(deltas.every((delta) => Math.abs(delta - first) < 1e-9), `${mood} ${slots} is linear`);
+    }
+  }
+});
+
 test("createMoodEnergyProfile concentrates center, penalty, envelope, and targets", () => {
   const profile = createMoodEnergyProfile("calm");
   assert.equal(profile.center, MOOD_ENERGY_CENTER.calm);

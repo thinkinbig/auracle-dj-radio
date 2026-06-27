@@ -1,5 +1,5 @@
 import type { FlowTrackRef, TrackCandidate } from "@auracle/shared";
-import { MAX_ENERGY_JUMP, MAX_TEMPO_JUMP_BPM, isAdjacentStepLegal } from "@auracle/shared";
+import { MAX_ENERGY_JUMP, MAX_TEMPO_JUMP_BPM } from "@auracle/shared";
 
 export type ViolationKind = "unknown_track" | "non_contiguous" | "tempo_jump" | "energy_jump" | "genre_repeat";
 
@@ -51,20 +51,4 @@ export function validateTracklist(refs: FlowTrackRef[], byId: Map<string, TrackC
   }
 
   return violations;
-}
-
-/** Human-readable violation list fed back into Flow on retry (plan.ts). */
-export function formatViolationsForRetry(violations: Violation[]): string {
-  return violations.map((v) => `- ${v.kind} at position ${v.position}: ${v.detail}`).join("\n");
-}
-
-/** True when a candidate fits both neighbours (used by repair.ts). */
-export function fitsAdjacentSlot(
-  prev: TrackCandidate | undefined,
-  candidate: TrackCandidate,
-  next: TrackCandidate | undefined,
-): boolean {
-  if (prev && !isAdjacentStepLegal(prev, candidate)) return false;
-  if (next && !isAdjacentStepLegal(candidate, next)) return false;
-  return true;
 }
