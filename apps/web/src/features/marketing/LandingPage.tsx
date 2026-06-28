@@ -1,10 +1,14 @@
 import type { CSSProperties, FormEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { AuthUser } from '@auracle/shared';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { DJ_NAME } from '@/shared/lib/constants';
 import { evalMode } from '@/shared/lib/evalMode';
 import { login, register } from './authApi';
 import styles from './LandingPage.module.css';
+
+gsap.registerPlugin(useGSAP);
 
 interface LandingPageProps {
   onEnterApp: (user: AuthUser) => void;
@@ -20,19 +24,100 @@ const guestUser: AuthUser = {
 };
 
 export function LandingPage({ onEnterApp }: LandingPageProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const transitionTimelineRef = useRef<gsap.core.Timeline | null>(null);
   const [view, setView] = useState<View>('landing');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authError, setAuthError] = useState<string | undefined>();
   const [authNotice, setAuthNotice] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBrandTransitioning, setIsBrandTransitioning] = useState(false);
-  const transitionTimerRef = useRef<number | undefined>();
 
   useEffect(() => {
     return () => {
-      if (transitionTimerRef.current) window.clearTimeout(transitionTimerRef.current);
+      transitionTimelineRef.current?.kill();
     };
   }, []);
+
+  useGSAP(
+    () => {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      if (view === 'landing') {
+        const heroCopyItems = gsap.utils.toArray<HTMLElement>([
+          `.${styles.copy} h1 span`,
+          `.${styles.lede}`,
+          `.${styles.actions}`,
+          `.${styles.metrics}`,
+        ]);
+        const dnaWords = gsap.utils.toArray<HTMLElement>(`.${styles.dnaWordList} span`);
+
+        gsap
+          .timeline({ defaults: { ease: 'power3.out' } })
+          .fromTo(
+            `.${styles.landingBrand}`,
+            { autoAlpha: 0, y: -14, scale: 0.94 },
+            { autoAlpha: 1, y: 0, scale: 1, duration: 0.52 },
+            0,
+          )
+          .fromTo(
+            heroCopyItems,
+            { autoAlpha: 0, y: 34 },
+            {
+              autoAlpha: 1,
+              y: 0,
+              duration: 0.72,
+              stagger: 0.08,
+              clearProps: 'opacity,visibility,transform',
+            },
+            0.08,
+          )
+          .fromTo(
+            `.${styles.albumStack}`,
+            { autoAlpha: 0, x: 70, rotate: -10, scale: 0.86 },
+            {
+              autoAlpha: 1,
+              x: 0,
+              rotate: 0,
+              scale: 1,
+              duration: 1.05,
+              ease: 'expo.out',
+              clearProps: 'opacity,visibility,transform',
+            },
+            0.18,
+          )
+          .from(
+            dnaWords,
+            {
+              autoAlpha: 0,
+              y: 28,
+              duration: 0.9,
+              stagger: 0.16,
+              clearProps: 'opacity,visibility,transform',
+            },
+            0.56,
+          );
+        return;
+      }
+
+      if (view !== 'login') return;
+
+      gsap.fromTo(
+        [`.${styles.loginIntro}`, `.${styles.loginCard}`],
+        { autoAlpha: 0, y: 24, scale: 0.985 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.62,
+          ease: 'power3.out',
+          stagger: 0.08,
+          clearProps: 'opacity,visibility,transform',
+        },
+      );
+    },
+    { scope: rootRef, dependencies: [view] },
+  );
 
   function switchAuthMode(mode: AuthMode) {
     setAuthMode(mode);
@@ -42,13 +127,45 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
 
   function runBrandTransition(onComplete: () => void) {
     if (isBrandTransitioning) return;
-    setIsBrandTransitioning(true);
-    transitionTimerRef.current = window.setTimeout(() => {
+    transitionTimelineRef.current?.kill();
+
+    const root = rootRef.current;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!root || reduceMotion) {
+      setIsBrandTransitioning(true);
       onComplete();
-      transitionTimerRef.current = window.setTimeout(() => {
-        setIsBrandTransitioning(false);
-      }, 260);
-    }, 320);
+      setIsBrandTransitioning(false);
+      return;
+    }
+
+    const copy = root.querySelector(`.${styles.copy}`);
+    const showcase = root.querySelector(`.${styles.playerShowcase}`);
+    const guide = root.querySelector(`.${styles.productGuide}`);
+    const landingBrand = root.querySelector(`.${styles.landingBrand}`);
+    const ghostButton = root.querySelector(`.${styles.ghostButton}`);
+    const targets = [copy, showcase, guide, landingBrand, ghostButton].filter(Boolean);
+
+    setIsBrandTransitioning(true);
+    transitionTimelineRef.current = gsap
+      .timeline({
+        defaults: { ease: 'power3.inOut' },
+        onComplete: () => {
+          onComplete();
+          setIsBrandTransitioning(false);
+        },
+      })
+      .to(copy, { autoAlpha: 0, y: -28, scale: 0.97, duration: 0.34 }, 0)
+      .to(showcase, { autoAlpha: 0, y: 34, rotateX: -6, scale: 0.965, duration: 0.38 }, 0.03)
+      .to(guide, { autoAlpha: 0, y: 18, duration: 0.24 }, 0)
+      .to(landingBrand, { autoAlpha: 0, y: -8, scale: 0.96, duration: 0.22 }, 0.06)
+      .to(ghostButton, { autoAlpha: 0.35, y: -4, duration: 0.22 }, 0.08)
+      .set(targets, { clearProps: 'opacity,visibility,transform' });
+  }
+
+  function returnToLanding() {
+    transitionTimelineRef.current?.kill();
+    setView('landing');
+    setIsBrandTransitioning(false);
   }
 
   function showAuth(mode: AuthMode) {
@@ -90,14 +207,14 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
   }
 
   return (
-    <div className={styles.page}>
+    <div ref={rootRef} className={styles.page}>
       <div className={styles.shell}>
         <header className={styles.topbar}>
           {view === 'login' || isBrandTransitioning ? (
             <button
-              className={`${styles.brand} ${isBrandTransitioning ? styles.brandEntering : ''}`}
+              className={styles.brand}
               type="button"
-              onClick={() => setView('landing')}
+              onClick={returnToLanding}
               disabled={isBrandTransitioning}
             >
               <svg className={styles.brandMark} viewBox="0 0 36 36" aria-hidden focusable="false">
@@ -143,7 +260,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
 
         {view === 'landing' ? (
           <>
-            <main className={`${styles.hero} ${isBrandTransitioning ? styles.heroLeaving : ''}`}>
+            <main className={styles.hero}>
               <section className={styles.copy} aria-labelledby="landing-title">
                 <h1 id="landing-title">
                   <span>Your Music</span>

@@ -69,6 +69,18 @@ export default defineConfig(() => {
     server: {
       port: 5173,
       strictPort: true,
+      // Linux inotify limit (fs.inotify.max_user_watches) is shared across every
+      // watcher — Cursor, tsx watch services, and Vite. Ignore static catalog
+      // assets and dependency trees that never need HMR.
+      watch: {
+        ignored: [
+          '**/node_modules/**',
+          '**/.git/**',
+          '**/packages/catalog/data/tracks/**',
+          '**/packages/catalog/data/covers/**',
+          '**/packages/catalog/data/artists/**',
+        ],
+      },
       proxy: {
         // Session orchestration → agent-harness.
         '/sessions': harnessTarget,

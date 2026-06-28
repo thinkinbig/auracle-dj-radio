@@ -10,7 +10,6 @@
   background-size: 125% 125%, 100% 100%;
   overflow-x: hidden;
   overflow-y: auto;
-  animation: ambientDrift 34s ease-in-out infinite alternate;
 }
 
 .shell {
@@ -68,10 +67,6 @@
   transform: translateY(1px);
 }
 
-.brandEntering {
-  animation: brandSettle 520ms var(--ease-out) both;
-}
-
 .brand:disabled {
   cursor: default;
 }
@@ -127,14 +122,6 @@
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
   opacity: 0.78;
-}
-
-.heroLeaving .copy {
-  animation: heroTitleToBrand 360ms var(--ease-out) both;
-}
-
-.heroLeaving .playerShowcase {
-  animation: showcaseEaseBack 360ms var(--ease-out) both;
 }
 
 .copy {
@@ -412,11 +399,6 @@
 .dnaWordList span {
   display: block;
   width: 100%;
-  opacity: 0;
-  filter: blur(8px);
-  transform: translate3d(0, 18px, 0);
-  animation: dnaWordRead 10.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-  animation-delay: calc(var(--dna-word-index) * 0.86s);
 }
 
 .dnaWordList span:last-child {
@@ -1457,19 +1439,6 @@
   }
 }
 
-@keyframes ambientDrift {
-  from {
-    background-position:
-      0% 0%,
-      0% 0%;
-  }
-  to {
-    background-position:
-      7% 10%,
-      0% 0%;
-  }
-}
-
 @keyframes softEnter {
   from {
     opacity: 0;
@@ -1478,39 +1447,6 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes brandSettle {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes heroTitleToBrand {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-18px) scale(0.965);
-  }
-}
-
-@keyframes showcaseEaseBack {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0.55;
-    transform: translateY(10px) scale(0.985);
   }
 }
 
@@ -1539,27 +1475,6 @@
   50% {
     filter: drop-shadow(0 0 70px rgba(141, 247, 167, 0.24));
     transform: scale(1);
-  }
-}
-
-@keyframes dnaWordRead {
-  0%,
-  9% {
-    opacity: 0;
-    filter: blur(8px);
-    transform: translate3d(0, 18px, 0);
-  }
-  18%,
-  74% {
-    opacity: 1;
-    filter: blur(0);
-    transform: translate3d(0, 0, 0);
-  }
-  92%,
-  100% {
-    opacity: 0.44;
-    filter: blur(0);
-    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -1599,11 +1514,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
   .page,
   .copy,
-  .brandEntering,
-  .heroLeaving .copy,
-  .heroLeaving .playerShowcase,
   .albumStack,
   .albumArt,
   .ctaVisual,
