@@ -32,7 +32,7 @@
 
 .avatarButton:focus-visible,
 .logoutButton:focus-visible,
-.menuList button:focus-visible,
+.textAction:focus-visible,
 .backButton:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.38);
@@ -66,10 +66,10 @@
   position: absolute;
   top: 58px;
   right: 0;
-  width: min(320px, calc(100vw - 32px));
+  width: min(356px, calc(100vw - 32px));
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 0;
+  padding: 18px 20px 16px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 24px;
   color: #f8fafc;
@@ -86,6 +86,7 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
+  padding-bottom: 17px;
 }
 
 .identity {
@@ -111,88 +112,117 @@
   font-size: 0.82rem;
 }
 
-.meta {
+.profileSections {
   display: grid;
-  gap: 4px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.055);
-  border: 1px solid rgba(255, 255, 255, 0.075);
 }
 
-.meta span {
-  color: rgba(141, 247, 167, 0.8);
-  font-size: 0.68rem;
+.profileSection {
+  min-width: 0;
+  padding: 14px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.profileSection:first-child {
+  padding-top: 15px;
+}
+
+.sectionLabel {
+  margin: 0 0 8px;
+  color: rgba(141, 247, 167, 0.86);
+  font-size: 0.67rem;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.13em;
+  line-height: 1;
   text-transform: uppercase;
 }
 
-.meta strong {
-  font-size: 0.88rem;
-  color: rgba(248, 250, 252, 0.82);
-}
-
-.menuList {
+.tasteWords,
+.memoryRows {
   display: grid;
-  gap: 8px;
+  gap: 5px;
 }
 
-.menuList button,
-.activity {
+.tasteWords span,
+.memoryRows span {
   min-width: 0;
-  display: grid;
-  gap: 3px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  text-align: left;
-  color: inherit;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition:
-    transform var(--duration-fast) var(--ease-out),
-    background var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out);
-}
-
-.menuList button:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.11);
-}
-
-.menuList span,
-.activity span {
-  color: rgba(248, 250, 252, 0.9);
+  overflow: hidden;
+  color: rgba(248, 250, 252, 0.88);
   font-size: 0.9rem;
   font-weight: 800;
+  line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.menuList small,
-.activity small {
+.memoryRows span {
+  color: rgba(248, 250, 252, 0.6);
+  font-weight: 700;
+}
+
+.sectionActionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.sectionActionRow strong,
+.sectionActionRow small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sectionActionRow strong {
+  color: rgba(248, 250, 252, 0.9);
+  font-size: 0.92rem;
+  line-height: 1.18;
+}
+
+.sectionActionRow small {
+  margin-top: 4px;
   color: rgba(248, 250, 252, 0.5);
   font-size: 0.76rem;
+  font-weight: 700;
 }
 
-.activity strong {
-  color: rgba(141, 247, 167, 0.82);
+.textAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 2px;
+  color: rgba(141, 247, 167, 0.86);
+  background: transparent;
   font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 900;
+  white-space: nowrap;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.textAction:hover {
+  color: #a6fbb9;
+  transform: translateX(1px);
 }
 
 .detail {
   display: grid;
-  gap: 12px;
+  gap: 14px;
+  padding: 14px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
 }
 
 .backButton {
   justify-self: start;
   min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
+  padding: 0;
   color: rgba(141, 247, 167, 0.82);
-  background: rgba(141, 247, 167, 0.08);
+  background: transparent;
   font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -201,23 +231,20 @@
 
 .infoRows {
   display: grid;
-  gap: 8px;
 }
 
 .infoRows span {
   display: grid;
-  gap: 3px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 4px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .infoRows small {
-  color: rgba(248, 250, 252, 0.48);
-  font-size: 0.72rem;
+  color: rgba(248, 250, 252, 0.46);
+  font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
@@ -231,19 +258,22 @@
 }
 
 .logoutButton {
-  min-height: 42px;
-  border-radius: 999px;
-  color: #071108;
-  background: #8df7a7;
+  justify-self: start;
+  min-height: 34px;
+  margin-top: 2px;
+  padding: 0;
+  color: rgba(141, 247, 167, 0.92);
+  background: transparent;
   font-weight: 900;
+  font-size: 0.84rem;
   transition:
     transform var(--duration-fast) var(--ease-out),
-    background var(--duration-fast) var(--ease-out);
+    color var(--duration-fast) var(--ease-out);
 }
 
 .logoutButton:hover {
-  transform: translateY(-1px);
-  background: #a1fbb6;
+  transform: translateX(1px);
+  color: #a6fbb9;
 }
 
 @keyframes profileEnter {
@@ -282,7 +312,7 @@
 @media (prefers-reduced-motion: reduce) {
   .avatarButton,
   .logoutButton,
-  .menuList button,
+  .textAction,
   .panel {
     animation: none;
     transition: none;

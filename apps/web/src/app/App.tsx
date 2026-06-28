@@ -21,8 +21,8 @@ type ProductPage = 'home' | 'listen' | 'import' | 'sound' | 'history';
 const PRODUCT_NAV: { id: ProductPage; label: string }[] = [
   { id: 'home', label: 'Home' },
   { id: 'listen', label: 'Listen' },
-  { id: 'import', label: 'Import Music' },
-  { id: 'sound', label: 'My Sound' },
+  { id: 'import', label: 'Library' },
+  { id: 'sound', label: 'Taste' },
   { id: 'history', label: 'History' },
 ];
 
@@ -126,8 +126,8 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
       <AuthStatus
         user={user}
         onLogout={onLogout}
-        onOpenSound={() => setActivePage('sound')}
-        onOpenImport={() => setActivePage('import')}
+        onOpenListen={openListen}
+        playback={state}
       />
       {renderPage()}
     </>
