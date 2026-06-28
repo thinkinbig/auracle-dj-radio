@@ -1,6 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RadioSessionProvider, useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { getAppView } from '@/features/radio/session/playbackSelectors';
+import {
+  createSessionHistoryEntry,
+  loadSessionHistory,
+  saveSessionHistoryEntry,
+  type SessionHistoryEntry,
+  type SessionHistoryTrack,
+} from '@/features/radio/session/sessionHistory';
 import type { PlaybackState } from '@/features/radio/session/types';
 import { loadTrackCatalog } from '@/data/trackCatalog';
 import { AppBrand } from '@/features/marketing/AppBrand';
@@ -57,16 +64,35 @@ function AppContent({ user }: { user: AuthUser }) {
 
 function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const [activePage, setActivePage] = useState<ProductPage>('home');
+  const [sessionHistory, setSessionHistory] = useState<SessionHistoryEntry[]>(() => loadSessionHistory(user.id));
   const state = useRadioState();
   const { handleReturnToSetup } = useRadioActions();
   const hasSession = hasStartedSession(state);
+
+  useEffect(() => {
+    setSessionHistory(loadSessionHistory(user.id));
+  }, [user.id]);
+
+  const saveCurrentSession = useCallback(() => {
+    const entry = createSessionHistoryEntry(state, user.id);
+    if (!entry) return;
+    setSessionHistory(saveSessionHistoryEntry(entry));
+  }, [state, user.id]);
+
+  useEffect(() => {
+    if (state.phase !== 'idle' || !state.sessionId) return;
+    saveCurrentSession();
+  }, [saveCurrentSession, state.phase, state.sessionId]);
 
   function openListen() {
     setActivePage('listen');
   }
 
   function startNewSession() {
-    if (hasSession) handleReturnToSetup();
+    if (hasSession) {
+      saveCurrentSession();
+      handleReturnToSetup();
+    }
     setActivePage('listen');
   }
 
@@ -97,12 +123,13 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
     }
 
     if (activePage === 'history') {
-      return <HistoryPage onOpenListen={openListen} />;
+      return <HistoryPage history={sessionHistory} onOpenListen={openListen} />;
     }
 
     return (
       <HomePage
         user={user}
+        history={sessionHistory}
         onContinue={openListen}
         onStartNew={startNewSession}
         onOpenSound={() => setActivePage('sound')}
@@ -141,6 +168,7 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
 
 function HomePage({
   user,
+  history,
   onContinue,
   onStartNew,
   onOpenSound,
@@ -148,6 +176,7 @@ function HomePage({
   onOpenHistory,
 }: {
   user: AuthUser;
+  history: SessionHistoryEntry[];
   onContinue: () => void;
   onStartNew: () => void;
   onOpenSound: () => void;
@@ -156,15 +185,20 @@ function HomePage({
 }) {
   const state = useRadioState();
   const hasSession = hasStartedSession(state);
+  const latestSavedSession = history[0];
   const firstName = user.name.split(/\s+/).filter(Boolean)[0] ?? 'there';
-  const sessionTitle = hasSession ? state.sessionTitle : 'No sessions yet';
-  const sessionDuration = state.sessionElapsedSec > 0 ? formatTime(state.sessionElapsedSec) : 'Just started';
+  const sessionTitle = hasSession ? state.sessionTitle : latestSavedSession?.title ?? 'No sessions yet';
+  const sessionDuration = hasSession
+    ? state.sessionElapsedSec > 0 ? formatTime(state.sessionElapsedSec) : 'Just started'
+    : latestSavedSession ? formatTime(latestSavedSession.durationSec) : 'Just started';
   const sessionTimeline = hasSession
     ? [
         { title: state.trackTitle, detail: state.sessionSubtitle || 'Now playing' },
         { title: 'Midnight Pulse', detail: 'Late Night' },
         { title: 'Fade Into Stars', detail: 'Curious' },
       ]
+    : latestSavedSession
+      ? latestSavedSession.tracks.slice(0, 3).map((track) => ({ title: track.title, detail: track.artist }))
     : [
         { title: 'Choose a mood', detail: 'Start with one signal' },
         { title: 'Build your flow', detail: 'Auracle shapes the station' },
@@ -178,7 +212,11 @@ function HomePage({
           status: state.phase === 'playing' ? 'Playing now' : 'Current session',
         },
       ]
-    : [];
+    : history.slice(0, 3).map((session) => ({
+        title: session.title,
+        detail: session.subtitle || `${session.trackCount} tracks`,
+        status: formatSavedAt(session.savedAt),
+      }));
   const libraryTrackCount = state.sessionTracklist.length;
 
   return (
@@ -199,10 +237,14 @@ function HomePage({
         <aside className={styles.sessionPreview} aria-label="Last session">
           <div className={styles.sessionPreviewHeader}>
             <div className={styles.sessionPreviewCopy}>
-              <span className={styles.previewLabel}>{hasSession ? 'Recent Session' : 'Empty Session'}</span>
+              <span className={styles.previewLabel}>{hasSession ? 'Recent Session' : latestSavedSession ? 'Saved Session' : 'Empty Session'}</span>
               <h2>{sessionTitle}</h2>
               <p className={styles.sessionSubline}>
-                {hasSession ? `Current session · ${sessionDuration}` : 'Start your first station to create a listening path.'}
+                {hasSession
+                  ? `Current session · ${sessionDuration}`
+                  : latestSavedSession
+                    ? `Saved session · ${sessionDuration}`
+                    : 'Start your first station to create a listening path.'}
               </p>
             </div>
             <div className={styles.sessionArtwork} aria-hidden>
@@ -301,10 +343,13 @@ function HomePage({
   );
 }
 
-function HistoryPage({ onOpenListen }: { onOpenListen: () => void }) {
+function HistoryPage({ history, onOpenListen }: { history: SessionHistoryEntry[]; onOpenListen: () => void }) {
   const state = useRadioState();
   const hasSession = hasStartedSession(state);
-  const recentTranscript = state.transcript.slice(-3);
+  const latestSession = history[0];
+  const recentTranscript = latestSession?.transcript.slice(-3) ?? state.transcript.slice(-3);
+  const trackHistory = latestSession?.tracks ?? state.sessionTracklist;
+  const favoriteSession = history.find((session) => session.playlistFeedback === 'like');
 
   return (
     <main className={`${styles.productSurface} ${styles.pageTransition}`}>
@@ -324,9 +369,18 @@ function HistoryPage({ onOpenListen }: { onOpenListen: () => void }) {
         <article className={styles.historyPanel}>
           <div className={styles.sectionHeading}>
             <p className={styles.kicker}>Sessions</p>
-            <h2>{hasSession ? state.sessionTitle : 'No saved sessions yet'}</h2>
+            <h2>{latestSession ? latestSession.title : hasSession ? state.sessionTitle : 'No saved sessions yet'}</h2>
           </div>
-          {hasSession ? (
+          {history.length > 0 ? (
+            <div className={styles.sessionRows}>
+              {history.slice(0, 5).map((session) => (
+                <span key={`${session.id}-${session.savedAt}`}>
+                  <strong>{session.title}</strong>
+                  {formatSavedAt(session.savedAt)} · {formatTime(session.durationSec)} · {session.trackCount} tracks
+                </span>
+              ))}
+            </div>
+          ) : hasSession ? (
             <div className={styles.sessionRows}>
               <span>
                 <strong>{state.sessionSubtitle}</strong>
@@ -338,17 +392,19 @@ function HistoryPage({ onOpenListen }: { onOpenListen: () => void }) {
               </span>
             </div>
           ) : (
-            <p className={styles.emptyText}>Start a session and it will appear here.</p>
+            <p className={styles.emptyText}>Start and finish a session, then it will appear here.</p>
           )}
         </article>
 
         <article className={styles.historyPanel}>
           <div className={styles.sectionHeading}>
             <p className={styles.kicker}>Favorites</p>
-            <h2>{state.playlistFeedback === 'like' ? state.trackTitle : 'No favorites yet'}</h2>
+            <h2>{favoriteSession ? favoriteSession.title : state.playlistFeedback === 'like' ? state.trackTitle : 'No favorites yet'}</h2>
           </div>
           <p className={styles.emptyText}>
-            {state.playlistFeedback === 'like'
+            {favoriteSession
+              ? `${favoriteSession.title} was saved as a liked session signal.`
+              : state.playlistFeedback === 'like'
               ? `${state.artist} is marked as the current favorite signal.`
               : 'Liked tracks will become taste signals for future sessions.'}
           </p>
@@ -376,11 +432,11 @@ function HistoryPage({ onOpenListen }: { onOpenListen: () => void }) {
         <article className={`${styles.historyPanel} ${styles.trackHistoryPanel}`}>
           <div className={styles.sectionHeading}>
             <p className={styles.kicker}>Track path</p>
-            <h2>{hasSession ? `${state.sessionTracklist.length} planned tracks` : 'Waiting for a flow'}</h2>
+            <h2>{trackHistory.length > 0 ? `${trackHistory.length} planned tracks` : 'Waiting for a flow'}</h2>
           </div>
-          {hasSession ? (
+          {trackHistory.length > 0 ? (
             <div className={styles.trackHistory}>
-              {state.sessionTracklist.slice(0, 6).map((track, index) => (
+              {trackHistory.slice(0, 6).map((track, index) => (
                 <HistoryTrackRow key={`${track.id}-${index}`} track={track} index={index} />
               ))}
             </div>
@@ -393,20 +449,31 @@ function HistoryPage({ onOpenListen }: { onOpenListen: () => void }) {
   );
 }
 
-function HistoryTrackRow({ track, index }: { track: FlowTrackRef; index: number }) {
+function HistoryTrackRow({ track, index }: { track: FlowTrackRef | SessionHistoryTrack; index: number }) {
   const meta = useTrackMeta(track.id);
+  const title = 'title' in track ? track.title : meta.title;
+  const artist = 'artist' in track ? track.artist : meta.artist;
 
   return (
     <span>
       <small>{String(index + 1).padStart(2, '0')}</small>
-      <strong>{meta.title}</strong>
-      <em>{meta.artist}</em>
+      <strong>{title}</strong>
+      <em>{artist}</em>
     </span>
   );
 }
 
 function hasStartedSession(state: PlaybackState): boolean {
   return state.phase !== 'idle' || state.sessionId !== null;
+}
+
+function formatSavedAt(timestamp: number): string {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(timestamp);
 }
 
 export default function App() {
