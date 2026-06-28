@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import type { SessionIntent } from '@auracle/shared';
 import { DOING_OPTIONS, FEEL_OPTIONS } from '@/data/intentOptions';
 import { cn } from '@/shared/lib/cn';
@@ -89,6 +89,18 @@ export function IntentOnboarding({
     });
   };
 
+  const handleSoftInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    handlePrimary();
+  };
+
+  const handleContextKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== 'Enter' || (!event.metaKey && !event.ctrlKey)) return;
+    event.preventDefault();
+    handlePrimary();
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.cardHeader}>
@@ -146,6 +158,7 @@ export function IntentOnboarding({
             placeholder="Or name the feeling in your own words"
             value={feelCustom}
             onChange={(e) => onFeelCustomChange(e.target.value)}
+            onKeyDown={handleSoftInputKeyDown}
             disabled={disabled}
             aria-label="How you feel, in your own words"
           />
@@ -182,6 +195,7 @@ export function IntentOnboarding({
             placeholder="Or describe the moment"
             value={doingCustom}
             onChange={(e) => onDoingCustomChange(e.target.value)}
+            onKeyDown={handleSoftInputKeyDown}
             disabled={disabled || !mood}
             aria-label="What you are doing, in your own words"
           />
@@ -198,6 +212,7 @@ export function IntentOnboarding({
             placeholder="A memory, tempo, artist direction, or boundary for this session"
             value={extraContext}
             onChange={(e) => setExtraContext(e.target.value)}
+            onKeyDown={handleContextKeyDown}
             disabled={disabled || !scene}
             aria-label="Optional note for Auracle"
           />

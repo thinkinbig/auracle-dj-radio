@@ -13,7 +13,7 @@ import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import { SoundScreen } from '@/features/sound/SoundScreen';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
-import { IconArrowRight, IconClock, IconPlay } from '@/shared/ui/Icons';
+import { IconArrowRight, IconPlay } from '@/shared/ui/Icons';
 import type { AuthUser, FlowTrackRef } from '@auracle/shared';
 import styles from './AppNav.module.css';
 
@@ -27,24 +27,7 @@ const PRODUCT_NAV: { id: ProductPage; label: string }[] = [
   { id: 'history', label: 'History' },
 ];
 
-const HOME_DNA = [
-  { label: 'Reflective', value: 72 },
-  { label: 'Late Night', value: 63 },
-  { label: 'Warm Nostalgia', value: 54 },
-  { label: 'Curious', value: 48 },
-] as const;
-
-const HOME_CONTEXT = [
-  { label: 'Taste DNA', detail: 'Your unique music fingerprint', value: 70 },
-  { label: "Today's Moment", detail: 'Mood, activity, and time', value: 20 },
-  { label: 'Listening Memory', detail: "What you've listened to", value: 10 },
-] as const;
-
-const SESSION_WAVEFORM = [
-  10, 12, 14, 18, 26, 34, 24, 18, 16, 20, 14, 16, 24, 30, 38, 26, 32, 24, 18, 22, 34, 46, 30, 36,
-  28, 18, 22, 40, 26, 34, 18, 16, 22, 44, 30, 24, 20, 26, 34, 42, 28, 22, 16, 20, 26, 30, 18, 16,
-  20, 24, 32, 22, 18, 14, 20, 28, 34, 24, 18, 16, 14, 12,
-];
+const HOME_DNA = ['Reflective', 'Late Night', 'Curious'] as const;
 
 function AppContent({ user }: { user: AuthUser }) {
   const state = useRadioState();
@@ -123,6 +106,7 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
         onContinue={openListen}
         onStartNew={startNewSession}
         onOpenSound={() => setActivePage('sound')}
+        onOpenImport={() => setActivePage('import')}
         onOpenHistory={() => setActivePage('history')}
       />
     );
@@ -160,118 +144,105 @@ function HomePage({
   onContinue,
   onStartNew,
   onOpenSound,
+  onOpenImport,
   onOpenHistory,
 }: {
   user: AuthUser;
   onContinue: () => void;
   onStartNew: () => void;
   onOpenSound: () => void;
+  onOpenImport: () => void;
   onOpenHistory: () => void;
 }) {
   const state = useRadioState();
   const hasSession = hasStartedSession(state);
   const firstName = user.name.split(/\s+/).filter(Boolean)[0] ?? 'there';
-  const trackCount = state.sessionTracklist.length || 8;
-  const completedTracks = hasSession ? Math.min(state.currentTrackIndex + 1, trackCount) : 0;
-  const sessionProgress = hasSession ? Math.max(12, (completedTracks / trackCount) * 100) : 0;
-  const sessionTags = hasSession
-    ? [state.sessionSubtitle || 'Personal flow', formatPhaseName(state.phase), formatHostMode(state.hostMode)]
-    : ['Taste DNA', 'Fresh moment', 'Listening memory'];
-  const sessionTitle = hasSession ? state.sessionTitle : 'First signal awaits';
-  const sessionCopy = hasSession
-    ? state.sessionSubtitle
-    : 'Choose a mood and Auracle will build the first flow from your taste signals.';
-  const durationLabel = hasSession ? formatDurationLabel(state.sessionElapsedSec) : '0 min';
-  const lastActiveLabel = hasSession ? 'Active session' : 'No activity yet';
-  const sessionAction = hasSession ? 'Continue Session' : 'Start Listening';
+  const sessionTitle = hasSession ? state.sessionTitle : 'No sessions yet';
+  const sessionDuration = state.sessionElapsedSec > 0 ? formatTime(state.sessionElapsedSec) : 'Just started';
+  const sessionTimeline = hasSession
+    ? [
+        { title: state.trackTitle, detail: state.sessionSubtitle || 'Now playing' },
+        { title: 'Midnight Pulse', detail: 'Late Night' },
+        { title: 'Fade Into Stars', detail: 'Curious' },
+      ]
+    : [
+        { title: 'Choose a mood', detail: 'Start with one signal' },
+        { title: 'Build your flow', detail: 'Auracle shapes the station' },
+        { title: 'Save the story', detail: 'Sessions appear in History' },
+      ];
+  const generatedSessions = hasSession
+    ? [
+        {
+          title: state.sessionTitle,
+          detail: state.sessionSubtitle || 'Current station',
+          status: state.phase === 'playing' ? 'Playing now' : 'Current session',
+        },
+      ]
+    : [];
+  const libraryTrackCount = state.sessionTracklist.length;
 
   return (
     <main className={`${styles.productSurface} ${styles.homeSurface}`}>
       <section className={styles.homeHero} aria-labelledby="home-title">
         <div className={styles.homeCopy}>
-          <p className={styles.kicker}>Personal radio</p>
           <h1 id="home-title">Welcome back, {firstName}.</h1>
           <p className={styles.homeSignal}>Your music, your moment.</p>
-          <p className={styles.homeLede}>
-            Auracle blends your Taste DNA, listening memory, and today&apos;s moment to create a station that feels just right.
-          </p>
+          <p className={styles.homeLede}>Start a station from your mood, memory, and taste.</p>
           <div className={styles.homeActions}>
             <button className={styles.primaryButton} type="button" onClick={onStartNew}>
               <IconPlay size={18} />
               Start New Session
             </button>
           </div>
-          <div className={styles.homeMetaRow}>
-            <span>
-              <IconClock size={16} />
-              Last active: {lastActiveLabel}
-            </span>
-            <button className={styles.linkButton} type="button" onClick={onOpenHistory}>
-              View History
-              <IconArrowRight size={18} />
-            </button>
-          </div>
         </div>
 
         <aside className={styles.sessionPreview} aria-label="Last session">
-          <div className={styles.sessionPreviewTop}>
+          <div className={styles.sessionPreviewHeader}>
             <div className={styles.sessionPreviewCopy}>
-              <span className={styles.previewLabel}>{hasSession ? 'Last session' : 'Ready to begin'}</span>
+              <span className={styles.previewLabel}>{hasSession ? 'Recent Session' : 'Empty Session'}</span>
               <h2>{sessionTitle}</h2>
-              <div className={styles.tagRow} aria-label="Session signals">
-                {sessionTags.map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
-              </div>
-              <div className={styles.sessionStats}>
-                <span>
-                  <small>Last played</small>
-                  <strong>{hasSession ? 'Current session' : 'Not started'}</strong>
-                </span>
-                <span>
-                  <small>Duration</small>
-                  <strong>{durationLabel}</strong>
-                </span>
-              </div>
+              <p className={styles.sessionSubline}>
+                {hasSession ? `Current session · ${sessionDuration}` : 'Start your first station to create a listening path.'}
+              </p>
             </div>
-            <div className={styles.sessionDial} aria-hidden>
+            <div className={styles.sessionArtwork} aria-hidden>
               <span />
             </div>
           </div>
 
-          <p className={styles.sessionCopy}>{sessionCopy}</p>
-          <div className={styles.previewWaveform} aria-hidden>
-            {SESSION_WAVEFORM.map((height, index) => (
-              <i key={`${height}-${index}`} style={{ height: `${height}px` }} />
+          <div className={styles.sessionPath} aria-label={hasSession ? 'Session path' : 'First session steps'}>
+            {sessionTimeline.map((item) => (
+              <span key={`${item.title}-${item.detail}`}>
+                <i aria-hidden />
+                <strong>{item.title}</strong>
+                <small>{item.detail}</small>
+              </span>
             ))}
           </div>
-          <div className={styles.sessionMeter} aria-label={`${completedTracks} of ${trackCount} tracks`}>
-            <span style={{ width: `${sessionProgress}%` }} />
-          </div>
+
           <button className={styles.sessionContinueButton} type="button" onClick={hasSession ? onContinue : onStartNew}>
-            {sessionAction}
+            {hasSession ? 'Continue Session' : 'Start First Session'}
             <IconArrowRight size={22} />
           </button>
         </aside>
       </section>
 
-      <section className={styles.homeGrid} aria-label="Home overview">
-        <article className={styles.dnaPanel}>
-          <div className={styles.sectionHeading}>
-            <p className={styles.kicker}>Taste DNA</p>
-            <h2>This is what shapes your station.</h2>
+      <section className={styles.homeCardGrid} aria-label="Home shortcuts">
+        <article className={`${styles.homeShortcutCard} ${styles.tasteGraphCard}`}>
+          <div className={styles.cardHeading}>
+            <p className={styles.kicker}>Your Taste DNA</p>
+            <h2>Signals at a glance.</h2>
           </div>
-          <div className={styles.dnaMeterList} aria-label="Taste DNA overview">
-            {HOME_DNA.map((item) => (
-              <span key={item.label} className={styles.dnaMeterRow}>
-                <i className={styles.traitIcon} aria-hidden />
-                <strong>{item.label}</strong>
-                <span className={styles.dnaMeter}>
-                  <i style={{ width: `${item.value}%` }} />
+          <div className={styles.tasteGraphWrap} aria-label="Taste DNA overview">
+            <div className={styles.tasteLegend}>
+              {HOME_DNA.map((item) => (
+                <span key={item}>
+                  <i aria-hidden />
+                  <strong>{item}</strong>
+                  <small />
                 </span>
-                <em>{item.value}%</em>
-              </span>
-            ))}
+              ))}
+            </div>
           </div>
           <button className={styles.textButton} type="button" onClick={onOpenSound}>
             Edit My Sound
@@ -279,25 +250,49 @@ function HomePage({
           </button>
         </article>
 
-        <article className={styles.homeListPanel}>
-          <div className={styles.sectionHeading}>
-            <p className={styles.kicker}>Today&apos;s context</p>
-            <h2>Here&apos;s how we&apos;ll build your station.</h2>
+        <article className={`${styles.homeShortcutCard} ${styles.libraryCard}`}>
+          <div className={styles.cardHeading}>
+            <p className={styles.kicker}>Music Library</p>
+            <h2>Your source material.</h2>
           </div>
-          <div className={styles.contextRows}>
-            {HOME_CONTEXT.map((item) => (
-              <span key={item.label} className={styles.contextRow}>
-                <i className={styles.contextIcon} aria-hidden />
-                <span>
-                  <strong>{item.label}</strong>
-                  <small>{item.detail}</small>
-                </span>
-                <em>{item.value}%</em>
-              </span>
-            ))}
+          <div className={styles.libraryStack} aria-label="Library summary">
+            <span>
+              <strong>{libraryTrackCount > 0 ? libraryTrackCount : 'Ready'}</strong>
+              <small>{libraryTrackCount > 0 ? 'planned tracks in this flow' : 'to import playlists'}</small>
+            </span>
+            <span>
+              <strong>Artists</strong>
+              <small>Shape future radio sessions</small>
+            </span>
           </div>
-          <button className={styles.textButton} type="button" onClick={onOpenSound}>
-            Learn more about station building
+          <button className={styles.textButton} type="button" onClick={onOpenImport}>
+            Manage Library
+            <IconArrowRight size={18} />
+          </button>
+        </article>
+
+        <article className={`${styles.homeShortcutCard} ${styles.historyShortcutCard}`}>
+          <div className={styles.cardHeading}>
+            <p className={styles.kicker}>Session History</p>
+            <h2>Every station you create.</h2>
+          </div>
+          {generatedSessions.length > 0 ? (
+            <div className={styles.generatedSessionList} aria-label="Generated sessions">
+              {generatedSessions.map((session) => (
+                <button key={session.title} type="button" onClick={onOpenHistory}>
+                  <span>
+                    <strong>{session.title}</strong>
+                    <small>{session.detail}</small>
+                  </span>
+                  <em>{session.status}</em>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.emptyText}>Generated sessions will collect here after you start listening.</p>
+          )}
+          <button className={styles.textButton} type="button" onClick={onOpenHistory}>
+            View History
             <IconArrowRight size={18} />
           </button>
         </article>
@@ -408,41 +403,6 @@ function HistoryTrackRow({ track, index }: { track: FlowTrackRef; index: number 
       <em>{meta.artist}</em>
     </span>
   );
-}
-
-function formatDurationLabel(seconds: number): string {
-  const minutes = Math.max(1, Math.round(seconds / 60));
-  return `${minutes} min`;
-}
-
-function formatHostMode(mode: PlaybackState['hostMode']): string {
-  switch (mode) {
-    case 'set_dj':
-      return 'Set DJ';
-    case 'hype':
-      return 'Hype';
-    default:
-      return 'Curator';
-  }
-}
-
-function formatPhaseName(phase: PlaybackState['phase']): string {
-  switch (phase) {
-    case 'curating':
-      return 'Tuning';
-    case 'opening':
-      return 'Opening';
-    case 'playing':
-      return 'Playing';
-    case 'speaking':
-      return 'DJ voice';
-    case 'listening':
-      return 'Listening';
-    case 'paused':
-      return 'Paused';
-    default:
-      return 'Ready';
-  }
 }
 
 function hasStartedSession(state: PlaybackState): boolean {

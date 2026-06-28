@@ -27,26 +27,27 @@
 }
 
 .frame {
-  width: min(1120px, calc(100% - 40px));
+  width: min(1180px, calc(100% - 40px));
   min-height: 100dvh;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(250px, 330px) minmax(0, 1fr);
+  grid-template-columns: 1fr;
   align-items: start;
-  gap: clamp(36px, 4.6vw, 64px);
-  padding: 128px 0 64px;
+  gap: clamp(18px, 2.4vw, 28px);
+  padding: 116px 0 56px;
 }
 
 .copy {
   min-width: 0;
+  max-width: 760px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 13px;
   animation: softEnter 720ms var(--ease-out) both;
 }
 
-.eyebrow,
-.panelLabel {
+.eyebrow {
   color: rgba(141, 247, 167, 0.84);
   font-size: 0.82rem;
   font-weight: 850;
@@ -55,22 +56,22 @@
 }
 
 .copy h1 {
-  max-width: 400px;
-  margin-top: 18px;
-  font-size: clamp(2.72rem, 4.2vw, 4.45rem);
+  max-width: none;
+  margin-top: 0;
+  font-size: clamp(2.35rem, 3.4vw, 3.35rem);
   font-weight: 780;
-  line-height: 0.98;
+  line-height: 1;
   letter-spacing: 0;
-  text-wrap: balance;
+  text-wrap: nowrap;
   text-shadow: 0 18px 80px rgba(0, 0, 0, 0.38);
 }
 
 .lede {
-  max-width: 360px;
-  margin-top: 22px;
+  max-width: 700px;
+  margin-top: 0;
   color: rgba(248, 250, 252, 0.64);
-  font-size: clamp(0.96rem, 1.2vw, 1.04rem);
-  line-height: 1.68;
+  font-size: clamp(0.92rem, 1.05vw, 1rem);
+  line-height: 1.62;
 }
 
 .evalNote {
@@ -81,137 +82,16 @@
   line-height: 1.52;
 }
 
-.signalStack {
-  width: min(100%, 320px);
-  display: grid;
-  gap: 14px;
-  margin-top: clamp(30px, 5vh, 56px);
-}
-
-.signalPanel,
-.sessionPanel {
-  position: relative;
-  overflow: hidden;
-  display: grid;
-  gap: 18px;
-  padding: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 30px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.078), rgba(255, 255, 255, 0.03)),
-    rgba(8, 12, 10, 0.56);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(26px);
-}
-
-.signalPanel::before,
-.sessionPanel::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  pointer-events: none;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle at 10% 0%, rgba(141, 247, 167, 0.18), transparent 34%),
-    radial-gradient(circle at 100% 18%, rgba(178, 113, 255, 0.1), transparent 34%);
-  opacity: 0.72;
-}
-
-.signalList {
-  position: relative;
-  display: grid;
-  gap: 14px;
-}
-
-.signalRow {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  color: rgba(248, 250, 252, 0.86);
-  font-size: 0.92rem;
-  font-weight: 650;
-}
-
-.signalMark {
-  width: 18px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 2px solid rgba(141, 247, 167, 0.8);
-  box-shadow: 0 0 24px rgba(141, 247, 167, 0.26);
-}
-
-.signalMark[data-tone='1'] {
-  border-color: rgba(198, 133, 255, 0.78);
-  box-shadow: 0 0 24px rgba(198, 133, 255, 0.2);
-}
-
-.signalMark[data-tone='2'] {
-  border-color: rgba(222, 218, 138, 0.72);
-  box-shadow: 0 0 24px rgba(222, 218, 138, 0.16);
-}
-
-.sessionMemory {
-  position: relative;
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  align-items: center;
-  gap: 14px;
-}
-
-.sessionOrb {
-  position: relative;
-  width: 52px;
-  aspect-ratio: 1;
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 46% 40%, rgba(141, 247, 167, 0.42), transparent 18%),
-    radial-gradient(circle at 62% 64%, rgba(178, 113, 255, 0.32), transparent 24%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.035));
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 16px 34px rgba(0, 0, 0, 0.28);
-}
-
-.sessionOrb::after {
-  content: '';
-  position: absolute;
-  inset: 18px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-}
-
-.sessionMemory strong,
-.sessionMemory small {
-  min-width: 0;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sessionMemory strong {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.94rem;
-  font-weight: 720;
-}
-
-.sessionMemory small {
-  margin-top: 4px;
-  color: rgba(248, 250, 252, 0.52);
-  font-size: 0.78rem;
-}
-
 .intentCard {
   position: relative;
-  min-height: min(640px, calc(100dvh - 220px));
+  width: min(100%, 1040px);
+  min-height: min(580px, calc(100dvh - 236px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: clamp(26px, 3vw, 42px);
+  padding: clamp(24px, 2.7vw, 36px);
   border: 1px solid rgba(255, 255, 255, 0.095);
-  border-radius: 34px;
+  border-radius: 32px;
   background:
     radial-gradient(circle at 8% 14%, rgba(141, 247, 167, 0.13), transparent 30%),
     radial-gradient(circle at 90% 12%, rgba(188, 111, 255, 0.12), transparent 28%),
@@ -249,30 +129,27 @@
 
 @media (max-width: 1180px) {
   .frame {
-    width: min(100% - 40px, 860px);
+    width: calc(100% - 40px);
     grid-template-columns: 1fr;
     align-items: start;
-    gap: 30px;
+    gap: 24px;
     padding: 112px 0 48px;
   }
 
   .copy {
+    align-items: start;
+    gap: 14px;
     padding-top: 6px;
   }
 
   .copy h1 {
     max-width: 680px;
-    font-size: clamp(2.9rem, 8vw, 4.7rem);
+    font-size: clamp(2.35rem, 6vw, 3.4rem);
+    text-wrap: balance;
   }
 
   .lede {
     max-width: 650px;
-  }
-
-  .signalStack {
-    width: 100%;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin-top: 30px;
   }
 
   .intentCard {
@@ -288,10 +165,7 @@
 
   .copy h1 {
     font-size: clamp(2.6rem, 12vw, 4rem);
-  }
-
-  .signalStack {
-    grid-template-columns: 1fr;
+    text-wrap: balance;
   }
 
   .intentCard {
@@ -303,21 +177,6 @@
 @media (max-width: 460px) {
   .frame {
     width: min(100% - 18px, 420px);
-  }
-
-  .signalPanel,
-  .sessionPanel {
-    padding: 20px;
-    border-radius: 24px;
-  }
-
-  .sessionMemory {
-    grid-template-columns: 50px minmax(0, 1fr);
-  }
-
-  .sessionOrb {
-    width: 50px;
-    border-radius: 18px;
   }
 }
 
