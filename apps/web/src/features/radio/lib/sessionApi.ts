@@ -45,7 +45,6 @@ export async function regenerateSession(sessionId: string): Promise<RegenerateSe
   try {
     const res = await fetch(`/sessions/${sessionId}/regenerate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
     });
     if (!res.ok) return undefined;
     return (await res.json()) as RegenerateSessionResponse;
