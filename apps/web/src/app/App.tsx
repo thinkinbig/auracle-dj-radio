@@ -354,7 +354,6 @@ function HistoryPage({ history, onOpenListen }: { history: SessionHistoryEntry[]
   return (
     <main className={`${styles.productSurface} ${styles.pageTransition}`}>
       <section className={styles.pageIntro} aria-labelledby="history-title">
-        <p className={styles.kicker}>History</p>
         <h1 id="history-title">Listening memories, without the clutter.</h1>
         <p>
           A calm record of sessions, saved moments, and the small preferences Auracle can carry into

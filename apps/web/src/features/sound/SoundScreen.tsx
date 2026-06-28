@@ -28,7 +28,6 @@ export function SoundScreen({ user, onClose, onOpenImport, embedded = false }: S
         ) : null}
         <div className={styles.heroGrid}>
           <div className={styles.headerCopy}>
-            <p className={styles.eyebrow}>Personal tuning</p>
             <h1>Make every station sound more like you.</h1>
             <p>
               Choose the genres, artists, albums, and tracks Auracle should follow or avoid when it

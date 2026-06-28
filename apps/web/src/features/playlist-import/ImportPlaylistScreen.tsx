@@ -86,7 +86,6 @@ export function ImportPlaylistScreen({ user, onClose, embedded = false }: Import
 
         <div className={styles.heroGrid}>
           <section className={styles.heroCopy} aria-labelledby="import-title">
-            <p className={styles.eyebrow}>Playlist memory</p>
             <h1 id="import-title">Turn playlists into radio memory.</h1>
             <p>
               Bring in CSV, pasted tracks, or Spotify export metadata. Auracle reads the songs as
