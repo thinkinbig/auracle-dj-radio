@@ -317,10 +317,6 @@ describe("music-engine HTTP", () => {
 
   it("structured taste shifts the candidate pool (S4)", async () => {
     const genreById = new Map(engine.db.allTracks().map((t) => [t.id, t.genreSlug]));
-    // Pick a genre that has several tracks so a shift is observable.
-    const counts = new Map<string, number>();
-    for (const g of genreById.values()) counts.set(g, (counts.get(g) ?? 0) + 1);
-    const targetGenre = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
 
     async function planCandidates(taste?: unknown): Promise<TrackCandidate[]> {
       const res = await engine.app.inject({
@@ -332,9 +328,16 @@ describe("music-engine HTTP", () => {
       expect(res.statusCode).toBe(200);
       return res.json<{ candidates: TrackCandidate[] }>().candidates;
     }
-    const countGenre = (cands: TrackCandidate[]) => cands.filter((c) => genreById.get(c.id) === targetGenre).length;
-
     const baseline = await planCandidates();
+    // Pick a genre already present in this intent's baseline pool so avoid/prefer
+    // can produce an observable delta after energy-bucket truncation.
+    const counts = new Map<string, number>();
+    for (const c of baseline) {
+      const genre = genreById.get(c.id);
+      if (genre) counts.set(genre, (counts.get(genre) ?? 0) + 1);
+    }
+    const targetGenre = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+    const countGenre = (cands: TrackCandidate[]) => cands.filter((c) => genreById.get(c.id) === targetGenre).length;
     const avoided = await planCandidates([
       { entityType: "genre", entityId: targetGenre, polarity: "avoid", strength: 3, source: "onboarding" },
     ]);
