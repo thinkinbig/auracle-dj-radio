@@ -26,7 +26,7 @@ const PRODUCT_NAV: { id: ProductPage; label: string }[] = [
   { id: 'history', label: 'History' },
 ];
 
-function AppContent() {
+function AppContent({ user }: { user: AuthUser }) {
   const state = useRadioState();
   const { handleTogglePause, handleSkipTrack } = useRadioActions();
   const appView = getAppView(state.phase);
@@ -47,7 +47,7 @@ function AppContent() {
     return () => window.removeEventListener('keydown', onKey);
   }, [state.phase, handleTogglePause, handleSkipTrack]);
 
-  if (appView === 'mood_picking') return <MoodPickerScreen />;
+  if (appView === 'mood_picking') return <MoodPickerScreen user={user} />;
 
   return <PlayerScreen />;
 }
@@ -69,7 +69,7 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
 
   function renderPage() {
     if (activePage === 'listen') {
-      return <AppContent />;
+      return <AppContent user={user} />;
     }
 
     if (activePage === 'import') {
