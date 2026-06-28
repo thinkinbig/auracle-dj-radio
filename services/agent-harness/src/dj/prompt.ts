@@ -127,8 +127,12 @@ export interface CueTrack {
   energy: number;
   tempo: number;
   genre: string;
-  /** One-line lore hint for curator mode only — not a script. */
+  /** Track creation background (curator mode only) — borrow a phrase, not a script. */
   lore?: string;
+  /** Artist persona blurb (curator mode only) — borrow a phrase, not a script. */
+  artistPersona?: string;
+  /** Album concept blurb (curator mode only) — borrow a phrase, not a script. */
+  albumConcept?: string;
 }
 
 export interface CueInput {
@@ -137,6 +141,12 @@ export interface CueInput {
   sessionTitle: string;
   now?: CueTrack;
   next?: CueTrack;
+  /**
+   * Track position, used to rotate which context hint (lore / artist / album)
+   * the curator surfaces so all three appear across a set without ever stacking
+   * more than one per cue. Defaults to 0.
+   */
+  contextRotation?: number;
 }
 
 /** Project track metadata down to the subset a cue needs. */
@@ -150,6 +160,8 @@ export function toCueTrack(meta: TrackMeta | undefined): CueTrack | undefined {
     tempo: meta.tempo,
     genre: meta.genre,
     lore: meta.lore,
+    artistPersona: meta.artistPersona,
+    albumConcept: meta.albumConcept,
   };
 }
 
@@ -166,11 +178,39 @@ function trackLine(track: CueTrack): string {
   return `Track: "${track.title}" by ${track.artist} — vibe: ${vibeHint(track)}.`;
 }
 
-/** Short phrase from lore for curator segues (≤ ~15 words). */
-function loreHint(lore: string): string {
-  const sentence = lore.split(/[.!?]/)[0]?.trim() ?? lore.trim();
+/** Clamp a blurb to its first sentence, ≤ ~15 words — a phrase to borrow, not a script. */
+function clampPhrase(text: string): string {
+  const sentence = text.split(/[.!?]/)[0]?.trim() ?? text.trim();
   const words = sentence.split(/\s+/);
   return words.length > 15 ? `${words.slice(0, 15).join(" ")}…` : sentence;
+}
+
+interface ContextHint {
+  label: string;
+  text: string;
+}
+
+/**
+ * Pick exactly one creation-context hint (track lore / artist persona / album
+ * concept) for a curator cue. Rotates by `rotation` (track position) so a set
+ * surfaces all three over time, while a single cue never stacks more than one —
+ * keeps talk-over brief and radio-like. Returns undefined when none are set.
+ */
+function pickContextHint(track: CueTrack, rotation: number): ContextHint | undefined {
+  const candidates: ContextHint[] = [];
+  if (track.lore) candidates.push({ label: "Track lore", text: track.lore });
+  if (track.artistPersona) candidates.push({ label: "Artist persona", text: track.artistPersona });
+  if (track.albumConcept) candidates.push({ label: "Album concept", text: track.albumConcept });
+  if (candidates.length === 0) return undefined;
+  return candidates[Math.abs(rotation) % candidates.length];
+}
+
+/** Curator-only context line: one hint, borrowed not read. Empty for other modes. */
+function contextLine(track: CueTrack | undefined, hostMode: HostMode, rotation: number): string | undefined {
+  if (!track || hostMode !== "curator") return undefined;
+  const hint = pickContextHint(track, rotation);
+  if (!hint) return undefined;
+  return `${hint.label} hint (borrow one phrase, ≤15 words, do not read verbatim): "${clampPhrase(hint.text)}".`;
 }
 
 /**
@@ -179,17 +219,17 @@ function loreHint(lore: string): string {
  */
 export function buildCueText(input: CueInput): string {
   const { kind, hostMode } = input;
+  const rotation = input.contextRotation ?? 0;
   const lines: string[] = [];
 
   if (kind === "opening") {
     lines.push(`[opening, ${hostMode}, ${OPENING_DURATION[hostMode]}]`);
     lines.push("Music is silent — open the set before playback begins. Track one is preloading but not playing yet.");
     if (input.now) lines.push(trackLine(input.now));
-    if (input.now?.lore && hostMode === "curator") {
-      lines.push(
-        `Lore hint (borrow one phrase, ≤15 words, do not read verbatim): "${loreHint(input.now.lore)}".`,
-      );
-    }
+    // Curator weaves creation context (artist/album/track); set_dj keeps to the
+    // artist name in trackLine; hype skips context entirely.
+    const openingContext = contextLine(input.now, hostMode, rotation);
+    if (openingContext) lines.push(openingContext);
     if (hostMode === "curator") {
       lines.push(`Set name "${input.sessionTitle}" — mention once, softly, optional.`);
     }
@@ -226,11 +266,8 @@ export function buildCueText(input: CueInput): string {
   lines.push(`[segue, ${hostMode}, 5-8s]`);
   lines.push("Talk over the intro — music is already playing.");
   if (input.now) lines.push(trackLine(input.now));
-  if (input.now?.lore && hostMode === "curator") {
-    lines.push(
-      `Lore hint (borrow one phrase, ≤15 words, do not read verbatim): "${loreHint(input.now.lore)}".`,
-    );
-  }
+  const segueContext = contextLine(input.now, hostMode, rotation);
+  if (segueContext) lines.push(segueContext);
   if (input.next) {
     lines.push(`Next: "${input.next.title}" by ${input.next.artist} — vibe: ${vibeHint(input.next)}. Do not read stats.`);
   }

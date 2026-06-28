@@ -34,7 +34,7 @@ _Avoid_: thumbnail, artwork (too generic).
 **Lore**:
 A short backstory (roughly two to four sentences) attached to a track — where it "came from," mood, or scene —
 used by the DJ and the content UI for immersion; not spoken verbatim as a script.
-In **curator** host mode the DJ may borrow one short phrase (about fifteen words); other modes do not use lore.
+In **curator** host mode the DJ may borrow one short phrase (about fifteen words). Curator cues draw on the same one-phrase rule from **Lore**, **Artist** persona, and **Album** concept, rotating so a single cue carries at most one such hint and a set surfaces all three over time. **set_dj** names the artist only; **hype** uses none.
 The UI may show the full lore text alongside the **Album cover**.
 _Avoid_: synopsis, description, prompt.
 
