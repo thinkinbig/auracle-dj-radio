@@ -14,6 +14,8 @@ export interface PlanTracklistRequest {
     played?: TrackCandidate[];
     lastPlayedEnergy?: number | null;
     remainingSlots?: number;
+    /** Currently-shown remaining ids to steer away from on a Regenerate re-roll. */
+    avoidIds?: string[];
   };
   /** Rolling extend (E1): append fresh tracks, excluding already-played/queued ids. */
   extend?: {

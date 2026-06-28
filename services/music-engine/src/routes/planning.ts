@@ -39,7 +39,7 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
       memories?: string;
       energyWeights?: Partial<Record<number, number>>;
       taste?: TastePreference[];
-      replan?: { playedIds?: string[]; played?: TrackCandidate[]; lastPlayedEnergy?: number | null; remainingSlots?: number };
+      replan?: { playedIds?: string[]; played?: TrackCandidate[]; lastPlayedEnergy?: number | null; remainingSlots?: number; avoidIds?: string[] };
       extend?: { playedIds?: string[]; appendSlots?: number; lastPlayedEnergy?: number | null };
       tieBreakSeed?: string;
     };
@@ -73,6 +73,7 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
         played: r.played ?? [],
         lastPlayedEnergy: r.lastPlayedEnergy ?? null,
         remainingSlots: r.remainingSlots ?? 0,
+        avoidIds: r.avoidIds,
         energyWeights: b.energyWeights,
         memories: b.memories ?? "",
         taste: b.taste,

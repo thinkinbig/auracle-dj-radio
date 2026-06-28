@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { FlowTrackRef } from "@auracle/shared";
 import type { MemoryServiceClient } from "../memory-service-client.js";
 import type { MusicEngineClient } from "../music-engine-client.js";
@@ -28,6 +29,13 @@ export interface ReplanParams {
   energy_delta?: "lighter" | "heavier" | "same";
   /** Adjustment tier; defaults to `nudge` (the mid-session default per design §2.2). */
   scope?: ReplanScope;
+  /**
+   * Re-roll (the Regenerate button): use a fresh tie-break seed and steer away from
+   * the slots being replaced, so repeated regenerates surface different tracks
+   * instead of recomputing the session's one deterministic plan. Off for the DJ's
+   * `mood_change`, which should stay stable for a given mood.
+   */
+  reroll?: boolean;
 }
 
 /** nudge re-fills at most this many of the next not-yet-played slots (design §2.2). */
@@ -97,6 +105,10 @@ export async function applyReplan(
   const playedIds = [...state.tracklist.slice(0, state.currentTrackIndex + 1).map((r) => r.id), ...keptIds];
   const intent = { ...state.intent, mood: params.mood };
   const before = remainingRefs.map((r) => r.id);
+  // On a re-roll, steer away from the occupants of the slots we're replacing and use
+  // a fresh seed, so a repeated Regenerate yields different tracks rather than the
+  // same deterministic plan (soft exclude — the engine tops up if the band runs dry).
+  const replacedWindow = remainingRefs.slice(start, start + count).map((r) => r.id);
 
   const personalized = state.condition === "C";
   const taste = personalized ? await deps.memory.tasteWeights(state.userId).catch(() => undefined) : undefined;
@@ -106,8 +118,8 @@ export async function applyReplan(
     memories: personalized ? state.mem0Context : "",
     energyWeights: personalized ? state.energyWeights : undefined,
     taste,
-    replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: count },
-    tieBreakSeed: state.tieBreakSeed,
+    replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: count, avoidIds: params.reroll ? replacedWindow : undefined },
+    tieBreakSeed: params.reroll ? randomUUID() : state.tieBreakSeed,
   });
 
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));

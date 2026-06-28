@@ -297,6 +297,7 @@ export class AgentHarness {
       mood: state.intent.mood,
       energy_delta: "same",
       scope: "full", // Regenerate replaces the whole remaining queue, not a nudge.
+      reroll: true, // Each click re-rolls: fresh seed + steer away from the shown tracks.
     });
 
     await this.deps.memory.recordEvent(id, state.userId, "playlist_regenerate_requested", {

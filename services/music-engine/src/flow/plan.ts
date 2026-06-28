@@ -199,22 +199,43 @@ export interface ReplanInput {
   /** Structured taste prefer/avoid (condition C); undefined for A/B. */
   taste?: TastePreference[];
   tieBreakSeed?: string;
+  /**
+   * Currently-shown remaining ids to steer *away* from (the Regenerate re-roll), so
+   * a repeated regenerate surfaces different tracks. Soft exclude: if the energy
+   * band can't fill the slots without them, the queue is topped up from this pool
+   * (genuinely-fresh picks first) rather than coming back short.
+   */
+  avoidIds?: string[];
 }
 
 /** Mid-session replan: re-fill only the remaining slots, excluding played tracks. */
 export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanResult> {
   const effectiveEnergyWeights = mergeEnergyWeights(input.energyWeights, energyWeightsFromMemories(input.memories ?? ""));
-  const candidates = retrieveCandidates(deps.tracks(), {
-    mood: input.intent.mood,
-    scene: input.intent.scene,
-    excludeIds: new Set(input.playedIds),
-    limit: Math.max(24, input.remainingSlots * 3),
-    slots: input.remainingSlots,
-    lastPlayedEnergy: input.lastPlayedEnergy,
-    energyWeights: effectiveEnergyWeights,
-    taste: input.taste,
-    tieBreakSeed: input.tieBreakSeed,
-  });
+  const tracks = deps.tracks();
+  const retrieve = (excludeIds: Set<string>): TrackCandidate[] =>
+    retrieveCandidates(tracks, {
+      mood: input.intent.mood,
+      scene: input.intent.scene,
+      excludeIds,
+      limit: Math.max(24, input.remainingSlots * 3),
+      slots: input.remainingSlots,
+      lastPlayedEnergy: input.lastPlayedEnergy,
+      energyWeights: effectiveEnergyWeights,
+      taste: input.taste,
+      tieBreakSeed: input.tieBreakSeed,
+    });
+
+  const hardExclude = new Set(input.playedIds);
+  const avoid = (input.avoidIds ?? []).filter((id) => !hardExclude.has(id));
+  // No soft-avoid (the default mid-session replan): exclude only played tracks.
+  let candidates = retrieve(avoid.length > 0 ? new Set([...hardExclude, ...avoid]) : hardExclude);
+  // Re-roll top-up: steering away from the shown tracks can leave too few in the
+  // energy band; refill from the avoided pool (fresh picks already first) so the
+  // queue stays full instead of shrinking once the band is exhausted.
+  if (avoid.length > 0 && candidates.length < input.remainingSlots) {
+    const seen = new Set(candidates.map((c) => c.id));
+    candidates = [...candidates, ...retrieve(hardExclude).filter((c) => !seen.has(c.id))];
+  }
   return runHeuristicFlow({
     intent: input.intent,
     memories: input.memories ?? "",

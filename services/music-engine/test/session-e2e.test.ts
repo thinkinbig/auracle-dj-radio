@@ -194,4 +194,30 @@ describe("replan glides smoothly", () => {
     const newIds = replanned.tracklist.map((r) => r.id);
     for (const id of playedIds) expect(newIds, "played id should be excluded").not.toContain(id);
   });
+
+  it("re-roll (avoidIds) surfaces fresh tracks when the band has room", async () => {
+    // A wide arc (uplifting spans buckets {2..5}) has more candidates than slots, so
+    // steering away from the shown set must pull in at least one genuinely new track.
+    const intent = { mood: "uplifting", scene: "study", duration_min: 25 };
+    const base = await replan(deps, { intent, playedIds: [], played: [], lastPlayedEnergy: 3, remainingSlots: 5 });
+    const shown = base.result.tracklist.map((r) => r.id);
+    const rerolled = await replan(deps, { intent, playedIds: [], played: [], lastPlayedEnergy: 3, remainingSlots: 5, avoidIds: shown });
+    const fresh = rerolled.result.tracklist.map((r) => r.id);
+    expect(fresh.some((id) => !shown.includes(id)), "re-roll should surface a track not in the shown set").toBe(true);
+  });
+
+  it("re-roll tops up rather than shrinking when avoidIds exhaust the band", async () => {
+    // Avoid the entire catalog: no fresh tracks are possible, so the re-roll must fall
+    // back to the full pool and still fill every slot instead of returning short.
+    const everyId = realTracks.map((t) => t.id);
+    const { result } = await replan(deps, {
+      intent: { mood: "calm", scene: "study", duration_min: 25 },
+      playedIds: [],
+      played: [],
+      lastPlayedEnergy: 2,
+      remainingSlots: 5,
+      avoidIds: everyId,
+    });
+    expect(result.tracklist.length, "fallback should keep the queue full").toBe(5);
+  });
 });
