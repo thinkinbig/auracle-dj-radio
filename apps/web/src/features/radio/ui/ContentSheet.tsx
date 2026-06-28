@@ -2,7 +2,6 @@ import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSe
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
 import { formatTime } from '@/shared/lib/formatTime';
-import { DJ_NAME } from '@/shared/lib/constants';
 import {
   canSkipTrack,
   isCurating,
@@ -13,8 +12,6 @@ import {
 import { IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/Icons';
 import { IntentOnboarding } from './IntentOnboarding';
 import { Skeleton } from '@/shared/ui/Skeleton';
-import { SessionSummary } from './SessionSummary';
-import { TranscriptPanel } from './TranscriptPanel';
 import { cn } from '@/shared/lib/cn';
 import styles from './ContentSheet.module.css';
 
@@ -29,10 +26,15 @@ export function ContentSheet() {
   const track = useTrackMeta(state.trackId);
   const showSkeleton = curating || (idle && !catalogLoaded);
   const showOnboarding = idle;
-  const showTranscript = !showOnboarding;
   const skipDisabled = !canSkipTrack(state);
   const pct = playbackProgressPct(state);
-  const durationLabel = state.sessionSubtitle.split('·')[0]?.trim() || state.sessionSubtitle;
+  const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
+  const flowLabel = state.sessionSubtitle
+    .split('·')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(' · ');
+  const queuedLabel = `${state.remainingTrackIds.length} in queue`;
 
   return (
     <section className={styles.root} aria-label="Now playing">
@@ -57,31 +59,37 @@ export function ContentSheet() {
           </>
         ) : (
           <>
-            <div className={styles.sessionTopline}>
-              <p className={styles.meta} data-session-heading>{durationLabel}</p>
-            </div>
             <h1 className={styles.title}>{state.sessionTitle}</h1>
             <div className={styles.nowPlaying}>
               <p className={styles.trackKicker}>Now playing</p>
-              <div className={styles.trackInfo}>
-                <p className={styles.trackTitle}>{state.trackTitle}</p>
-                <div className={styles.albumLine}>
-                  {state.albumCoverUrl ? (
-                    <img
-                      className={styles.cover}
-                      src={state.albumCoverUrl}
-                      alt=""
-                      width={44}
-                      height={44}
-                      loading="lazy"
-                    />
-                  ) : null}
-                  <p className={styles.trackCredit}>
-                    <span>{state.artist}</span>
-                    {state.albumTitle ? <small>{state.albumTitle}</small> : null}
-                  </p>
-                  {track.mood ? <p className={styles.trackMood}>{track.mood}</p> : null}
+              <div className={styles.nowPlayingBody}>
+                {currentCoverUrl ? (
+                  <img
+                    className={styles.cover}
+                    src={currentCoverUrl}
+                    alt=""
+                    width={96}
+                    height={96}
+                    loading="lazy"
+                  />
+                ) : null}
+                <div className={styles.trackInfo}>
+                  <p className={styles.trackTitle}>{state.trackTitle}</p>
+                  <div className={styles.albumLine}>
+                    <p className={styles.trackCredit}>
+                      <span>{state.artist}</span>
+                      {state.albumTitle ? <small>{state.albumTitle}</small> : null}
+                    </p>
+                    {track.mood ? <p className={styles.trackMood}>{track.mood}</p> : null}
+                  </div>
                 </div>
+              </div>
+              <div className={styles.sessionFlow}>
+                <div>
+                  <p className={styles.flowKicker}>Session flow</p>
+                  <p className={styles.flowText}>{flowLabel || 'Flow adjusting live'}</p>
+                </div>
+                <p className={styles.queueCount}>{queuedLabel}</p>
               </div>
             </div>
           </>
@@ -148,11 +156,6 @@ export function ContentSheet() {
 
       {showOnboarding ? (
         <IntentOnboarding onStart={(intent) => void handleStart(intent)} disabled={curating} />
-      ) : showTranscript ? (
-        <>
-          <SessionSummary />
-          <TranscriptPanel djName={DJ_NAME} />
-        </>
       ) : null}
     </section>
   );

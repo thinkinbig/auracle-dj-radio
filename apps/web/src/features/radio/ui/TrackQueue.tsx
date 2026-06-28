@@ -1,5 +1,6 @@
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
+import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import styles from './TrackQueue.module.css';
@@ -23,49 +24,53 @@ export function TrackQueue() {
   const current = useTrackMeta(state.trackId);
   const recentlyChanged = new Set(state.recentlyChangedIds);
   let feedbackLabel = 'Feedback';
-  if (state.queueRefreshStatus === 'pending') feedbackLabel = 'Regenerating...';
+  if (state.queueRefreshStatus === 'pending') feedbackLabel = 'Rebuilding from current track...';
   else if (state.queueDiffMessage) feedbackLabel = state.queueDiffMessage;
-  else if (state.queueRefreshStatus === 'complete') feedbackLabel = 'No queue changes';
+  else if (state.queueRefreshStatus === 'complete') feedbackLabel = 'Queue checked';
   else if (state.queueRefreshStatus === 'error') feedbackLabel = 'Try again';
-  else if (state.playlistFeedback === 'like') feedbackLabel = 'Station saved';
-  else if (state.playlistFeedback === 'dislike') feedbackLabel = 'Tuning away';
+  else if (state.playlistFeedback === 'like') feedbackLabel = 'Host is keeping this direction';
+  else if (state.playlistFeedback === 'dislike') feedbackLabel = 'Host is shifting the queue';
+  else if (state.playlistFeedback === 'regenerate') feedbackLabel = 'Host is rebuilding the queue';
 
   return (
     <aside className={styles.root} aria-label="Up next" aria-busy={!catalogLoaded || undefined}>
       <div className={styles.header}>
-        <h3 className={styles.heading}>Up next</h3>
-        <div className={styles.feedbackStatus} aria-live="polite">
-          {feedbackLabel}
+        <div className={styles.tabs} aria-label="Queue view">
+          <h3 className={cn(styles.heading, styles.headingActive)}>Up next</h3>
         </div>
-      </div>
-
-      <div className={styles.feedbackBar} aria-label="Playlist feedback">
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={cn(styles.action, state.playlistFeedback === 'like' && styles.actionActive)}
-            onClick={() => handlePlaylistFeedback('like')}
-            aria-pressed={state.playlistFeedback === 'like'}
-          >
-            Like
-          </button>
-          <button
-            type="button"
-            className={cn(styles.action, state.playlistFeedback === 'dislike' && styles.actionActive)}
-            onClick={() => handlePlaylistFeedback('dislike')}
-            aria-pressed={state.playlistFeedback === 'dislike'}
-          >
-            Dislike
-          </button>
-          <button
-            type="button"
-            className={cn(styles.action, state.playlistFeedback === 'regenerate' && styles.actionActive)}
-            onClick={() => handlePlaylistFeedback('regenerate')}
-            aria-pressed={state.playlistFeedback === 'regenerate'}
-            disabled={state.queueRefreshStatus === 'pending'}
-          >
-            Regenerate
-          </button>
+        <div className={styles.headerMeta}>
+          <div className={styles.feedbackStatus} aria-live="polite">
+            {feedbackLabel}
+          </div>
+          <div className={styles.feedbackBar} aria-label="Playlist feedback">
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={cn(styles.action, state.playlistFeedback === 'like' && styles.actionActive)}
+                onClick={() => handlePlaylistFeedback('like')}
+                aria-pressed={state.playlistFeedback === 'like'}
+              >
+                Like
+              </button>
+              <button
+                type="button"
+                className={cn(styles.action, state.playlistFeedback === 'dislike' && styles.actionActive)}
+                onClick={() => handlePlaylistFeedback('dislike')}
+                aria-pressed={state.playlistFeedback === 'dislike'}
+              >
+                Dislike
+              </button>
+              <button
+                type="button"
+                className={cn(styles.action, state.playlistFeedback === 'regenerate' && styles.actionActive)}
+                onClick={() => handlePlaylistFeedback('regenerate')}
+                aria-pressed={state.playlistFeedback === 'regenerate'}
+                disabled={state.queueRefreshStatus === 'pending'}
+              >
+                Regenerate
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -82,10 +87,11 @@ export function TrackQueue() {
         <>
           <div className={cn(styles.item, styles.itemCurrent)}>
             <span className={styles.index}>▶</span>
-            <div>
+            <div className={styles.itemText}>
               <p className={styles.title}>{current.title}</p>
               <p className={styles.artist}>{current.artist}</p>
             </div>
+            <span className={styles.duration}>{formatTime(current.durationSec)}</span>
           </div>
 
           <ul className={styles.list}>
@@ -104,10 +110,11 @@ function TrackQueueItem({ id, index, changed }: { id: string; index: number; cha
   return (
     <li className={cn(styles.item, changed && styles.itemChanged)}>
       <span className={styles.index}>{index}</span>
-      <div>
+      <div className={styles.itemText}>
         <p className={styles.title}>{track.title}</p>
         <p className={styles.artist}>{track.artist}</p>
       </div>
+      <span className={styles.duration}>{formatTime(track.durationSec)}</span>
     </li>
   );
 }

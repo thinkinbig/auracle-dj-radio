@@ -3,7 +3,6 @@ import {
   useRadioMicAnalyser,
   useRadioState,
 } from '@/features/radio/session/RadioSessionContext';
-import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
 import {
@@ -18,11 +17,10 @@ export function StageHeader() {
   const state = useRadioState();
   const analyser = useRadioAnalyser();
   const micAnalyser = useRadioMicAnalyser();
-  const { isWide } = useLayoutMode();
   const status = statusLabel(state.phase);
   const onAir = isOnAir(state);
   const paused = isPaused(state.phase);
-  const showStageArt = isWide && Boolean(state.albumCoverUrl);
+  const conversation = state.transcript.slice(-5);
 
   return (
     <header className={styles.root}>
@@ -52,21 +50,42 @@ export function StageHeader() {
         </p>
       )}
 
-      {showStageArt && (
-        <div className={styles.artArea}>
-          <div className={styles.artStack}>
-            <span className={styles.artAura} aria-hidden />
-            <img className={styles.albumCover} src={state.albumCoverUrl} alt="" />
-          </div>
+      <div className={styles.hostCopy}>
+        <div className={styles.dialoguePanel} aria-label="AI host conversation" aria-live="polite">
+          {conversation.length > 0 ? (
+            conversation.map((line) => (
+              <article
+                key={line.id}
+                className={cn(styles.dialogueLine, line.role === 'user' && styles.dialogueLineUser)}
+              >
+                <p>{line.text}</p>
+              </article>
+            ))
+          ) : (
+            <p className={styles.dialogueEmpty}>Your conversation with the AI host will appear here.</p>
+          )}
         </div>
-      )}
+      </div>
+
+      <div className={styles.orbArea} aria-hidden>
+        <div className={styles.orb}>
+          <span className={styles.orbGlow} />
+          <span className={styles.orbLine} />
+          <span className={styles.orbLine} />
+          <span className={styles.orbLine} />
+          <span className={styles.orbLine} />
+        </div>
+      </div>
+
       {/* The waveform always renders so the stage shows a live visualizer; on wide
           layouts it sits as a glowing strip beneath the album art. */}
-      <StageWaveform
-        phase={state.phase}
-        analyser={state.isTalking ? micAnalyser : analyser}
-        talking={state.isTalking}
-      />
+      <div className={styles.stageWave}>
+        <StageWaveform
+          phase={state.phase}
+          analyser={state.isTalking ? micAnalyser : analyser}
+          talking={state.isTalking}
+        />
+      </div>
     </header>
   );
 }

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties, FormEvent } from 'react';
+import { useRef } from 'react';
+import type { CSSProperties } from 'react';
 import type { HostMode } from '@auracle/shared';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useBarCount } from '@/shared/hooks/useBarCount';
+import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
 import {
@@ -13,7 +14,15 @@ import {
   isPaused,
   playbackProgressPct,
 } from '@/features/radio/session/playbackSelectors';
-import { IconMic, IconPause, IconPlay, IconSend, IconSkipNext, IconSkipVoice, IconText } from '@/shared/ui/Icons';
+import {
+  IconMic,
+  IconPause,
+  IconPlay,
+  IconRepeat,
+  IconShuffle,
+  IconSkipNext,
+  IconSkipPrevious,
+} from '@/shared/ui/Icons';
 import styles from './MiniControlBar.module.css';
 
 const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
@@ -24,15 +33,14 @@ const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
 
 export function MiniControlBar() {
   const state = useRadioState();
+  const track = useTrackMeta(state.trackId);
   const {
     handleTogglePause,
     handleSkipTrack,
-    handleSkipDj,
     handleContinue,
     handleChangeHostMode,
     handleTalkStart,
     handleTalkEnd,
-    handleSendText,
   } = useRadioActions();
   const waveRef = useRef<HTMLDivElement>(null);
   const barCount = useBarCount(waveRef, 5, 32, 160);
@@ -42,167 +50,115 @@ export function MiniControlBar() {
   const skipDisabled = !canSkipTrack(state);
   const modeDisabled = hostModeDisabled(state);
   const pct = playbackProgressPct(state);
-
-  // Text barge-in composer (sibling to push-to-talk). Available in the same
-  // contexts as the mic: an active session that isn't curating or in a break.
-  const canConverse = !idle && !curating && !state.inBreak;
-  const [composerOpen, setComposerOpen] = useState(false);
-  const [composerText, setComposerText] = useState('');
-  const composerInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (composerOpen) composerInputRef.current?.focus();
-  }, [composerOpen]);
-
-  useEffect(() => {
-    if (!canConverse) {
-      setComposerOpen(false);
-      setComposerText('');
-    }
-  }, [canConverse]);
-
-  const submitComposer = (e: FormEvent) => {
-    e.preventDefault();
-    const text = composerText.trim();
-    if (!text) return;
-    handleSendText(text);
-    setComposerText('');
-    setComposerOpen(false);
-  };
+  const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
 
   return (
     <footer className={styles.root} aria-label="Playback controls">
-      {composerOpen && canConverse && (
-        <form id="dj-composer" className={styles.composer} onSubmit={submitComposer}>
-          <input
-            ref={composerInputRef}
-            className={styles.composerInput}
-            value={composerText}
-            onChange={(e) => setComposerText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setComposerOpen(false);
-            }}
-            placeholder="Message the DJ…"
-            aria-label="Message to the DJ"
-            enterKeyHint="send"
-            maxLength={500}
-          />
-          <button
-            type="submit"
-            className={styles.composerSend}
-            disabled={!composerText.trim()}
-            aria-label="Send message"
-          >
-            <IconSend size={16} />
-          </button>
-        </form>
-      )}
-      <time className={styles.time}>{formatTime(state.progressSec)}</time>
-
-      <div
-        ref={waveRef}
-        className={styles.wave}
-        style={{ '--bar-count': barCount } as CSSProperties}
-        aria-hidden
-      >
-        {Array.from({ length: barCount }, (_, i) => {
-          const threshold = (i / barCount) * 100;
-          const active = threshold <= pct;
-          return <span key={i} className={cn(styles.bar, active && styles.barActive)} />;
-        })}
+      <div className={styles.trackCard}>
+        {currentCoverUrl ? (
+          <img className={styles.cover} src={currentCoverUrl} alt="" width={52} height={52} loading="lazy" />
+        ) : null}
+        <div className={styles.trackCopy}>
+          <p>{state.trackTitle}</p>
+          <span>{state.artist}</span>
+        </div>
       </div>
 
-      <time className={styles.timeEnd}>{formatTime(state.durationSec)}</time>
-
-      {!idle && (
-        <div className={styles.hostModes} aria-label="Host mode">
-          {HOST_MODE_OPTIONS.map((option) => {
-            const active = state.hostMode === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                className={cn(styles.hostMode, active && styles.hostModeActive)}
-                onClick={() => handleChangeHostMode(option.value)}
-                disabled={modeDisabled}
-                aria-pressed={active}
-                aria-label={`Switch host mode to ${option.label}`}
-              >
-                {option.label}
-              </button>
-            );
+      <div className={styles.timeline}>
+        <time className={styles.time}>{formatTime(state.progressSec)}</time>
+        <div
+          ref={waveRef}
+          className={styles.wave}
+          style={{ '--bar-count': barCount } as CSSProperties}
+          aria-hidden
+        >
+          {Array.from({ length: barCount }, (_, i) => {
+            const threshold = (i / barCount) * 100;
+            const active = threshold <= pct;
+            return <span key={i} className={cn(styles.bar, active && styles.barActive)} />;
           })}
         </div>
-      )}
+        <time className={styles.timeEnd}>{formatTime(state.durationSec)}</time>
+      </div>
 
-      {state.phase === 'speaking' && (
+      <div className={styles.transport} aria-label="Track transport">
+        <button type="button" className={styles.btnGhost} disabled aria-label="Shuffle unavailable">
+          <IconShuffle size={16} />
+        </button>
+        <button type="button" className={styles.btnGhost} disabled aria-label="Previous track unavailable">
+          <IconSkipPrevious size={18} />
+        </button>
         <button
           type="button"
-          className={styles.btn}
-          onClick={handleSkipDj}
-          aria-label="Skip voice-over"
+          className={styles.playBtn}
+          onClick={idle ? undefined : handleTogglePause}
+          disabled={curating || idle}
+          aria-label={idle ? 'Start from onboarding' : paused ? 'Resume' : 'Pause'}
         >
-          <IconSkipVoice size={16} />
+          {idle || paused ? <IconPlay size={20} /> : <IconPause size={20} />}
         </button>
-      )}
 
-      {state.inBreak ? (
-        <button
-          type="button"
-          className={styles.continueBtn}
-          onClick={handleContinue}
-          aria-label="Continue to next track"
-        >
-          {state.phase === 'listening' ? <IconMic size={14} /> : null}
-          Continue
-        </button>
-      ) : (
-        <button
-          type="button"
-          className={styles.btn}
-          onClick={handleSkipTrack}
-          disabled={skipDisabled}
-          aria-label="Next track"
-        >
-          <IconSkipNext size={16} />
-        </button>
-      )}
-
-      {canConverse && (
-        <>
+        {state.inBreak ? (
           <button
             type="button"
-            className={cn(styles.btn, composerOpen && styles.btnTextActive)}
-            onClick={() => setComposerOpen((o) => !o)}
-            aria-label="Type a message to the DJ"
-            aria-expanded={composerOpen}
-            aria-controls="dj-composer"
+            className={styles.continueBtn}
+            onClick={handleContinue}
+            aria-label="Continue to next track"
           >
-            <IconText size={16} />
+            {state.phase === 'listening' ? <IconMic size={14} /> : null}
+            Continue
           </button>
+        ) : (
+          <button
+            type="button"
+            className={styles.btnGhost}
+            onClick={handleSkipTrack}
+            disabled={skipDisabled}
+            aria-label="Next track"
+          >
+            <IconSkipNext size={18} />
+          </button>
+        )}
+        <button type="button" className={styles.btnGhost} disabled aria-label="Repeat unavailable">
+          <IconRepeat size={16} />
+        </button>
+      </div>
+
+      <div className={styles.rightControls}>
+        {!idle && (
+          <div className={styles.hostModes} aria-label="Host mode">
+            {HOST_MODE_OPTIONS.map((option) => {
+              const active = state.hostMode === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={cn(styles.hostMode, active && styles.hostModeActive)}
+                  onClick={() => handleChangeHostMode(option.value)}
+                  disabled={modeDisabled}
+                  aria-pressed={active}
+                  aria-label={`Switch host mode to ${option.label}`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {!idle && !curating && !state.inBreak && (
           <button
             type="button"
             className={cn(styles.btn, state.isTalking && styles.btnTalkActive)}
             onPointerDown={handleTalkStart}
             onPointerUp={handleTalkEnd}
             onPointerLeave={handleTalkEnd}
-            aria-label="Hold to talk to DJ"
+            aria-label="Hold to talk to AI host"
             aria-pressed={state.isTalking}
           >
             <IconMic size={16} />
           </button>
-        </>
-      )}
-
-      <button
-        type="button"
-        className={styles.btn}
-        onClick={idle ? undefined : handleTogglePause}
-        disabled={curating || idle}
-        aria-label={idle ? 'Start from onboarding' : paused ? 'Resume' : 'Pause'}
-      >
-        {idle || paused ? <IconPlay size={16} /> : <IconPause size={16} />}
-      </button>
+        )}
+      </div>
     </footer>
   );
 }

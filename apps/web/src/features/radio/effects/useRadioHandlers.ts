@@ -5,7 +5,7 @@ import { createSession, postHostMode, postSessionEvent, regenerateSession, Sessi
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
 import type { RadioCommands } from '../lib/radioCommands';
-import type { PlaylistFeedback } from '@/features/radio/session/types';
+import type { PlaybackState, PlaylistFeedback } from '@/features/radio/session/types';
 import type { AudioRefs, StoreRefs } from './sessionRefs';
 
 export interface RadioHandlers {
@@ -28,6 +28,24 @@ interface RadioHandlersInput {
   commands: RadioCommands;
   setAnalyser: (analyser: AnalyserNode | null) => void;
   onAuthExpired?: () => void;
+}
+
+function formatFeedbackTrack(state: PlaybackState): string {
+  return state.artist ? `"${state.trackTitle}" by ${state.artist}` : `"${state.trackTitle}"`;
+}
+
+function createPlaylistFeedbackText(feedback: PlaylistFeedback, state: PlaybackState): string {
+  const track = formatFeedbackTrack(state);
+  switch (feedback) {
+    case 'like':
+      return `I like ${track}. Keep this mood and let it guide the next songs.`;
+    case 'dislike':
+      return `I am not feeling ${track}. Shift the next songs away from this sound.`;
+    case 'regenerate':
+      return `Rebuild the upcoming queue around what is working in ${track}, and explain the new direction briefly.`;
+    default:
+      return '';
+  }
 }
 
 export function useRadioHandlers({
@@ -119,6 +137,7 @@ export function useRadioHandlers({
     const s = store.stateRef.current;
     if (s.phase === 'idle' || s.phase === 'curating') return;
     store.dispatchRef.current({ type: 'playlist_feedback', feedback });
+    commands.sendText(createPlaylistFeedbackText(feedback, s));
     if (s.sessionId) {
       postSessionEvent(s.sessionId, 'playlist_feedback', {
         feedback,
@@ -143,7 +162,7 @@ export function useRadioHandlers({
         });
       });
     }
-  }, [store]);
+  }, [store, commands]);
 
   const handleChangeHostMode = useCallback(
     (hostMode: HostMode) => {
