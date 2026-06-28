@@ -13,6 +13,7 @@ import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import { SoundScreen } from '@/features/sound/SoundScreen';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
+import { IconArrowRight, IconClock, IconPlay } from '@/shared/ui/Icons';
 import type { AuthUser, FlowTrackRef } from '@auracle/shared';
 import styles from './AppNav.module.css';
 
@@ -24,6 +25,25 @@ const PRODUCT_NAV: { id: ProductPage; label: string }[] = [
   { id: 'import', label: 'Library' },
   { id: 'sound', label: 'Taste' },
   { id: 'history', label: 'History' },
+];
+
+const HOME_DNA = [
+  { label: 'Reflective', value: 72 },
+  { label: 'Late Night', value: 63 },
+  { label: 'Warm Nostalgia', value: 54 },
+  { label: 'Curious', value: 48 },
+] as const;
+
+const HOME_CONTEXT = [
+  { label: 'Taste DNA', detail: 'Your unique music fingerprint', value: 70 },
+  { label: "Today's Moment", detail: 'Mood, activity, and time', value: 20 },
+  { label: 'Listening Memory', detail: "What you've listened to", value: 10 },
+] as const;
+
+const SESSION_WAVEFORM = [
+  10, 12, 14, 18, 26, 34, 24, 18, 16, 20, 14, 16, 24, 30, 38, 26, 32, 24, 18, 22, 34, 46, 30, 36,
+  28, 18, 22, 40, 26, 34, 18, 16, 22, 44, 30, 24, 20, 26, 34, 42, 28, 22, 16, 20, 26, 30, 18, 16,
+  20, 24, 32, 22, 18, 14, 20, 28, 34, 24, 18, 16, 14, 12,
 ];
 
 function AppContent({ user }: { user: AuthUser }) {
@@ -103,6 +123,7 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
         onContinue={openListen}
         onStartNew={startNewSession}
         onOpenSound={() => setActivePage('sound')}
+        onOpenHistory={() => setActivePage('history')}
       />
     );
   }
@@ -139,52 +160,98 @@ function HomePage({
   onContinue,
   onStartNew,
   onOpenSound,
+  onOpenHistory,
 }: {
   user: AuthUser;
   onContinue: () => void;
   onStartNew: () => void;
   onOpenSound: () => void;
+  onOpenHistory: () => void;
 }) {
   const state = useRadioState();
   const hasSession = hasStartedSession(state);
   const firstName = user.name.split(/\s+/).filter(Boolean)[0] ?? 'there';
   const trackCount = state.sessionTracklist.length || 8;
   const completedTracks = hasSession ? Math.min(state.currentTrackIndex + 1, trackCount) : 0;
+  const sessionProgress = hasSession ? Math.max(12, (completedTracks / trackCount) * 100) : 0;
+  const sessionTags = hasSession
+    ? [state.sessionSubtitle || 'Personal flow', formatPhaseName(state.phase), formatHostMode(state.hostMode)]
+    : ['Taste DNA', 'Fresh moment', 'Listening memory'];
+  const sessionTitle = hasSession ? state.sessionTitle : 'First signal awaits';
+  const sessionCopy = hasSession
+    ? state.sessionSubtitle
+    : 'Choose a mood and Auracle will build the first flow from your taste signals.';
+  const durationLabel = hasSession ? formatDurationLabel(state.sessionElapsedSec) : '0 min';
+  const lastActiveLabel = hasSession ? 'Active session' : 'No activity yet';
+  const sessionAction = hasSession ? 'Continue Session' : 'Start Listening';
 
   return (
-    <main className={styles.productSurface}>
+    <main className={`${styles.productSurface} ${styles.homeSurface}`}>
       <section className={styles.homeHero} aria-labelledby="home-title">
         <div className={styles.homeCopy}>
-          <p className={styles.kicker}>Home</p>
+          <p className={styles.kicker}>Personal radio</p>
           <h1 id="home-title">Welcome back, {firstName}.</h1>
-          <p>
-            Your radio starts from one quiet place: the last session, a fresh moment, and the Taste DNA
-            that keeps shaping what Auracle plays.
+          <p className={styles.homeSignal}>Your music, your moment.</p>
+          <p className={styles.homeLede}>
+            Auracle blends your Taste DNA, listening memory, and today&apos;s moment to create a station that feels just right.
           </p>
           <div className={styles.homeActions}>
-            <button className={styles.primaryButton} type="button" onClick={hasSession ? onContinue : onStartNew}>
-              {hasSession ? 'Continue Session' : 'Start New Session'}
+            <button className={styles.primaryButton} type="button" onClick={onStartNew}>
+              <IconPlay size={18} />
+              Start New Session
             </button>
-            {hasSession ? (
-              <button className={styles.secondaryButton} type="button" onClick={onStartNew}>
-                Start New Session
-              </button>
-            ) : null}
+          </div>
+          <div className={styles.homeMetaRow}>
+            <span>
+              <IconClock size={16} />
+              Last active: {lastActiveLabel}
+            </span>
+            <button className={styles.linkButton} type="button" onClick={onOpenHistory}>
+              View History
+              <IconArrowRight size={18} />
+            </button>
           </div>
         </div>
 
         <aside className={styles.sessionPreview} aria-label="Last session">
-          <span className={styles.previewLabel}>{hasSession ? 'Last session' : 'Ready to begin'}</span>
-          <h2>{hasSession ? state.sessionTitle : 'No active session yet'}</h2>
-          <p>{hasSession ? state.sessionSubtitle : 'Choose a mood and Auracle will build the first flow.'}</p>
-          <div className={styles.sessionMeter} aria-label={`${completedTracks} of ${trackCount} tracks`}>
-            <span style={{ width: `${hasSession ? Math.max(12, (completedTracks / trackCount) * 100) : 0}%` }} />
+          <div className={styles.sessionPreviewTop}>
+            <div className={styles.sessionPreviewCopy}>
+              <span className={styles.previewLabel}>{hasSession ? 'Last session' : 'Ready to begin'}</span>
+              <h2>{sessionTitle}</h2>
+              <div className={styles.tagRow} aria-label="Session signals">
+                {sessionTags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </div>
+              <div className={styles.sessionStats}>
+                <span>
+                  <small>Last played</small>
+                  <strong>{hasSession ? 'Current session' : 'Not started'}</strong>
+                </span>
+                <span>
+                  <small>Duration</small>
+                  <strong>{durationLabel}</strong>
+                </span>
+              </div>
+            </div>
+            <div className={styles.sessionDial} aria-hidden>
+              <span />
+            </div>
           </div>
-          <small>
-            {hasSession
-              ? `${completedTracks}/${trackCount} tracks · ${formatTime(state.sessionElapsedSec)}`
-              : 'Taste-aware session planning'}
-          </small>
+
+          <p className={styles.sessionCopy}>{sessionCopy}</p>
+          <div className={styles.previewWaveform} aria-hidden>
+            {SESSION_WAVEFORM.map((height, index) => (
+              <i key={`${height}-${index}`} style={{ height: `${height}px` }} />
+            ))}
+          </div>
+          <div className={styles.sessionMeter} aria-label={`${completedTracks} of ${trackCount} tracks`}>
+            <span style={{ width: `${sessionProgress}%` }} />
+          </div>
+          <button className={styles.sessionContinueButton} type="button" onClick={hasSession ? onContinue : onStartNew}>
+            {sessionAction}
+            <IconArrowRight size={22} />
+          </button>
         </aside>
       </section>
 
@@ -192,38 +259,47 @@ function HomePage({
         <article className={styles.dnaPanel}>
           <div className={styles.sectionHeading}>
             <p className={styles.kicker}>Taste DNA</p>
-            <h2>Quiet signals, ready for every session.</h2>
+            <h2>This is what shapes your station.</h2>
           </div>
-          <div className={styles.dnaWords} aria-label="Taste DNA overview">
-            <span>Reflective focus</span>
-            <span>Night drive pulse</span>
-            <span>Warm nostalgia</span>
-            <span>Curious discoveries</span>
+          <div className={styles.dnaMeterList} aria-label="Taste DNA overview">
+            {HOME_DNA.map((item) => (
+              <span key={item.label} className={styles.dnaMeterRow}>
+                <i className={styles.traitIcon} aria-hidden />
+                <strong>{item.label}</strong>
+                <span className={styles.dnaMeter}>
+                  <i style={{ width: `${item.value}%` }} />
+                </span>
+                <em>{item.value}%</em>
+              </span>
+            ))}
           </div>
           <button className={styles.textButton} type="button" onClick={onOpenSound}>
             Edit My Sound
+            <IconArrowRight size={18} />
           </button>
         </article>
 
         <article className={styles.homeListPanel}>
           <div className={styles.sectionHeading}>
-            <p className={styles.kicker}>Now tuned</p>
-            <h2>{hasSession ? state.trackTitle : 'A clean first session'}</h2>
+            <p className={styles.kicker}>Today&apos;s context</p>
+            <h2>Here&apos;s how we&apos;ll build your station.</h2>
           </div>
-          <div className={styles.softRows}>
-            <span>
-              <strong>{hasSession ? state.artist : 'Mood'}</strong>
-              {hasSession ? state.albumTitle : 'Picked when you start'}
-            </span>
-            <span>
-              <strong>DJ memory</strong>
-              {user.id === 'guest' ? 'Guest preview mode' : 'Saved to your account'}
-            </span>
-            <span>
-              <strong>Session shape</strong>
-              {hasSession ? state.phase : 'Idle'}
-            </span>
+          <div className={styles.contextRows}>
+            {HOME_CONTEXT.map((item) => (
+              <span key={item.label} className={styles.contextRow}>
+                <i className={styles.contextIcon} aria-hidden />
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <em>{item.value}%</em>
+              </span>
+            ))}
           </div>
+          <button className={styles.textButton} type="button" onClick={onOpenSound}>
+            Learn more about station building
+            <IconArrowRight size={18} />
+          </button>
         </article>
       </section>
     </main>
@@ -332,6 +408,41 @@ function HistoryTrackRow({ track, index }: { track: FlowTrackRef; index: number 
       <em>{meta.artist}</em>
     </span>
   );
+}
+
+function formatDurationLabel(seconds: number): string {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `${minutes} min`;
+}
+
+function formatHostMode(mode: PlaybackState['hostMode']): string {
+  switch (mode) {
+    case 'set_dj':
+      return 'Set DJ';
+    case 'hype':
+      return 'Hype';
+    default:
+      return 'Curator';
+  }
+}
+
+function formatPhaseName(phase: PlaybackState['phase']): string {
+  switch (phase) {
+    case 'curating':
+      return 'Tuning';
+    case 'opening':
+      return 'Opening';
+    case 'playing':
+      return 'Playing';
+    case 'speaking':
+      return 'DJ voice';
+    case 'listening':
+      return 'Listening';
+    case 'paused':
+      return 'Paused';
+    default:
+      return 'Ready';
+  }
 }
 
 function hasStartedSession(state: PlaybackState): boolean {
