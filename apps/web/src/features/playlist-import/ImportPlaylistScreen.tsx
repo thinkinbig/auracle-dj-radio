@@ -9,6 +9,7 @@ import styles from './ImportPlaylistScreen.module.css';
 interface ImportPlaylistScreenProps {
   user: AuthUser;
   onClose: () => void;
+  embedded?: boolean;
 }
 
 const SAMPLE = `Night Drive, Nova Pulse, After Hours, Synthwave, 2014
@@ -21,7 +22,7 @@ const SOURCE_OPTIONS: { value: PlaylistImportSource; label: string; detail: stri
   { value: 'spotify_export', label: 'Spotify export', detail: 'Metadata CSV or JSON' },
 ];
 
-export function ImportPlaylistScreen({ user, onClose }: ImportPlaylistScreenProps) {
+export function ImportPlaylistScreen({ user, onClose, embedded = false }: ImportPlaylistScreenProps) {
   const isGuest = user.id === 'guest';
   const [source, setSource] = useState<PlaylistImportSource>('csv');
   const [name, setName] = useState('My music archive');
@@ -71,15 +72,17 @@ export function ImportPlaylistScreen({ user, onClose }: ImportPlaylistScreenProp
   }
 
   return (
-    <div className={`${styles.page} ${isGuest ? styles.guestPage : ''}`}>
-      <AppBrand onClick={onClose} label="Back to Auracle" />
+    <div className={cn(styles.page, isGuest && styles.guestPage, embedded && styles.embeddedPage)}>
+      {!embedded ? <AppBrand onClick={onClose} label="Back to Auracle" /> : null}
       <header className={styles.header}>
-        <div className={styles.navRow}>
-          <button className={styles.backButton} type="button" onClick={onClose}>
-            Back
-          </button>
-          <span className={styles.contextLabel}>Import Music</span>
-        </div>
+        {!embedded ? (
+          <div className={styles.navRow}>
+            <button className={styles.backButton} type="button" onClick={onClose}>
+              Back
+            </button>
+            <span className={styles.contextLabel}>Import Music</span>
+          </div>
+        ) : null}
 
         <div className={styles.heroGrid}>
           <section className={styles.heroCopy} aria-labelledby="import-title">

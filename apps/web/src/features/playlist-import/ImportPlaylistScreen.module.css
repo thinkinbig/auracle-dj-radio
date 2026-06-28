@@ -369,6 +369,77 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.embeddedPage {
+  min-height: auto;
+  background: transparent;
+}
+
+.embeddedPage .header,
+.embeddedPage .main {
+  width: 100%;
+}
+
+.embeddedPage .header {
+  padding: 0 0 42px;
+}
+
+.embeddedPage .main {
+  padding-bottom: 0;
+}
+
+.embeddedPage .eyebrow,
+.embeddedPage .kicker {
+  color: rgba(248, 250, 252, 0.5);
+}
+
+.embeddedPage .heroCopy h1 {
+  max-width: 820px;
+  font-size: clamp(3rem, 6vw, 6.2rem);
+  font-weight: 760;
+}
+
+.embeddedPage .memoryCard,
+.embeddedPage .editorPanel,
+.embeddedPage .previewPanel,
+.embeddedPage .savedPanel,
+.embeddedPage .guestGate {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow: none;
+}
+
+.embeddedPage .memoryCard,
+.embeddedPage .editorPanel,
+.embeddedPage .previewPanel,
+.embeddedPage .savedPanel,
+.embeddedPage .guestGate,
+.embeddedPage .sourceCard,
+.embeddedPage .stats span,
+.embeddedPage .trackRow,
+.embeddedPage .savedItem,
+.embeddedPage .warnings {
+  border-radius: 8px;
+}
+
+.embeddedPage .sourceCard,
+.embeddedPage .trackRow,
+.embeddedPage .savedItem,
+.embeddedPage .stats span {
+  border-color: transparent;
+}
+
+.embeddedPage .sourceCardActive {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.095);
+  box-shadow: none;
+}
+
+.embeddedPage .countBadge {
+  color: rgba(248, 250, 252, 0.68);
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.07);
+}
+
 .backButton:focus-visible,
 .fileButton:focus-visible,
 .sourceCard:focus-visible,

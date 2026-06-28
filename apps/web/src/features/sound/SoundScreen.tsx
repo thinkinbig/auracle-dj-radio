@@ -1,5 +1,6 @@
 import type { AuthUser } from '@auracle/shared';
 import { AppBrand } from '@/features/marketing/AppBrand';
+import { cn } from '@/shared/lib/cn';
 import { TastePanel } from './TastePanel';
 import styles from './SoundScreen.module.css';
 
@@ -7,21 +8,24 @@ interface SoundScreenProps {
   user: AuthUser;
   onClose: () => void;
   onOpenImport?: () => void;
+  embedded?: boolean;
 }
 
-export function SoundScreen({ user, onClose, onOpenImport }: SoundScreenProps) {
+export function SoundScreen({ user, onClose, onOpenImport, embedded = false }: SoundScreenProps) {
   const isGuest = user.id === 'guest';
 
   return (
-    <div className={`${styles.page} ${isGuest ? styles.guestPage : ''}`}>
-      <AppBrand onClick={onClose} label="Back to Auracle" />
+    <div className={cn(styles.page, isGuest && styles.guestPage, embedded && styles.embeddedPage)}>
+      {!embedded ? <AppBrand onClick={onClose} label="Back to Auracle" /> : null}
       <header className={styles.header}>
-        <div className={styles.navRow}>
-          <button className={styles.backButton} type="button" onClick={onClose}>
-            Back
-          </button>
-          <span className={styles.contextLabel}>My Sound</span>
-        </div>
+        {!embedded ? (
+          <div className={styles.navRow}>
+            <button className={styles.backButton} type="button" onClick={onClose}>
+              Back
+            </button>
+            <span className={styles.contextLabel}>My Sound</span>
+          </div>
+        ) : null}
         <div className={styles.heroGrid}>
           <div className={styles.headerCopy}>
             <p className={styles.eyebrow}>Personal tuning</p>
