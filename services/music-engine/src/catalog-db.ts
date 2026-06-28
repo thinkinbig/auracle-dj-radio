@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS tracks (
   album_id        TEXT NOT NULL DEFAULT '',
   album_title     TEXT NOT NULL DEFAULT '',
   lore            TEXT NOT NULL DEFAULT '',
+  artist_persona  TEXT NOT NULL DEFAULT '',
+  album_concept   TEXT NOT NULL DEFAULT '',
   album_cover_path TEXT NOT NULL DEFAULT '',
   artist_photo_path TEXT NOT NULL DEFAULT '',
   energy          INTEGER NOT NULL,
@@ -35,6 +37,8 @@ const ADDITIVE_COLUMNS: ReadonlyArray<[name: string, decl: string]> = [
   ["genre_slug", "TEXT NOT NULL DEFAULT ''"],
   ["artist_slug", "TEXT NOT NULL DEFAULT ''"],
   ["album_slug", "TEXT NOT NULL DEFAULT ''"],
+  ["artist_persona", "TEXT NOT NULL DEFAULT ''"],
+  ["album_concept", "TEXT NOT NULL DEFAULT ''"],
 ];
 
 export type TrackRow = Track;
@@ -47,6 +51,8 @@ interface RawTrackRow {
   album_id: string;
   album_title: string;
   lore: string;
+  artist_persona: string;
+  album_concept: string;
   album_cover_path: string;
   artist_photo_path: string;
   energy: number;
@@ -85,16 +91,17 @@ export class CatalogDb {
     this.db
       .prepare(
         `INSERT INTO tracks (
-           id, title, artist, artist_id, album_id, album_title, lore, album_cover_path, artist_photo_path,
+           id, title, artist, artist_id, album_id, album_title, lore, artist_persona, album_concept, album_cover_path, artist_photo_path,
            energy, tempo, genre, genre_slug, artist_slug, album_slug, mood, scene, file_path, intro_offset_ms
          )
          VALUES (
-           @id, @title, @artist, @artist_id, @album_id, @album_title, @lore, @album_cover_path, @artist_photo_path,
+           @id, @title, @artist, @artist_id, @album_id, @album_title, @lore, @artist_persona, @album_concept, @album_cover_path, @artist_photo_path,
            @energy, @tempo, @genre, @genre_slug, @artist_slug, @album_slug, @mood, @scene, @file_path, @intro_offset_ms
          )
          ON CONFLICT(id) DO UPDATE SET
            title=@title, artist=@artist, artist_id=@artist_id, album_id=@album_id,
-           album_title=@album_title, lore=@lore, album_cover_path=@album_cover_path, artist_photo_path=@artist_photo_path,
+           album_title=@album_title, lore=@lore, artist_persona=@artist_persona, album_concept=@album_concept,
+           album_cover_path=@album_cover_path, artist_photo_path=@artist_photo_path,
            energy=@energy, tempo=@tempo, genre=@genre, genre_slug=@genre_slug, artist_slug=@artist_slug, album_slug=@album_slug,
            mood=@mood, scene=@scene, file_path=@file_path, intro_offset_ms=@intro_offset_ms`,
       )
@@ -106,6 +113,8 @@ export class CatalogDb {
         album_id: t.albumId,
         album_title: t.albumTitle,
         lore: t.lore,
+        artist_persona: t.artistPersona ?? "",
+        album_concept: t.albumConcept ?? "",
         album_cover_path: t.albumCoverPath,
         artist_photo_path: t.artistPhotoPath,
         energy: t.energy,
@@ -150,6 +159,8 @@ function rowToTrack(row: RawTrackRow): TrackRow {
     albumId: row.album_id ?? "",
     albumTitle: row.album_title ?? "",
     lore: row.lore ?? "",
+    artistPersona: row.artist_persona ?? "",
+    albumConcept: row.album_concept ?? "",
     albumCoverPath: row.album_cover_path ?? "",
     artistPhotoPath: row.artist_photo_path ?? "",
     energy: row.energy as Energy,

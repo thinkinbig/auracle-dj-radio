@@ -109,6 +109,8 @@ class FakeMusicEngine implements MusicEngineClient {
       albumCoverUrl: "/covers/a.jpg",
       artistPhotoUrl: "/artists/ar1.jpg",
       lore: "A gentle opener.",
+      artistPersona: "A night-owl producer who scores empty cities.",
+      albumConcept: "Field recordings of 3am streets, reworked into ambient.",
       energy: 1,
       tempo: 70,
       genre: "ambient",

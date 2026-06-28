@@ -40,8 +40,10 @@ export interface Track {
   punOf?: string;
   /** Offline-only: vocal era/technique markers (for vocal prompts). */
   vocalHomage?: string;
-  /** Offline-only: artist persona blurb (for vocal prompt fallback). */
+  /** Artist persona blurb (manifest `artist.persona`) — vocal-prompt fallback + curator DJ context. */
   artistPersona?: string;
+  /** Album concept blurb (manifest `album.concept`) — curator DJ context. */
+  albumConcept?: string;
 }
 
 /** Flow/retrieval candidate — selection fields only (ADR-0001). */

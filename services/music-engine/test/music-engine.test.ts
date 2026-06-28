@@ -294,6 +294,10 @@ describe("music-engine HTTP", () => {
     expect(meta.id).toBe(firstTrackId);
     expect(meta.genreSlug.length).toBeGreaterThan(0);
     expect(meta.artistSlug.length).toBeGreaterThan(0);
+    // Artist persona + album concept survive the manifest → DB → TrackMeta roundtrip
+    // so the DJ can introduce creation context on air (#52).
+    expect(meta.artistPersona.length).toBeGreaterThan(0);
+    expect(meta.albumConcept.length).toBeGreaterThan(0);
 
     const missing = await engine.app.inject({ method: "GET", url: "/tracks/does-not-exist" });
     expect(missing.statusCode).toBe(404);

@@ -24,6 +24,7 @@ export async function buildAndPushCue(
     sessionTitle: state.title,
     now: toCueTrack(now),
     next: toCueTrack(next),
+    contextRotation: state.currentTrackIndex,
   });
   await deps.proxy.inject(state.id, { inject_text: cueText });
 }

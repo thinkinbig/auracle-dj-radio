@@ -96,6 +96,10 @@ export interface TrackMeta {
   albumCoverUrl: string;
   artistPhotoUrl: string;
   lore: string;
+  /** Artist persona blurb (manifest `artist.persona`) — DJ context, never read verbatim. */
+  artistPersona: string;
+  /** Album concept blurb (manifest `album.concept`) — DJ context, never read verbatim. */
+  albumConcept: string;
   energy: 1 | 2 | 3 | 4 | 5;
   tempo: number;
   genre: string;

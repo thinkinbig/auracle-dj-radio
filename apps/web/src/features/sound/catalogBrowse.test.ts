@@ -12,6 +12,8 @@ function track(p: Partial<TrackMeta> & Pick<TrackMeta, 'id' | 'artistSlug' | 'al
     albumCoverUrl: `/c/${p.albumSlug}.jpg`,
     artistPhotoUrl: `/a/${p.artistSlug}.jpg`,
     lore: '',
+    artistPersona: '',
+    albumConcept: '',
     energy: 3,
     tempo: 90,
     genre: 'g',

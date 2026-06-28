@@ -103,6 +103,7 @@ export function manifestToTracks(manifest: CatalogManifest): Track[] {
       punOf: artist.punOf,
       vocalHomage: artist.vocalHomage,
       artistPersona: artist.persona,
+      albumConcept: album.concept,
     };
   });
 }
@@ -120,6 +121,8 @@ export function toTrackMeta(track: Track): TrackMeta {
     albumCoverUrl: coverUrl(coverFile),
     artistPhotoUrl: artistPhotoUrl(photoFile),
     lore: track.lore,
+    artistPersona: track.artistPersona ?? "",
+    albumConcept: track.albumConcept ?? "",
     energy: track.energy,
     tempo: track.tempo,
     genre: track.genre,
