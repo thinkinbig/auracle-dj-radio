@@ -47,12 +47,128 @@
 }
 
 .productSurface {
+  position: relative;
+  overflow-x: hidden;
+  isolation: isolate;
   min-height: 100dvh;
   padding:
     132px max(28px, calc((100vw - 1120px) / 2))
     88px;
   color: #f8fafc;
-  background: linear-gradient(145deg, #060706 0%, #101210 48%, #050505 100%);
+  background:
+    radial-gradient(circle at 16% 16%, rgba(75, 222, 128, 0.2), transparent 28%),
+    radial-gradient(circle at 82% 8%, rgba(244, 114, 182, 0.16), transparent 30%),
+    linear-gradient(135deg, #070807 0%, #111513 44%, #050505 100%);
+  background-size: 120% 120%, 130% 130%, 100% 100%;
+  animation: productAmbientShift 18s ease-in-out infinite alternate;
+}
+
+.productSurface::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.024), transparent 34%, rgba(255, 255, 255, 0.018) 66%, transparent),
+    radial-gradient(circle at 50% 50%, transparent 0, rgba(0, 0, 0, 0.34) 72%);
+  opacity: 0.9;
+}
+
+.pageTransition {
+  --content-enter-delay: 0ms;
+}
+
+.pageTransition > * {
+  animation: softPageEnter 720ms var(--ease-out) var(--content-enter-delay) both;
+}
+
+.homeSurface.pageTransition > * {
+  animation: none;
+}
+
+.featureSurface.pageTransition > *,
+.pageTransition .pageIntro,
+.pageTransition .historyLayout {
+  animation: none;
+}
+
+.homeSurface.pageTransition .homeCopy h1,
+.homeSurface.pageTransition .homeSignal,
+.homeSurface.pageTransition .homeLede,
+.homeSurface.pageTransition .homeActions,
+.homeSurface.pageTransition .sessionPreview,
+.homeSurface.pageTransition .homeShortcutCard,
+.pageTransition .pageIntro .kicker,
+.pageTransition .pageIntro h1,
+.pageTransition .pageIntro p:not(.kicker),
+.pageTransition .pageIntro .primaryButton,
+.pageTransition .historyPanel {
+  animation: softPageEnter 760ms var(--ease-out) var(--content-enter-delay) both;
+}
+
+.homeSurface.pageTransition .homeCopy h1 {
+  --content-enter-delay: 0ms;
+}
+
+.homeSurface.pageTransition .homeSignal {
+  --content-enter-delay: 140ms;
+}
+
+.homeSurface.pageTransition .homeLede {
+  --content-enter-delay: 210ms;
+}
+
+.homeSurface.pageTransition .homeActions {
+  --content-enter-delay: 280ms;
+}
+
+.homeSurface.pageTransition .sessionPreview {
+  --content-enter-delay: 360ms;
+}
+
+.homeSurface.pageTransition .homeShortcutCard:nth-child(1) {
+  --content-enter-delay: 500ms;
+}
+
+.homeSurface.pageTransition .homeShortcutCard:nth-child(2) {
+  --content-enter-delay: 580ms;
+}
+
+.homeSurface.pageTransition .homeShortcutCard:nth-child(3) {
+  --content-enter-delay: 660ms;
+}
+
+.pageTransition .pageIntro .kicker {
+  --content-enter-delay: 0ms;
+}
+
+.pageTransition .pageIntro h1 {
+  --content-enter-delay: 90ms;
+}
+
+.pageTransition .pageIntro p:not(.kicker) {
+  --content-enter-delay: 180ms;
+}
+
+.pageTransition .pageIntro .primaryButton {
+  --content-enter-delay: 260ms;
+}
+
+.pageTransition .historyPanel:nth-child(1) {
+  --content-enter-delay: 380ms;
+}
+
+.pageTransition .historyPanel:nth-child(2) {
+  --content-enter-delay: 460ms;
+}
+
+.pageTransition .historyPanel:nth-child(3) {
+  --content-enter-delay: 540ms;
+}
+
+.pageTransition .historyPanel:nth-child(4) {
+  --content-enter-delay: 620ms;
 }
 
 .featureSurface {
@@ -210,8 +326,16 @@
 .historyPanel {
   display: grid;
   gap: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.055);
+  background:
+    radial-gradient(circle at 8% 12%, rgba(141, 247, 167, 0.1), transparent 30%),
+    radial-gradient(circle at 92% 10%, rgba(198, 133, 255, 0.07), transparent 30%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.064), rgba(255, 255, 255, 0.022)),
+    rgba(8, 12, 13, 0.62);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 22px 58px rgba(0, 0, 0, 0.22);
   backdrop-filter: blur(18px);
 }
 
@@ -1067,6 +1191,34 @@
   white-space: nowrap;
 }
 
+@keyframes productAmbientShift {
+  from {
+    background-position:
+      0% 0%,
+      100% 0%,
+      0% 0%;
+  }
+  to {
+    background-position:
+      8% 12%,
+      88% 8%,
+      0% 0%;
+  }
+}
+
+@keyframes softPageEnter {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 980px) {
   .appNav {
     top: auto;
@@ -1129,6 +1281,25 @@
   .memoryPanel,
   .trackHistoryPanel {
     grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .productSurface,
+  .pageTransition,
+  .pageTransition > *,
+  .homeSurface.pageTransition .homeCopy h1,
+  .homeSurface.pageTransition .homeSignal,
+  .homeSurface.pageTransition .homeLede,
+  .homeSurface.pageTransition .homeActions,
+  .homeSurface.pageTransition .sessionPreview,
+  .homeSurface.pageTransition .homeShortcutCard,
+  .pageTransition .pageIntro .kicker,
+  .pageTransition .pageIntro h1,
+  .pageTransition .pageIntro p:not(.kicker),
+  .pageTransition .pageIntro .primaryButton,
+  .pageTransition .historyPanel {
+    animation: none;
   }
 }
 

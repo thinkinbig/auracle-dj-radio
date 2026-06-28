@@ -252,7 +252,7 @@
 
 .embeddedPage .eyebrow,
 .embeddedPage .kicker {
-  color: rgba(248, 250, 252, 0.5);
+  color: rgba(141, 247, 167, 0.82);
 }
 
 .embeddedPage .headerCopy h1 {
@@ -264,8 +264,10 @@
 .embeddedPage .signalPanel,
 .embeddedPage .guestGate,
 .embeddedPage .emptyState {
-  border-color: transparent;
-  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 22px 58px rgba(0, 0, 0, 0.2);
 }
 
 .embeddedPage .signalPanel,
@@ -275,23 +277,69 @@
 }
 
 .embeddedPage .signalPanel {
-  background: rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at 10% 12%, rgba(141, 247, 167, 0.1), transparent 32%),
+    radial-gradient(circle at 92% 14%, rgba(198, 133, 255, 0.08), transparent 34%),
+    rgba(255, 255, 255, 0.07);
 }
 
 .embeddedPage .signalPanel span {
-  background: rgba(255, 255, 255, 0.045);
+  background: rgba(8, 12, 13, 0.66);
 }
 
 .embeddedPage .tasteSection,
 .embeddedPage .block {
   padding-top: 30px;
-  border-top: 0;
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .embeddedPage .badge {
-  color: rgba(248, 250, 252, 0.68);
-  border-color: transparent;
-  background: rgba(255, 255, 255, 0.07);
+  color: rgba(141, 247, 167, 0.88);
+  border-color: rgba(141, 247, 167, 0.18);
+  background: rgba(141, 247, 167, 0.08);
+}
+
+.embeddedPage .eyebrow,
+.embeddedPage .headerCopy h1,
+.embeddedPage .headerCopy p,
+.embeddedPage .signalPanel,
+.embeddedPage .guestGate,
+.embeddedPage .tasteSection,
+.embeddedPage .supportGrid .block {
+  animation: soundLayerEnter 760ms var(--ease-out) var(--content-enter-delay, 0ms) both;
+}
+
+.embeddedPage .eyebrow {
+  --content-enter-delay: 0ms;
+}
+
+.embeddedPage .headerCopy h1 {
+  --content-enter-delay: 90ms;
+}
+
+.embeddedPage .headerCopy p {
+  --content-enter-delay: 180ms;
+}
+
+.embeddedPage .signalPanel {
+  --content-enter-delay: 280ms;
+}
+
+.embeddedPage .guestGate,
+.embeddedPage .tasteSection {
+  --content-enter-delay: 380ms;
+}
+
+.embeddedPage .supportGrid .block:nth-child(1) {
+  --content-enter-delay: 500ms;
+}
+
+.embeddedPage .supportGrid .block:nth-child(2) {
+  --content-enter-delay: 580ms;
+}
+
+.embeddedPage .supportGrid .block:nth-child(3) {
+  --content-enter-delay: 660ms;
 }
 
 .backButton:focus-visible,
@@ -324,5 +372,30 @@
 
   .blockHeader {
     align-items: flex-start;
+  }
+}
+
+@keyframes soundLayerEnter {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .embeddedPage .eyebrow,
+  .embeddedPage .headerCopy h1,
+  .embeddedPage .headerCopy p,
+  .embeddedPage .signalPanel,
+  .embeddedPage .guestGate,
+  .embeddedPage .tasteSection,
+  .embeddedPage .supportGrid .block {
+    animation: none;
   }
 }

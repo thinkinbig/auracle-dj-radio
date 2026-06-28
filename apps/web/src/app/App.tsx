@@ -77,7 +77,7 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
 
     if (activePage === 'import') {
       return (
-        <main className={`${styles.productSurface} ${styles.featureSurface}`}>
+        <main className={`${styles.productSurface} ${styles.featureSurface} ${styles.pageTransition}`}>
           <ImportPlaylistScreen user={user} onClose={() => setActivePage('home')} embedded />
         </main>
       );
@@ -85,7 +85,7 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
 
     if (activePage === 'sound') {
       return (
-        <main className={`${styles.productSurface} ${styles.featureSurface}`}>
+        <main className={`${styles.productSurface} ${styles.featureSurface} ${styles.pageTransition}`}>
           <SoundScreen
             user={user}
             onClose={() => setActivePage('home')}
@@ -182,7 +182,7 @@ function HomePage({
   const libraryTrackCount = state.sessionTracklist.length;
 
   return (
-    <main className={`${styles.productSurface} ${styles.homeSurface}`}>
+    <main className={`${styles.productSurface} ${styles.homeSurface} ${styles.pageTransition}`}>
       <section className={styles.homeHero} aria-labelledby="home-title">
         <div className={styles.homeCopy}>
           <h1 id="home-title">Welcome back, {firstName}.</h1>
@@ -307,7 +307,7 @@ function HistoryPage({ onOpenListen }: { onOpenListen: () => void }) {
   const recentTranscript = state.transcript.slice(-3);
 
   return (
-    <main className={styles.productSurface}>
+    <main className={`${styles.productSurface} ${styles.pageTransition}`}>
       <section className={styles.pageIntro} aria-labelledby="history-title">
         <p className={styles.kicker}>History</p>
         <h1 id="history-title">Listening memories, without the clutter.</h1>
