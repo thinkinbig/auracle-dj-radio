@@ -2,6 +2,7 @@ import type { FlowTrackRef } from "@auracle/shared";
 import type { MemoryServiceClient } from "../memory-service-client.js";
 import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
+import { pushQueueUpdate } from "./queue-update.js";
 import type { SessionState, SessionStore } from "./store.js";
 
 /** Dependencies shared by the orchestration handlers (replan + tool dispatch). */
@@ -152,17 +153,10 @@ export async function replanAndPush(
     const beforeRemainingIds = deps.store.remaining(state).map((ref) => ref.id);
     const outcome = await applyReplan(deps, state, params);
     if (!outcome.replanned) return;
-    await deps.proxy.inject(state.id, {
-      ui_events: [
-        {
-          type: "tracklist_updated",
-          remaining: outcome.remaining,
-          changed_ids: changedIdsFromRemaining(beforeRemainingIds, outcome.remaining),
-          before_remaining_ids: beforeRemainingIds,
-          session_title: state.title,
-          session_subtitle: state.subtitle,
-        },
-      ],
+    await pushQueueUpdate(deps, state, {
+      remaining: outcome.remaining,
+      changedIds: changedIdsFromRemaining(beforeRemainingIds, outcome.remaining),
+      beforeRemainingIds,
     });
   } catch (err) {
     await deps.memory.recordEvent(state.id, state.userId, "replan_failed", {

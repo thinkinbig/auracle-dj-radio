@@ -1,3 +1,4 @@
+import { pushQueueUpdate } from "./queue-update.js";
 import type { OrchestrationDeps } from "./replan.js";
 import type { SessionState } from "./store.js";
 
@@ -45,17 +46,10 @@ export async function swapNextOnQuickSkip(
     const swap = deps.store.swapNext(state, replacement, "swapped after a quick skip");
     if (!swap) return;
 
-    await deps.proxy.inject(state.id, {
-      ui_events: [
-        {
-          type: "tracklist_updated",
-          remaining: deps.store.remaining(state),
-          changed_ids: [swap.after],
-          before_remaining_ids: beforeRemainingIds,
-          session_title: state.title,
-          session_subtitle: state.subtitle,
-        },
-      ],
+    await pushQueueUpdate(deps, state, {
+      remaining: deps.store.remaining(state),
+      changedIds: [swap.after],
+      beforeRemainingIds,
     });
 
     await deps.memory.recordEvent(state.id, state.userId, "skip_queue_adjusted", {

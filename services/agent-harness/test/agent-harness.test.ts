@@ -232,11 +232,9 @@ describe("agent-harness", () => {
     expect(body.before_remaining_ids).toEqual(["b", "c", "f"]);
     expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
     expect(memory.events.map((e) => e.eventType)).toContain("playlist_regenerate_requested");
-    const pushed = proxy.injectCalls.at(-1)?.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
-      | { changed_ids?: string[]; before_remaining_ids?: string[] }
-      | undefined;
-    expect(pushed?.changed_ids).toEqual(["d", "e"]);
-    expect(pushed?.before_remaining_ids).toEqual(["b", "c", "f"]);
+    // Client-initiated: the new queue is delivered in the HTTP response above, NOT
+    // also pushed over the proxy (one logical change, one channel -- channel rule).
+    expect(proxy.injectCalls.some((c) => c.payload.ui_events?.some((e) => e.type === "tracklist_updated"))).toBe(false);
     await app.close();
   });
 

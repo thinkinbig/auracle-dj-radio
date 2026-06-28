@@ -1,5 +1,5 @@
-import type { OrchestrationDeps } from "./replan.js";
-import { changedIdsFromRemaining } from "./replan.js";
+import { pushQueueUpdate } from "./queue-update.js";
+import { changedIdsFromRemaining, type OrchestrationDeps } from "./replan.js";
 import type { SessionState } from "./store.js";
 
 /** Append a fresh batch once the queue runs this low (slots after current). */
@@ -53,17 +53,10 @@ export async function extendQueue(
     if (appended.length === 0) return; // catalog exhausted — nothing fresh to add
 
     const after = deps.store.remaining(state);
-    await deps.proxy.inject(state.id, {
-      ui_events: [
-        {
-          type: "tracklist_updated",
-          remaining: after,
-          changed_ids: changedIdsFromRemaining(beforeRemainingIds, after),
-          before_remaining_ids: beforeRemainingIds,
-          session_title: state.title,
-          session_subtitle: state.subtitle,
-        },
-      ],
+    await pushQueueUpdate(deps, state, {
+      remaining: after,
+      changedIds: changedIdsFromRemaining(beforeRemainingIds, after),
+      beforeRemainingIds,
     });
     await deps.memory.recordEvent(state.id, state.userId, "queue_extended", {
       before_count: before.length,

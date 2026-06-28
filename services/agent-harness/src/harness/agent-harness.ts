@@ -306,25 +306,10 @@ export class AgentHarness {
       replanned: outcome.replanned,
     });
 
-    if (outcome.replanned) {
-      await this.deps.proxy
-        .inject(id, {
-          ui_events: [
-            {
-              type: "tracklist_updated",
-              remaining: outcome.remaining,
-              changed_ids: changedIdsFromRemaining(before, outcome.remaining),
-              before_remaining_ids: before,
-              session_title: state.title,
-              session_subtitle: state.subtitle,
-            },
-          ],
-        })
-        .catch((err) =>
-          this.deps.log?.warn({ err: (err as Error).message, sessionId: id }, "regenerate proxy push failed"),
-        );
-    }
-
+    // Client-initiated (Regenerate button): the HTTP response below is the
+    // authoritative delivery to the only client -- no redundant proxy push (one
+    // logical change, one channel). Server-initiated queue changes (mood_change
+    // replan, rolling extend, skip-swap) push via pushQueueUpdate instead.
     return {
       ok: true,
       replanned: outcome.replanned,
