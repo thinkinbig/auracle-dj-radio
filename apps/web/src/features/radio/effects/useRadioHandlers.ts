@@ -138,6 +138,8 @@ export function useRadioHandlers({
           remaining: result.remaining,
           sessionTitle: result.session_title,
           sessionSubtitle: result.session_subtitle,
+          changedIds: result.changed_ids,
+          beforeRemainingIds: result.before_remaining_ids,
         });
       });
     }

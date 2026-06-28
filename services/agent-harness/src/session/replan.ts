@@ -42,6 +42,17 @@ function scopeWindow(scope: ReplanScope, remainingCount: number): { start: numbe
   return { start: 0, count: remainingCount }; // full
 }
 
+export function changedIdsFromRemaining(beforeIds: string[], afterRefs: FlowTrackRef[]): string[] {
+  const changed = new Set<string>();
+  const afterIds = afterRefs.map((ref) => ref.id);
+  const max = Math.max(beforeIds.length, afterIds.length);
+  for (let i = 0; i < max; i += 1) {
+    const afterId = afterIds[i];
+    if (afterId && beforeIds[i] !== afterId) changed.add(afterId);
+  }
+  return [...changed];
+}
+
 export interface ReplanOutcome {
   replanned: boolean;
   remaining: FlowTrackRef[];
@@ -138,6 +149,7 @@ export async function replanAndPush(
   params: ReplanParams,
 ): Promise<void> {
   try {
+    const beforeRemainingIds = deps.store.remaining(state).map((ref) => ref.id);
     const outcome = await applyReplan(deps, state, params);
     if (!outcome.replanned) return;
     await deps.proxy.inject(state.id, {
@@ -145,6 +157,8 @@ export async function replanAndPush(
         {
           type: "tracklist_updated",
           remaining: outcome.remaining,
+          changed_ids: changedIdsFromRemaining(beforeRemainingIds, outcome.remaining),
+          before_remaining_ids: beforeRemainingIds,
           session_title: state.title,
           session_subtitle: state.subtitle,
         },

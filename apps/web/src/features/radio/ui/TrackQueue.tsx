@@ -21,9 +21,11 @@ export function TrackQueue() {
   const { handlePlaylistFeedback } = useRadioActions();
   const catalogLoaded = useCatalogLoaded();
   const current = useTrackMeta(state.trackId);
+  const recentlyChanged = new Set(state.recentlyChangedIds);
   let feedbackLabel = 'Feedback';
   if (state.queueRefreshStatus === 'pending') feedbackLabel = 'Regenerating...';
-  else if (state.queueRefreshStatus === 'complete') feedbackLabel = 'Queue refreshed';
+  else if (state.queueDiffMessage) feedbackLabel = state.queueDiffMessage;
+  else if (state.queueRefreshStatus === 'complete') feedbackLabel = 'No queue changes';
   else if (state.queueRefreshStatus === 'error') feedbackLabel = 'Try again';
   else if (state.playlistFeedback === 'like') feedbackLabel = 'Station saved';
   else if (state.playlistFeedback === 'dislike') feedbackLabel = 'Tuning away';
@@ -88,7 +90,7 @@ export function TrackQueue() {
 
           <ul className={styles.list}>
             {state.remainingTrackIds.map((id, i) => (
-              <TrackQueueItem key={id} id={id} index={i + 2} />
+              <TrackQueueItem key={id} id={id} index={i + 2} changed={recentlyChanged.has(id)} />
             ))}
           </ul>
         </>
@@ -97,10 +99,10 @@ export function TrackQueue() {
   );
 }
 
-function TrackQueueItem({ id, index }: { id: string; index: number }) {
+function TrackQueueItem({ id, index, changed }: { id: string; index: number; changed: boolean }) {
   const track = useTrackMeta(id);
   return (
-    <li className={styles.item}>
+    <li className={cn(styles.item, changed && styles.itemChanged)}>
       <span className={styles.index}>{index}</span>
       <div>
         <p className={styles.title}>{track.title}</p>

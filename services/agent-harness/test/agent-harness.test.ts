@@ -197,11 +197,13 @@ describe("agent-harness", () => {
 
     await vi.waitFor(() => expect(proxy.injectCalls.length).toBe(1));
     const updated = proxy.injectCalls[0]!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
-      | { remaining: { id: string }[] }
+      | { remaining: { id: string }[]; changed_ids?: string[]; before_remaining_ids?: string[] }
       | undefined;
     // Default mood_change is a nudge (E2): of remaining [b,c,f] only the next 2 slots
     // are re-filled (→ d,e); the tail "f" is kept. remainingSlots asked for is 2.
     expect(updated?.remaining.map((r) => r.id)).toEqual(["d", "e", "f"]);
+    expect(updated?.changed_ids).toEqual(["d", "e"]);
+    expect(updated?.before_remaining_ids).toEqual(["b", "c", "f"]);
     const replanCall = music.planCalls.find((c) => c.mode === "replan");
     expect(replanCall?.replan?.remainingSlots).toBe(2);
     expect(memory.facts.at(-1)?.fact).toContain("darker");
@@ -216,13 +218,25 @@ describe("agent-harness", () => {
 
     const res = await app.inject({ method: "POST", url: `/sessions/${session_id}/regenerate` });
     expect(res.statusCode).toBe(200);
-    const body = res.json<{ replanned: boolean; remaining: FlowTrackRef[]; tracklist: FlowTrackRef[] }>();
+    const body = res.json<{
+      replanned: boolean;
+      remaining: FlowTrackRef[];
+      tracklist: FlowTrackRef[];
+      changed_ids?: string[];
+      before_remaining_ids?: string[];
+    }>();
     expect(body.replanned).toBe(true);
     expect(body.remaining.map((r) => r.id)).toEqual(["d", "e"]);
     expect(body.tracklist.map((r) => r.id)).toEqual(["a", "d", "e"]);
+    expect(body.changed_ids).toEqual(["d", "e"]);
+    expect(body.before_remaining_ids).toEqual(["b", "c", "f"]);
     expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
     expect(memory.events.map((e) => e.eventType)).toContain("playlist_regenerate_requested");
-    expect(proxy.injectCalls.at(-1)?.payload.ui_events?.some((e) => e.type === "tracklist_updated")).toBe(true);
+    const pushed = proxy.injectCalls.at(-1)?.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
+      | { changed_ids?: string[]; before_remaining_ids?: string[] }
+      | undefined;
+    expect(pushed?.changed_ids).toEqual(["d", "e"]);
+    expect(pushed?.before_remaining_ids).toEqual(["b", "c", "f"]);
     await app.close();
   });
 
@@ -460,11 +474,12 @@ describe("agent-harness", () => {
 
     await vi.waitFor(() => expect(proxy.injectCalls.length).toBeGreaterThan(0));
     const updated = proxy.injectCalls.at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
-      | { remaining: { id: string }[]; changed_ids?: string[] }
+      | { remaining: { id: string }[]; changed_ids?: string[]; before_remaining_ids?: string[] }
       | undefined;
     expect(updated).toBeTruthy();
     expect(updated!.remaining.map((r) => r.id)).toEqual(["s2", "g", "h"]); // s2(5) preferred over s1(3 = skipped energy)
     expect(updated!.changed_ids).toEqual(["s2"]); // "f" swapped out
+    expect(updated!.before_remaining_ids).toEqual(["f", "g", "h"]);
     // deterministic: search_catalog only, never a Flow plan/replan beyond the initial full plan.
     expect(music.searchCalls).toHaveLength(1);
     expect(music.planCalls.filter((c) => c.mode !== "provisional" && c.mode !== "full")).toEqual([]);
@@ -523,9 +538,11 @@ describe("agent-harness", () => {
 
     await vi.waitFor(() => expect(proxy.injectCalls.length).toBeGreaterThan(0));
     const updated = proxy.injectCalls.at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
-      | { remaining: { id: string }[] }
+      | { remaining: { id: string }[]; changed_ids?: string[]; before_remaining_ids?: string[] }
       | undefined;
     expect(updated!.remaining.map((r) => r.id)).toEqual(["c", "f", "x1", "x2", "x3", "x4"]);
+    expect(updated!.changed_ids).toEqual(["x1", "x2", "x3", "x4"]);
+    expect(updated!.before_remaining_ids).toEqual(["c", "f"]);
 
     await vi.waitFor(() => expect(memory.events.some((e) => e.eventType === "queue_extended")).toBe(true));
     const ext = memory.events.find((e) => e.eventType === "queue_extended")!;

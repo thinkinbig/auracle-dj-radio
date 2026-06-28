@@ -25,8 +25,10 @@ export type ServerMessage =
       remaining: FlowTrackRef[];
       session_title?: string;
       session_subtitle?: string;
-      /** Ids of slots changed in this update, for UI highlight (deterministic skip-swap, E4). */
+      /** Ids of remaining tracks changed in this update, for queue diff highlighting. */
       changed_ids?: string[];
+      /** Remaining track ids before the update; lets clients infer a diff when needed. */
+      before_remaining_ids?: string[];
     }
   | { type: "intent"; intent: Intent }
   | { type: "error"; message: string; circuit_state?: string; retry_after_sec?: number };

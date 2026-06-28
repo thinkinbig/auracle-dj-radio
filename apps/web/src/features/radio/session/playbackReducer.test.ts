@@ -141,6 +141,46 @@ describe('playbackReducer', () => {
     expect(updated.remainingTrackIds).toEqual(['a', 'b']);
     expect(updated.sessionTracklist.map((track) => track.id)).toEqual([base.trackId, 'a', 'b']);
     expect(updated.sessionTracklist[1]?.reason).toBe('fresh pivot');
+    expect(updated.recentlyChangedIds).toEqual(['a', 'b']);
+    expect(updated.queueDiffMessage).toBe('接下来 2 首已更新');
+    expect(updated.queueDiffExpiresAtSec).toBe(updated.sessionElapsedSec + 30);
+  });
+
+  it('clears queue diff highlights after the TTL', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const updated = playbackReducer(base, {
+      type: 'tracklist_updated',
+      remaining: [{ id: 'a', flow_position: 2, reason: 'fresh pivot' }],
+      changedIds: ['a'],
+    });
+    expect(updated.recentlyChangedIds).toEqual(['a']);
+
+    let next = updated;
+    for (let i = 0; i < 29; i += 1) next = playbackReducer(next, { type: 'tick' });
+    expect(next.recentlyChangedIds).toEqual(['a']);
+    next = playbackReducer(next, { type: 'tick' });
+    expect(next.recentlyChangedIds).toEqual([]);
+    expect(next.queueDiffMessage).toBeNull();
+    expect(next.queueDiffExpiresAtSec).toBeNull();
+  });
+
+  it('does not show queue diff copy when an update leaves the remaining ids unchanged', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const regenerating = playbackReducer(base, { type: 'playlist_feedback', feedback: 'regenerate' });
+    const updated = playbackReducer(regenerating, {
+      type: 'tracklist_updated',
+      remaining: base.sessionTracklist.slice(1),
+      beforeRemainingIds: base.remainingTrackIds,
+    });
+    expect(updated.queueRefreshStatus).toBe('complete');
+    expect(updated.recentlyChangedIds).toEqual([]);
+    expect(updated.queueDiffMessage).toBeNull();
   });
 
   it('counts a fresh user utterance once, not per streamed chunk', () => {

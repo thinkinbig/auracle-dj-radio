@@ -1,4 +1,5 @@
 import type { OrchestrationDeps } from "./replan.js";
+import { changedIdsFromRemaining } from "./replan.js";
 import type { SessionState } from "./store.js";
 
 /** Append a fresh batch once the queue runs this low (slots after current). */
@@ -25,6 +26,7 @@ export async function extendQueue(
 ): Promise<void> {
   if (state.condition === "A" || state.extendPending) return;
   const before = deps.store.remaining(state);
+  const beforeRemainingIds = before.map((ref) => ref.id);
   if (before.length > EXTEND_THRESHOLD) return;
 
   state.extendPending = true;
@@ -56,6 +58,8 @@ export async function extendQueue(
         {
           type: "tracklist_updated",
           remaining: after,
+          changed_ids: changedIdsFromRemaining(beforeRemainingIds, after),
+          before_remaining_ids: beforeRemainingIds,
           session_title: state.title,
           session_subtitle: state.subtitle,
         },

@@ -39,6 +39,8 @@ export interface RegenerateSessionResponse {
   current_track_index: number;
   tracklist: FlowTrackRef[];
   remaining: FlowTrackRef[];
+  changed_ids?: string[];
+  before_remaining_ids?: string[];
 }
 
 /** Body of POST /sessions/:id/events. */

@@ -22,7 +22,8 @@ export async function swapNextOnQuickSkip(
 ): Promise<void> {
   try {
     if (state.condition === "A") return;
-    const next = deps.store.remaining(state)[0];
+    const beforeRemainingIds = deps.store.remaining(state).map((ref) => ref.id);
+    const next = beforeRemainingIds[0];
     if (!next) return;
 
     // Exclude everything already in the queue so the new next is genuinely novel
@@ -50,6 +51,7 @@ export async function swapNextOnQuickSkip(
           type: "tracklist_updated",
           remaining: deps.store.remaining(state),
           changed_ids: [swap.after],
+          before_remaining_ids: beforeRemainingIds,
           session_title: state.title,
           session_subtitle: state.subtitle,
         },

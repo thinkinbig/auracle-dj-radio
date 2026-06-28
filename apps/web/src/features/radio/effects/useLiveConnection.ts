@@ -119,6 +119,8 @@ export function useLiveConnection({
               remaining: msg.remaining,
               sessionTitle: msg.session_title,
               sessionSubtitle: msg.session_subtitle,
+              changedIds: msg.changed_ids,
+              beforeRemainingIds: msg.before_remaining_ids,
             });
           } else if (msg.type === 'intent') {
             if (msg.intent.type === 'skip_track') {

@@ -18,10 +18,19 @@ export type PlaybackAction =
   | { type: 'stop_talk' }
   | { type: 'transcript'; role: 'user' | 'model'; text: string }
   | { type: 'server_phase'; phase: Phase; trackIndex?: number }
-  | { type: 'tracklist_updated'; remaining: FlowTrackRef[]; sessionTitle?: string; sessionSubtitle?: string }
+  | {
+      type: 'tracklist_updated';
+      remaining: FlowTrackRef[];
+      sessionTitle?: string;
+      sessionSubtitle?: string;
+      changedIds?: string[];
+      beforeRemainingIds?: string[];
+    }
   | { type: 'playlist_feedback'; feedback: PlaylistFeedback }
   | { type: 'playlist_feedback_failed'; feedback: PlaylistFeedback }
   | { type: 'set_host_mode'; hostMode: CreateSessionResponse['host_mode'] };
+
+const QUEUE_DIFF_TTL_SEC = 30;
 
 export function createInitialPlaybackState(): PlaybackState {
   const first = DEMO_SESSION.tracklist[0]!;
@@ -55,6 +64,9 @@ export function createInitialPlaybackState(): PlaybackState {
     userUtteranceCount: 0,
     playlistFeedback: null,
     queueRefreshStatus: 'idle',
+    recentlyChangedIds: [],
+    queueDiffExpiresAtSec: null,
+    queueDiffMessage: null,
   };
 }
 
@@ -124,6 +136,44 @@ function replaceRemainingTrackRefs(state: PlaybackState, remaining: FlowTrackRef
   ];
 }
 
+function uniqueIds(ids: string[]): string[] {
+  return [...new Set(ids.filter(Boolean))];
+}
+
+function inferChangedIds(beforeIds: string[], afterRefs: FlowTrackRef[]): string[] {
+  const changed: string[] = [];
+  const afterIds = afterRefs.map((ref) => ref.id);
+  const max = Math.max(beforeIds.length, afterIds.length);
+  for (let i = 0; i < max; i += 1) {
+    const afterId = afterIds[i];
+    if (afterId && beforeIds[i] !== afterId) changed.push(afterId);
+  }
+  return uniqueIds(changed);
+}
+
+function formatQueueDiffMessage(count: number): string {
+  return `接下来 ${count} 首已更新`;
+}
+
+function clearQueueDiff(state: PlaybackState): PlaybackState {
+  if (state.recentlyChangedIds.length === 0 && state.queueDiffExpiresAtSec === null && !state.queueDiffMessage) {
+    return state;
+  }
+  return {
+    ...state,
+    recentlyChangedIds: [],
+    queueDiffExpiresAtSec: null,
+    queueDiffMessage: null,
+  };
+}
+
+function expireQueueDiff(state: PlaybackState, elapsedSec: number): PlaybackState {
+  if (state.queueDiffExpiresAtSec !== null && elapsedSec >= state.queueDiffExpiresAtSec) {
+    return clearQueueDiff(state);
+  }
+  return state;
+}
+
 const SESSION_CLOCK_PHASES: UiPhase[] = ['playing', 'speaking', 'listening', 'opening'];
 
 /**
@@ -186,6 +236,9 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         userUtteranceCount: 0,
         playlistFeedback: null,
         queueRefreshStatus: 'idle',
+        recentlyChangedIds: [],
+        queueDiffExpiresAtSec: null,
+        queueDiffMessage: null,
       };
     }
     case 'transcript': {
@@ -235,6 +288,11 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
     case 'tracklist_updated': {
       const sessionTracklist = replaceRemainingTrackRefs(state, action.remaining);
       const wasRegenerating = state.queueRefreshStatus === 'pending';
+      const changedIds = uniqueIds(
+        action.changedIds && action.changedIds.length > 0
+          ? action.changedIds
+          : inferChangedIds(action.beforeRemainingIds ?? state.remainingTrackIds, action.remaining),
+      );
       return {
         ...state,
         sessionTracklist,
@@ -243,6 +301,9 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         sessionSubtitle: action.sessionSubtitle ?? state.sessionSubtitle,
         playlistFeedback: wasRegenerating ? 'regenerate' : null,
         queueRefreshStatus: wasRegenerating ? 'complete' : state.queueRefreshStatus,
+        recentlyChangedIds: changedIds,
+        queueDiffExpiresAtSec: changedIds.length > 0 ? state.sessionElapsedSec + QUEUE_DIFF_TTL_SEC : null,
+        queueDiffMessage: changedIds.length > 0 ? formatQueueDiffMessage(changedIds.length) : null,
       };
     }
     case 'playlist_feedback':
@@ -263,7 +324,7 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
       return { ...state, hostMode: action.hostMode };
     case 'tick':
       if (!SESSION_CLOCK_PHASES.includes(state.phase)) return state;
-      return { ...state, sessionElapsedSec: state.sessionElapsedSec + 1 };
+      return expireQueueDiff({ ...state, sessionElapsedSec: state.sessionElapsedSec + 1 }, state.sessionElapsedSec + 1);
     case 'progress':
       return { ...state, progressSec: action.progressSec };
     case 'duration':

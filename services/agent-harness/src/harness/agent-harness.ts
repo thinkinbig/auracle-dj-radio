@@ -7,7 +7,7 @@ import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
 import { buildAndPushCue } from "../session/cue.js";
 import { extendQueue } from "../session/extend.js";
-import { applyReplan, type OrchestrationDeps } from "../session/replan.js";
+import { applyReplan, changedIdsFromRemaining, type OrchestrationDeps } from "../session/replan.js";
 import { swapNextOnQuickSkip } from "../session/skip-swap.js";
 import { SessionStore, type SessionState } from "../session/store.js";
 import { runTool, type ToolCall } from "../session/tool-runner.js";
@@ -127,7 +127,8 @@ export class AgentHarness {
       });
       const previousTitle = state.title;
       const previousSubtitle = state.subtitle;
-      const previousRemaining = this.deps.store.remaining(state).map((r) => r.id).join(" ");
+      const previousRemainingIds = this.deps.store.remaining(state).map((r) => r.id);
+      const previousRemaining = previousRemainingIds.join(" ");
 
       state.title = plan.result.session_title || state.title;
       state.subtitle = plan.result.session_subtitle || state.subtitle;
@@ -153,6 +154,8 @@ export class AgentHarness {
             {
               type: "tracklist_updated",
               remaining,
+              changed_ids: changedIdsFromRemaining(previousRemainingIds, remaining),
+              before_remaining_ids: previousRemainingIds,
               session_title: state.title,
               session_subtitle: state.subtitle,
             },
@@ -310,6 +313,8 @@ export class AgentHarness {
             {
               type: "tracklist_updated",
               remaining: outcome.remaining,
+              changed_ids: changedIdsFromRemaining(before, outcome.remaining),
+              before_remaining_ids: before,
               session_title: state.title,
               session_subtitle: state.subtitle,
             },
@@ -328,6 +333,8 @@ export class AgentHarness {
       current_track_index: state.currentTrackIndex,
       tracklist: state.tracklist,
       remaining: outcome.remaining,
+      changed_ids: changedIdsFromRemaining(before, outcome.remaining),
+      before_remaining_ids: before,
     };
   }
 

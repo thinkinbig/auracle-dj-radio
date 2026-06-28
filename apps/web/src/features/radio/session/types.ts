@@ -47,4 +47,10 @@ export interface PlaybackState {
   playlistFeedback: PlaylistFeedback | null;
   /** Status for the explicit regenerate path. */
   queueRefreshStatus: QueueRefreshStatus;
+  /** Remaining-track ids briefly highlighted after a queue diff lands. */
+  recentlyChangedIds: string[];
+  /** Session-clock second when the current queue diff highlight should clear. */
+  queueDiffExpiresAtSec: number | null;
+  /** Brief queue diff copy shown while the highlight is active. */
+  queueDiffMessage: string | null;
 }
