@@ -31,4 +31,10 @@ export type ServerMessage =
       before_remaining_ids?: string[];
     }
   | { type: "intent"; intent: Intent }
-  | { type: "error"; message: string; circuit_state?: string; retry_after_sec?: number };
+  | { type: "error"; message: string; circuit_state?: string; retry_after_sec?: number }
+  /**
+   * The user started a live session on another device; this one has been
+   * superseded (single active session per user). The client stops playback and
+   * surfaces a non-crash "playing elsewhere" UX (issue #55).
+   */
+  | { type: "session_superseded" };

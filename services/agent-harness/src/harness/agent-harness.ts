@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Condition, HostMode, RegenerateSessionResponse, SessionIntent, TastePreference, TrackMeta } from "@auracle/shared";
-import { parseHostMode } from "@auracle/shared";
+import { ANONYMOUS_USER_ID, parseHostMode } from "@auracle/shared";
 import { buildRegistration } from "../dj/registration.js";
 import type { MemoryServiceClient } from "../memory-service-client.js";
 import type { MusicEngineClient } from "../music-engine-client.js";
@@ -54,6 +54,12 @@ export class AgentHarness {
     const intent = parseIntent(input);
     if (!intent) throw new Error("mood and scene are required");
     const condition: Condition = input.condition ?? "C";
+    // Single active session per user (issue #55): an authenticated user gets at
+    // most one live session. Capture any prior session now so we can supersede
+    // it once the new one is registered. Guests share the anonymous id and are
+    // out of scope — never supersede them.
+    const authenticated = userId !== ANONYMOUS_USER_ID;
+    const supersededId = authenticated ? this.deps.store.activeSessionForUser(userId) : undefined;
     // Personalization is best-effort and condition-C-only; must not block session create.
     const [mem0Context, energyWeights, taste]: [string, Partial<Record<number, number>> | undefined, TastePreference[] | undefined] =
       condition === "C"
@@ -80,6 +86,7 @@ export class AgentHarness {
       candidatesById,
       mem0Context,
     });
+    if (authenticated) this.deps.store.setActiveForUser(userId, state.id);
 
     await this.deps.memory
       .recordEvent(state.id, state.userId, "session_created", { intent, condition, tracklist: plan.result.tracklist })
@@ -95,6 +102,11 @@ export class AgentHarness {
     }
 
     void this.refineSessionCopywriting(state);
+
+    // Now that the new session is live, tear down the user's prior one: tell the
+    // old client it was superseded, then drop it so its APIs answer 410. Fire-
+    // and-forget so it never delays the new session's response.
+    if (supersededId && supersededId !== state.id) void this.supersedeSession(supersededId, userId);
 
     return {
       session_id: state.id,
@@ -167,6 +179,34 @@ export class AgentHarness {
     } catch (err) {
       this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "copywriting refine failed");
     }
+  }
+
+  /**
+   * Invalidate the user's prior session (issue #55): drop it from the store
+   * (synchronously, so its APIs answer 410 right away), then best-effort push a
+   * `session_superseded` ui event so the old device stops playback. A proxy miss
+   * (old client already gone) is expected — the natural disconnect already
+   * cleaned up that hub entry.
+   */
+  private async supersedeSession(oldId: string, userId: string): Promise<void> {
+    const old = this.deps.store.invalidate(oldId, "session_superseded");
+    if (!old) return;
+    await this.deps.memory
+      .recordEvent(oldId, userId, "session_superseded", { reason: "new_device" })
+      .catch((err) => this.deps.log?.warn({ err: (err as Error).message, sessionId: oldId }, "record session_superseded failed"));
+    await this.deps.proxy
+      .inject(oldId, { ui_events: [{ type: "session_superseded" }] })
+      .catch((err) => this.deps.log?.warn({ err: (err as Error).message, sessionId: oldId }, "supersede inject failed"));
+  }
+
+  /** The owning user of a live session, or undefined if unknown. Used for the route ownership guard. */
+  sessionOwner(id: string): string | undefined {
+    return this.deps.store.get(id)?.userId;
+  }
+
+  /** Why a session id is gone (e.g. "session_superseded"), for 410 Gone responses. */
+  invalidationReason(id: string): string | undefined {
+    return this.deps.store.invalidationReason(id);
   }
 
   sessionSnapshot(id: string): Record<string, unknown> | undefined {

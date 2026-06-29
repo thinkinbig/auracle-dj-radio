@@ -396,6 +396,121 @@ describe("agent-harness", () => {
     await app.close();
   });
 
+  it("supersedes an authed user's prior session when they start on a new device (#55)", async () => {
+    const { app, memory, proxy } = buildTestApp();
+    memory.tokenToUser.set("tok-1", "user-1");
+    await app.ready();
+
+    const first = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers: { authorization: "Bearer tok-1" },
+      payload: { mood: "calm", scene: "studying" },
+    });
+    const firstId = first.json<{ session_id: string }>().session_id;
+
+    const second = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers: { authorization: "Bearer tok-1" },
+      payload: { mood: "calm", scene: "studying" },
+    });
+    const secondId = second.json<{ session_id: string }>().session_id;
+    expect(secondId).not.toBe(firstId);
+
+    // The old session is told it was superseded over the proxy (Lane-3 inject).
+    await vi.waitFor(() =>
+      expect(
+        proxy.injectCalls.some(
+          (c) => c.sessionId === firstId && c.payload.ui_events?.some((e) => e.type === "session_superseded"),
+        ),
+      ).toBe(true),
+    );
+    expect(memory.events.some((e) => e.sessionId === firstId && e.eventType === "session_superseded")).toBe(true);
+
+    // The old session id is now gone: its APIs answer 410, not 404.
+    const gone = await app.inject({
+      method: "POST",
+      url: `/sessions/${firstId}/now_playing`,
+      headers: { authorization: "Bearer tok-1" },
+      payload: { track_id: "b" },
+    });
+    expect(gone.statusCode).toBe(410);
+    expect(gone.json<{ reason: string }>().reason).toBe("session_superseded");
+
+    // The new session is unaffected.
+    const ok = await app.inject({
+      method: "POST",
+      url: `/sessions/${secondId}/now_playing`,
+      headers: { authorization: "Bearer tok-1" },
+      payload: { track_id: "b" },
+    });
+    expect(ok.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("does not supersede across guests — two anonymous sessions coexist (#55)", async () => {
+    const { app, proxy } = buildTestApp();
+    await app.ready();
+
+    const first = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const firstId = first.json<{ session_id: string }>().session_id;
+    const second = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const secondId = second.json<{ session_id: string }>().session_id;
+
+    expect(secondId).not.toBe(firstId);
+    expect(proxy.injectCalls.some((c) => c.payload.ui_events?.some((e) => e.type === "session_superseded"))).toBe(false);
+
+    // Both guest sessions remain operable (no ownership binding on anonymous).
+    const a = await app.inject({ method: "POST", url: `/sessions/${firstId}/now_playing`, payload: { track_id: "b" } });
+    const b = await app.inject({ method: "POST", url: `/sessions/${secondId}/now_playing`, payload: { track_id: "b" } });
+    expect(a.statusCode).toBe(200);
+    expect(b.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("rejects cross-user access to another user's session with 403 (#55)", async () => {
+    const { app, memory } = buildTestApp();
+    memory.tokenToUser.set("tok-1", "user-1");
+    memory.tokenToUser.set("tok-2", "user-2");
+    await app.ready();
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers: { authorization: "Bearer tok-1" },
+      payload: { mood: "calm", scene: "studying" },
+    });
+    const sessionId = created.json<{ session_id: string }>().session_id;
+
+    // A different user cannot drive user-1's session.
+    const other = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/now_playing`,
+      headers: { authorization: "Bearer tok-2" },
+      payload: { track_id: "b" },
+    });
+    expect(other.statusCode).toBe(403);
+
+    // Missing token on an authed-owned session is also rejected.
+    const anon = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/now_playing`,
+      payload: { track_id: "b" },
+    });
+    expect(anon.statusCode).toBe(403);
+
+    // The owner still has access.
+    const owner = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/now_playing`,
+      headers: { authorization: "Bearer tok-1" },
+      payload: { track_id: "b" },
+    });
+    expect(owner.statusCode).toBe(200);
+    await app.close();
+  });
+
   it("condition B uses no skip weights or mem0 recall (P0-4)", async () => {
     const { app, memory, music } = buildTestApp();
     memory.recallValue = "prefers lighter energy";

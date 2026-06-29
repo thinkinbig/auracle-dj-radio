@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { Phase } from '@auracle/shared';
 import { connectLiveSessionRtc } from '../lib/liveSessionRtc';
+import { getStoredToken } from '@/features/marketing/authApi';
 import { createMicAnalyser, type MicAnalyser } from '../lib/liveAudio';
 import { prefetchTracks } from '@/data/trackCatalog';
 import type { RadioCommands } from '../lib/radioCommands';
@@ -95,7 +96,7 @@ export function useLiveConnection({
     djSpeakingRef.current = false;
 
     void connectLiveSessionRtc(
-      { proxyUrl, sessionId, token: token ?? undefined },
+      { proxyUrl, sessionId, token: token ?? undefined, authToken: getStoredToken() ?? undefined },
       {
         onRemoteStream: (stream) => bus.attachDjStream(stream),
         onLocalStream: (stream) => {
@@ -137,6 +138,14 @@ export function useLiveConnection({
                 hostMode: msg.intent.host_mode,
               });
             }
+          } else if (msg.type === 'session_superseded') {
+            // The user started a set on another device (issue #55): stop playback,
+            // surface the "playing elsewhere" UX, and drop this WebRTC connection
+            // so the proxy tears down the old hub entry.
+            store.dispatchRef.current({ type: 'session_superseded' });
+            if (store.stateRef.current.currentTrackIndex === 0) releaseOpening();
+            live.liveRef.current?.close();
+            live.liveRef.current = null;
           } else if (msg.type === 'error') {
             console.error('[live]', msg.message);
             if (store.stateRef.current.currentTrackIndex === 0) releaseOpening();

@@ -23,6 +23,16 @@ export function jsonAuthHeaders(): Record<string, string> {
   return headers;
 }
 
+/**
+ * Bearer auth headers WITHOUT a Content-Type — for bodyless POSTs. Declaring a
+ * JSON content-type on an empty body makes Fastify reject it with
+ * FST_ERR_CTP_EMPTY_JSON_BODY (400), so bodyless calls must omit it.
+ */
+export function authHeaders(): Record<string, string> {
+  const token = getStoredToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export function storeToken(token: string, remember: boolean): void {
   clearStoredToken();
   const storage = remember ? window.localStorage : window.sessionStorage;
