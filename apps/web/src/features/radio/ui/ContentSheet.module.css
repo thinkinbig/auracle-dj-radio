@@ -36,6 +36,7 @@
 }
 
 :global([data-layout='split']) .loreScroll {
+  margin-top: 12px;
   max-height: clamp(3rem, 14vh, 5.5rem);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -188,12 +189,45 @@
 }
 
 .trackKicker {
-  margin: 0 0 6px;
+  margin: 0;
   color: rgba(190, 148, 255, 0.88);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.nowPlayingKickerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.loreToggle {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  color: rgba(190, 148, 255, 0.88);
+  background: rgba(190, 148, 255, 0.1);
+  flex-shrink: 0;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast);
+}
+
+.loreToggle:hover {
+  background: rgba(190, 148, 255, 0.18);
+  color: rgba(210, 178, 255, 0.95);
+}
+
+.loreChevron {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.loreChevronCollapsed {
+  transform: rotate(180deg);
 }
 
 .trackTitle {
@@ -287,10 +321,14 @@
 
 .lore {
   max-width: 620px;
-  margin-top: 8px;
+  margin: 0;
   font-size: 13px;
   line-height: 1.5;
   color: rgba(248, 250, 252, 0.5);
+}
+
+:global([data-layout='stack']) .lore {
+  margin-top: 4px;
 }
 
 .controls {

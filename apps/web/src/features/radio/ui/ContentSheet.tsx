@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
@@ -11,7 +12,7 @@ import {
   playbackProgressPct,
   selectQueueRefresh,
 } from '@/features/radio/session/playbackSelectors';
-import { IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/Icons';
+import { IconChevronUp, IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/Icons';
 import { IntentOnboarding } from './IntentOnboarding';
 import { SessionSummary } from './SessionSummary';
 import { Skeleton } from '@/shared/ui/Skeleton';
@@ -42,6 +43,14 @@ export function ContentSheet() {
     .filter(Boolean)
     .join(' · ');
   const queuedLabel = `${state.remainingTrackIds.length} in queue`;
+  const lore = state.lore.trim();
+  const [loreExpanded, setLoreExpanded] = useState(false);
+
+  useEffect(() => {
+    setLoreExpanded(false);
+  }, [state.trackId]);
+
+  const showLore = Boolean(lore) && (isWide || loreExpanded);
 
   return (
     <section className={styles.root} aria-label="Now playing">
@@ -68,7 +77,24 @@ export function ContentSheet() {
           <>
             <h1 className={styles.title}>{state.sessionTitle}</h1>
             <div className={styles.nowPlaying}>
-              <p className={styles.trackKicker}>Now playing</p>
+              <div className={styles.nowPlayingKickerRow}>
+                <p className={styles.trackKicker}>Now playing</p>
+                {!isWide && lore ? (
+                  <button
+                    type="button"
+                    className={styles.loreToggle}
+                    aria-expanded={loreExpanded}
+                    aria-controls="now-playing-lore"
+                    aria-label={loreExpanded ? 'Hide track story' : 'Show track story'}
+                    onClick={() => setLoreExpanded((open) => !open)}
+                  >
+                    <IconChevronUp
+                      size={16}
+                      className={cn(styles.loreChevron, !loreExpanded && styles.loreChevronCollapsed)}
+                    />
+                  </button>
+                ) : null}
+              </div>
               <div className={styles.nowPlayingBody}>
                 {currentCoverUrl ? (
                   <img
@@ -91,6 +117,11 @@ export function ContentSheet() {
                   </div>
                 </div>
               </div>
+              {showLore ? (
+                <p id="now-playing-lore" className={cn(styles.lore, isWide && styles.loreScroll)}>
+                  {lore}
+                </p>
+              ) : null}
               <div className={styles.sessionFlow}>
                 <div>
                   <p className={styles.flowKicker}>Session flow</p>
