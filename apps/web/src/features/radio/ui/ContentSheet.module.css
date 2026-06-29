@@ -375,10 +375,6 @@
   margin-top: 4px;
 }
 
-:global([data-layout='stack']) .story {
-  margin-top: 4px;
-}
-
 :global([data-layout='stack']) .lore {
   margin-top: 4px;
 }
