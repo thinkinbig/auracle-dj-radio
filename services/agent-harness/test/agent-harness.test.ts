@@ -219,6 +219,63 @@ describe("agent-harness", () => {
     await app.close();
   });
 
+  it("records playlist_feedback from a DJ tool call and surfaces it to the client", async () => {
+    const { app, memory } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "playlist_feedback", args: { feedback: "like" } },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ ui_events: { type: string; intent?: { type: string; feedback: string } }[] }>();
+    expect(body.ui_events).toEqual([{ type: "intent", intent: { type: "playlist_feedback", feedback: "like" } }]);
+    expect(memory.events).toContainEqual(
+      expect.objectContaining({
+        eventType: "playlist_feedback",
+        payload: expect.objectContaining({
+          feedback: "like",
+          track_id: "a",
+          remaining_ids: ["b", "c", "f"],
+          source: "dj_tool",
+        }),
+      }),
+    );
+    await app.close();
+  });
+
+  it("regenerates the remaining queue from a DJ playlist_feedback tool call", async () => {
+    const { app, proxy, music, memory } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "playlist_feedback", args: { feedback: "regenerate" } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json<{ ui_events: { type: string; intent?: { feedback: string } }[] }>().ui_events).toEqual([
+      { type: "intent", intent: { type: "playlist_feedback", feedback: "regenerate" } },
+    ]);
+
+    await vi.waitFor(() => expect(orchestrationInjects(proxy).length).toBe(1));
+    const updated = proxy.injectCalls[0]!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
+      | { remaining: { id: string }[]; changed_ids?: string[]; before_remaining_ids?: string[] }
+      | undefined;
+    expect(updated?.remaining.map((r) => r.id)).toEqual(["d", "e"]);
+    expect(updated?.changed_ids).toEqual(["d", "e"]);
+    expect(updated?.before_remaining_ids).toEqual(["b", "c", "f"]);
+    expect(music.planCalls.some((c) => c.mode === "replan" && c.replan?.remainingSlots === 3)).toBe(true);
+    expect(memory.events.map((e) => e.eventType)).toContain("playlist_feedback");
+    expect(memory.events.map((e) => e.eventType)).toContain("playlist_regenerate_requested");
+    await app.close();
+  });
+
   it("regenerates the remaining queue on request", async () => {
     const { app, proxy, music, memory } = buildTestApp();
     await app.ready();

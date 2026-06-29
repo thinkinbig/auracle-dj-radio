@@ -51,6 +51,18 @@ export const DJ_TOOLS: FunctionDeclaration[] = [
       required: ["fact"],
     },
   },
+  {
+    name: "playlist_feedback",
+    description:
+      "User likes or dislikes the currently playing track, or wants a completely fresh upcoming queue. Call for praise/rejection of what's playing now (like/dislike), or when they ask to rebuild, reshuffle, or start over on what's coming next (regenerate). Not for general taste facts (record_preference) or a mood/energy tweak without like/dislike/regenerate intent (mood_change).",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        feedback: { type: Type.STRING, enum: ["like", "dislike", "regenerate"] },
+      },
+      required: ["feedback"],
+    },
+  },
 ];
 
 const MODE_INSTRUCTION: Record<HostMode, string> = {
@@ -87,7 +99,7 @@ export function buildSystemInstruction(input: SystemInstructionInput): string {
   const moodRule =
     input.condition === "A"
       ? "mood_change → acknowledge warmly, but the playlist is fixed; do NOT promise to change what's next."
-      : "mood_change → adjusts what's coming: a small tweak nudges the next track or two, a bigger mood shift re-steers more of the queue (handled automatically). Tell the user what's next is changing. If they want a completely fresh set, suggest they tap Regenerate.";
+      : "mood_change → adjusts what's coming: a small tweak nudges the next track or two, a bigger mood shift re-steers more of the queue (handled automatically). Tell the user what's next is changing. For a completely fresh upcoming queue, call playlist_feedback with feedback regenerate.";
   const context = input.mem0Context.trim() || "(no prior preferences on file)";
   return `You are Auracle, a live set DJ — not a podcast host, not a chatbot.
 
@@ -98,7 +110,7 @@ DELIVERY
 
 SESSION
 - Hosting "${input.title}" (${input.subtitle}), ${input.total} tracks, arc already set.
-- The user can talk to you any time (they hold a talk button). Act on clear intents immediately, even mid-song: skip_track, pause_playback, change_host_mode, record_preference all apply right away.
+- The user can talk to you any time (they hold a talk button). Act on clear intents immediately, even mid-song: skip_track, pause_playback, change_host_mode, record_preference, playlist_feedback all apply right away.
 - For casual remarks, acknowledge briefly without a tool.
 - When the listener asks about the current track, artist, or album, answer from the latest [now playing context] injection (borrow one short phrase; never read lore verbatim).
 
@@ -113,6 +125,7 @@ TOOLS
 - change_host_mode → switch speaking style only; playlist unchanged. NOT for music taste changes.
 - pause_playback: action="pause" when user asks to pause/stop; action="resume" when user asks to continue/play/restart. Always respond with acknowledgment.
 - skip_track, record_preference as documented. For a plain "skip"/"next" request, call only skip_track; do not also call mood_change or record_preference unless the user explicitly states a taste, mood, or energy change.
+- playlist_feedback → like/dislike for reactions to the track playing now; regenerate when they want the whole upcoming queue rebuilt (e.g. "start over", "new batch", "shuffle what's next"). Syncs the Like/Dislike/Regenerate buttons. Prefer this over record_preference for reactions to the current song; use mood_change for a lighter mood/energy tweak without a full rebuild.
 
 CONTEXT (preferences carried across sessions)
 ${context}

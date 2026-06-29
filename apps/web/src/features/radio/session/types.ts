@@ -1,7 +1,7 @@
-import type { FlowTrackRef, HostMode } from '@auracle/shared';
+import type { FlowTrackRef, HostMode, PlaylistFeedback } from '@auracle/shared';
 
+export type { PlaylistFeedback };
 export type UiPhase = 'idle' | 'curating' | 'opening' | 'playing' | 'speaking' | 'listening' | 'paused' | 'complete';
-export type PlaylistFeedback = 'like' | 'dislike' | 'regenerate';
 export type QueueRefreshStatus = 'idle' | 'pending' | 'complete' | 'error';
 
 export interface TranscriptLine {

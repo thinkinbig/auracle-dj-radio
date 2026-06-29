@@ -1,10 +1,14 @@
-import type { ServerMessage } from "@auracle/shared";
-import { parseHostMode } from "@auracle/shared";
+import { parseHostMode, type PlaylistFeedback, type ServerMessage } from "@auracle/shared";
 import type { SessionState } from "./store.js";
 import { routeMoodScope } from "./mood-scope.js";
-import { replanAndPush, type OrchestrationDeps } from "./replan.js";
+import { regenerateAndPush, replanAndPush, type OrchestrationDeps } from "./replan.js";
 
 const SKIP_ONLY_TOOL_GUARD_MS = 1_500;
+
+function parsePlaylistFeedback(raw: unknown): PlaylistFeedback | null {
+  if (raw === "like" || raw === "dislike" || raw === "regenerate") return raw;
+  return null;
+}
 
 /** Gemini function call forwarded from the proxy (Lane 1). */
 export interface ToolCall {
@@ -77,6 +81,31 @@ export async function runTool(
         ui_events: [{ type: "intent", intent: { type: "host_mode_changed", host_mode: nextMode } }],
       };
     }
+    case "playlist_feedback": {
+      const feedback = parsePlaylistFeedback(args.feedback);
+      if (!feedback) {
+        return { gemini_result: { ok: false, error: "feedback must be like, dislike, or regenerate" }, ui_events: [] };
+      }
+      const trackId = state.tracklist[state.currentTrackIndex]?.id ?? null;
+      const remainingIds = state.tracklist.slice(state.currentTrackIndex + 1).map((track) => track.id);
+      await deps.memory.recordEvent(state.id, state.userId, "playlist_feedback", {
+        feedback,
+        track_id: trackId,
+        remaining_ids: remainingIds,
+        source: "dj_tool",
+      });
+      if (feedback === "regenerate") void regenerateAndPush(deps, state);
+      return {
+        gemini_result: {
+          ok: true,
+          feedback,
+          ...(feedback === "regenerate"
+            ? { note: "Rebuilding the upcoming queue now — keep talking, don't wait for the list." }
+            : {}),
+        },
+        ui_events: [{ type: "intent", intent: { type: "playlist_feedback", feedback } }],
+      };
+    }
     case "mood_change": {
       const mood = String(args.mood ?? state.intent.mood);
       const energy_delta = (args.energy_delta as "lighter" | "heavier" | "same") ?? "same";
@@ -93,7 +122,7 @@ export async function runTool(
       }
       // Route the tier (E5): an energy-only tweak or a minor mood wording stays a
       // nudge (next 1–2 slots); a significantly different mood steers the latter
-      // half. full is reserved for the explicit Regenerate button.
+      // half. full scope is used by playlist_feedback regenerate.
       const scope = routeMoodScope(state.intent.mood, mood, energy_delta);
       // Ack now (Lane 1) and run the slow Flow-LLM replan in the background; the
       // new tracklist is pushed via the proxy (Lane 3) when it lands, so the DJ

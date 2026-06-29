@@ -11,13 +11,17 @@ export type Phase = "dj_turn_start" | "dj_turn_end" | "user_barge_in";
 /** Rolling extend / regenerate queue refresh lifecycle (E6). */
 export type QueueRefreshStatus = "idle" | "pending" | "complete" | "error";
 
+/** Explicit listener reaction to the current track or queue (Like / Dislike / Regenerate UI). */
+export type PlaylistFeedback = "like" | "dislike" | "regenerate";
+
 /** Between-track DJ intents surfaced by Gemini Live function calling. */
 export type Intent =
   | { type: "skip_track" }
   | { type: "mood_change"; mood: string; energy_delta: "lighter" | "heavier" | "same" }
   | { type: "host_mode_changed"; host_mode: HostMode }
   | { type: "pause_playback"; action: "pause" | "resume" }
-  | { type: "record_preference"; fact: string };
+  | { type: "record_preference"; fact: string }
+  | { type: "playlist_feedback"; feedback: PlaylistFeedback };
 
 /** Server → client frames (decoded from the WebRTC data channel; DJ audio is the media track). */
 export type ServerMessage =

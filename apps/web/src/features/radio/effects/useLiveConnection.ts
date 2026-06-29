@@ -139,6 +139,12 @@ export function useLiveConnection({
                 type: 'set_host_mode',
                 hostMode: msg.intent.host_mode,
               });
+            } else if (msg.intent.type === 'playlist_feedback') {
+              // DJ tool path: server already recorded the analytics event.
+              store.dispatchRef.current({
+                type: 'playlist_feedback',
+                feedback: msg.intent.feedback,
+              });
             }
           } else if (msg.type === 'session_superseded') {
             // The user started a set on another device (issue #55): stop playback,
