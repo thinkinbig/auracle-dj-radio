@@ -17,7 +17,7 @@ export function StageHeader() {
   const state = useRadioState();
   const analyser = useRadioAnalyser();
   const micAnalyser = useRadioMicAnalyser();
-  const status = statusLabel(state.phase);
+  const status = statusLabel(state.phase, state.queueRefreshStatus);
   const onAir = isOnAir(state);
   const paused = isPaused(state.phase);
   const conversation = state.transcript.slice(-5);

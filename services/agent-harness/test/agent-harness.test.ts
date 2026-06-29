@@ -652,6 +652,10 @@ describe("agent-harness", () => {
     expect(extendCall?.extend?.playedIds).toEqual(["a", "b", "c", "f"]);
 
     await vi.waitFor(() => expect(proxy.injectCalls.length).toBeGreaterThan(0));
+    const pending = proxy.injectCalls.find((c) =>
+      c.payload.ui_events?.some((e) => e.type === "queue_refresh" && e.status === "pending"),
+    );
+    expect(pending).toBeDefined();
     const updated = proxy.injectCalls.at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
       | { remaining: { id: string }[]; changed_ids?: string[]; before_remaining_ids?: string[] }
       | undefined;

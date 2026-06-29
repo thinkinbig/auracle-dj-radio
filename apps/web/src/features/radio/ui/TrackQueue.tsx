@@ -19,14 +19,19 @@ function TrackQueueSkeletonItem({ current }: { current?: boolean }) {
 
 export function TrackQueue() {
   const state = useRadioState();
-  const { handlePlaylistFeedback } = useRadioActions();
+  const { handlePlaylistFeedback, handleRetryExtend } = useRadioActions();
   const catalogLoaded = useCatalogLoaded();
   const current = useTrackMeta(state.trackId);
   const recentlyChanged = new Set(state.recentlyChangedIds);
+  const extendRetryable = state.queueRefreshStatus === 'error' && state.playlistFeedback !== 'regenerate';
   let feedbackLabel = 'Feedback';
-  if (state.queueRefreshStatus === 'pending') feedbackLabel = 'Rebuilding from current track...';
-  else if (state.queueDiffMessage) feedbackLabel = state.queueDiffMessage;
+  if (state.queueRefreshStatus === 'pending') {
+    feedbackLabel = state.playlistFeedback === 'regenerate'
+      ? 'Rebuilding from current track...'
+      : 'Finding more music...';
+  } else if (state.queueDiffMessage) feedbackLabel = state.queueDiffMessage;
   else if (state.queueRefreshStatus === 'complete') feedbackLabel = 'Queue checked';
+  else if (extendRetryable) feedbackLabel = 'More tracks unavailable · Try again';
   else if (state.queueRefreshStatus === 'error') feedbackLabel = 'Try again';
   else if (state.playlistFeedback === 'like') feedbackLabel = 'Host is keeping this direction';
   else if (state.playlistFeedback === 'dislike') feedbackLabel = 'Host is shifting the queue';
@@ -40,7 +45,13 @@ export function TrackQueue() {
         </div>
         <div className={styles.headerMeta}>
           <div className={styles.feedbackStatus} aria-live="polite">
-            {feedbackLabel}
+            {extendRetryable ? (
+              <button type="button" className={styles.feedbackRetry} onClick={handleRetryExtend}>
+                {feedbackLabel}
+              </button>
+            ) : (
+              feedbackLabel
+            )}
           </div>
           <div className={styles.feedbackBar} aria-label="Playlist feedback">
             <div className={styles.actions}>

@@ -195,6 +195,47 @@ describe('playbackReducer', () => {
     expect(updated.queueDiffMessage).toBeNull();
   });
 
+  it('does not idle while rolling extend is pending (E6)', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const lastTrack = playbackReducer(
+      { ...base, remainingTrackIds: [], queueRefreshStatus: 'pending' },
+      { type: 'advance' },
+    );
+    expect(lastTrack.phase).toBe('complete');
+    expect(lastTrack.queueRefreshStatus).toBe('pending');
+  });
+
+  it('auto-advances when extend lands after the queue was empty (E6)', () => {
+    const waiting = playbackReducer(
+      playbackReducer(createInitialPlaybackState(), { type: 'start', session: DEMO_SESSION }),
+      { type: 'queue_refresh', status: 'pending' },
+    );
+    const exhausted = playbackReducer({ ...waiting, remainingTrackIds: [], phase: 'complete' }, { type: 'advance' });
+    const resumed = playbackReducer(exhausted, {
+      type: 'tracklist_updated',
+      remaining: [{ id: 'a', flow_position: 2, reason: 'rolling extend' }],
+    });
+    expect(resumed.phase).toBe('playing');
+    expect(resumed.trackId).toBe('a');
+    expect(resumed.queueRefreshStatus).toBe('complete');
+  });
+
+  it('enters session complete when extend fails on the last track (E6)', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const failed = playbackReducer(
+      { ...base, remainingTrackIds: [], queueRefreshStatus: 'error' },
+      { type: 'advance' },
+    );
+    expect(failed.phase).toBe('complete');
+    expect(failed.queueRefreshStatus).toBe('error');
+  });
+
   it('counts a fresh user utterance once, not per streamed chunk', () => {
     const base = playbackReducer(createInitialPlaybackState(), {
       type: 'start',

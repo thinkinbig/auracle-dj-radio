@@ -40,6 +40,19 @@ export function postSessionEvent(
   }).catch(() => {});
 }
 
+/** Ask the harness to retry a failed rolling extend (E6). */
+export async function extendSession(sessionId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/sessions/${sessionId}/extend`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Ask the harness to regenerate the not-yet-played queue for this session. */
 export async function regenerateSession(sessionId: string): Promise<RegenerateSessionResponse | undefined> {
   try {

@@ -27,6 +27,7 @@ export interface RadioSession {
   handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
   handlePlaylistFeedback: (feedback: PlaylistFeedback) => void;
+  handleRetryExtend: () => void;
   handleTalkStart: () => void;
   handleTalkEnd: () => void;
   handleSendText: (text: string) => void;
@@ -88,6 +89,7 @@ export function useRadioSession(onAuthExpired?: () => void): RadioSession {
     handleContinue: handlers.handleContinue,
     handleChangeHostMode: handlers.handleChangeHostMode,
     handlePlaylistFeedback: handlers.handlePlaylistFeedback,
+    handleRetryExtend: handlers.handleRetryExtend,
     handleTalkStart: handlers.handleTalkStart,
     handleTalkEnd: handlers.handleTalkEnd,
     handleSendText: handlers.handleSendText,

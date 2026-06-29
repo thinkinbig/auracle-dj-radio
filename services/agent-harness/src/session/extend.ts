@@ -1,4 +1,4 @@
-import { pushQueueUpdate } from "./queue-update.js";
+import { pushQueueRefresh, pushQueueUpdate } from "./queue-update.js";
 import { changedIdsFromRemaining, type OrchestrationDeps } from "./replan.js";
 import type { SessionState } from "./store.js";
 
@@ -23,13 +23,15 @@ export async function extendQueue(
   deps: OrchestrationDeps,
   state: SessionState,
   log?: { warn(payload: unknown, message?: string): void },
+  opts?: { force?: boolean },
 ): Promise<void> {
   if (state.condition === "A" || state.extendPending) return;
   const before = deps.store.remaining(state);
   const beforeRemainingIds = before.map((ref) => ref.id);
-  if (before.length > EXTEND_THRESHOLD) return;
+  if (!opts?.force && before.length > EXTEND_THRESHOLD) return;
 
   state.extendPending = true;
+  await pushQueueRefresh(deps, state.id, "pending");
   try {
     // Exclude everything already in the queue (played + current + remaining).
     const playedIds = state.tracklist.map((r) => r.id);
@@ -50,7 +52,10 @@ export async function extendQueue(
 
     const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
     const appended = deps.store.appendTracks(state, plan.result.tracklist, candidatesById);
-    if (appended.length === 0) return; // catalog exhausted — nothing fresh to add
+    if (appended.length === 0) {
+      await pushQueueRefresh(deps, state.id, "error");
+      return;
+    }
 
     const after = deps.store.remaining(state);
     await pushQueueUpdate(deps, state, {
@@ -65,6 +70,7 @@ export async function extendQueue(
     });
   } catch (err) {
     log?.warn({ err: err instanceof Error ? err.message : String(err), sessionId: state.id }, "rolling extend failed");
+    await pushQueueRefresh(deps, state.id, "error").catch(() => {});
   } finally {
     state.extendPending = false;
   }

@@ -123,6 +123,8 @@ export function useLiveConnection({
               changedIds: msg.changed_ids,
               beforeRemainingIds: msg.before_remaining_ids,
             });
+          } else if (msg.type === 'queue_refresh') {
+            store.dispatchRef.current({ type: 'queue_refresh', status: msg.status });
           } else if (msg.type === 'intent') {
             if (msg.intent.type === 'skip_track') {
               // Same Skip track command as the Next button (ADR-0004 amendment).

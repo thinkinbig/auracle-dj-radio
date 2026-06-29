@@ -42,7 +42,9 @@ describe('playbackSelectors', () => {
     expect(isPaused('paused')).toBe(true);
     expect(isCurating('curating')).toBe(true);
     expect(hasNextTrack(idle)).toBe(true);
-    expect(statusLabel('speaking')).toEqual({ text: 'Speaking…', live: true });
+    expect(statusLabel('speaking', 'idle')).toEqual({ text: 'Speaking…', live: true });
+    expect(statusLabel('complete', 'pending')).toEqual({ text: 'Finding more music…', live: true });
+    expect(statusLabel('complete', 'error')).toEqual({ text: 'Session complete', live: false });
   });
 
   it('groups technical phases into two app views', () => {
@@ -53,5 +55,6 @@ describe('playbackSelectors', () => {
     expect(getAppView('speaking')).toBe('playing');
     expect(getAppView('listening')).toBe('playing');
     expect(getAppView('paused')).toBe('playing');
+    expect(getAppView('complete')).toBe('playing');
   });
 });

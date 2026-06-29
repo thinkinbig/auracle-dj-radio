@@ -31,6 +31,10 @@ describe('decodeServerFrame', () => {
     expect(decodeServerFrame('{"type":"ui_event","event":{"type":"session_superseded"}}')).toEqual({
       type: 'session_superseded',
     });
+
+    expect(
+      decodeServerFrame('{"type":"ui_event","event":{"type":"queue_refresh","status":"pending"}}'),
+    ).toEqual({ type: 'queue_refresh', status: 'pending' });
   });
 
   it('ignores tool calls/results (server-side now) and malformed frames', () => {

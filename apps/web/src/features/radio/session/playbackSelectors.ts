@@ -40,7 +40,15 @@ export function playbackProgressPct(state: PlaybackState): number {
     : 0;
 }
 
-export function statusLabel(phase: UiPhase): { text: string; live: boolean } {
+export function isSessionComplete(phase: UiPhase): boolean {
+  return phase === 'complete';
+}
+
+export function statusLabel(phase: UiPhase, queueRefreshStatus: PlaybackState['queueRefreshStatus']): { text: string; live: boolean } {
+  if (phase === 'complete') {
+    if (queueRefreshStatus === 'pending') return { text: 'Finding more music…', live: true };
+    return { text: 'Session complete', live: false };
+  }
   switch (phase) {
     case 'curating':
       return { text: 'Tuning in…', live: true };
