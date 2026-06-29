@@ -28,7 +28,7 @@ export function PlaylistDrawer() {
 
   const drawerRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const { reportScroll, setChromePinned, showChrome, hidden: chromeHidden } = useMobileChrome();
+  const { reportScroll, setChromePinned, showChrome } = useMobileChrome();
 
   useEffect(() => {
     setChromePinned(open);
@@ -39,7 +39,10 @@ export function PlaylistDrawer() {
     if (!open) return;
     const list = listRef.current;
     if (!list) return;
-    const onScroll = () => reportScroll('playlist-drawer', list.scrollTop);
+    const onScroll = () => {
+      if (list.scrollHeight <= list.clientHeight + 1) return;
+      reportScroll('playlist-drawer', list.scrollTop);
+    };
     list.addEventListener('scroll', onScroll, { passive: true });
     return () => list.removeEventListener('scroll', onScroll);
   }, [open, reportScroll]);
@@ -82,11 +85,7 @@ export function PlaylistDrawer() {
   return (
     <section
       ref={drawerRef}
-      className={cn(
-        styles.drawer,
-        open && styles.drawerOpen,
-        chromeHidden && !open && styles.drawerChromeHidden,
-      )}
+      className={cn(styles.drawer, open && styles.drawerOpen)}
       aria-label="Up next"
     >
       <span className={styles.grip} aria-hidden />

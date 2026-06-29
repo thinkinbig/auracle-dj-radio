@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
 import { cn } from '@/shared/lib/cn';
+import { MobileChromeRail } from './mobileChrome';
 import styles from './AppShell.module.css';
 
 interface AppShellProps {
@@ -46,10 +47,11 @@ export function AppShell({ stage, sheet, queue, drawer, miniBar }: AppShellProps
               <div className={styles.sheetArea}>
                 {sheet}
                 {queue}
-                {drawer}
               </div>
             </div>
-            <div className={styles.stackMini}>{miniBar}</div>
+            <div className={styles.stackMini}>
+              <MobileChromeRail drawer={drawer} miniBar={miniBar} />
+            </div>
           </>
         )}
       </div>

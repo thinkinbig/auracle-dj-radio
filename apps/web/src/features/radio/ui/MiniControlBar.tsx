@@ -1,7 +1,5 @@
 import { useRef } from 'react';
 import type { CSSProperties } from 'react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import type { HostMode } from '@auracle/shared';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useBarCount } from '@/shared/hooks/useBarCount';
@@ -25,14 +23,7 @@ import {
   IconSkipNext,
   IconSkipPrevious,
 } from '@/shared/ui/Icons';
-import { useMobileChrome } from './mobileChrome';
 import styles from './MiniControlBar.module.css';
-
-gsap.registerPlugin(useGSAP);
-
-function prefersReducedMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
   { value: 'curator', label: 'Guide' },
@@ -41,9 +32,7 @@ const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
 ];
 
 export function MiniControlBar() {
-  const barRef = useRef<HTMLElement>(null);
   const state = useRadioState();
-  const { hidden: chromeHidden } = useMobileChrome();
   const track = useTrackMeta(state.trackId);
   const {
     handleTogglePause,
@@ -63,27 +52,8 @@ export function MiniControlBar() {
   const pct = playbackProgressPct(state);
   const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
 
-  useGSAP(
-    () => {
-      const bar = barRef.current;
-      if (!bar) return;
-      const y = chromeHidden ? '100%' : '0%';
-      if (prefersReducedMotion()) {
-        gsap.set(bar, { y });
-        return;
-      }
-      gsap.to(bar, {
-        y,
-        duration: 0.32,
-        ease: 'power3.out',
-        overwrite: 'auto',
-      });
-    },
-    { scope: barRef, dependencies: [chromeHidden], revertOnUpdate: true },
-  );
-
   return (
-    <footer ref={barRef} className={styles.root} aria-label="Playback controls">
+    <footer className={styles.root} aria-label="Playback controls">
       <div className={styles.trackCard}>
         {currentCoverUrl ? (
           <img className={styles.cover} src={currentCoverUrl} alt="" width={52} height={52} loading="lazy" />

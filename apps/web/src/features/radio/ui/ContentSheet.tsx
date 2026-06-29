@@ -75,7 +75,10 @@ export function ContentSheet() {
     if (isWide) return;
     const el = sheetRef.current;
     if (!el) return;
-    const onScroll = () => reportScroll('sheet', el.scrollTop);
+    const onScroll = () => {
+      if (el.scrollHeight <= el.clientHeight + 1) return;
+      reportScroll('sheet', el.scrollTop);
+    };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
   }, [isWide, reportScroll]);
