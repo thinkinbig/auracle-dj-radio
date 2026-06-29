@@ -1,14 +1,10 @@
-import { parseHostMode, type PlaylistFeedback, type ServerMessage } from "@auracle/shared";
+import { parseHostMode, type ServerMessage } from "@auracle/shared";
 import type { SessionState } from "./store.js";
 import { routeMoodScope } from "./mood-scope.js";
-import { regenerateAndPush, replanAndPush, type OrchestrationDeps } from "./replan.js";
+import { parsePlaylistFeedback, runPlaylistFeedback } from "./playlist-feedback.js";
+import { replanAndPush, type OrchestrationDeps } from "./replan.js";
 
 const SKIP_ONLY_TOOL_GUARD_MS = 1_500;
-
-function parsePlaylistFeedback(raw: unknown): PlaylistFeedback | null {
-  if (raw === "like" || raw === "dislike" || raw === "regenerate") return raw;
-  return null;
-}
 
 /** Gemini function call forwarded from the proxy (Lane 1). */
 export interface ToolCall {
@@ -86,25 +82,7 @@ export async function runTool(
       if (!feedback) {
         return { gemini_result: { ok: false, error: "feedback must be like, dislike, or regenerate" }, ui_events: [] };
       }
-      const trackId = state.tracklist[state.currentTrackIndex]?.id ?? null;
-      const remainingIds = state.tracklist.slice(state.currentTrackIndex + 1).map((track) => track.id);
-      await deps.memory.recordEvent(state.id, state.userId, "playlist_feedback", {
-        feedback,
-        track_id: trackId,
-        remaining_ids: remainingIds,
-        source: "dj_tool",
-      });
-      if (feedback === "regenerate") void regenerateAndPush(deps, state);
-      return {
-        gemini_result: {
-          ok: true,
-          feedback,
-          ...(feedback === "regenerate"
-            ? { note: "Rebuilding the upcoming queue now — keep talking, don't wait for the list." }
-            : {}),
-        },
-        ui_events: [{ type: "intent", intent: { type: "playlist_feedback", feedback } }],
-      };
+      return runPlaylistFeedback(deps, state, feedback, "dj_tool");
     }
     case "mood_change": {
       const mood = String(args.mood ?? state.intent.mood);

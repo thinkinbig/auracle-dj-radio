@@ -125,6 +125,9 @@ export function useLiveConnection({
             });
           } else if (msg.type === 'queue_refresh') {
             store.dispatchRef.current({ type: 'queue_refresh', status: msg.status });
+            if (msg.status === 'error' && store.stateRef.current.playlistFeedback === 'regenerate') {
+              store.dispatchRef.current({ type: 'playlist_feedback_failed', feedback: 'regenerate' });
+            }
           } else if (msg.type === 'intent') {
             if (msg.intent.type === 'skip_track') {
               // Same Skip track command as the Next button (ADR-0004 amendment).

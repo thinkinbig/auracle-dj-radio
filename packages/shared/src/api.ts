@@ -1,5 +1,6 @@
 import type { FlowTrackRef } from "./flow.js";
 import type { HostMode } from "./host-mode.js";
+import type { PlaylistFeedback } from "./live.js";
 
 /** Evaluation condition (doc/auracle_evaluation_design.md). C = full system. */
 export type Condition = "A" | "B" | "C";
@@ -41,6 +42,13 @@ export interface RegenerateSessionResponse {
   remaining: FlowTrackRef[];
   changed_ids?: string[];
   before_remaining_ids?: string[];
+}
+
+/** Response of POST /sessions/:id/playlist-feedback. */
+export interface PlaylistFeedbackResponse {
+  ok: boolean;
+  feedback: PlaylistFeedback;
+  regenerate?: RegenerateSessionResponse;
 }
 
 /** Body of POST /sessions/:id/events. */

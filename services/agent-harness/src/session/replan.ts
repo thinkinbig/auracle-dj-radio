@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { FlowTrackRef } from "@auracle/shared";
+import type { FlowTrackRef, RegenerateSessionResponse } from "@auracle/shared";
 import type { MemoryServiceClient } from "../memory-service-client.js";
 import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
 import { pushQueueUpdate, pushQueueRefresh } from "./queue-update.js";
+import type { PlaylistFeedbackSource } from "@auracle/shared";
 import type { SessionState, SessionStore } from "./store.js";
 
 /** Dependencies shared by the orchestration handlers (replan + tool dispatch). */
@@ -65,6 +66,10 @@ export function changedIdsFromRemaining(beforeIds: string[], afterRefs: FlowTrac
 export interface ReplanOutcome {
   replanned: boolean;
   remaining: FlowTrackRef[];
+}
+
+export interface RegenerateOutcome extends ReplanOutcome {
+  before: string[];
 }
 
 /**
@@ -149,6 +154,32 @@ export async function applyReplan(
   return { replanned: true, remaining: nextRemaining };
 }
 
+/** Full remaining-queue replan shared by UI regenerate and DJ tool push. */
+export async function regenerateRemaining(deps: OrchestrationDeps, state: SessionState): Promise<RegenerateOutcome> {
+  const before = deps.store.remaining(state).map((track) => track.id);
+  const outcome = await applyReplan(deps, state, {
+    mood: state.intent.mood,
+    energy_delta: "same",
+    scope: "full",
+    reroll: true,
+  });
+  return { replanned: outcome.replanned, remaining: outcome.remaining, before };
+}
+
+export function toRegenerateSessionResponse(state: SessionState, outcome: RegenerateOutcome): RegenerateSessionResponse {
+  return {
+    ok: true,
+    replanned: outcome.replanned,
+    session_title: state.title,
+    session_subtitle: state.subtitle,
+    current_track_index: state.currentTrackIndex,
+    tracklist: state.tracklist,
+    remaining: outcome.remaining,
+    changed_ids: changedIdsFromRemaining(outcome.before, outcome.remaining),
+    before_remaining_ids: outcome.before,
+  };
+}
+
 /**
  * Background mood replan (Lane 3): run the slow Flow-LLM replan and, if the
  * tracklist changed, push `tracklist_updated` to the live session via the proxy.
@@ -178,33 +209,31 @@ export async function replanAndPush(
 }
 
 /**
- * Background full-queue regenerate (Lane 3): same arc as the Regenerate button but
- * delivered over the proxy because the DJ tool has no HTTP response to ride on.
+ * Background full-queue regenerate (Lane 3): DJ tool delivery over the proxy.
+ * `playlist_feedback` event is recorded by {@link runPlaylistFeedback} first.
  */
-export async function regenerateAndPush(deps: OrchestrationDeps, state: SessionState): Promise<void> {
-  const before = deps.store.remaining(state).map((track) => track.id);
+export async function regenerateAndPush(
+  deps: OrchestrationDeps,
+  state: SessionState,
+  source: PlaylistFeedbackSource,
+): Promise<void> {
   try {
-    const outcome = await applyReplan(deps, state, {
-      mood: state.intent.mood,
-      energy_delta: "same",
-      scope: "full",
-      reroll: true,
-    });
+    const outcome = await regenerateRemaining(deps, state);
     if (!outcome.replanned) {
       await pushQueueRefresh(deps, state.id, "error");
       return;
     }
     await deps.memory.recordEvent(state.id, state.userId, "playlist_regenerate_requested", {
       current_track_id: state.tracklist[state.currentTrackIndex]?.id ?? null,
-      before,
+      before: outcome.before,
       after: outcome.remaining.map((track) => track.id),
       replanned: outcome.replanned,
-      source: "dj_tool",
+      source,
     });
     await pushQueueUpdate(deps, state, {
       remaining: outcome.remaining,
-      changedIds: changedIdsFromRemaining(before, outcome.remaining),
-      beforeRemainingIds: before,
+      changedIds: changedIdsFromRemaining(outcome.before, outcome.remaining),
+      beforeRemainingIds: outcome.before,
     });
   } catch (err) {
     await deps.memory.recordEvent(state.id, state.userId, "replan_failed", {

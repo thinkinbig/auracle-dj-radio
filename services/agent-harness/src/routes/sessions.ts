@@ -102,6 +102,20 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     return result;
   });
 
+  app.post("/sessions/:id/playlist-feedback", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await ensureOwner(req, reply, id))) return reply;
+    const { feedback } = (req.body ?? {}) as { feedback?: unknown };
+    const result = await harness.playlistFeedback(id, feedback);
+    if (result === undefined) return reply.code(404).send({ error: "session not found" });
+    if (result === false) return reply.code(400).send({ error: "feedback must be like, dislike, or regenerate" });
+    return {
+      ok: true,
+      feedback,
+      ...(result.regenerate ? { regenerate: result.regenerate } : {}),
+    };
+  });
+
   app.post("/sessions/:id/regenerate", async (req, reply) => {
     const { id } = req.params as { id: string };
     if (!(await ensureOwner(req, reply, id))) return reply;

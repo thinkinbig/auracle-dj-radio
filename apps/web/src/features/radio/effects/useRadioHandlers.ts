@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
 import type { HostMode, SessionIntent } from '@auracle/shared';
 import { createAudioBus } from '../lib/liveAudio';
-import { createSession, extendSession, postHostMode, postSessionEvent, regenerateSession, SessionAuthError } from '../lib/sessionApi';
+import { createSession, extendSession, postHostMode, postPlaylistFeedback, postSessionEvent, SessionAuthError } from '../lib/sessionApi';
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
 import type { RadioCommands } from '../lib/radioCommands';
-import type { PlaybackState, PlaylistFeedback } from '@/features/radio/session/types';
+import type { PlaylistFeedback } from '@/features/radio/session/types';
 import type { AudioRefs, StoreRefs } from './sessionRefs';
 
 export interface RadioHandlers {
@@ -29,24 +29,6 @@ interface RadioHandlersInput {
   commands: RadioCommands;
   setAnalyser: (analyser: AnalyserNode | null) => void;
   onAuthExpired?: () => void;
-}
-
-function formatFeedbackTrack(state: PlaybackState): string {
-  return state.artist ? `"${state.trackTitle}" by ${state.artist}` : `"${state.trackTitle}"`;
-}
-
-function createPlaylistFeedbackText(feedback: PlaylistFeedback, state: PlaybackState): string {
-  const track = formatFeedbackTrack(state);
-  switch (feedback) {
-    case 'like':
-      return `I like ${track}. Keep this mood and let it guide the next songs.`;
-    case 'dislike':
-      return `I am not feeling ${track}. Shift the next songs away from this sound.`;
-    case 'regenerate':
-      return `Rebuild the upcoming queue around what is working in ${track}, and explain the new direction briefly.`;
-    default:
-      return '';
-  }
 }
 
 export function useRadioHandlers({
@@ -136,34 +118,26 @@ export function useRadioHandlers({
 
   const handlePlaylistFeedback = useCallback((feedback: PlaylistFeedback) => {
     const s = store.stateRef.current;
-    if (s.phase === 'idle' || s.phase === 'curating') return;
+    if (s.phase === 'idle' || s.phase === 'curating' || !s.sessionId) return;
     store.dispatchRef.current({ type: 'playlist_feedback', feedback });
-    commands.sendText(createPlaylistFeedbackText(feedback, s));
-    if (s.sessionId) {
-      postSessionEvent(s.sessionId, 'playlist_feedback', {
-        feedback,
-        track_id: s.trackId,
-        remaining_ids: s.remainingTrackIds,
+    void postPlaylistFeedback(s.sessionId, feedback).then((result) => {
+      if (!result?.ok) {
+        store.dispatchRef.current({ type: 'playlist_feedback_failed', feedback });
+        return;
+      }
+      const regenerated = result.regenerate;
+      if (!regenerated) return;
+      void prefetchTracks(regenerated.remaining.map((track) => track.id));
+      store.dispatchRef.current({
+        type: 'tracklist_updated',
+        remaining: regenerated.remaining,
+        sessionTitle: regenerated.session_title,
+        sessionSubtitle: regenerated.session_subtitle,
+        changedIds: regenerated.changed_ids,
+        beforeRemainingIds: regenerated.before_remaining_ids,
       });
-    }
-    if (feedback === 'regenerate' && s.sessionId) {
-      void regenerateSession(s.sessionId).then((result) => {
-        if (!result) {
-          store.dispatchRef.current({ type: 'playlist_feedback_failed', feedback });
-          return;
-        }
-        void prefetchTracks(result.remaining.map((track) => track.id));
-        store.dispatchRef.current({
-          type: 'tracklist_updated',
-          remaining: result.remaining,
-          sessionTitle: result.session_title,
-          sessionSubtitle: result.session_subtitle,
-          changedIds: result.changed_ids,
-          beforeRemainingIds: result.before_remaining_ids,
-        });
-      });
-    }
-  }, [store, commands]);
+    });
+  }, [store]);
 
   const handleRetryExtend = useCallback(() => {
     const s = store.stateRef.current;

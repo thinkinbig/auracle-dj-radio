@@ -1,4 +1,4 @@
-import type { CreateSessionResponse, HostMode, RegenerateSessionResponse, SessionIntent } from '@auracle/shared';
+import type { CreateSessionResponse, HostMode, PlaylistFeedback, PlaylistFeedbackResponse, RegenerateSessionResponse, SessionIntent } from '@auracle/shared';
 import { authHeaders, clearStoredToken, jsonAuthHeaders } from '@/features/marketing/authApi';
 import { DEMO_SESSION } from '@/data/demoData';
 
@@ -53,20 +53,28 @@ export async function extendSession(sessionId: string): Promise<boolean> {
   }
 }
 
-/** Ask the harness to regenerate the not-yet-played queue for this session. */
-export async function regenerateSession(sessionId: string): Promise<RegenerateSessionResponse | undefined> {
+/** Record like / dislike / regenerate via the same server path as the DJ tool. */
+export async function postPlaylistFeedback(
+  sessionId: string,
+  feedback: PlaylistFeedback,
+): Promise<PlaylistFeedbackResponse | undefined> {
   try {
-    // Bodyless POST: send Bearer for the ownership guard, but NOT a JSON
-    // Content-Type — Fastify rejects a bodyless JSON request (#regression of ac77de1).
-    const res = await fetch(`/sessions/${sessionId}/regenerate`, {
+    const res = await fetch(`/sessions/${sessionId}/playlist-feedback`, {
       method: 'POST',
-      headers: authHeaders(),
+      headers: jsonAuthHeaders(),
+      body: JSON.stringify({ feedback }),
     });
     if (!res.ok) return undefined;
-    return (await res.json()) as RegenerateSessionResponse;
+    return (await res.json()) as PlaylistFeedbackResponse;
   } catch {
     return undefined;
   }
+}
+
+/** Ask the harness to regenerate the not-yet-played queue for this session. */
+export async function regenerateSession(sessionId: string): Promise<RegenerateSessionResponse | undefined> {
+  const result = await postPlaylistFeedback(sessionId, 'regenerate');
+  return result?.regenerate;
 }
 
 /** Mirror the playhead to memory-service so replan/cues target the right track. */

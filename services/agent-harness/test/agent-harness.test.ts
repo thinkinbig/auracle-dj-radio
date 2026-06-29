@@ -219,6 +219,32 @@ describe("agent-harness", () => {
     await app.close();
   });
 
+  it("records playlist_feedback from the UI playlist-feedback route", async () => {
+    const { app, memory } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/playlist-feedback`,
+      payload: { feedback: "dislike" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(memory.events).toContainEqual(
+      expect.objectContaining({
+        eventType: "playlist_feedback",
+        payload: expect.objectContaining({
+          feedback: "dislike",
+          track_id: "a",
+          remaining_ids: ["b", "c", "f"],
+          source: "ui",
+        }),
+      }),
+    );
+    await app.close();
+  });
+
   it("records playlist_feedback from a DJ tool call and surfaces it to the client", async () => {
     const { app, memory } = buildTestApp();
     await app.ready();
@@ -297,7 +323,14 @@ describe("agent-harness", () => {
     expect(body.changed_ids).toEqual(["d", "e"]);
     expect(body.before_remaining_ids).toEqual(["b", "c", "f"]);
     expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
+    expect(memory.events.map((e) => e.eventType)).toContain("playlist_feedback");
     expect(memory.events.map((e) => e.eventType)).toContain("playlist_regenerate_requested");
+    expect(memory.events).toContainEqual(
+      expect.objectContaining({
+        eventType: "playlist_feedback",
+        payload: expect.objectContaining({ feedback: "regenerate", source: "ui" }),
+      }),
+    );
     // Client-initiated: the new queue is delivered in the HTTP response above, NOT
     // also pushed over the proxy (one logical change, one channel -- channel rule).
     expect(proxy.injectCalls.some((c) => c.payload.ui_events?.some((e) => e.type === "tracklist_updated"))).toBe(false);

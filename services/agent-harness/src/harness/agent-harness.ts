@@ -8,10 +8,11 @@ import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
 import { buildAndPushCue } from "../session/cue.js";
 import { extendQueue } from "../session/extend.js";
-import { applyReplan, changedIdsFromRemaining, type OrchestrationDeps } from "../session/replan.js";
+import { changedIdsFromRemaining, type OrchestrationDeps } from "../session/replan.js";
 import { swapNextOnQuickSkip } from "../session/skip-swap.js";
 import { SessionStore, type SessionState } from "../session/store.js";
 import { runTool, type ToolCall } from "../session/tool-runner.js";
+import { parsePlaylistFeedback, runPlaylistFeedback, type PlaylistFeedbackOutcome } from "../session/playlist-feedback.js";
 
 const QUICK_SKIP_MEMORY_THRESHOLD = 2;
 const QUICK_SKIP_MAX_LISTEN_MS = 60_000;
@@ -237,6 +238,14 @@ export class AgentHarness {
     return runTool(this.orchestration, state, call);
   }
 
+  async playlistFeedback(id: string, feedback: unknown): Promise<PlaylistFeedbackOutcome | undefined | false> {
+    const state = this.deps.store.get(id);
+    if (!state) return undefined;
+    const parsed = parsePlaylistFeedback(feedback);
+    if (!parsed) return false;
+    return runPlaylistFeedback(this.orchestration, state, parsed, "ui");
+  }
+
   async markNowPlaying(id: string, trackId: string): Promise<Record<string, unknown> | undefined | false> {
     const state = this.deps.store.get(id);
     if (!state) return undefined;
@@ -343,39 +352,9 @@ export class AgentHarness {
   }
 
   async regenerateQueue(id: string): Promise<RegenerateSessionResponse | undefined> {
-    const state = this.deps.store.get(id);
-    if (!state) return undefined;
-
-    const before = this.deps.store.remaining(state).map((track) => track.id);
-    const outcome = await applyReplan(this.orchestration, state, {
-      mood: state.intent.mood,
-      energy_delta: "same",
-      scope: "full", // Regenerate replaces the whole remaining queue, not a nudge.
-      reroll: true, // Each click re-rolls: fresh seed + steer away from the shown tracks.
-    });
-
-    await this.deps.memory.recordEvent(id, state.userId, "playlist_regenerate_requested", {
-      current_track_id: state.tracklist[state.currentTrackIndex]?.id ?? null,
-      before,
-      after: outcome.remaining.map((track) => track.id),
-      replanned: outcome.replanned,
-    });
-
-    // Client-initiated (Regenerate button): the HTTP response below is the
-    // authoritative delivery to the only client -- no redundant proxy push (one
-    // logical change, one channel). Server-initiated queue changes (mood_change
-    // replan, rolling extend, skip-swap) push via pushQueueUpdate instead.
-    return {
-      ok: true,
-      replanned: outcome.replanned,
-      session_title: state.title,
-      session_subtitle: state.subtitle,
-      current_track_index: state.currentTrackIndex,
-      tracklist: state.tracklist,
-      remaining: outcome.remaining,
-      changed_ids: changedIdsFromRemaining(before, outcome.remaining),
-      before_remaining_ids: before,
-    };
+    const outcome = await this.playlistFeedback(id, "regenerate");
+    if (!outcome) return undefined;
+    return outcome.regenerate;
   }
 
   /** User-initiated rolling extend retry after a failed append (E6). */

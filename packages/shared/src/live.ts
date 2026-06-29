@@ -14,6 +14,9 @@ export type QueueRefreshStatus = "idle" | "pending" | "complete" | "error";
 /** Explicit listener reaction to the current track or queue (Like / Dislike / Regenerate UI). */
 export type PlaylistFeedback = "like" | "dislike" | "regenerate";
 
+/** Who initiated playlist feedback — UI HTTP or Live DJ tool. */
+export type PlaylistFeedbackSource = "ui" | "dj_tool";
+
 /** Between-track DJ intents surfaced by Gemini Live function calling. */
 export type Intent =
   | { type: "skip_track" }
