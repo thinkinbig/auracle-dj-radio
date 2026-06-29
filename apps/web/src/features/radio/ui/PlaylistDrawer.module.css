@@ -12,12 +12,22 @@
   box-shadow: var(--shadow-sheet);
   transition:
     flex-basis var(--duration-normal) var(--ease-out),
-    max-height var(--duration-normal) var(--ease-out);
+    max-height var(--duration-normal) var(--ease-out),
+    opacity 0.32s var(--ease-out);
 }
 
 .drawerOpen {
   flex-basis: min(38svh, 320px);
   max-height: min(38svh, 320px);
+}
+
+.drawerChromeHidden {
+  flex: 0 0 0;
+  min-height: 0;
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 .grip {

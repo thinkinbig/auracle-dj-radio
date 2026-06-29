@@ -28,7 +28,7 @@ export function PlaylistDrawer() {
 
   const drawerRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const { reportScroll, setChromePinned, showChrome } = useMobileChrome();
+  const { reportScroll, setChromePinned, showChrome, hidden: chromeHidden } = useMobileChrome();
 
   useEffect(() => {
     setChromePinned(open);
@@ -82,7 +82,11 @@ export function PlaylistDrawer() {
   return (
     <section
       ref={drawerRef}
-      className={cn(styles.drawer, open && styles.drawerOpen)}
+      className={cn(
+        styles.drawer,
+        open && styles.drawerOpen,
+        chromeHidden && !open && styles.drawerChromeHidden,
+      )}
       aria-label="Up next"
     >
       <span className={styles.grip} aria-hidden />
