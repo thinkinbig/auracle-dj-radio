@@ -372,7 +372,7 @@
 
 .dnaHeroCard {
   position: absolute;
-  top: 50%;
+  top: calc(50% + 104px);
   right: clamp(0px, 2vw, 28px);
   z-index: 2;
   width: min(42%, 310px);
@@ -1270,6 +1270,7 @@
   }
 
   .dnaHeroCard {
+    top: 50%;
     right: 0;
     width: min(44%, 300px);
   }
