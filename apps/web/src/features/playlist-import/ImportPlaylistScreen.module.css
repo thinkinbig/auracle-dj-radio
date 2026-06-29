@@ -78,6 +78,7 @@
 }
 
 .memoryCard,
+.catalogPanel,
 .editorPanel,
 .previewPanel,
 .savedPanel,
@@ -135,6 +136,7 @@
   gap: 28px;
 }
 
+.catalogPanel,
 .editorPanel,
 .previewPanel,
 .savedPanel,
@@ -143,6 +145,32 @@
   gap: 18px;
   padding: clamp(20px, 4vw, 30px);
   border-radius: 30px;
+}
+
+.catalogCopy {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.58);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.sectionDivider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: rgba(248, 250, 252, 0.42);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sectionDivider::before,
+.sectionDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .panelHeader {
@@ -399,6 +427,7 @@
 }
 
 .embeddedPage .memoryCard,
+.embeddedPage .catalogPanel,
 .embeddedPage .editorPanel,
 .embeddedPage .previewPanel,
 .embeddedPage .savedPanel,
@@ -415,6 +444,7 @@
 }
 
 .embeddedPage .memoryCard,
+.embeddedPage .catalogPanel,
 .embeddedPage .editorPanel,
 .embeddedPage .previewPanel,
 .embeddedPage .savedPanel,
@@ -451,6 +481,7 @@
 .embeddedPage .heroCopy h1,
 .embeddedPage .heroCopy p:not(.eyebrow),
 .embeddedPage .memoryCard,
+.embeddedPage .catalogPanel,
 .embeddedPage .guestGate,
 .embeddedPage .editorPanel,
 .embeddedPage .previewPanel,
@@ -474,17 +505,21 @@
   --content-enter-delay: 280ms;
 }
 
+.embeddedPage .catalogPanel {
+  --content-enter-delay: 360ms;
+}
+
 .embeddedPage .guestGate,
 .embeddedPage .editorPanel {
-  --content-enter-delay: 380ms;
+  --content-enter-delay: 440ms;
 }
 
 .embeddedPage .previewPanel {
-  --content-enter-delay: 460ms;
+  --content-enter-delay: 520ms;
 }
 
 .embeddedPage .savedPanel {
-  --content-enter-delay: 560ms;
+  --content-enter-delay: 620ms;
 }
 
 .backButton:focus-visible,
@@ -547,6 +582,7 @@
   .embeddedPage .heroCopy h1,
   .embeddedPage .heroCopy p:not(.eyebrow),
   .embeddedPage .memoryCard,
+  .embeddedPage .catalogPanel,
   .embeddedPage .guestGate,
   .embeddedPage .editorPanel,
   .embeddedPage .previewPanel,

@@ -1,15 +1,198 @@
+.shell {
+  display: grid;
+  gap: 14px;
+}
+
+.shellLibrary {
+  gap: 16px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.searchLabel {
+  flex: 1 1 220px;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.searchKicker {
+  color: rgba(248, 250, 252, 0.48);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.searchInput {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  font: inherit;
+  touch-action: manipulation;
+}
+
+.searchInput::placeholder {
+  color: rgba(248, 250, 252, 0.38);
+}
+
+.searchInput:focus-visible {
+  outline: none;
+  border-color: rgba(190, 148, 255, 0.45);
+  box-shadow: 0 0 0 3px rgba(190, 148, 255, 0.24);
+}
+
+.shellLibrary .searchInput:focus-visible {
+  border-color: rgba(141, 247, 167, 0.45);
+  box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.22);
+}
+
+.trackCount {
+  flex: 0 0 auto;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(248, 250, 252, 0.62);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.nowPlayingBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.07), transparent 42%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.shellLibrary .nowPlayingBar {
+  border-color: rgba(141, 247, 167, 0.22);
+  background:
+    linear-gradient(120deg, rgba(141, 247, 167, 0.12), transparent 46%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.nowPlayingCover,
+.nowPlayingCoverFallback {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.nowPlayingCover {
+  object-fit: cover;
+}
+
+.nowPlayingCoverFallback {
+  display: block;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nowPlayingMeta {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.nowPlayingKicker {
+  color: rgba(190, 148, 255, 0.82);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shellLibrary .nowPlayingKicker {
+  color: rgba(141, 247, 167, 0.82);
+}
+
+.nowPlayingMeta strong,
+.nowPlayingMeta small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nowPlayingMeta strong {
+  color: rgba(248, 250, 252, 0.94);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.nowPlayingMeta small {
+  color: rgba(248, 250, 252, 0.52);
+  font-size: 12px;
+}
+
+.nowPlayingBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(248, 250, 252, 0.92);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.nowPlayingBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.nowPlayingBtn:active {
+  transform: scale(0.96);
+}
+
+.nowPlayingBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(190, 148, 255, 0.36);
+}
+
+.shellLibrary .nowPlayingBtn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.36);
+}
+
 .panel {
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .muted,
-.error {
+.error,
+.empty {
   margin: 0;
   font-size: 14px;
 }
 
-.muted {
+.muted,
+.empty {
   color: rgba(248, 250, 252, 0.5);
 }
 
@@ -17,17 +200,79 @@
   color: rgba(251, 113, 133, 0.9);
 }
 
-.artistCard {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 16px;
+.skeletonList {
+  display: grid;
+  gap: 12px;
 }
 
-.artistHead {
+.skeletonCard {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.skeletonHead {
   display: flex;
-  gap: 14px;
-  align-items: flex-start;
+  gap: 12px;
+  align-items: center;
+}
+
+.skeletonCopy {
+  flex: 1;
+  display: grid;
+  gap: 8px;
+}
+
+.skeletonCard :global(.block) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.artistCard {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.artistSummary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+  touch-action: manipulation;
+}
+
+.artistSummary::-webkit-details-marker {
+  display: none;
+}
+
+.artistSummary:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(190, 148, 255, 0.45);
+}
+
+.shellLibrary .artistSummary:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(141, 247, 167, 0.45);
+}
+
+.artistChevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: rgba(248, 250, 252, 0.42);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.artistCard[open] .artistChevron {
+  transform: rotate(180deg);
+}
+
+.artistBody {
+  padding: 0 16px 12px 76px;
 }
 
 .avatar {
@@ -42,14 +287,20 @@
 .artistCopy {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .artistName {
   margin: 0;
   color: #ffffff;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 800;
+}
+
+.artistMeta {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.46);
+  font-size: 12px;
 }
 
 .entityKicker {
@@ -72,13 +323,13 @@
 
 .albumList {
   display: grid;
-  gap: 14px;
-  margin-top: 16px;
+  gap: 12px;
+  padding: 0 16px 16px;
 }
 
 .albumCard {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 14px;
+  padding-top: 12px;
 }
 
 .albumHead {
@@ -111,20 +362,117 @@
 
 .trackList {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   margin-top: 12px;
 }
 
 .trackRow {
   display: flex;
   gap: 10px;
-  align-items: flex-start;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.025);
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.trackRow:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.trackRowActive {
+  border-color: rgba(190, 148, 255, 0.32);
+  background: rgba(190, 148, 255, 0.1);
+  box-shadow: 0 0 20px rgba(190, 148, 255, 0.08);
+}
+
+.trackRowPaused {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+
+.shellLibrary .trackRowActive {
+  border-color: rgba(141, 247, 167, 0.32);
+  background: rgba(141, 247, 167, 0.09);
+  box-shadow: 0 0 20px rgba(141, 247, 167, 0.08);
+}
+
+.playBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(248, 250, 252, 0.88);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.playBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(190, 148, 255, 0.45);
+  color: #ffffff;
+}
+
+.playBtn:active {
+  transform: scale(0.96);
+}
+
+.playBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(190, 148, 255, 0.36);
+}
+
+.playBtnActive {
+  background: rgba(190, 148, 255, 0.18);
+  border-color: rgba(190, 148, 255, 0.55);
+  color: rgba(210, 178, 255, 0.98);
+}
+
+.shellLibrary .playBtn:hover {
+  border-color: rgba(141, 247, 167, 0.45);
+}
+
+.shellLibrary .playBtn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.36);
+}
+
+.shellLibrary .playBtnActive {
+  background: rgba(141, 247, 167, 0.14);
+  border-color: rgba(141, 247, 167, 0.5);
+  color: rgba(141, 247, 167, 0.98);
+}
+
+.shellLibrary .loreToggle {
+  color: rgba(141, 247, 167, 0.82);
+}
+
+.shellLibrary .loreToggle:hover {
+  color: rgba(167, 255, 190, 0.95);
+}
+
+.shellLibrary .entityKicker {
+  color: rgba(141, 247, 167, 0.72);
 }
 
 .trackCover,
 .trackCoverFallback {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 8px;
   flex-shrink: 0;
 }
@@ -141,24 +489,50 @@
 .trackMeta {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .trackTitle {
   margin: 0;
-  color: rgba(248, 250, 252, 0.82);
+  color: rgba(248, 250, 252, 0.9);
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 700;
+}
+
+.trackArtist {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.48);
+  font-size: 12px;
+}
+
+.nowPlayingTag {
+  width: fit-content;
+  margin-top: 2px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: rgba(190, 148, 255, 0.92);
+  background: rgba(190, 148, 255, 0.12);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shellLibrary .nowPlayingTag {
+  color: rgba(141, 247, 167, 0.92);
+  background: rgba(141, 247, 167, 0.12);
 }
 
 .loreToggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-top: 4px;
   padding: 0;
   color: rgba(190, 148, 255, 0.82);
   font-size: 11px;
   font-weight: 750;
+  cursor: pointer;
 }
 
 .loreToggle:hover {
@@ -171,4 +545,32 @@
 
 .loreChevronCollapsed {
   transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playBtn,
+  .nowPlayingBtn,
+  .artistChevron,
+  .loreChevron {
+    transition: none;
+  }
+
+  .playBtn:active,
+  .nowPlayingBtn:active {
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .artistBody {
+    padding-left: 16px;
+  }
+
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .trackCount {
+    justify-content: center;
+  }
 }
