@@ -88,7 +88,12 @@ export function CatalogArchivePanel() {
             )}
             <div className={styles.artistCopy}>
               <h3 className={styles.artistName}>{artist.name}</h3>
-              {artist.persona ? <p className={styles.persona}>{artist.persona}</p> : null}
+              {artist.persona ? (
+                <>
+                  <p className={styles.entityKicker}>About the artist</p>
+                  <p className={styles.persona}>{artist.persona}</p>
+                </>
+              ) : null}
             </div>
           </div>
           <div className={styles.albumList}>
@@ -102,7 +107,12 @@ export function CatalogArchivePanel() {
                   )}
                   <div className={styles.albumCopy}>
                     <h4 className={styles.albumTitle}>{album.title}</h4>
-                    {album.concept ? <p className={styles.concept}>{album.concept}</p> : null}
+                    {album.concept ? (
+                      <>
+                        <p className={styles.entityKicker}>Album concept</p>
+                        <p className={styles.concept}>{album.concept}</p>
+                      </>
+                    ) : null}
                   </div>
                 </div>
                 <div className={styles.trackList}>

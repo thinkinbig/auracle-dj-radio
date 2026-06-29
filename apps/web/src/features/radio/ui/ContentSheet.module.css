@@ -10,7 +10,6 @@
   backdrop-filter: blur(26px);
   padding: var(--space-lg) var(--space-md) var(--space-sm);
   overflow: hidden;
-  animation: softEnter 720ms var(--ease-out) both;
 }
 
 :global([data-layout='split']) .root {
@@ -223,11 +222,12 @@
 }
 
 .loreChevron {
-  transition: transform var(--duration-fast) var(--ease-out);
+  transform: rotate(180deg);
+  transition: transform 0.26s var(--ease-out);
 }
 
-.loreChevronCollapsed {
-  transform: rotate(180deg);
+.loreToggle[aria-expanded='true'] .loreChevron {
+  transform: rotate(0deg);
 }
 
 .trackTitle {
@@ -369,6 +369,10 @@
   font-size: 13px;
   line-height: 1.5;
   color: rgba(248, 250, 252, 0.5);
+}
+
+:global([data-layout='stack']) .storyText {
+  margin-top: 4px;
 }
 
 :global([data-layout='stack']) .story {
@@ -534,17 +538,6 @@
   font-weight: 600;
 }
 
-@keyframes softEnter {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 :global([data-layout='stack']) .controls {
   display: none;
 }
@@ -552,14 +545,22 @@
 :global([data-layout='stack']) .root {
   flex: 1 1 0;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+:global([data-layout='stack']) .root::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 @media (max-width: 767px) {
   .root {
-    /* Bottom padding reserves room for the collapsed playlist-drawer handle so
-       the card background backs it (no black gap behind its rounded corners). */
-    padding: var(--space-md) var(--space-md) var(--drawer-handle-h);
+    padding: var(--space-md);
     border-radius: 20px 20px 0 0;
   }
 

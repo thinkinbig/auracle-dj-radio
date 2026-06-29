@@ -277,6 +277,53 @@
   box-shadow: var(--ring);
 }
 
+/* Stack = mobile + phone frame: compact bar — timeline + transport only. */
+:global([data-layout='stack']) .trackCard,
+:global([data-layout='stack']) .rightControls {
+  display: none;
+}
+
+:global([data-layout='stack']) .root {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 52px;
+  gap: var(--space-sm);
+  overflow: hidden;
+  padding: 10px var(--space-md);
+}
+
+:global([data-layout='stack']) .timeline {
+  grid-template-columns: auto minmax(68px, 1fr) auto;
+  gap: 8px;
+}
+
+:global([data-layout='stack']) .transport {
+  gap: 4px;
+}
+
+:global([data-layout='stack']) .transport .btnGhost:first-child,
+:global([data-layout='stack']) .transport .btnGhost:nth-child(2),
+:global([data-layout='stack']) .transport .btnGhost:last-child {
+  display: none;
+}
+
+:global([data-layout='stack']) .playBtn {
+  width: 44px;
+  height: 44px;
+}
+
+:global([data-layout='stack']) .wave {
+  height: 32px;
+}
+
+:global([data-layout='stack']) .barActive {
+  height: 18px;
+}
+
+:global([data-layout='stack']) .btn {
+  width: 44px;
+  height: 44px;
+}
+
 @media (max-width: 767px) {
   .trackCard,
   .rightControls {
@@ -288,9 +335,7 @@
     min-height: 52px;
     gap: var(--space-sm);
     overflow: hidden;
-    padding: 10px calc(var(--space-md) + env(safe-area-inset-right, 0px))
-      calc(10px + env(safe-area-inset-bottom, 0px))
-      calc(var(--space-md) + env(safe-area-inset-left, 0px));
+    padding: 10px var(--space-md);
   }
 
   .timeline {

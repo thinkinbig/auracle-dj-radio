@@ -1,21 +1,23 @@
 .drawer {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: var(--z-overlay);
-  height: var(--drawer-handle-h);
+  position: relative;
+  z-index: var(--z-sheet);
+  flex: 0 0 var(--drawer-handle-h);
+  min-height: var(--drawer-handle-h);
+  max-height: var(--drawer-handle-h);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--card-bg);
-  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  border-radius: 20px 20px 0 0;
   box-shadow: var(--shadow-sheet);
-  transition: height var(--duration-slow) var(--ease-out);
+  transition:
+    flex-basis var(--duration-normal) var(--ease-out),
+    max-height var(--duration-normal) var(--ease-out);
 }
 
 .drawerOpen {
-  height: calc(100% - var(--drawer-peek, 0px));
+  flex-basis: min(38svh, 320px);
+  max-height: min(38svh, 320px);
 }
 
 .grip {
@@ -66,10 +68,10 @@
   flex-shrink: 0;
   margin-left: auto;
   color: var(--text-secondary);
-  transition: transform var(--duration-normal) var(--ease-out);
+  transition: transform 0.28s var(--ease-out);
 }
 
-.chevronOpen {
+.handle[aria-expanded='true'] .chevron {
   transform: rotate(180deg);
 }
 
