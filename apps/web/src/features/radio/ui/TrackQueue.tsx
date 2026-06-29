@@ -1,4 +1,5 @@
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
+import { selectQueueRefresh } from '@/features/radio/session/playbackSelectors';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
@@ -23,16 +24,17 @@ export function TrackQueue() {
   const catalogLoaded = useCatalogLoaded();
   const current = useTrackMeta(state.trackId);
   const recentlyChanged = new Set(state.recentlyChangedIds);
-  const extendRetryable = state.queueRefreshStatus === 'error' && state.playlistFeedback !== 'regenerate';
+  const refresh = selectQueueRefresh(state);
+  const extendRetryable = refresh.retryable;
   let feedbackLabel = 'Feedback';
-  if (state.queueRefreshStatus === 'pending') {
-    feedbackLabel = state.playlistFeedback === 'regenerate'
+  if (refresh.pending) {
+    feedbackLabel = refresh.intent === 'regenerate'
       ? 'Rebuilding from current track...'
       : 'Finding more music...';
   } else if (state.queueDiffMessage) feedbackLabel = state.queueDiffMessage;
-  else if (state.queueRefreshStatus === 'complete') feedbackLabel = 'Queue checked';
+  else if (refresh.status === 'complete') feedbackLabel = 'Queue checked';
   else if (extendRetryable) feedbackLabel = 'More tracks unavailable · Try again';
-  else if (state.queueRefreshStatus === 'error') feedbackLabel = 'Try again';
+  else if (refresh.failed) feedbackLabel = 'Try again';
   else if (state.playlistFeedback === 'like') feedbackLabel = 'Host is keeping this direction';
   else if (state.playlistFeedback === 'dislike') feedbackLabel = 'Host is shifting the queue';
   else if (state.playlistFeedback === 'regenerate') feedbackLabel = 'Host is rebuilding the queue';
@@ -76,7 +78,7 @@ export function TrackQueue() {
                 className={cn(styles.action, state.playlistFeedback === 'regenerate' && styles.actionActive)}
                 onClick={() => handlePlaylistFeedback('regenerate')}
                 aria-pressed={state.playlistFeedback === 'regenerate'}
-                disabled={state.queueRefreshStatus === 'pending'}
+                disabled={refresh.pending}
               >
                 Regenerate
               </button>

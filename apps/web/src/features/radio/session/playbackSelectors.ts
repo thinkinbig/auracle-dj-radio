@@ -44,6 +44,35 @@ export function isSessionComplete(phase: UiPhase): boolean {
   return phase === 'complete';
 }
 
+/** Which flow is refreshing the queue: an automatic rolling extend or a user-driven regenerate. */
+export type QueueRefreshIntent = 'extend' | 'regenerate';
+
+export interface QueueRefreshView {
+  status: PlaybackState['queueRefreshStatus'];
+  intent: QueueRefreshIntent;
+  pending: boolean;
+  failed: boolean;
+  /** A failed refresh the user can retry via the extend endpoint (regenerate has no retry wired). */
+  retryable: boolean;
+}
+
+/**
+ * Single source of truth for "what is the queue refresh doing right now". Collapses the
+ * scattered `queueRefreshStatus` + `playlistFeedback === 'regenerate'` reads that the queue
+ * sidebar and end-of-session surfaces each re-derived on their own.
+ */
+export function selectQueueRefresh(state: PlaybackState): QueueRefreshView {
+  const status = state.queueRefreshStatus;
+  const intent: QueueRefreshIntent = state.playlistFeedback === 'regenerate' ? 'regenerate' : 'extend';
+  return {
+    status,
+    intent,
+    pending: status === 'pending',
+    failed: status === 'error',
+    retryable: status === 'error' && intent === 'extend',
+  };
+}
+
 export function statusLabel(phase: UiPhase, queueRefreshStatus: PlaybackState['queueRefreshStatus']): { text: string; live: boolean } {
   if (phase === 'complete') {
     if (queueRefreshStatus === 'pending') return { text: 'Finding more music…', live: true };

@@ -1,6 +1,6 @@
 import type { FlowTrackRef } from '@auracle/shared';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
-import { isSessionComplete } from '@/features/radio/session/playbackSelectors';
+import { isSessionComplete, selectQueueRefresh } from '@/features/radio/session/playbackSelectors';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { cn } from '@/shared/lib/cn';
 import styles from './SessionSummary.module.css';
@@ -11,8 +11,9 @@ export function SessionSummary() {
   if (state.sessionTracklist.length === 0) return null;
 
   const complete = isSessionComplete(state.phase);
-  const extendPending = complete && state.queueRefreshStatus === 'pending';
-  const extendFailed = complete && state.queueRefreshStatus === 'error';
+  const refresh = selectQueueRefresh(state);
+  const extendPending = complete && refresh.pending;
+  const extendFailed = complete && refresh.failed;
 
   const playedCount = Math.max(0, state.currentTrackIndex);
   const remainingCount = Math.max(0, state.sessionTracklist.length - state.currentTrackIndex - 1);

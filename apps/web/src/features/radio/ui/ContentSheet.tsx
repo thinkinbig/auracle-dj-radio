@@ -9,6 +9,7 @@ import {
   isPaused,
   isSessionComplete,
   playbackProgressPct,
+  selectQueueRefresh,
 } from '@/features/radio/session/playbackSelectors';
 import { IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/Icons';
 import { IntentOnboarding } from './IntentOnboarding';
@@ -30,8 +31,9 @@ export function ContentSheet() {
   const showSkeleton = curating || (idle && !catalogLoaded);
   const showOnboarding = idle;
   const skipDisabled = !canSkipTrack(state);
-  const extendPending = complete && state.queueRefreshStatus === 'pending';
-  const extendFailed = complete && state.queueRefreshStatus === 'error';
+  const refresh = selectQueueRefresh(state);
+  const extendPending = complete && refresh.pending;
+  const extendFailed = complete && refresh.failed;
   const pct = playbackProgressPct(state);
   const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
   const flowLabel = state.sessionSubtitle
