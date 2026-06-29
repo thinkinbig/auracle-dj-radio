@@ -102,6 +102,22 @@
   color: rgba(255, 255, 255, 0.54);
 }
 
+.refreshHint {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-sm);
+  margin: 10px 0 0;
+  padding: 5px 11px 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
 .warning {
   align-self: flex-start;
   margin-top: 14px;
