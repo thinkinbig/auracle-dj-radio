@@ -10,7 +10,6 @@
   backdrop-filter: blur(26px);
   padding: var(--space-lg) var(--space-md) var(--space-sm);
   overflow: hidden;
-  animation: softEnter 720ms var(--ease-out) both;
 }
 
 :global([data-layout='split']) .root {
@@ -223,10 +222,6 @@
 }
 
 .loreChevron {
-  transition: transform var(--duration-fast) var(--ease-out);
-}
-
-.loreChevronCollapsed {
   transform: rotate(180deg);
 }
 
@@ -536,17 +531,6 @@
 :global([data-layout='stack']) .trackTitle {
   color: #ffffff;
   font-weight: 600;
-}
-
-@keyframes softEnter {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 :global([data-layout='stack']) .controls {

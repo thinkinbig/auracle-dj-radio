@@ -4,18 +4,14 @@
   right: 0;
   bottom: 0;
   z-index: var(--z-overlay);
-  height: var(--drawer-handle-h);
+  height: calc(100% - var(--drawer-peek, 0px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--card-bg);
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   box-shadow: var(--shadow-sheet);
-  transition: height var(--duration-slow) var(--ease-out);
-}
-
-.drawerOpen {
-  height: calc(100% - var(--drawer-peek, 0px));
+  will-change: transform;
 }
 
 .grip {
@@ -66,11 +62,6 @@
   flex-shrink: 0;
   margin-left: auto;
   color: var(--text-secondary);
-  transition: transform var(--duration-normal) var(--ease-out);
-}
-
-.chevronOpen {
-  transform: rotate(180deg);
 }
 
 .list {

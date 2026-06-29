@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
@@ -19,7 +21,16 @@ import { Skeleton } from '@/shared/ui/Skeleton';
 import { cn } from '@/shared/lib/cn';
 import styles from './ContentSheet.module.css';
 
+gsap.registerPlugin(useGSAP);
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export function ContentSheet() {
+  const sheetRef = useRef<HTMLElement>(null);
+  const loreRef = useRef<HTMLParagraphElement>(null);
+  const loreToggleRef = useRef<HTMLButtonElement>(null);
   const state = useRadioState();
   const { handleStart, handleTogglePause, handleSkipTrack, handleContinue, handleTalkStart, handleTalkEnd, handleRetryExtend, handleReturnToSetup } = useRadioActions();
   const { isWide } = useLayoutMode();
@@ -53,8 +64,68 @@ export function ContentSheet() {
 
   const showStory = Boolean(lore) && (isWide || loreExpanded);
 
+  useGSAP(
+    () => {
+      const root = sheetRef.current;
+      if (!root || prefersReducedMotion()) return;
+
+      gsap.fromTo(
+        root,
+        { autoAlpha: 0, y: 14 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.52,
+          ease: 'power3.out',
+          clearProps: 'opacity,visibility,transform',
+        },
+      );
+    },
+    { scope: sheetRef },
+  );
+
+  useGSAP(
+    () => {
+      const el = loreRef.current;
+      if (!el || isWide || !loreExpanded) return;
+
+      if (prefersReducedMotion()) {
+        gsap.set(el, { autoAlpha: 1, y: 0, clearProps: 'opacity,visibility,transform' });
+        return;
+      }
+
+      gsap.fromTo(
+        el,
+        { autoAlpha: 0, y: 10 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.3,
+          ease: 'power2.out',
+          clearProps: 'opacity,visibility,transform',
+          overwrite: 'auto',
+        },
+      );
+    },
+    { scope: sheetRef, dependencies: [loreExpanded, lore, isWide], revertOnUpdate: true },
+  );
+
+  useGSAP(
+    () => {
+      const icon = loreToggleRef.current?.querySelector('svg');
+      if (!icon) return;
+      gsap.to(icon, {
+        rotation: loreExpanded ? 0 : 180,
+        duration: prefersReducedMotion() ? 0 : 0.26,
+        ease: 'power2.out',
+        overwrite: 'auto',
+      });
+    },
+    { scope: sheetRef, dependencies: [loreExpanded], revertOnUpdate: true },
+  );
+
   return (
-    <section className={styles.root} aria-label="Now playing">
+    <section ref={sheetRef} className={styles.root} aria-label="Now playing">
       <div
         className={cn(styles.header, showOnboarding && styles.headerCompact)}
         aria-busy={showSkeleton || undefined}
@@ -82,6 +153,7 @@ export function ContentSheet() {
                 <p className={styles.trackKicker}>Now playing</p>
                 {!isWide && lore ? (
                   <button
+                    ref={loreToggleRef}
                     type="button"
                     className={styles.loreToggle}
                     aria-expanded={loreExpanded}
@@ -89,10 +161,7 @@ export function ContentSheet() {
                     aria-label={loreExpanded ? 'Hide track story' : 'Show track story'}
                     onClick={() => setLoreExpanded((open) => !open)}
                   >
-                    <IconChevronUp
-                      size={16}
-                      className={cn(styles.loreChevron, !loreExpanded && styles.loreChevronCollapsed)}
-                    />
+                    <IconChevronUp size={16} className={styles.loreChevron} />
                   </button>
                 ) : null}
               </div>
@@ -131,7 +200,11 @@ export function ContentSheet() {
                 </div>
               </div>
               {showStory ? (
-                <p id="now-playing-lore" className={cn(styles.storyText, isWide && styles.loreScroll)}>
+                <p
+                  ref={!isWide ? loreRef : undefined}
+                  id="now-playing-lore"
+                  className={cn(styles.storyText, isWide && styles.loreScroll)}
+                >
                   {lore}
                 </p>
               ) : null}
