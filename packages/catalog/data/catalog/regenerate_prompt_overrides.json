@@ -1,0 +1,77 @@
+{
+  "notes": "Prompt overrides for tracks that need regeneration based on listening feedback. These are intended to replace or extend each track's sonicBrief in packages/catalog/data/catalog/manifest.json.",
+  "tracks": [
+    {
+      "id": "t14",
+      "artist": "Taylor Drift",
+      "album": "1989 Drift",
+      "title": "Afterglow",
+      "feedback": "Decrease mainstream pop",
+      "prompt": "Warm synthwave cooldown vocal track. Reduce mainstream pop gloss: no contemporary pop drop, no radio-pop clap stack, no EDM pop chorus. Use analog pads, restrained gated drums, soft arpeggio, intimate breathy vocal, sunset afterglow mix."
+    },
+    {
+      "id": "t25",
+      "artist": "Kayan East",
+      "album": "Neon District",
+      "title": "District Lights",
+      "feedback": "Enforce strict 4/4 four-on-the-floor",
+      "prompt": "Energetic house vocal party track. Enforce strict 4/4 four-on-the-floor kick from the first groove through the chorus. Steady house pulse, rolling bassline, bright hats, neon arpeggio hook, compact chorus-led arrangement. No broken beat, no halftime, no loose shuffle."
+    },
+    {
+      "id": "t34",
+      "artist": "Justin Tiger",
+      "album": "Night Shift Stripes",
+      "title": "Last Platform",
+      "feedback": "Increase jazz harmonies",
+      "prompt": "Mellow overnight jazztronica instrumental. Increase jazz harmony: extended Rhodes voicings, ii-V color, 7th/9th/13th chords, tasteful chord substitutions, restrained bass, brushed electronic drums, distant train ambience, whisper-level hook."
+    },
+    {
+      "id": "t65",
+      "artist": "NuJean",
+      "album": "Super Shrink",
+      "title": "Daydream Wash",
+      "feedback": "Remove lo-fi room reverb",
+      "prompt": "Warm Y2K k-pop chill instrumental. Clean dry pop mix with no lo-fi room reverb and no washed-out ambience. Soft pop drums, close gentle pluck, warm pads, clear hook, cozy but polished fade."
+    },
+    {
+      "id": "t80",
+      "artist": "Zone Render",
+      "album": "Vector Launch",
+      "title": "Wireframe Rush",
+      "feedback": "Needs more aggressive",
+      "prompt": "Focused but aggressive mecha anime-rock instrumental. Sharper distorted guitar riff, heavier rock drums, harder orchestral hits, urgent synth pulse, forward attack, no soft background feel, still structured for focus."
+    },
+    {
+      "id": "t83",
+      "artist": "GTR-808",
+      "album": "Cowbell Touge",
+      "title": "Cowbell Crest",
+      "feedback": "Add loud, piercing Roland cowbell",
+      "prompt": "Energetic drift phonk gym instrumental. Add loud piercing Roland-style cowbell lead as the main hook, distorted 808 bass, dark trap hats, gritty clipping, hairpin-turn tension, athletic drive, cowbell must cut through the mix."
+    },
+    {
+      "id": "t89",
+      "artist": "Smoke Shift",
+      "album": "Bell Rep",
+      "title": "Bell Hammer",
+      "feedback": "Remove all traditional elements",
+      "prompt": "Euphoric warehouse phonk party instrumental. Remove all traditional acoustic or folk elements. Use only electronic phonk textures, maximum cowbell, crushed 808 drop, rave synth stabs, fast trap hats, peak rave aggression."
+    },
+    {
+      "id": "t93",
+      "artist": "Smoke Shift",
+      "album": "Bell Rep",
+      "title": "After Hours Bell",
+      "feedback": "Reduce dark/eerie",
+      "prompt": "Warm low-energy phonk chill instrumental. Reduce dark and eerie tone: soft cowbell, warm 808 hum, gentle tape color, relaxed post-rave calm. No horror ambience, no ominous drones, no scary industrial darkness."
+    },
+    {
+      "id": "t100",
+      "artist": "Amen Rush",
+      "album": "Neuro Rep",
+      "title": "Neuro Fade",
+      "feedback": "Increase breakbeat density",
+      "prompt": "Calm DnB study instrumental with increased breakbeat density. Layered amen edits, detailed ghost snares, tighter percussion micro-variations, soft sub pulse, low-distraction mix, no harsh neuro stabs, headphone-intimate fade."
+    }
+  ]
+}

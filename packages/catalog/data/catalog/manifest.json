@@ -578,7 +578,7 @@
       "lyrics": "[Intro]\n(Engine cools, synth pad soft)\nMountain straightens — let the moment breathe\nPolaroid light on the gold-green eve\n\n[Verse 1]\nTire smoke settled, hairpin behind\nRearview holding what we left on the climb\nPlatinum strands in the warm cabin air\nCherry-red quiet — no more dare\nSynthwave hush where the touge went loud\nAfterglow painting every cloud\n\n[Pre-Chorus]\nFoot off the gas, heart still sings\nGold on the glass — slow-motion things\n\n[Chorus]\nAfterglow, afterglow\nPolaroid warmth on the long road home\nNot the race — just the line we keep\nExhale on the straight, drift off to sleep\nAfterglow, hold it close\n1989 daylight in a sunset dose\nDrift was the rush — afterglow's the proof\nBest stories need a gentle roof\n\n[Verse 2]\nSeagull-blue fading to amber and rose\nTaillights dimming on the mountain close\nOne hand on the wheel, one on the frame\nEvery hairpin still whispering my name\nBut I'm not chasing — I'm letting it go\nAfterglow teaching what the straight roads know\n\n[Pre-Chorus]\nFoot off the gas, heart still sings\nGold on the glass — slow-motion things\n\n[Chorus]\nAfterglow, afterglow\nPolaroid warmth on the long road home\nAfterglow, hold it close\n1989 daylight in a sunset dose\n\n[Bridge]\n(Breathier, almost whispered)\nMatte white paint cooling in the lane\nBest lap I ran was the one I didn't name\nWinning is quiet when the mountain's done\nAfterglow — that's the one\n\n[Final Chorus]\nAfterglow, afterglow\nHairpin memories in a soft gold glow\nBlonde behind the wheel finally still\nAfterglow…\n(Synth fade, engine tick)",
       "lore": "The cool-down lap on 1989 Drift — Taylor Drift wrote it for when the mountain straightens, the Polaroid light goes gold, and the blonde behind the wheel finally exhales.",
       "genreSlug": "synthwave",
-      "sonicBrief": "Vocal warm synthwave cooldown. Engine-cooling ambience, soft analog pad, gentle arp, restrained gated drums, sunset chorus, breathy vocal, warm afterglow mix."
+      "sonicBrief": "Warm synthwave cooldown vocal track. Reduce mainstream pop gloss: no contemporary pop drop, no radio-pop clap stack, no EDM pop chorus. Use analog pads, restrained gated drums, soft arpeggio, intimate breathy vocal, sunset afterglow mix."
     },
     {
       "id": "t15",
@@ -745,7 +745,7 @@
       "introOffsetMs": null,
       "lore": "Neon signs reflected in wet pavement became the arpeggio — Kayan East insists the district itself wrote the hook, he just pointed the compass east.",
       "genreSlug": "house",
-      "sonicBrief": "Energetic house vocal party song. Wet-pavement neon arpeggio, steady kick, rolling bassline, bright hats, filtered hook, compact chorus-led arrangement.",
+      "sonicBrief": "Energetic house vocal party track. Enforce strict 4/4 four-on-the-floor kick from the first groove through the chorus. Steady house pulse, rolling bassline, bright hats, neon arpeggio hook, compact chorus-led arrangement. No broken beat, no halftime, no loose shuffle.",
       "instrumental": false,
       "lyrics": "[Intro]\n(Rain on neon, kick comes in)\nDistrict lights on the pavement glow\nEast sign flashing where the people go\n\n[Verse 1]\nWet black street with the color turned high\nBassline rolling under taxi-light sky\nEvery sign writes a melody twice\nOnce in the window, once under ice\nI hear the district humming through the wire\nFilter opens like a rooftop fire\n\n[Pre-Chorus]\nDon't need a map when the lights align\nEvery arrow points to the same skyline\n\n[Chorus]\nDistrict lights, district lights\nNeon hooks in the middle of the night\nMove through the rain, keep the bassline tight\nEastbound hearts under district lights\nDistrict lights, district lights\nHands go up when the signs ignite\nStreet writes the chorus, we sing it right\nEverybody glow in the district lights\n\n[Verse 2]\nHats cut clean through the midnight steam\nPavement turns into a laser-beam dream\nOne little arp from a sign overhead\nStuck in the room like something we said\nCompass in the booth with a steady hand\nHouse kick talking to the whole wet land\n\n[Pre-Chorus]\nDon't need a map when the lights align\nEvery arrow points to the same skyline\n\n[Chorus]\nDistrict lights, district lights\nNeon hooks in the middle of the night\nMove through the rain, keep the bassline tight\nEastbound hearts under district lights\n\n[Bridge]\n(Chant)\nGlow left, glow right\nEast in the color, east in the light\n\n[Final Chorus]\nDistrict lights, district lights\nLast reflection burning bright\nStreet wrote the hook and we got it right\nDistrict lights...\n(Reverb tail)"
     },
@@ -886,7 +886,7 @@
       "introOffsetMs": null,
       "lore": "Recorded after the last train left — Justin Tiger kept the platform reverb and deleted every hook louder than a whisper.",
       "genreSlug": "jazztronica",
-      "sonicBrief": "Mellow overnight jazztronica instrumental. Empty-platform reverb, soft Rhodes, restrained bass, brushed electronic drums, distant train ambience, whisper-level hook."
+      "sonicBrief": "Mellow overnight jazztronica instrumental. Increase jazz harmony: extended Rhodes voicings, ii-V color, 7th/9th/13th chords, tasteful chord substitutions, restrained bass, brushed electronic drums, distant train ambience, whisper-level hook."
     },
     {
       "id": "t35",
@@ -1361,7 +1361,7 @@
       "introOffsetMs": null,
       "lore": "Recorded through the laundromat window on a rainy afternoon — the hook dissolves like detergent in warm water.",
       "genreSlug": "k-pop",
-      "sonicBrief": "Warm Y2K k-pop chill instrumental. Rain-on-window texture, soft pop drums, dreamy pads, gentle pluck, detergent-swirl reverb, cozy fade."
+      "sonicBrief": "Warm Y2K k-pop chill instrumental. Clean dry pop mix with no lo-fi room reverb and no washed-out ambience. Soft pop drums, close gentle pluck, warm pads, clear hook, cozy but polished fade."
     },
     {
       "id": "t66",
@@ -1592,7 +1592,7 @@
       "introOffsetMs": null,
       "lore": "Focus mode as wireframe preview — Zone Render kept the guitars thin until the hook solidifies.",
       "genreSlug": "mecha",
-      "sonicBrief": "Focused mecha anime-rock instrumental. Wireframe synth texture, muted guitar riff, steady rock groove, orchestral accents, low-distraction OP energy."
+      "sonicBrief": "Focused but aggressive mecha anime-rock instrumental. Sharper distorted guitar riff, heavier rock drums, harder orchestral hits, urgent synth pulse, forward attack, no soft background feel, still structured for focus."
     },
     {
       "id": "t81",
@@ -1637,7 +1637,7 @@
       "introOffsetMs": null,
       "lore": "GTR-808 mapped every cowbell hit to a hairpin — the crest is the loudest turn on the touge.",
       "genreSlug": "phonk",
-      "sonicBrief": "Energetic drift phonk gym instrumental. Loud Memphis cowbell, distorted 808 bass, dark trap hats, lo-fi grit, hairpin-turn tension, athletic drive."
+      "sonicBrief": "Energetic drift phonk gym instrumental. Add loud piercing Roland-style cowbell lead as the main hook, distorted 808 bass, dark trap hats, gritty clipping, hairpin-turn tension, athletic drive, cowbell must cut through the mix."
     },
     {
       "id": "t84",
@@ -1727,7 +1727,7 @@
       "introOffsetMs": null,
       "lore": "Peak-hour warehouse set — Smoke Shift hammers the cowbell until the smoke alarm gives up.",
       "genreSlug": "phonk",
-      "sonicBrief": "Euphoric warehouse phonk party instrumental. Maximum cowbell, crushed 808 drop, industrial reverb, fast trap hats, peak rave aggression."
+      "sonicBrief": "Euphoric warehouse phonk party instrumental. Remove all traditional acoustic or folk elements. Use only electronic phonk textures, maximum cowbell, crushed 808 drop, rave synth stabs, fast trap hats, peak rave aggression."
     },
     {
       "id": "t90",
@@ -1787,7 +1787,7 @@
       "introOffsetMs": null,
       "lore": "After the warehouse clears — one cowbell echo and a warm 808 humming in the dark.",
       "genreSlug": "phonk",
-      "sonicBrief": "Warm low-energy phonk chill instrumental. Muted cowbell, soft 808 hum, lo-fi tape warmth, distant industrial reverb, post-rave calm."
+      "sonicBrief": "Warm low-energy phonk chill instrumental. Reduce dark and eerie tone: soft cowbell, warm 808 hum, gentle tape color, relaxed post-rave calm. No horror ambience, no ominous drones, no scary industrial darkness."
     },
     {
       "id": "t94",
@@ -1892,7 +1892,7 @@
       "introOffsetMs": null,
       "lore": "Catalog track one hundred — Amen Rush stripped the neuro stabs until only a heartbeat break and a whisper of reese remained.",
       "genreSlug": "dnb",
-      "sonicBrief": "Calm minimal DnB study instrumental. Sparse amen tick, soft sub pulse, no stabs, low-distraction 162 BPM, headphone-intimate fade."
+      "sonicBrief": "Calm DnB study instrumental with increased breakbeat density. Layered amen edits, detailed ghost snares, tighter percussion micro-variations, soft sub pulse, low-distraction mix, no harsh neuro stabs, headphone-intimate fade."
     }
   ]
 }
