@@ -249,4 +249,18 @@ describe('playbackReducer', () => {
     const second = playbackReducer(reply, { type: 'transcript', role: 'user', text: 'actually skip' });
     expect(second.userUtteranceCount).toBe(2);
   });
+
+  it('drops user lines that are only model intent tags', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const next = playbackReducer(base, {
+      type: 'transcript',
+      role: 'user',
+      text: '[casual remark]',
+    });
+    expect(next.transcript).toHaveLength(0);
+    expect(next.userUtteranceCount).toBe(0);
+  });
 });

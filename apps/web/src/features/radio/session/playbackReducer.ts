@@ -1,5 +1,6 @@
 import type { CreateSessionResponse, FlowTrackRef, Phase } from '@auracle/shared';
 import { getTrackMeta } from '@/data/trackCatalog';
+import { sanitizeTranscriptText } from '@/features/radio/lib/transcriptText';
 import { DEMO_SESSION } from '@/data/demoData';
 import type { PlaybackState, PlaylistFeedback, QueueRefreshStatus, TranscriptLine, UiPhase } from '@/features/radio/session/types';
 
@@ -255,12 +256,13 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
       };
     }
     case 'transcript': {
-      if (!action.text) return state;
+      const text = sanitizeTranscriptText(action.text, action.role);
+      if (!text) return state;
       const { lines, activeId } = updateTranscript(
         state.transcript,
         state.activeTranscriptId,
         action.role,
-        action.text,
+        text,
         state.sessionElapsedSec,
       );
       // A new user line (activeId changed) is one fresh utterance — drives the
