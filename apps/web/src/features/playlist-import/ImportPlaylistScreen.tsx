@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { AuthUser, ImportedPlaylistProfile, PlaylistImportSource, PlaylistImportTrack } from '@auracle/shared';
 import { AppBrand } from '@/features/marketing/AppBrand';
+import { CatalogArchivePanel } from '@/features/sound/CatalogArchivePanel';
 import { cn } from '@/shared/lib/cn';
 import { describePlaylistImportError, fetchImportedPlaylists, saveImportedPlaylist } from './playlistImportApi';
 import { parsePlaylistInput, sourceLabel } from './playlistImportParser';
@@ -31,6 +32,7 @@ export function ImportPlaylistScreen({ user, onClose, embedded = false }: Import
   const [saved, setSaved] = useState<ImportedPlaylistProfile | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [profiles, setProfiles] = useState<ImportedPlaylistProfile[]>([]);
+  const [catalogTrackCount, setCatalogTrackCount] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const parsed = useMemo(() => parsePlaylistInput(rawInput, source), [rawInput, source]);
@@ -80,39 +82,54 @@ export function ImportPlaylistScreen({ user, onClose, embedded = false }: Import
             <button className={styles.backButton} type="button" onClick={onClose}>
               Back
             </button>
-            <span className={styles.contextLabel}>Import Music</span>
+            <span className={styles.contextLabel}>Library</span>
           </div>
         ) : null}
 
         <div className={styles.heroGrid}>
           <section className={styles.heroCopy} aria-labelledby="import-title">
-            <h1 id="import-title">Turn playlists into radio memory.</h1>
+            <h1 id="import-title">Your music library.</h1>
             <p>
-              Bring in CSV, pasted tracks, or Spotify export metadata. Auracle reads the songs as
-              long-term taste context for future stations.
+              Browse and preview every track in the Auracle catalog, or import playlists so future
+              stations can learn from your history.
             </p>
           </section>
           <div className={styles.memoryCard} aria-hidden>
-            <span>Archive signal</span>
-            <strong>{parsed.tracks.length || '0'} tracks</strong>
+            <span>Local catalog</span>
+            <strong>{catalogTrackCount != null ? `${catalogTrackCount} tracks` : '…'}</strong>
             <div className={styles.signalRows}>
+              <i style={{ '--width': catalogTrackCount ? '88%' : '36%' } as CSSProperties} />
               <i style={{ '--width': `${Math.min(92, Math.max(28, stats.topArtists.length * 18))}%` } as CSSProperties} />
               <i style={{ '--width': `${Math.min(88, Math.max(24, stats.topGenres.length * 20))}%` } as CSSProperties} />
-              <i style={{ '--width': `${stats.yearRange ? 78 : 32}%` } as CSSProperties} />
             </div>
           </div>
         </div>
       </header>
 
       <main className={styles.main}>
+        <section className={styles.catalogPanel} aria-labelledby="library-catalog-title">
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.kicker}>Browse</p>
+              <h2 id="library-catalog-title">Auracle catalog</h2>
+            </div>
+            <span className={styles.countBadge}>On device</span>
+          </div>
+          <CatalogArchivePanel tone="library" onTrackCount={setCatalogTrackCount} />
+        </section>
+
         {isGuest ? (
           <section className={styles.guestGate}>
             <p className={styles.kicker}>Login required</p>
-            <h2>Your music history needs an account.</h2>
-            <p>Guest mode can preview the radio, but imported playlists are saved to your personal taste memory.</p>
+            <h2>Import needs an account.</h2>
+            <p>Guest mode can browse and preview the catalog, but imported playlists are saved to your personal taste memory.</p>
           </section>
         ) : (
           <>
+            <div className={styles.sectionDivider} role="separator" aria-label="Import section">
+              <span>Import your history</span>
+            </div>
+
             <section className={styles.importGrid}>
               <div className={styles.editorPanel}>
                 <div className={styles.panelHeader}>

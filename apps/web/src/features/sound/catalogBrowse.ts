@@ -77,6 +77,30 @@ export function groupCatalog(tracks: TrackMeta[]): BrowseCatalog {
   };
 }
 
+/** Filter catalog tree by title or artist name (client-side browse). */
+export function filterCatalog(catalog: BrowseCatalog, query: string): BrowseCatalog {
+  const q = query.trim().toLowerCase();
+  if (!q) return catalog;
+
+  const tracks = catalog.tracks.filter(
+    (t) => t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q),
+  );
+  const trackIds = new Set(tracks.map((t) => t.id));
+  const artists = catalog.artists
+    .map((artist) => ({
+      ...artist,
+      albums: artist.albums
+        .map((album) => ({
+          ...album,
+          trackIds: album.trackIds.filter((id) => trackIds.has(id)),
+        }))
+        .filter((album) => album.trackIds.length > 0),
+    }))
+    .filter((artist) => artist.albums.length > 0);
+
+  return { artists, tracks };
+}
+
 /** Live genre taxonomy + counts (GET /catalog/genres). */
 export async function loadGenres(): Promise<GenreCount[]> {
   const res = await fetch('/catalog/genres');
