@@ -12,6 +12,12 @@
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   box-shadow: var(--shadow-sheet);
   will-change: transform;
+  /* Full-height layer sits above the sheet; ignore touches until expanded. */
+  pointer-events: none;
+}
+
+.drawerOpen {
+  pointer-events: auto;
 }
 
 .grip {
@@ -35,6 +41,7 @@
   padding: var(--space-sm) var(--space-md) 0;
   width: 100%;
   text-align: left;
+  pointer-events: auto;
 }
 
 .handle:focus-visible {

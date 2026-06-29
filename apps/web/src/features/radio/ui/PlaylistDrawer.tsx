@@ -136,7 +136,7 @@ export function PlaylistDrawer() {
   return (
     <section
       ref={drawerRef}
-      className={styles.drawer}
+      className={cn(styles.drawer, open && styles.drawerOpen)}
       style={{ '--drawer-peek': `${peek}px` } as CSSProperties}
       aria-label="Up next"
     >
