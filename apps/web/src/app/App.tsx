@@ -218,6 +218,14 @@ function HomePage({
         status: formatSavedAt(session.savedAt),
       }));
   const libraryTrackCount = state.sessionTracklist.length;
+  const previewArtworkTrackId = hasSession ? state.trackId : latestSavedSession?.tracks[0]?.id ?? '';
+  const previewArtwork = useTrackMeta(previewArtworkTrackId);
+  const previewArtworkUrl = previewArtwork.albumCoverUrl || previewArtwork.artistPhotoUrl;
+  const previewArtworkAlt = previewArtwork.albumCoverUrl
+    ? `${previewArtwork.albumTitle || previewArtwork.title} cover`
+    : previewArtwork.artistPhotoUrl
+      ? `${previewArtwork.artist} image`
+      : '';
 
   return (
     <main className={`${styles.productSurface} ${styles.homeSurface} ${styles.pageTransition}`}>
@@ -247,8 +255,12 @@ function HomePage({
                     : 'Start your first station to create a listening path.'}
               </p>
             </div>
-            <div className={styles.sessionArtwork} aria-hidden>
-              <span />
+            <div className={`${styles.sessionArtwork} ${previewArtworkUrl ? styles.sessionArtworkWithImage : ''}`} aria-hidden={!previewArtworkUrl}>
+              {previewArtworkUrl ? (
+                <img src={previewArtworkUrl} alt={previewArtworkAlt} width={174} height={174} loading="lazy" />
+              ) : (
+                <span />
+              )}
             </div>
           </div>
 

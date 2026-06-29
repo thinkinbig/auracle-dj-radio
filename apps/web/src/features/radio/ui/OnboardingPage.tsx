@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { AuthUser, SessionIntent } from '@auracle/shared';
 import { evalMode } from '@/shared/lib/evalMode';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
@@ -18,15 +18,17 @@ export function OnboardingPage({ user }: { user: AuthUser }) {
   const greeting = useMemo(() => getGreeting(new Date()), []);
   const firstName = user.name.split(/\s+/).filter(Boolean)[0] ?? 'there';
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, []);
+
   return (
     <div className={styles.page}>
       <main className={styles.frame} aria-labelledby="mood-title">
         <section className={styles.copy}>
-          <p className={styles.eyebrow}>{greeting}</p>
+          <p className={styles.eyebrow}>{greeting}, {firstName}</p>
           <h1 id="mood-title">Let&apos;s build today&apos;s session.</h1>
-          <p className={styles.lede}>
-            Auracle listens for your mood, your moment, and the quiet signals that make this radio feel like yours, {firstName}.
-          </p>
+          <p className={styles.lede}>Tell Auracle what&apos;s on your mind...</p>
           {evalMode ? (
             <p className={styles.evalNote}>User study: sign in with your assigned account before starting.</p>
           ) : null}
