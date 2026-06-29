@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
+import { useSpotifyPlaybackState, type SpotifyQueueTrack } from '@/features/spotify/spotifyPlayback';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
 import { IconChevronUp } from '@/shared/ui/Icons';
@@ -18,6 +19,10 @@ export function PlaylistDrawer() {
   const state = useRadioState();
   const [open, setOpen] = useState(false);
   const current = useTrackMeta(state.trackId);
+  const spotify = useSpotifyPlaybackState();
+  const spotifyQueueReady = spotify.enabled && spotify.queueTracks.length > 0;
+  const currentSpotifyTrack = spotify.queueTracks[state.currentTrackIndex];
+  const remainingSpotifyTracks = spotify.queueTracks.slice(state.currentTrackIndex + 1);
   const count = state.remainingTrackIds.length + 1;
 
   const drawerRef = useRef<HTMLElement>(null);
@@ -64,19 +69,40 @@ export function PlaylistDrawer() {
       </button>
 
       <ul id="playlist-drawer-list" className={styles.list} aria-hidden={!open}>
-        <li className={cn(styles.item, styles.itemCurrent)}>
-          <span className={styles.index}>▶</span>
-          <div className={styles.itemText}>
-            <p className={styles.title}>{current.title}</p>
-            <p className={styles.artist}>{current.artist}</p>
-          </div>
-          <span className={styles.duration}>{formatTime(current.durationSec)}</span>
-        </li>
-        {state.remainingTrackIds.map((id, i) => (
-          <DrawerItem key={id} id={id} index={i + 2} />
-        ))}
+        {spotifyQueueReady && currentSpotifyTrack ? (
+          <SpotifyDrawerItem track={currentSpotifyTrack} index="▶" current />
+        ) : (
+          <li className={cn(styles.item, styles.itemCurrent)}>
+            <span className={styles.index}>▶</span>
+            <div className={styles.itemText}>
+              <p className={styles.title}>{current.title}</p>
+              <p className={styles.artist}>{current.artist}</p>
+            </div>
+            <span className={styles.duration}>{formatTime(current.durationSec)}</span>
+          </li>
+        )}
+        {spotifyQueueReady
+          ? remainingSpotifyTracks.map((track, i) => (
+              <SpotifyDrawerItem key={track.uri} track={track} index={state.currentTrackIndex + i + 2} />
+            ))
+          : state.remainingTrackIds.map((id, i) => (
+              <DrawerItem key={id} id={id} index={i + 2} />
+            ))}
       </ul>
     </section>
+  );
+}
+
+function SpotifyDrawerItem({ track, index, current }: { track: SpotifyQueueTrack; index: number | string; current?: boolean }) {
+  return (
+    <li className={cn(styles.item, current && styles.itemCurrent)}>
+      <span className={styles.index}>{index}</span>
+      <div className={styles.itemText}>
+        <p className={styles.title}>{track.title}</p>
+        <p className={styles.artist}>{track.artist}</p>
+      </div>
+      <span className={styles.duration}>{formatTime(track.durationSec)}</span>
+    </li>
   );
 }
 

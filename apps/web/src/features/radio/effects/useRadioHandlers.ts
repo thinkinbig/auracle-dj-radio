@@ -4,6 +4,11 @@ import { createAudioBus } from '../lib/liveAudio';
 import { createSession, postHostMode, postSessionEvent, regenerateSession, SessionAuthError } from '../lib/sessionApi';
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
+import {
+  buildSpotifyQueueFromTaste,
+  isSpotifyPlaybackEnabled,
+  pauseSpotifyPlayback,
+} from '@/features/spotify/spotifyPlayback';
 import type { RadioCommands } from '../lib/radioCommands';
 import type { PlaybackState, PlaylistFeedback } from '@/features/radio/session/types';
 import type { AudioRefs, StoreRefs } from './sessionRefs';
@@ -68,6 +73,9 @@ export function useRadioHandlers({
       store.dispatchRef.current({ type: 'begin' });
       const session = await createSession(intent);
       void prefetchTracks(session.tracklist.map((t) => t.id));
+      if (isSpotifyPlaybackEnabled()) {
+        void buildSpotifyQueueFromTaste(intent, session.tracklist.length);
+      }
       store.dispatchRef.current({ type: 'start', session });
     } catch (err) {
       if (err instanceof SessionAuthError) {
@@ -95,6 +103,7 @@ export function useRadioHandlers({
 
   const handleReturnToSetup = useCallback(() => {
     audio.audioRef.current?.pause();
+    void pauseSpotifyPlayback();
     if (audio.audioRef.current) audio.audioRef.current.currentTime = 0;
     audio.audioBusRef.current?.skipDj();
     store.dispatchRef.current({ type: 'reset' });

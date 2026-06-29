@@ -1,5 +1,6 @@
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
+import { useSpotifyPlaybackState } from '@/features/spotify/spotifyPlayback';
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
 import { formatTime } from '@/shared/lib/formatTime';
 import {
@@ -24,11 +25,16 @@ export function ContentSheet() {
   const curating = isCurating(state.phase);
   const catalogLoaded = useCatalogLoaded();
   const track = useTrackMeta(state.trackId);
+  const spotify = useSpotifyPlaybackState();
+  const spotifyTrack = spotify.enabled ? spotify.queueTracks[state.currentTrackIndex] : undefined;
   const showSkeleton = curating || (idle && !catalogLoaded);
   const showOnboarding = idle;
   const skipDisabled = !canSkipTrack(state);
   const pct = playbackProgressPct(state);
-  const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
+  const displayTitle = spotifyTrack?.title ?? state.trackTitle;
+  const displayArtist = spotifyTrack?.artist ?? state.artist;
+  const displayAlbum = spotifyTrack?.albumTitle ?? state.albumTitle;
+  const currentCoverUrl = spotifyTrack?.albumCoverUrl || state.albumCoverUrl || track.albumCoverUrl;
   const flowLabel = state.sessionSubtitle
     .split('·')
     .map((part) => part.trim())
@@ -74,11 +80,11 @@ export function ContentSheet() {
                   />
                 ) : null}
                 <div className={styles.trackInfo}>
-                  <p className={styles.trackTitle}>{state.trackTitle}</p>
+                  <p className={styles.trackTitle}>{displayTitle}</p>
                   <div className={styles.albumLine}>
                     <p className={styles.trackCredit}>
-                      <span>{state.artist}</span>
-                      {state.albumTitle ? <small>{state.albumTitle}</small> : null}
+                      <span>{displayArtist}</span>
+                      {displayAlbum ? <small>{displayAlbum}</small> : null}
                     </p>
                     {track.mood ? <p className={styles.trackMood}>{track.mood}</p> : null}
                   </div>

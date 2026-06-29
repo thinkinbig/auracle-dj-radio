@@ -132,38 +132,62 @@
 .rightControls {
   justify-content: flex-end;
   min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .hostModes {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
-    rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 10px 28px rgba(0, 0, 0, 0.14);
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   flex-shrink: 0;
 }
 
 .hostMode {
-  height: 32px;
-  padding: 0 13px;
-  border-radius: 999px;
-  color: rgba(248, 250, 252, 0.54);
-  font-size: 11px;
-  font-weight: 820;
+  min-width: 60px;
+  height: 42px;
+  display: inline-grid;
+  grid-template-rows: auto auto;
+  place-items: center;
+  gap: 2px;
+  padding: 5px 10px 6px;
+  border-radius: 14px;
+  color: rgba(248, 250, 252, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.016)),
+    rgba(27, 31, 29, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 12px 22px rgba(0, 0, 0, 0.14);
   transition:
     background var(--duration-fast),
-    color var(--duration-fast);
+    color var(--duration-fast),
+    border-color var(--duration-fast),
+    box-shadow var(--duration-fast),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .hostMode:hover:not(:disabled) {
-  color: rgba(248, 250, 252, 0.86);
+  color: rgba(248, 250, 252, 0.9);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.022)),
+    rgba(36, 41, 38, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 18px rgba(141, 247, 167, 0.08),
+    0 12px 22px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px);
+}
+
+.hostMode span {
+  font-size: 10px;
+  font-weight: 760;
+  line-height: 1;
+  letter-spacing: 0;
 }
 
 .hostMode:focus-visible {
@@ -177,30 +201,45 @@
 }
 
 .hostModeActive {
-  color: rgba(218, 255, 226, 0.96);
+  color: rgba(232, 255, 238, 0.98);
   background:
-    linear-gradient(180deg, rgba(141, 247, 167, 0.24), rgba(141, 247, 167, 0.09)),
-    rgba(141, 247, 167, 0.09);
+    linear-gradient(180deg, rgba(141, 247, 167, 0.17), rgba(141, 247, 167, 0.065)),
+    rgba(30, 43, 34, 0.92);
+  border-color: rgba(141, 247, 167, 0.19);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    0 0 22px rgba(141, 247, 167, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.065),
+    0 14px 24px rgba(0, 0, 0, 0.2);
 }
 
 .btn,
 .btnGhost {
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-control);
+  border-radius: 999px;
   display: grid;
   place-items: center;
   color: rgba(248, 250, 252, 0.86);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+    rgba(38, 42, 39, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 14px 26px rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
-  transition: background var(--duration-fast);
+  transition:
+    background var(--duration-fast),
+    color var(--duration-fast),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .btn:hover:not(:disabled),
 .btnGhost:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
+  color: rgba(248, 250, 252, 0.95);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.024)),
+    rgba(45, 50, 46, 0.92);
+  transform: translateY(-1px);
 }
 
 .btn:focus-visible,
@@ -217,7 +256,10 @@
 }
 
 .btnGhost {
-  color: rgba(248, 250, 252, 0.64);
+  color: rgba(248, 250, 252, 0.58);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .playBtn {

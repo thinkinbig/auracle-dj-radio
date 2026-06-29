@@ -6,6 +6,8 @@ import { useBarCount } from '@/shared/hooks/useBarCount';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
+import { SpotifyPlaybackControl } from '@/features/spotify/SpotifyPlaybackControl';
+import { useSpotifyPlaybackState } from '@/features/spotify/spotifyPlayback';
 import {
   canSkipTrack,
   hostModeDisabled,
@@ -22,18 +24,23 @@ import {
   IconShuffle,
   IconSkipNext,
   IconSkipPrevious,
+  IconSparkles,
+  IconLeaf,
+  IconZap,
 } from '@/shared/ui/Icons';
 import styles from './MiniControlBar.module.css';
 
-const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
-  { value: 'curator', label: 'Guide' },
-  { value: 'set_dj', label: 'Quiet' },
-  { value: 'hype', label: 'Energy' },
+const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string; Icon: typeof IconSparkles }> = [
+  { value: 'curator', label: 'Guide', Icon: IconSparkles },
+  { value: 'set_dj', label: 'Quiet', Icon: IconLeaf },
+  { value: 'hype', label: 'Energy', Icon: IconZap },
 ];
 
 export function MiniControlBar() {
   const state = useRadioState();
   const track = useTrackMeta(state.trackId);
+  const spotify = useSpotifyPlaybackState();
+  const spotifyTrack = spotify.enabled ? spotify.queueTracks[state.currentTrackIndex] : undefined;
   const {
     handleTogglePause,
     handleSkipTrack,
@@ -50,7 +57,9 @@ export function MiniControlBar() {
   const skipDisabled = !canSkipTrack(state);
   const modeDisabled = hostModeDisabled(state);
   const pct = playbackProgressPct(state);
-  const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
+  const displayTitle = spotifyTrack?.title ?? state.trackTitle;
+  const displayArtist = spotifyTrack?.artist ?? state.artist;
+  const currentCoverUrl = spotifyTrack?.albumCoverUrl || state.albumCoverUrl || track.albumCoverUrl;
 
   return (
     <footer className={styles.root} aria-label="Playback controls">
@@ -59,8 +68,8 @@ export function MiniControlBar() {
           <img className={styles.cover} src={currentCoverUrl} alt="" width={52} height={52} loading="lazy" />
         ) : null}
         <div className={styles.trackCopy}>
-          <p>{state.trackTitle}</p>
-          <span>{state.artist}</span>
+          <p>{displayTitle}</p>
+          <span>{displayArtist}</span>
         </div>
       </div>
 
@@ -125,10 +134,12 @@ export function MiniControlBar() {
       </div>
 
       <div className={styles.rightControls}>
+        {!idle && <SpotifyPlaybackControl compact />}
         {!idle && (
           <div className={styles.hostModes} aria-label="Host mode">
             {HOST_MODE_OPTIONS.map((option) => {
               const active = state.hostMode === option.value;
+              const ModeIcon = option.Icon;
               return (
                 <button
                   key={option.value}
@@ -138,8 +149,10 @@ export function MiniControlBar() {
                   disabled={modeDisabled}
                   aria-pressed={active}
                   aria-label={`Switch host mode to ${option.label}`}
+                  title={option.label}
                 >
-                  {option.label}
+                  <ModeIcon size={18} />
+                  <span>{option.label}</span>
                 </button>
               );
             })}

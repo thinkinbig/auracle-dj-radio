@@ -1,5 +1,6 @@
 import type { AuthUser } from '@auracle/shared';
 import { AppBrand } from '@/features/marketing/AppBrand';
+import { SpotifyPlaybackControl } from '@/features/spotify/SpotifyPlaybackControl';
 import { cn } from '@/shared/lib/cn';
 import { TastePanel } from './TastePanel';
 import styles from './SoundScreen.module.css';
@@ -95,6 +96,7 @@ export function SoundScreen({ user, onClose, onOpenImport, embedded = false }: S
                 <button className={styles.importButton} type="button" onClick={onOpenImport}>
                   Import Music
                 </button>
+                <SpotifyPlaybackControl />
               </section>
 
               <section className={styles.block} aria-labelledby="sound-learned-title">

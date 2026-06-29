@@ -3,6 +3,11 @@ import type { LiveRtcHandle } from './liveSessionRtc';
 import { postCue } from './sessionApi';
 import type { PlaybackAction } from '../session/playbackReducer';
 import type { PlaybackState } from '@/features/radio/session/types';
+import {
+  isSpotifyPlaybackEnabled,
+  pauseSpotifyPlayback,
+  setSpotifyVolume,
+} from '@/features/spotify/spotifyPlayback';
 
 /** End-of-track cue kinds the browser can request (memory-service builds the text). */
 type CueKind = 'break' | 'outro';
@@ -73,6 +78,7 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
 
       skipGuard = true;
       deps.getAudio()?.pause();
+      if (isSpotifyPlaybackEnabled()) void pauseSpotifyPlayback();
       if (s.currentTrackIndex === 0) deps.releaseOpening();
       // Skipping mid voice-over: duck the DJ locally. now_playing (from
       // useTrackPlayback's track-change effect) mirrors the new pointer to
@@ -95,6 +101,7 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
       // zero round-trip). The music cut + restore is owned by the duck policy,
       // which now reads isTalking — so a mid-hold phase frame can't undo it.
       deps.getBus()?.skipDj();
+      if (isSpotifyPlaybackEnabled()) void setSpotifyVolume(0);
       deps.dispatch({ type: 'start_talk' });
     },
 
@@ -105,6 +112,7 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
       // never come, which would mute the DJ for the rest of the session). Music
       // restore is the duck policy's job once isTalking clears.
       deps.getBus()?.resumeDj();
+      if (isSpotifyPlaybackEnabled()) void setSpotifyVolume(1);
       deps.dispatch({ type: 'stop_talk' });
     },
 
@@ -117,6 +125,7 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
       // (local, zero round-trip), then deliver the typed message to the model as
       // a user turn over the data channel.
       deps.getBus()?.skipDj();
+      if (isSpotifyPlaybackEnabled()) void setSpotifyVolume(0.25);
       deps.getLive()?.sendText(trimmed);
       // Echo into the transcript ourselves: unlike mic audio, typed text isn't
       // transcribed back by the model, so this is the only record of the turn.

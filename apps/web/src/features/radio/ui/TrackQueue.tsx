@@ -1,5 +1,6 @@
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
+import { useSpotifyPlaybackState, type SpotifyQueueTrack } from '@/features/spotify/spotifyPlayback';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
 import { Skeleton } from '@/shared/ui/Skeleton';
@@ -21,7 +22,11 @@ export function TrackQueue() {
   const state = useRadioState();
   const { handlePlaylistFeedback } = useRadioActions();
   const catalogLoaded = useCatalogLoaded();
+  const spotify = useSpotifyPlaybackState();
   const current = useTrackMeta(state.trackId);
+  const spotifyQueueReady = spotify.enabled && spotify.queueTracks.length > 0;
+  const currentSpotifyTrack = spotify.queueTracks[state.currentTrackIndex];
+  const remainingSpotifyTracks = spotify.queueTracks.slice(state.currentTrackIndex + 1);
   const recentlyChanged = new Set(state.recentlyChangedIds);
   let feedbackLabel = 'Feedback';
   if (state.queueRefreshStatus === 'pending') feedbackLabel = 'Rebuilding from current track...';
@@ -37,6 +42,9 @@ export function TrackQueue() {
       <div className={styles.header}>
         <div className={styles.tabs} aria-label="Queue view">
           <h3 className={cn(styles.heading, styles.headingActive)}>Up next</h3>
+          <span className={cn(styles.sourceMode, spotify.enabled && styles.sourceModeSpotify)}>
+            {spotify.enabled ? 'Spotify library' : 'Local files'}
+          </span>
         </div>
         <div className={styles.headerMeta}>
           <div className={styles.feedbackStatus} aria-live="polite">
@@ -85,24 +93,51 @@ export function TrackQueue() {
         </>
       ) : (
         <>
-          <div className={cn(styles.item, styles.itemCurrent)}>
-            <span className={styles.index}>▶</span>
-            <div className={styles.itemText}>
-              <p className={styles.title}>{current.title}</p>
-              <p className={styles.artist}>{current.artist}</p>
+          {spotifyQueueReady && currentSpotifyTrack ? (
+            <SpotifyQueueItem track={currentSpotifyTrack} index="▶" current />
+          ) : (
+            <div className={cn(styles.item, styles.itemCurrent)}>
+              <span className={styles.index}>▶</span>
+              <div className={styles.itemText}>
+                <p className={styles.title}>{current.title}</p>
+                <p className={styles.artist}>{current.artist}</p>
+                <TrackSourceLine id={state.trackId} localTitle={current.title} />
+              </div>
+              <span className={styles.duration}>{formatTime(current.durationSec)}</span>
             </div>
-            <span className={styles.duration}>{formatTime(current.durationSec)}</span>
-          </div>
+          )}
 
           <ul className={styles.list}>
-            {state.remainingTrackIds.map((id, i) => (
-              <TrackQueueItem key={id} id={id} index={i + 2} changed={recentlyChanged.has(id)} />
-            ))}
+            {spotifyQueueReady
+              ? remainingSpotifyTracks.map((track, i) => (
+                  <SpotifyQueueItem key={track.uri} track={track} index={state.currentTrackIndex + i + 2} />
+                ))
+              : state.remainingTrackIds.map((id, i) => (
+                  <TrackQueueItem key={id} id={id} index={i + 2} changed={recentlyChanged.has(id)} />
+                ))}
           </ul>
         </>
       )}
     </aside>
   );
+}
+
+function SpotifyQueueItem({ track, index, current }: { track: SpotifyQueueTrack; index: number | string; current?: boolean }) {
+  const content = (
+    <>
+      <span className={styles.index}>{index}</span>
+      <div className={styles.itemText}>
+        <p className={styles.title}>{track.title}</p>
+        <p className={styles.artist}>{track.artist}</p>
+        <p className={styles.sourceLine}>
+          Source: Spotify {track.source === 'saved' ? 'Saved tracks' : 'Top tracks'} · {track.reason}
+        </p>
+      </div>
+      <span className={styles.duration}>{formatTime(track.durationSec)}</span>
+    </>
+  );
+  if (current) return <div className={cn(styles.item, styles.itemCurrent)}>{content}</div>;
+  return <li className={styles.item}>{content}</li>;
 }
 
 function TrackQueueItem({ id, index, changed }: { id: string; index: number; changed: boolean }) {
@@ -113,8 +148,31 @@ function TrackQueueItem({ id, index, changed }: { id: string; index: number; cha
       <div className={styles.itemText}>
         <p className={styles.title}>{track.title}</p>
         <p className={styles.artist}>{track.artist}</p>
+        <TrackSourceLine id={id} localTitle={track.title} />
       </div>
       <span className={styles.duration}>{formatTime(track.durationSec)}</span>
     </li>
   );
+}
+
+function TrackSourceLine({ id, localTitle }: { id: string; localTitle: string }) {
+  const spotify = useSpotifyPlaybackState();
+  if (!spotify.enabled) {
+    return <p className={styles.sourceLine}>Source: local file catalog</p>;
+  }
+  const match = spotify.trackMatches[id];
+  if (!match) {
+    return <p className={styles.sourceLine}>Source: building Spotify library queue</p>;
+  }
+  const fallback = match.fallback ? 'fallback' : 'matched';
+  const sameTitle = normalizeLabel(match.title) === normalizeLabel(localTitle);
+  return (
+    <p className={styles.sourceLine}>
+      Source: Spotify Search {fallback}: {sameTitle ? match.artist : `${match.title} · ${match.artist}`}
+    </p>
+  );
+}
+
+function normalizeLabel(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }

@@ -5,6 +5,7 @@ import {
   playbackReducer,
 } from './playbackReducer';
 import type { PlaybackState, PlaylistFeedback } from '@/features/radio/session/types';
+import { useSpotifyPlaybackState } from '@/features/spotify/spotifyPlayback';
 import { useLiveConnection } from '../effects/useLiveConnection';
 import { useOpeningGate } from '../effects/useOpeningGate';
 import { useRadioCommands } from '../effects/useRadioCommands';
@@ -37,6 +38,7 @@ export function useRadioSession(onAuthExpired?: () => void): RadioSession {
   const [state, dispatch] = useReducer(playbackReducer, undefined, createInitialPlaybackState);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
+  const spotify = useSpotifyPlaybackState();
   const { store, audio, live } = useSessionRefs(state, dispatch);
 
   const opening = useOpeningGate(store, audio);
@@ -55,6 +57,8 @@ export function useRadioSession(onAuthExpired?: () => void): RadioSession {
       isTalking: state.isTalking,
     },
     opening,
+    spotifyEnabled: spotify.enabled,
+    spotifyQueue: spotify.queueTracks,
   });
 
   useLiveConnection({
