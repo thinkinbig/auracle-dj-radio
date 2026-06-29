@@ -1,0 +1,165 @@
+.panel {
+  display: grid;
+  gap: 18px;
+}
+
+.muted,
+.error {
+  margin: 0;
+  font-size: 14px;
+}
+
+.muted {
+  color: rgba(248, 250, 252, 0.5);
+}
+
+.error {
+  color: rgba(251, 113, 133, 0.9);
+}
+
+.artistCard {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px;
+}
+
+.artistHead {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.artistCopy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.artistName {
+  margin: 0;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.persona,
+.concept,
+.lore {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.52);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.albumList {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.albumCard {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 14px;
+}
+
+.albumHead {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.albumCover {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.albumCopy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.albumTitle {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.trackList {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.trackRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.trackCover,
+.trackCoverFallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.trackCover {
+  object-fit: cover;
+}
+
+.trackCoverFallback {
+  display: block;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.trackMeta {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.trackTitle {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.82);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.loreToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  color: rgba(190, 148, 255, 0.82);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.loreToggle:hover {
+  color: rgba(210, 178, 255, 0.95);
+}
+
+.loreChevron {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.loreChevronCollapsed {
+  transform: rotate(180deg);
+}

@@ -2,6 +2,7 @@ import type { AuthUser } from '@auracle/shared';
 import { AppBrand } from '@/features/marketing/AppBrand';
 import { cn } from '@/shared/lib/cn';
 import { TastePanel } from './TastePanel';
+import { CatalogArchivePanel } from './CatalogArchivePanel';
 import styles from './SoundScreen.module.css';
 
 interface SoundScreenProps {
@@ -81,6 +82,21 @@ export function SoundScreen({ user, onClose, onOpenImport, embedded = false }: S
                 stations.
               </p>
               <TastePanel />
+            </section>
+
+            <section className={styles.archiveSection} aria-labelledby="sound-catalog-archive-title">
+              <div className={styles.blockHeader}>
+                <div>
+                  <p className={styles.kicker}>Browse</p>
+                  <h2 id="sound-catalog-archive-title">Catalog archive</h2>
+                </div>
+                <span className={styles.badge}>Read-only</span>
+              </div>
+              <p className={styles.blockCopy}>
+                Explore artists, albums, and track stories from the library. Tuning still happens in
+                Taste profile above.
+              </p>
+              <CatalogArchivePanel />
             </section>
 
             <div className={styles.supportGrid}>

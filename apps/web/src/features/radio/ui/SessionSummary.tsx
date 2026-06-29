@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import type { FlowTrackRef } from '@auracle/shared';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { isSessionComplete, selectQueueRefresh } from '@/features/radio/session/playbackSelectors';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
+import { IconChevronUp } from '@/shared/ui/Icons';
 import { cn } from '@/shared/lib/cn';
 import styles from './SessionSummary.module.css';
 
@@ -76,6 +78,10 @@ function SummaryTrack({
 }) {
   const track = useTrackMeta(trackRef.id);
   const label = status === 'live' ? 'Live' : status === 'played' ? 'Played' : 'Queued';
+  const lore = track.lore.trim();
+  const canShowLore = lore && status !== 'queued';
+  const [loreExpanded, setLoreExpanded] = useState(false);
+  const loreId = `summary-lore-${trackRef.flow_position}-${trackRef.id}`;
 
   return (
     <li className={cn(styles.item, status === 'live' && styles.itemLive)}>
@@ -92,6 +98,28 @@ function SummaryTrack({
         </div>
         <p className={styles.artist}>{track.artist}</p>
         <p className={styles.reason}>{trackRef.reason}</p>
+        {canShowLore ? (
+          <>
+            <button
+              type="button"
+              className={styles.loreToggle}
+              aria-expanded={loreExpanded}
+              aria-controls={loreId}
+              onClick={() => setLoreExpanded((open) => !open)}
+            >
+              {loreExpanded ? 'Hide story' : 'Track story'}
+              <IconChevronUp
+                size={14}
+                className={cn(styles.loreChevron, !loreExpanded && styles.loreChevronCollapsed)}
+              />
+            </button>
+            {loreExpanded ? (
+              <p id={loreId} className={styles.lore}>
+                {lore}
+              </p>
+            ) : null}
+          </>
+        ) : null}
       </div>
     </li>
   );
