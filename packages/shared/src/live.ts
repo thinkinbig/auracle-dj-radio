@@ -8,6 +8,9 @@ import type { HostMode } from "./host-mode.js";
  */
 export type Phase = "dj_turn_start" | "dj_turn_end" | "user_barge_in";
 
+/** Rolling extend / regenerate queue refresh lifecycle (E6). */
+export type QueueRefreshStatus = "idle" | "pending" | "complete" | "error";
+
 /** Between-track DJ intents surfaced by Gemini Live function calling. */
 export type Intent =
   | { type: "skip_track" }
@@ -30,6 +33,7 @@ export type ServerMessage =
       /** Remaining track ids before the update; lets clients infer a diff when needed. */
       before_remaining_ids?: string[];
     }
+  | { type: "queue_refresh"; status: QueueRefreshStatus }
   | { type: "intent"; intent: Intent }
   | { type: "error"; message: string; circuit_state?: string; retry_after_sec?: number }
   /**

@@ -1,7 +1,7 @@
 import type { CreateSessionResponse, FlowTrackRef, Phase } from '@auracle/shared';
 import { getTrackMeta } from '@/data/trackCatalog';
 import { DEMO_SESSION } from '@/data/demoData';
-import type { PlaybackState, PlaylistFeedback, TranscriptLine, UiPhase } from '@/features/radio/session/types';
+import type { PlaybackState, PlaylistFeedback, QueueRefreshStatus, TranscriptLine, UiPhase } from '@/features/radio/session/types';
 
 export type PlaybackAction =
   | { type: 'reset' }
@@ -28,6 +28,7 @@ export type PlaybackAction =
     }
   | { type: 'playlist_feedback'; feedback: PlaylistFeedback }
   | { type: 'playlist_feedback_failed'; feedback: PlaylistFeedback }
+  | { type: 'queue_refresh'; status: QueueRefreshStatus }
   | { type: 'set_host_mode'; hostMode: CreateSessionResponse['host_mode'] }
   | { type: 'session_superseded' };
 
@@ -92,6 +93,15 @@ export function updateTranscript(
 function advanceTrack(state: PlaybackState): PlaybackState {
   const nextId = state.remainingTrackIds[0];
   if (!nextId) {
+    if (state.queueRefreshStatus === 'pending' || state.queueRefreshStatus === 'error') {
+      return {
+        ...state,
+        phase: 'complete',
+        progressSec: state.durationSec,
+        inBreak: false,
+        isTalking: false,
+      };
+    }
     return { ...state, phase: 'idle', progressSec: state.durationSec, inBreak: false, isTalking: false };
   }
   const meta = getTrackMeta(nextId);
@@ -176,7 +186,7 @@ function expireQueueDiff(state: PlaybackState, elapsedSec: number): PlaybackStat
   return state;
 }
 
-const SESSION_CLOCK_PHASES: UiPhase[] = ['playing', 'speaking', 'listening', 'opening'];
+const SESSION_CLOCK_PHASES: UiPhase[] = ['playing', 'speaking', 'listening', 'opening', 'complete'];
 
 /**
  * Map a relay phase frame to the UiPhase it produces in isolation. Context-dependent
@@ -290,25 +300,32 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
     }
     case 'tracklist_updated': {
       const sessionTracklist = replaceRemainingTrackRefs(state, action.remaining);
-      const wasRegenerating = state.queueRefreshStatus === 'pending';
+      const wasRefreshing = state.queueRefreshStatus === 'pending';
       const changedIds = uniqueIds(
         action.changedIds && action.changedIds.length > 0
           ? action.changedIds
           : inferChangedIds(action.beforeRemainingIds ?? state.remainingTrackIds, action.remaining),
       );
-      return {
+      const next: PlaybackState = {
         ...state,
         sessionTracklist,
         remainingTrackIds: action.remaining.map((ref) => ref.id),
         sessionTitle: action.sessionTitle ?? state.sessionTitle,
         sessionSubtitle: action.sessionSubtitle ?? state.sessionSubtitle,
-        playlistFeedback: wasRegenerating ? 'regenerate' : null,
-        queueRefreshStatus: wasRegenerating ? 'complete' : state.queueRefreshStatus,
+        playlistFeedback: wasRefreshing && state.playlistFeedback === 'regenerate' ? 'regenerate' : state.playlistFeedback,
+        queueRefreshStatus: wasRefreshing ? 'complete' : state.queueRefreshStatus,
         recentlyChangedIds: changedIds,
         queueDiffExpiresAtSec: changedIds.length > 0 ? state.sessionElapsedSec + QUEUE_DIFF_TTL_SEC : null,
         queueDiffMessage: changedIds.length > 0 ? formatQueueDiffMessage(changedIds.length) : null,
       };
+      const queueWasEmpty = state.remainingTrackIds.length === 0;
+      if (queueWasEmpty && action.remaining.length > 0 && (state.phase === 'complete' || wasRefreshing)) {
+        return advanceTrack(next);
+      }
+      return next;
     }
+    case 'queue_refresh':
+      return { ...state, queueRefreshStatus: action.status };
     case 'playlist_feedback':
       // The signal is posted to the server for analytics/personalization; the
       // queue itself only changes when the server pushes `tracklist_updated`.

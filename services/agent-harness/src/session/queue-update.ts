@@ -1,4 +1,4 @@
-import type { FlowTrackRef } from "@auracle/shared";
+import type { FlowTrackRef, QueueRefreshStatus } from "@auracle/shared";
 import type { OrchestrationDeps } from "./replan.js";
 import type { SessionState } from "./store.js";
 
@@ -25,6 +25,17 @@ export interface QueueUpdate {
  * change, one channel. `ui_events` reaches the browser only (never the DJ model),
  * so this never informs Gemini — see `rt_llm_proxy` `inject`.
  */
+/** Push extend/regenerate refresh status to the browser (E6). */
+export async function pushQueueRefresh(
+  deps: OrchestrationDeps,
+  sessionId: string,
+  status: Extract<QueueRefreshStatus, "pending" | "error">,
+): Promise<void> {
+  await deps.proxy.inject(sessionId, {
+    ui_events: [{ type: "queue_refresh", status }],
+  });
+}
+
 export async function pushQueueUpdate(
   deps: OrchestrationDeps,
   state: SessionState,

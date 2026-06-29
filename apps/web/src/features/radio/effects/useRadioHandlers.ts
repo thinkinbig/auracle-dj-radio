@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { HostMode, SessionIntent } from '@auracle/shared';
 import { createAudioBus } from '../lib/liveAudio';
-import { createSession, postHostMode, postSessionEvent, regenerateSession, SessionAuthError } from '../lib/sessionApi';
+import { createSession, extendSession, postHostMode, postSessionEvent, regenerateSession, SessionAuthError } from '../lib/sessionApi';
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
 import type { RadioCommands } from '../lib/radioCommands';
@@ -17,6 +17,7 @@ export interface RadioHandlers {
   handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
   handlePlaylistFeedback: (feedback: PlaylistFeedback) => void;
+  handleRetryExtend: () => void;
   handleTalkStart: () => void;
   handleTalkEnd: () => void;
   handleSendText: (text: string) => void;
@@ -164,6 +165,14 @@ export function useRadioHandlers({
     }
   }, [store, commands]);
 
+  const handleRetryExtend = useCallback(() => {
+    const s = store.stateRef.current;
+    if (!s.sessionId || s.phase === 'idle' || s.phase === 'curating') return;
+    void extendSession(s.sessionId).then((ok) => {
+      if (!ok) store.dispatchRef.current({ type: 'queue_refresh', status: 'error' });
+    });
+  }, [store]);
+
   const handleChangeHostMode = useCallback(
     (hostMode: HostMode) => {
       const s = store.stateRef.current;
@@ -185,6 +194,7 @@ export function useRadioHandlers({
     handleContinue,
     handleChangeHostMode,
     handlePlaylistFeedback,
+    handleRetryExtend,
     handleTalkStart,
     handleTalkEnd,
     handleSendText,

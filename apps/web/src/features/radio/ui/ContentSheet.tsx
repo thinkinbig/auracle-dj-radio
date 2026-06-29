@@ -7,26 +7,33 @@ import {
   isCurating,
   isIdle,
   isPaused,
+  isSessionComplete,
   playbackProgressPct,
+  selectQueueRefresh,
 } from '@/features/radio/session/playbackSelectors';
 import { IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/Icons';
 import { IntentOnboarding } from './IntentOnboarding';
+import { SessionSummary } from './SessionSummary';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { cn } from '@/shared/lib/cn';
 import styles from './ContentSheet.module.css';
 
 export function ContentSheet() {
   const state = useRadioState();
-  const { handleStart, handleTogglePause, handleSkipTrack, handleContinue, handleTalkStart, handleTalkEnd } = useRadioActions();
+  const { handleStart, handleTogglePause, handleSkipTrack, handleContinue, handleTalkStart, handleTalkEnd, handleRetryExtend, handleReturnToSetup } = useRadioActions();
   const { isWide } = useLayoutMode();
   const paused = isPaused(state.phase);
   const idle = isIdle(state.phase);
+  const complete = isSessionComplete(state.phase);
   const curating = isCurating(state.phase);
   const catalogLoaded = useCatalogLoaded();
   const track = useTrackMeta(state.trackId);
   const showSkeleton = curating || (idle && !catalogLoaded);
   const showOnboarding = idle;
   const skipDisabled = !canSkipTrack(state);
+  const refresh = selectQueueRefresh(state);
+  const extendPending = complete && refresh.pending;
+  const extendFailed = complete && refresh.failed;
   const pct = playbackProgressPct(state);
   const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
   const flowLabel = state.sessionSubtitle
@@ -97,6 +104,33 @@ export function ContentSheet() {
       </div>
 
       <div className={styles.controls}>
+        {complete ? (
+          <div className={styles.completePanel} role="status" aria-live="polite">
+            {extendPending ? (
+              <p className={styles.completeCopy}>Finding more music for your station…</p>
+            ) : (
+              <>
+                <p className={styles.completeTitle}>Session complete</p>
+                <p className={styles.completeCopy}>
+                  {extendFailed
+                    ? 'We could not fetch the next batch. You can try again or start a fresh session.'
+                    : 'This set has played through. Keep listening or start something new.'}
+                </p>
+                <div className={styles.completeActions}>
+                  {extendFailed ? (
+                    <button type="button" className={styles.continueBtn} onClick={handleRetryExtend}>
+                      Continue listening
+                    </button>
+                  ) : null}
+                  <button type="button" className={styles.completeSecondaryBtn} onClick={handleReturnToSetup}>
+                    New session
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <>
         <button
           type="button"
           className={styles.controlBtn}
@@ -152,11 +186,15 @@ export function ContentSheet() {
             <span>{formatTime(state.durationSec)}</span>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {showOnboarding ? (
         <IntentOnboarding onStart={(intent) => void handleStart(intent)} disabled={curating} />
       ) : null}
+
+      {complete ? <SessionSummary /> : null}
     </section>
   );
 }

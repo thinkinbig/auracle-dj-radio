@@ -52,6 +52,42 @@
   border: 1px solid rgba(255, 255, 255, 0.075);
 }
 
+.completeCopy {
+  margin: 8px 0 0;
+  color: rgba(248, 250, 252, 0.62);
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 42ch;
+}
+
+.completeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.completePrimary,
+.completeSecondary {
+  min-height: 36px;
+  border-radius: 999px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.completePrimary {
+  border: 0;
+  background: #8df7a7;
+  color: #071108;
+}
+
+.completeSecondary {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(248, 250, 252, 0.88);
+}
+
 .list {
   list-style: none;
   display: flex;

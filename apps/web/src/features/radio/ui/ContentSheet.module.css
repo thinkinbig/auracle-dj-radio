@@ -564,3 +564,43 @@
     font-size: 17px;
   }
 }
+
+.completePanel {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 0 8px;
+}
+
+.completeTitle {
+  margin: 0;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.completeCopy {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.68);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.completeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.completeSecondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-control);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(248, 250, 252, 0.88);
+  font-size: 14px;
+  font-weight: 600;
+}

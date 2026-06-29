@@ -1,4 +1,5 @@
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
+import { selectQueueRefresh } from '@/features/radio/session/playbackSelectors';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
@@ -19,15 +20,21 @@ function TrackQueueSkeletonItem({ current }: { current?: boolean }) {
 
 export function TrackQueue() {
   const state = useRadioState();
-  const { handlePlaylistFeedback } = useRadioActions();
+  const { handlePlaylistFeedback, handleRetryExtend } = useRadioActions();
   const catalogLoaded = useCatalogLoaded();
   const current = useTrackMeta(state.trackId);
   const recentlyChanged = new Set(state.recentlyChangedIds);
+  const refresh = selectQueueRefresh(state);
+  const extendRetryable = refresh.retryable;
   let feedbackLabel = 'Feedback';
-  if (state.queueRefreshStatus === 'pending') feedbackLabel = 'Rebuilding from current track...';
-  else if (state.queueDiffMessage) feedbackLabel = state.queueDiffMessage;
-  else if (state.queueRefreshStatus === 'complete') feedbackLabel = 'Queue checked';
-  else if (state.queueRefreshStatus === 'error') feedbackLabel = 'Try again';
+  if (refresh.pending) {
+    feedbackLabel = refresh.intent === 'regenerate'
+      ? 'Rebuilding from current track...'
+      : 'Finding more music...';
+  } else if (state.queueDiffMessage) feedbackLabel = state.queueDiffMessage;
+  else if (refresh.status === 'complete') feedbackLabel = 'Queue checked';
+  else if (extendRetryable) feedbackLabel = 'More tracks unavailable · Try again';
+  else if (refresh.failed) feedbackLabel = 'Try again';
   else if (state.playlistFeedback === 'like') feedbackLabel = 'Host is keeping this direction';
   else if (state.playlistFeedback === 'dislike') feedbackLabel = 'Host is shifting the queue';
   else if (state.playlistFeedback === 'regenerate') feedbackLabel = 'Host is rebuilding the queue';
@@ -40,7 +47,13 @@ export function TrackQueue() {
         </div>
         <div className={styles.headerMeta}>
           <div className={styles.feedbackStatus} aria-live="polite">
-            {feedbackLabel}
+            {extendRetryable ? (
+              <button type="button" className={styles.feedbackRetry} onClick={handleRetryExtend}>
+                {feedbackLabel}
+              </button>
+            ) : (
+              feedbackLabel
+            )}
           </div>
           <div className={styles.feedbackBar} aria-label="Playlist feedback">
             <div className={styles.actions}>
@@ -65,7 +78,7 @@ export function TrackQueue() {
                 className={cn(styles.action, state.playlistFeedback === 'regenerate' && styles.actionActive)}
                 onClick={() => handlePlaylistFeedback('regenerate')}
                 aria-pressed={state.playlistFeedback === 'regenerate'}
-                disabled={state.queueRefreshStatus === 'pending'}
+                disabled={refresh.pending}
               >
                 Regenerate
               </button>

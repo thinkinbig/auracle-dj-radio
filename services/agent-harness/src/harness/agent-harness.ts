@@ -364,6 +364,14 @@ export class AgentHarness {
     };
   }
 
+  /** User-initiated rolling extend retry after a failed append (E6). */
+  async retryExtend(id: string): Promise<boolean> {
+    const state = this.deps.store.get(id);
+    if (!state) return false;
+    await extendQueue(this.orchestration, state, this.deps.log, { force: true });
+    return true;
+  }
+
   async recordClientEvent(id: string, eventType: string, payload: unknown): Promise<boolean> {
     const state = this.deps.store.get(id);
     if (!state) return false;

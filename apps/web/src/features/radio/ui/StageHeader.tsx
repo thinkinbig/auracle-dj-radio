@@ -8,6 +8,8 @@ import { cn } from '@/shared/lib/cn';
 import {
   isOnAir,
   isPaused,
+  isSessionComplete,
+  selectQueueRefresh,
   statusLabel,
 } from '@/features/radio/session/playbackSelectors';
 import styles from './StageHeader.module.css';
@@ -17,10 +19,16 @@ export function StageHeader() {
   const state = useRadioState();
   const analyser = useRadioAnalyser();
   const micAnalyser = useRadioMicAnalyser();
-  const status = statusLabel(state.phase);
+  const status = statusLabel(state.phase, state.queueRefreshStatus);
   const onAir = isOnAir(state);
   const paused = isPaused(state.phase);
   const conversation = state.transcript.slice(-5);
+  // Queue-state axis: surface an in-flight rolling extend/regenerate here too, so it
+  // stays visible while the station keeps playing even when the queue sidebar is
+  // hidden (narrow layouts). At `complete` the status pill above already says it.
+  const refresh = selectQueueRefresh(state);
+  const showRefreshHint = refresh.pending && !isSessionComplete(state.phase);
+  const refreshHintLabel = refresh.intent === 'regenerate' ? 'Rebuilding the queue…' : 'Finding more music…';
 
   return (
     <header className={styles.root}>
@@ -43,6 +51,13 @@ export function StageHeader() {
           </time>
         </div>
       </div>
+
+      {showRefreshHint && (
+        <p className={styles.refreshHint} role="status" aria-live="polite">
+          <span className={cn(styles.liveDot, styles.liveDotOn)} aria-hidden />
+          {refreshHintLabel}
+        </p>
+      )}
 
       {state.liveWarning && (
         <p className={styles.warning} role="status" aria-live="polite">

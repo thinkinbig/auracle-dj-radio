@@ -110,6 +110,14 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     return result;
   });
 
+  app.post("/sessions/:id/extend", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!(await ensureOwner(req, reply, id))) return reply;
+    const ok = await harness.retryExtend(id);
+    if (!ok) return reply.code(404).send({ error: "session not found" });
+    return { ok: true };
+  });
+
   app.post("/sessions/:id/events", async (req, reply) => {
     const { id } = req.params as { id: string };
     if (!(await ensureOwner(req, reply, id))) return reply;

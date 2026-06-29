@@ -12,6 +12,7 @@ export interface RadioActions {
   handleContinue: () => void;
   handleChangeHostMode: (hostMode: HostMode) => void;
   handlePlaylistFeedback: (feedback: PlaylistFeedback) => void;
+  handleRetryExtend: () => void;
   handleTalkStart: () => void;
   handleTalkEnd: () => void;
   handleSendText: (text: string) => void;
@@ -47,6 +48,7 @@ export function RadioSessionProvider({
       handleContinue: session.handleContinue,
       handleChangeHostMode: session.handleChangeHostMode,
       handlePlaylistFeedback: session.handlePlaylistFeedback,
+      handleRetryExtend: session.handleRetryExtend,
       handleTalkStart: session.handleTalkStart,
       handleTalkEnd: session.handleTalkEnd,
       handleSendText: session.handleSendText,
