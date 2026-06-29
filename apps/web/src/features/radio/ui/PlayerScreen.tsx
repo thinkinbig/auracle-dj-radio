@@ -6,13 +6,14 @@ import { StageHeader } from './StageHeader';
 import { SupersededOverlay } from './SupersededOverlay';
 import { TrackQueue } from './TrackQueue';
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
+import styles from './PlayerScreen.module.css';
 
 /** The live radio screen: now playing, DJ status, queue, transcript, and controls. */
 export function PlayerScreen() {
   const { isWide, isPhoneFrame } = useLayoutMode();
 
   return (
-    <>
+    <div className={styles.root}>
       <AppShell
         stage={<StageHeader />}
         sheet={<ContentSheet />}
@@ -21,6 +22,6 @@ export function PlayerScreen() {
         miniBar={<MiniControlBar />}
       />
       <SupersededOverlay />
-    </>
+    </div>
   );
 }

@@ -98,7 +98,11 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
 
   function renderPage() {
     if (activePage === 'listen') {
-      return <AppContent user={user} />;
+      return (
+        <div className={styles.listenLayout}>
+          <AppContent user={user} />
+        </div>
+      );
     }
 
     if (activePage === 'import') {
