@@ -1,5 +1,6 @@
 import { AppShell } from './AppShell';
 import { ContentSheet } from './ContentSheet';
+import { MobileChromeProvider } from './mobileChrome';
 import { MiniControlBar } from './MiniControlBar';
 import { PlaylistDrawer } from './PlaylistDrawer';
 import { StageHeader } from './StageHeader';
@@ -14,13 +15,15 @@ export function PlayerScreen() {
 
   return (
     <div className={styles.root}>
-      <AppShell
-        stage={<StageHeader />}
-        sheet={<ContentSheet />}
-        queue={isWide || isPhoneFrame ? <TrackQueue /> : undefined}
-        drawer={!isPhoneFrame ? <PlaylistDrawer /> : undefined}
-        miniBar={<MiniControlBar />}
-      />
+      <MobileChromeProvider>
+        <AppShell
+          stage={<StageHeader />}
+          sheet={<ContentSheet />}
+          queue={isWide || isPhoneFrame ? <TrackQueue /> : undefined}
+          drawer={!isPhoneFrame ? <PlaylistDrawer /> : undefined}
+          miniBar={<MiniControlBar />}
+        />
+      </MobileChromeProvider>
       <SupersededOverlay />
     </div>
   );

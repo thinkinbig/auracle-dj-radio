@@ -1259,7 +1259,7 @@
 
 @media (max-width: 980px) {
   :root {
-    --listen-bottom-nav: 68px;
+    --listen-bottom-nav: 84px;
   }
 
   .listenLayout {

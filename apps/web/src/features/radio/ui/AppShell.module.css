@@ -42,10 +42,9 @@
   overflow: hidden;
 }
 
-/* Sheet region below the stage; positioning context for the playlist drawer so
-   the expanded drawer only covers the session card, not the stage above it.
-   The collapsed-handle reserve lives on the sheet card (ContentSheet) instead,
-   so the card background sits behind the drawer's rounded corners. */
+/* Sheet region below the stage. On mobile the now-playing card, playlist
+   drawer, and mini bar stack in normal flow so track changes do not cause
+   overlay remeasurement or content overlap. */
 .sheetArea {
   flex: 1;
   min-height: 0;
@@ -60,6 +59,7 @@
 .stackMini {
   flex-shrink: 0;
   padding: 0 var(--space-sm);
+  overflow: hidden;
 }
 
 .shellFrame {

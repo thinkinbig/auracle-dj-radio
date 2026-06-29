@@ -223,6 +223,11 @@
 
 .loreChevron {
   transform: rotate(180deg);
+  transition: transform 0.26s var(--ease-out);
+}
+
+.loreToggle[aria-expanded='true'] .loreChevron {
+  transform: rotate(0deg);
 }
 
 .trackTitle {
@@ -555,9 +560,7 @@
 
 @media (max-width: 767px) {
   .root {
-    /* Bottom padding reserves room for the collapsed playlist-drawer handle so
-       the card background backs it (no black gap behind its rounded corners). */
-    padding: var(--space-md) var(--space-md) var(--drawer-handle-h);
+    padding: var(--space-md);
     border-radius: 20px 20px 0 0;
   }
 

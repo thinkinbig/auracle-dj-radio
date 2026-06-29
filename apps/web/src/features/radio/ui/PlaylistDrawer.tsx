@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
@@ -7,25 +6,19 @@ import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
 import { IconChevronUp } from '@/shared/ui/Icons';
+import { useMobileChrome } from './mobileChrome';
 import styles from './PlaylistDrawer.module.css';
 
 gsap.registerPlugin(useGSAP);
-
-function drawerHandleHeight(): number {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue('--drawer-handle-h');
-  return Number.parseFloat(raw) || 56;
-}
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /**
- * Retractable bottom playlist for the mobile (<768px) layout, where the side
- * "Up next" queue is dropped. Collapsed it's a handle bar above the mini
- * control bar; expanded it slides up to just below the session heading
- * (title + time), covering the rest of the session card with a scrollable
- * track list.
+ * Retractable bottom playlist for the mobile (<768px) layout. It sits in the
+ * normal stack between the now-playing card and mini bar, so track changes do
+ * not remeasure or cover the card content.
  */
 export function PlaylistDrawer() {
   const state = useRadioState();
@@ -35,69 +28,22 @@ export function PlaylistDrawer() {
 
   const drawerRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const handleRef = useRef<HTMLButtonElement>(null);
-  const [peek, setPeek] = useState(0);
+  const { reportScroll, setChromePinned, showChrome } = useMobileChrome();
 
-  // Measure how far down the session heading (title + time) reaches inside the
-  // sheet area, so the expanded drawer can stop just below it and leave it
-  // visible while the list obscures everything beneath.
   useEffect(() => {
-    const area = drawerRef.current?.parentElement;
-    if (!area) return;
-    const heading = area.querySelector<HTMLElement>('[data-session-heading]');
-    if (!heading) return;
-    const measure = () => {
-      const top = area.getBoundingClientRect().top;
-      const bottom = heading.getBoundingClientRect().bottom;
-      setPeek(Math.max(0, Math.round(bottom - top)));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(area);
-    ro.observe(heading);
-    return () => ro.disconnect();
-  }, [state.phase, state.sessionTitle, state.sessionSubtitle]);
+    setChromePinned(open);
+    return () => setChromePinned(false);
+  }, [open, setChromePinned]);
 
-  const collapsedOffset = () => {
-    const drawer = drawerRef.current;
-    if (!drawer) return 0;
-    return Math.max(0, drawer.offsetHeight - drawerHandleHeight());
-  };
+  useEffect(() => {
+    if (!open) return;
+    const list = listRef.current;
+    if (!list) return;
+    const onScroll = () => reportScroll('playlist-drawer', list.scrollTop);
+    list.addEventListener('scroll', onScroll, { passive: true });
+    return () => list.removeEventListener('scroll', onScroll);
+  }, [open, reportScroll]);
 
-  useGSAP(
-    () => {
-      const drawer = drawerRef.current;
-      if (!drawer) return;
-
-      const y = open ? 0 : collapsedOffset();
-      if (prefersReducedMotion()) {
-        gsap.set(drawer, { y });
-        return;
-      }
-
-      gsap.to(drawer, {
-        y,
-        duration: 0.42,
-        ease: 'power3.out',
-        overwrite: 'auto',
-      });
-    },
-    { scope: drawerRef, dependencies: [open, peek], revertOnUpdate: true },
-  );
-
-  useGSAP(
-    () => {
-      const icon = handleRef.current?.querySelector('svg');
-      if (!icon) return;
-      gsap.to(icon, {
-        rotation: open ? 180 : 0,
-        duration: prefersReducedMotion() ? 0 : 0.28,
-        ease: 'power2.out',
-        overwrite: 'auto',
-      });
-    },
-    { scope: drawerRef, dependencies: [open], revertOnUpdate: true },
-  );
 
   useGSAP(
     () => {
@@ -137,15 +83,19 @@ export function PlaylistDrawer() {
     <section
       ref={drawerRef}
       className={cn(styles.drawer, open && styles.drawerOpen)}
-      style={{ '--drawer-peek': `${peek}px` } as CSSProperties}
       aria-label="Up next"
     >
       <span className={styles.grip} aria-hidden />
       <button
-        ref={handleRef}
         type="button"
         className={styles.handle}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((wasOpen) => {
+            const next = !wasOpen;
+            if (next) showChrome();
+            return next;
+          });
+        }}
         aria-expanded={open}
         aria-controls="playlist-drawer-list"
       >

@@ -19,6 +19,7 @@ import { IntentOnboarding } from './IntentOnboarding';
 import { SessionSummary } from './SessionSummary';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { cn } from '@/shared/lib/cn';
+import { useMobileChrome } from './mobileChrome';
 import styles from './ContentSheet.module.css';
 
 gsap.registerPlugin(useGSAP);
@@ -30,7 +31,6 @@ function prefersReducedMotion(): boolean {
 export function ContentSheet() {
   const sheetRef = useRef<HTMLElement>(null);
   const loreRef = useRef<HTMLParagraphElement>(null);
-  const loreToggleRef = useRef<HTMLButtonElement>(null);
   const state = useRadioState();
   const { handleStart, handleTogglePause, handleSkipTrack, handleContinue, handleTalkStart, handleTalkEnd, handleRetryExtend, handleReturnToSetup } = useRadioActions();
   const { isWide } = useLayoutMode();
@@ -57,10 +57,28 @@ export function ContentSheet() {
   const queuedLabel = `${state.remainingTrackIds.length} in queue`;
   const lore = state.lore.trim();
   const [loreExpanded, setLoreExpanded] = useState(false);
+  const { reportScroll, showChrome } = useMobileChrome();
+
+  // Keep the user's disclosure preference across tracks; only collapse when the new track has no lore.
+  useEffect(() => {
+    if (!lore) setLoreExpanded(false);
+  }, [state.trackId, lore]);
 
   useEffect(() => {
-    setLoreExpanded(false);
-  }, [state.trackId]);
+    if (isWide) return;
+    const el = sheetRef.current;
+    if (el) el.scrollTop = 0;
+    showChrome();
+  }, [state.trackId, isWide, showChrome]);
+
+  useEffect(() => {
+    if (isWide) return;
+    const el = sheetRef.current;
+    if (!el) return;
+    const onScroll = () => reportScroll('sheet', el.scrollTop);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [isWide, reportScroll]);
 
   const showStory = Boolean(lore) && (isWide || loreExpanded);
 
@@ -110,20 +128,6 @@ export function ContentSheet() {
     { scope: sheetRef, dependencies: [loreExpanded, lore, isWide], revertOnUpdate: true },
   );
 
-  useGSAP(
-    () => {
-      const icon = loreToggleRef.current?.querySelector('svg');
-      if (!icon) return;
-      gsap.to(icon, {
-        rotation: loreExpanded ? 0 : 180,
-        duration: prefersReducedMotion() ? 0 : 0.26,
-        ease: 'power2.out',
-        overwrite: 'auto',
-      });
-    },
-    { scope: sheetRef, dependencies: [loreExpanded], revertOnUpdate: true },
-  );
-
   return (
     <section ref={sheetRef} className={styles.root} aria-label="Now playing">
       <div
@@ -147,13 +151,14 @@ export function ContentSheet() {
           </>
         ) : (
           <>
-            <h1 className={styles.title}>{state.sessionTitle}</h1>
+            <h1 className={styles.title} data-session-heading>
+              {state.sessionTitle}
+            </h1>
             <div className={styles.nowPlaying}>
               <div className={styles.nowPlayingKickerRow}>
                 <p className={styles.trackKicker}>Now playing</p>
                 {!isWide && lore ? (
                   <button
-                    ref={loreToggleRef}
                     type="button"
                     className={styles.loreToggle}
                     aria-expanded={loreExpanded}
