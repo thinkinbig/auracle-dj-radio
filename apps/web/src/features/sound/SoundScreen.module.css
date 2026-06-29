@@ -165,6 +165,7 @@
 }
 
 .tasteSection,
+.archiveSection,
 .block {
   display: grid;
   gap: 14px;

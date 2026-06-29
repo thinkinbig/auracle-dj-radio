@@ -45,13 +45,16 @@ export function ContentSheet() {
     .join(' · ');
   const queuedLabel = `${state.remainingTrackIds.length} in queue`;
   const lore = state.lore.trim();
+  const persona = track.artistPersona.trim();
+  const concept = track.albumConcept.trim();
+  const hasStory = Boolean(lore || persona || concept);
   const [loreExpanded, setLoreExpanded] = useState(false);
 
   useEffect(() => {
     setLoreExpanded(false);
   }, [state.trackId]);
 
-  const showLore = Boolean(lore) && (isWide || loreExpanded);
+  const showStory = hasStory && (isWide || loreExpanded);
 
   return (
     <section className={styles.root} aria-label="Now playing">
@@ -80,7 +83,7 @@ export function ContentSheet() {
             <div className={styles.nowPlaying}>
               <div className={styles.nowPlayingKickerRow}>
                 <p className={styles.trackKicker}>Now playing</p>
-                {!isWide && lore ? (
+                {!isWide && hasStory ? (
                   <button
                     type="button"
                     className={styles.loreToggle}
@@ -130,10 +133,22 @@ export function ContentSheet() {
                   </div>
                 </div>
               </div>
-              {showLore ? (
-                <p id="now-playing-lore" className={cn(styles.lore, isWide && styles.loreScroll)}>
-                  {lore}
-                </p>
+              {showStory ? (
+                <div id="now-playing-lore" className={cn(styles.story, isWide && styles.loreScroll)}>
+                  {lore ? <p className={styles.storyText}>{lore}</p> : null}
+                  {persona ? (
+                    <div className={styles.storySection}>
+                      <p className={styles.storyKicker}>{state.artist}</p>
+                      <p className={styles.storyText}>{persona}</p>
+                    </div>
+                  ) : null}
+                  {concept && state.albumTitle ? (
+                    <div className={styles.storySection}>
+                      <p className={styles.storyKicker}>{state.albumTitle}</p>
+                      <p className={styles.storyText}>{concept}</p>
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
               <div className={styles.sessionFlow}>
                 <div>

@@ -9,6 +9,7 @@ export interface BrowseAlbum {
   slug: string;
   title: string;
   coverUrl: string;
+  concept: string;
   trackIds: string[];
 }
 
@@ -16,6 +17,7 @@ export interface BrowseArtist {
   slug: string;
   name: string;
   photoUrl: string;
+  persona: string;
   albums: BrowseAlbum[];
 }
 
@@ -26,6 +28,7 @@ export interface BrowseTrack {
   artistSlug: string;
   albumSlug: string;
   coverUrl: string;
+  lore: string;
 }
 
 export interface BrowseCatalog {
@@ -41,12 +44,12 @@ export function groupCatalog(tracks: TrackMeta[]): BrowseCatalog {
   for (const t of tracks) {
     let artist = artists.get(t.artistSlug);
     if (!artist) {
-      artist = { slug: t.artistSlug, name: t.artist, photoUrl: t.artistPhotoUrl, albums: [] };
+      artist = { slug: t.artistSlug, name: t.artist, photoUrl: t.artistPhotoUrl, persona: t.artistPersona, albums: [] };
       artists.set(t.artistSlug, artist);
     }
     let album = albums.get(t.albumSlug);
     if (!album) {
-      album = { slug: t.albumSlug, title: t.albumTitle, coverUrl: t.albumCoverUrl, trackIds: [] };
+      album = { slug: t.albumSlug, title: t.albumTitle, coverUrl: t.albumCoverUrl, concept: t.albumConcept, trackIds: [] };
       albums.set(t.albumSlug, album);
       artist.albums.push(album);
     }
@@ -60,6 +63,7 @@ export function groupCatalog(tracks: TrackMeta[]): BrowseCatalog {
     artistSlug: t.artistSlug,
     albumSlug: t.albumSlug,
     coverUrl: t.albumCoverUrl,
+    lore: t.lore,
   }));
 
   // Sort albums within each artist (insertion order otherwise depends on the
