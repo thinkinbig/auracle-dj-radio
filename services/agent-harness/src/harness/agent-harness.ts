@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Condition, HostMode, RegenerateSessionResponse, SessionIntent, TastePreference, TrackMeta } from "@auracle/shared";
 import { ANONYMOUS_USER_ID, parseHostMode } from "@auracle/shared";
 import { buildRegistration } from "../dj/registration.js";
+import { buildNowPlayingContextInject, toCueTrack } from "../dj/prompt.js";
 import type { MemoryServiceClient } from "../memory-service-client.js";
 import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
@@ -266,6 +267,19 @@ export class AgentHarness {
       this.deps.log?.info({ sessionId: state.id, ms }, "skip round-trip latency");
     }
     state.trackStartedAtMs = Date.now();
+
+    // Inject silent now-playing context so the DJ can answer mid-song questions
+    // ("introduce this track/artist") — ADR-0004 removed start-of-track segue cues.
+    void this.deps.music
+      .getTrack(trackId)
+      .then((meta) => {
+        const inject = buildNowPlayingContextInject(toCueTrack(meta), state.hostMode);
+        if (!inject) return;
+        return this.deps.proxy.inject(id, { inject_text: inject });
+      })
+      .catch((err) =>
+        this.deps.log?.warn({ err: (err as Error).message, sessionId: id }, "now playing context inject failed"),
+      );
 
     // Rolling extend (E1): keep the station on air when the queue runs low.
     // Fire-and-forget and debounced inside the module so it never blocks now_playing.

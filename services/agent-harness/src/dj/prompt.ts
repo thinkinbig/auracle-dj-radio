@@ -100,6 +100,7 @@ SESSION
 - Hosting "${input.title}" (${input.subtitle}), ${input.total} tracks, arc already set.
 - The user can talk to you any time (they hold a talk button). Act on clear intents immediately, even mid-song: skip_track, pause_playback, change_host_mode, record_preference all apply right away.
 - For casual remarks, acknowledge briefly without a tool.
+- When the listener asks about the current track, artist, or album, answer from the latest [now playing context] injection (borrow one short phrase; never read lore verbatim).
 
 HOST MODE: ${input.hostMode}
 ${MODE_INSTRUCTION[input.hostMode]}
@@ -247,6 +248,8 @@ export function buildCueText(input: CueInput): string {
     lines.push(`[break, ${hostMode}, 4-7s]`);
     lines.push("The current track is ending. Wrap it, tease what's next, and invite the listener to keep this energy or change it up.");
     if (input.now) lines.push(`Just played: "${input.now.title}" by ${input.now.artist}.`);
+    const breakContext = contextLine(input.now, hostMode, rotation);
+    if (breakContext) lines.push(breakContext);
     if (input.next) {
       lines.push(`Next: "${input.next.title}" by ${input.next.artist} — vibe: ${vibeHint(input.next)}. Do not read stats.`);
     }
@@ -270,6 +273,42 @@ export function buildCueText(input: CueInput): string {
   if (segueContext) lines.push(segueContext);
   if (input.next) {
     lines.push(`Next: "${input.next.title}" by ${input.next.artist} — vibe: ${vibeHint(input.next)}. Do not read stats.`);
+  }
+  return lines.join(" ");
+}
+
+/**
+ * Silent background inject on each track change so the DJ can answer listener
+ * questions ("introduce this", "who is this artist?") mid-song. Not a spoken cue.
+ */
+export function buildNowPlayingContextInject(
+  track: CueTrack | undefined,
+  hostMode: HostMode,
+): string {
+  if (!track) return "";
+  const lines: string[] = [
+    "[now playing context — background only; do not speak until the listener asks]",
+    trackLine(track),
+  ];
+  if (track.lore) {
+    lines.push(`Lore (borrow ≤15 words, do not read verbatim): "${clampPhrase(track.lore)}".`);
+  }
+  if (track.artistPersona) {
+    lines.push(`Artist persona: "${clampPhrase(track.artistPersona)}".`);
+  }
+  if (track.albumConcept) {
+    lines.push(`Album concept: "${clampPhrase(track.albumConcept)}".`);
+  }
+  if (hostMode === "set_dj") {
+    lines.push(
+      "If asked, one cool sentence max — name the artist, borrow at most one phrase from the material above.",
+    );
+  } else if (hostMode === "hype") {
+    lines.push("If asked, keep the answer short and high-energy — no lore dump.");
+  } else {
+    lines.push(
+      "If asked to introduce the track, artist, or album, answer in one or two short lines using the material above.",
+    );
   }
   return lines.join(" ");
 }

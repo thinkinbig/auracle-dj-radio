@@ -133,6 +133,13 @@ class FakeProxyClient implements ProxyClient {
   }
 }
 
+/** Orchestration injects (replan, extend, cues) — excludes silent now-playing context. */
+function orchestrationInjects(proxy: FakeProxyClient) {
+  return proxy.injectCalls.filter(
+    (c) => !c.payload.inject_text?.includes("[now playing context"),
+  );
+}
+
 function buildTestApp() {
   const memory = new FakeMemoryService();
   const music = new FakeMusicEngine();
@@ -197,7 +204,7 @@ describe("agent-harness", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json<{ ui_events: { type: string }[] }>().ui_events.some((e) => e.type === "intent")).toBe(true);
 
-    await vi.waitFor(() => expect(proxy.injectCalls.length).toBe(1));
+    await vi.waitFor(() => expect(orchestrationInjects(proxy).length).toBe(1));
     const updated = proxy.injectCalls[0]!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
       | { remaining: { id: string }[]; changed_ids?: string[]; before_remaining_ids?: string[] }
       | undefined;
@@ -330,7 +337,7 @@ describe("agent-harness", () => {
       reason: "skip_only_guard",
     });
     expect(music.planCalls.some((c) => c.mode === "replan")).toBe(false);
-    expect(proxy.injectCalls).toEqual([]);
+    expect(orchestrationInjects(proxy)).toEqual([]);
     now.mockRestore();
     await app.close();
   });
@@ -352,7 +359,7 @@ describe("agent-harness", () => {
     });
 
     await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true));
-    expect(proxy.injectCalls.length).toBe(1);
+    expect(orchestrationInjects(proxy).length).toBe(1);
     now.mockRestore();
     await app.close();
   });
@@ -580,14 +587,14 @@ describe("agent-harness", () => {
     await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
     now.mockReturnValue(1_210); // listened 110ms < 60s → quick skip #1 (energy 3, no swap yet)
     await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
-    expect(proxy.injectCalls).toEqual([]); // below threshold: no swap on the first quick skip
+    expect(orchestrationInjects(proxy)).toEqual([]); // below threshold: no swap on the first quick skip
 
     now.mockReturnValue(1_300);
     await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
     now.mockReturnValue(1_310); // quick skip #2 at energy 3 → threshold → swap remaining[0] ("f")
     await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "c" } });
 
-    await vi.waitFor(() => expect(proxy.injectCalls.length).toBeGreaterThan(0));
+    await vi.waitFor(() => expect(orchestrationInjects(proxy).length).toBeGreaterThan(0));
     const updated = proxy.injectCalls.at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
       | { remaining: { id: string }[]; changed_ids?: string[]; before_remaining_ids?: string[] }
       | undefined;
@@ -627,7 +634,7 @@ describe("agent-harness", () => {
     await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "c" } });
 
     expect(music.searchCalls).toEqual([]);
-    expect(proxy.injectCalls).toEqual([]);
+    expect(orchestrationInjects(proxy)).toEqual([]);
     now.mockRestore();
     await app.close();
   });
@@ -651,7 +658,7 @@ describe("agent-harness", () => {
     // excludes everything already queued (played + current + remaining).
     expect(extendCall?.extend?.playedIds).toEqual(["a", "b", "c", "f"]);
 
-    await vi.waitFor(() => expect(proxy.injectCalls.length).toBeGreaterThan(0));
+    await vi.waitFor(() => expect(orchestrationInjects(proxy).length).toBeGreaterThan(0));
     const pending = proxy.injectCalls.find((c) =>
       c.payload.ui_events?.some((e) => e.type === "queue_refresh" && e.status === "pending"),
     );
@@ -687,7 +694,7 @@ describe("agent-harness", () => {
     await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
 
     expect(music.planCalls.some((c) => c.mode === "extend")).toBe(false);
-    expect(proxy.injectCalls).toEqual([]);
+    expect(orchestrationInjects(proxy)).toEqual([]);
     await app.close();
   });
 
@@ -839,7 +846,7 @@ describe("applyReplan scopes (E2 mood_change nudge)", () => {
 
     expect(outcome.replanned).toBe(false);
     expect(music.planCalls).toEqual([]);
-    expect(proxy.injectCalls).toEqual([]);
+    expect(orchestrationInjects(proxy)).toEqual([]);
     expect(state.tracklist.map((r) => r.id)).toEqual(["t1", "t2", "t3", "t4", "t5"]);
   });
 

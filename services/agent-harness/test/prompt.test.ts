@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCueText, toCueTrack, type CueTrack } from "../src/dj/prompt.js";
+import { buildCueText, buildNowPlayingContextInject, toCueTrack, type CueTrack } from "../src/dj/prompt.js";
 import type { TrackMeta } from "@auracle/shared";
 
 const baseTrack: CueTrack = {
@@ -119,5 +119,27 @@ describe("buildCueText creation context", () => {
     const cue = toCueTrack(meta);
     expect(cue?.artistPersona).toBe("Night-owl producer.");
     expect(cue?.albumConcept).toBe("3am field recordings.");
+  });
+});
+
+describe("buildNowPlayingContextInject", () => {
+  it("includes lore, persona, and concept for curator answers on demand", () => {
+    const text = buildNowPlayingContextInject(baseTrack, "curator");
+    expect(text).toContain("[now playing context");
+    expect(text).toContain("Lore (borrow");
+    expect(text).toContain("Artist persona:");
+    expect(text).toContain("Album concept:");
+    expect(text).toContain("do not speak until the listener asks");
+  });
+
+  it("break cue includes a creation-context hint for curator", () => {
+    const text = buildCueText({
+      kind: "break",
+      hostMode: "curator",
+      sessionTitle: "Quiet Hours",
+      now: baseTrack,
+      next: baseTrack,
+    });
+    expect(text).toContain("hint (borrow one phrase");
   });
 });
