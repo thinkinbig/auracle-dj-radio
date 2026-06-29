@@ -37,6 +37,7 @@ export function ContentSheet() {
   const extendFailed = complete && refresh.failed;
   const pct = playbackProgressPct(state);
   const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
+  const artistPhotoUrl = state.artistPhotoUrl || track.artistPhotoUrl;
   const flowLabel = state.sessionSubtitle
     .split('·')
     .map((part) => part.trim())
@@ -110,8 +111,20 @@ export function ContentSheet() {
                   <p className={styles.trackTitle}>{state.trackTitle}</p>
                   <div className={styles.albumLine}>
                     <p className={styles.trackCredit}>
-                      <span>{state.artist}</span>
-                      {state.albumTitle ? <small>{state.albumTitle}</small> : null}
+                      {artistPhotoUrl ? (
+                        <img
+                          className={styles.artistPhoto}
+                          src={artistPhotoUrl}
+                          alt=""
+                          width={32}
+                          height={32}
+                          loading="lazy"
+                        />
+                      ) : null}
+                      <span className={styles.trackCreditNames}>
+                        <span>{state.artist}</span>
+                        {state.albumTitle ? <small>{state.albumTitle}</small> : null}
+                      </span>
                     </p>
                     {track.mood ? <p className={styles.trackMood}>{track.mood}</p> : null}
                   </div>

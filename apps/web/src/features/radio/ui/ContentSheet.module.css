@@ -249,27 +249,44 @@
 
 .trackCredit {
   min-width: 0;
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
 }
 
-.trackCredit span,
-.trackCredit small {
+.artistPhoto {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.trackCreditNames {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.trackCreditNames span,
+.trackCreditNames small {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.trackCredit span {
+.trackCreditNames span {
   color: rgba(248, 250, 252, 0.72);
   font-size: 15px;
   font-weight: 700;
   line-height: 1.2;
 }
 
-.trackCredit small {
+.trackCreditNames small {
   color: rgba(248, 250, 252, 0.42);
   font-size: 14px;
   font-weight: 600;
