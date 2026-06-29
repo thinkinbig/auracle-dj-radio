@@ -3,6 +3,7 @@ import { ContentSheet } from './ContentSheet';
 import { MiniControlBar } from './MiniControlBar';
 import { PlaylistDrawer } from './PlaylistDrawer';
 import { StageHeader } from './StageHeader';
+import { SupersededOverlay } from './SupersededOverlay';
 import { TrackQueue } from './TrackQueue';
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
 
@@ -11,12 +12,15 @@ export function PlayerScreen() {
   const { isWide, isPhoneFrame } = useLayoutMode();
 
   return (
-    <AppShell
-      stage={<StageHeader />}
-      sheet={<ContentSheet />}
-      queue={isWide || isPhoneFrame ? <TrackQueue /> : undefined}
-      drawer={!isPhoneFrame ? <PlaylistDrawer /> : undefined}
-      miniBar={<MiniControlBar />}
-    />
+    <>
+      <AppShell
+        stage={<StageHeader />}
+        sheet={<ContentSheet />}
+        queue={isWide || isPhoneFrame ? <TrackQueue /> : undefined}
+        drawer={!isPhoneFrame ? <PlaylistDrawer /> : undefined}
+        miniBar={<MiniControlBar />}
+      />
+      <SupersededOverlay />
+    </>
   );
 }

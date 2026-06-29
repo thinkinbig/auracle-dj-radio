@@ -53,4 +53,9 @@ export interface PlaybackState {
   queueDiffExpiresAtSec: number | null;
   /** Brief queue diff copy shown while the highlight is active. */
   queueDiffMessage: string | null;
+  /**
+   * True once this session was superseded by the same user starting on another
+   * device (issue #55). Playback is stopped and a "playing elsewhere" UX shows.
+   */
+  superseded: boolean;
 }

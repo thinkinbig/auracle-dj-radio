@@ -26,6 +26,11 @@ describe('decodeServerFrame', () => {
         '{"type":"ui_event","event":{"type":"tracklist_updated","remaining":[{"id":"a","flow_position":1,"reason":"x"}]}}',
       ),
     ).toEqual({ type: 'tracklist_updated', remaining: [{ id: 'a', flow_position: 1, reason: 'x' }] });
+
+    // Session-switch teardown signal (issue #55) rides the same ui_event lane.
+    expect(decodeServerFrame('{"type":"ui_event","event":{"type":"session_superseded"}}')).toEqual({
+      type: 'session_superseded',
+    });
   });
 
   it('ignores tool calls/results (server-side now) and malformed frames', () => {

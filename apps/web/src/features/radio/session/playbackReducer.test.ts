@@ -33,6 +33,18 @@ describe('playbackReducer', () => {
     expect(playing.phase).toBe('playing');
   });
 
+  it('stops playback and flags the superseded UX on session_superseded (#55)', () => {
+    const playing = playbackReducer(
+      playbackReducer(createInitialPlaybackState(), { type: 'start', session: DEMO_SESSION }),
+      { type: 'server_phase', phase: 'dj_turn_start' },
+    );
+    expect(playing.superseded).toBe(false);
+    const superseded = playbackReducer({ ...playing, isTalking: true }, { type: 'session_superseded' });
+    expect(superseded.superseded).toBe(true);
+    expect(superseded.phase).toBe('paused');
+    expect(superseded.isTalking).toBe(false);
+  });
+
   it('merges streaming transcript lines', () => {
     const first = updateTranscript([], null, 'model', 'Hello', 0);
     const second = updateTranscript(first.lines, first.activeId, 'model', 'Hello world', 1);
@@ -142,7 +154,7 @@ describe('playbackReducer', () => {
     expect(updated.sessionTracklist.map((track) => track.id)).toEqual([base.trackId, 'a', 'b']);
     expect(updated.sessionTracklist[1]?.reason).toBe('fresh pivot');
     expect(updated.recentlyChangedIds).toEqual(['a', 'b']);
-    expect(updated.queueDiffMessage).toBe('接下来 2 首已更新');
+    expect(updated.queueDiffMessage).toBe('2 upcoming tracks updated');
     expect(updated.queueDiffExpiresAtSec).toBe(updated.sessionElapsedSec + 30);
   });
 

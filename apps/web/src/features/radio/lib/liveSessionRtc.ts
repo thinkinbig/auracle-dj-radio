@@ -8,6 +8,11 @@ export interface LiveRtcOptions {
   sessionId: string;
   /** Registration token; sent for proxy-side auth (not yet verified server-side). */
   token?: string;
+  /**
+   * The user's login token (same as `POST /sessions`). Sent as Authorization:
+   * Bearer so the proxy can bind this media session to the user (issue #55).
+   */
+  authToken?: string;
   /** Provider query param; the live DJ is gemini. */
   model?: string;
   /** Optional explicit mic device id. */
@@ -139,6 +144,7 @@ export async function connectLiveSessionRtc(
     'X-Session-ID': opts.sessionId,
   };
   if (opts.token) headers['X-Session-Token'] = opts.token;
+  if (opts.authToken) headers.Authorization = `Bearer ${opts.authToken}`;
 
   let resp: Response;
   try {

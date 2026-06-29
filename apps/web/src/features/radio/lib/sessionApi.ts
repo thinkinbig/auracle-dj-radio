@@ -1,5 +1,5 @@
 import type { CreateSessionResponse, HostMode, RegenerateSessionResponse, SessionIntent } from '@auracle/shared';
-import { clearStoredToken, jsonAuthHeaders } from '@/features/marketing/authApi';
+import { authHeaders, clearStoredToken, jsonAuthHeaders } from '@/features/marketing/authApi';
 import { DEMO_SESSION } from '@/data/demoData';
 
 export class SessionAuthError extends Error {
@@ -35,7 +35,7 @@ export function postSessionEvent(
 ): void {
   void fetch(`/sessions/${sessionId}/events`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonAuthHeaders(),
     body: JSON.stringify({ event_type: eventType, payload }),
   }).catch(() => {});
 }
@@ -43,8 +43,11 @@ export function postSessionEvent(
 /** Ask the harness to regenerate the not-yet-played queue for this session. */
 export async function regenerateSession(sessionId: string): Promise<RegenerateSessionResponse | undefined> {
   try {
+    // Bodyless POST: send Bearer for the ownership guard, but NOT a JSON
+    // Content-Type — Fastify rejects a bodyless JSON request (#regression of ac77de1).
     const res = await fetch(`/sessions/${sessionId}/regenerate`, {
       method: 'POST',
+      headers: authHeaders(),
     });
     if (!res.ok) return undefined;
     return (await res.json()) as RegenerateSessionResponse;
@@ -57,7 +60,7 @@ export async function regenerateSession(sessionId: string): Promise<RegenerateSe
 export function postNowPlaying(sessionId: string, trackId: string): void {
   void fetch(`/sessions/${sessionId}/now_playing`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonAuthHeaders(),
     body: JSON.stringify({ track_id: trackId }),
   }).catch(() => {});
 }
@@ -66,7 +69,7 @@ export function postNowPlaying(sessionId: string, trackId: string): void {
 export function postCue(sessionId: string, kind: 'break' | 'outro'): void {
   void fetch(`/sessions/${sessionId}/cue`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonAuthHeaders(),
     body: JSON.stringify({ kind }),
   }).catch(() => {});
 }
@@ -75,7 +78,7 @@ export async function postHostMode(sessionId: string, hostMode: HostMode): Promi
   try {
     const res = await fetch(`/sessions/${sessionId}/host-mode`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonAuthHeaders(),
       body: JSON.stringify({ host_mode: hostMode }),
     });
     return res.ok;

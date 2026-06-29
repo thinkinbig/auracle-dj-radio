@@ -45,6 +45,18 @@ export interface SessionState {
 /** In-memory session state machine. Memory-service is the sole owner of session state. */
 export class SessionStore {
   private readonly sessions = new Map<string, SessionState>();
+  /**
+   * Authenticated userId → their single live session id, so a new device can
+   * find and supersede the prior session (issue #55). Guests are never indexed
+   * — they share the anonymous id and must not supersede each other.
+   */
+  private readonly activeByUser = new Map<string, string>();
+  /**
+   * Recently invalidated session ids → reason, so their APIs answer 410 Gone
+   * instead of an ambiguous 404. Capped to bound memory on a long-lived host.
+   */
+  private readonly invalidated = new Map<string, string>();
+  private static readonly INVALIDATED_CAP = 256;
 
   create(params: {
     userId: string;
@@ -110,6 +122,40 @@ export class SessionStore {
 
   get(id: string): SessionState | undefined {
     return this.sessions.get(id);
+  }
+
+  /** Record this authenticated user's single live session (guests excluded by the caller). */
+  setActiveForUser(userId: string, sessionId: string): void {
+    this.activeByUser.set(userId, sessionId);
+  }
+
+  /** The user's current live session id, if any. */
+  activeSessionForUser(userId: string): string | undefined {
+    return this.activeByUser.get(userId);
+  }
+
+  /**
+   * Drop a session and remember why, so its APIs return 410 Gone. The user
+   * index entry is cleared only if it still points at this session — a newer
+   * session for the same user (the supersedor) must keep its mapping.
+   */
+  invalidate(sessionId: string, reason: string): SessionState | undefined {
+    const state = this.sessions.get(sessionId);
+    this.sessions.delete(sessionId);
+    if (state && this.activeByUser.get(state.userId) === sessionId) {
+      this.activeByUser.delete(state.userId);
+    }
+    this.invalidated.set(sessionId, reason);
+    if (this.invalidated.size > SessionStore.INVALIDATED_CAP) {
+      const oldest = this.invalidated.keys().next().value;
+      if (oldest !== undefined) this.invalidated.delete(oldest);
+    }
+    return state;
+  }
+
+  /** Why a session id is gone (e.g. "session_superseded"), or undefined if never invalidated. */
+  invalidationReason(sessionId: string): string | undefined {
+    return this.invalidated.get(sessionId);
   }
 
   /** Slots after the current index, i.e. not yet played. */

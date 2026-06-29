@@ -28,7 +28,8 @@ export type PlaybackAction =
     }
   | { type: 'playlist_feedback'; feedback: PlaylistFeedback }
   | { type: 'playlist_feedback_failed'; feedback: PlaylistFeedback }
-  | { type: 'set_host_mode'; hostMode: CreateSessionResponse['host_mode'] };
+  | { type: 'set_host_mode'; hostMode: CreateSessionResponse['host_mode'] }
+  | { type: 'session_superseded' };
 
 const QUEUE_DIFF_TTL_SEC = 30;
 
@@ -67,6 +68,7 @@ export function createInitialPlaybackState(): PlaybackState {
     recentlyChangedIds: [],
     queueDiffExpiresAtSec: null,
     queueDiffMessage: null,
+    superseded: false,
   };
 }
 
@@ -152,7 +154,7 @@ function inferChangedIds(beforeIds: string[], afterRefs: FlowTrackRef[]): string
 }
 
 function formatQueueDiffMessage(count: number): string {
-  return `接下来 ${count} 首已更新`;
+  return `${count} upcoming ${count === 1 ? 'track' : 'tracks'} updated`;
 }
 
 function clearQueueDiff(state: PlaybackState): PlaybackState {
@@ -239,6 +241,7 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         recentlyChangedIds: [],
         queueDiffExpiresAtSec: null,
         queueDiffMessage: null,
+        superseded: false,
       };
     }
     case 'transcript': {
@@ -322,6 +325,11 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
       };
     case 'set_host_mode':
       return { ...state, hostMode: action.hostMode };
+    case 'session_superseded':
+      // The user started a set on another device — stop playback here and flag
+      // the "playing elsewhere" UX (issue #55). Pause rather than reset so the
+      // overlay can show what was playing and offer a clean restart.
+      return { ...state, phase: 'paused', isTalking: false, superseded: true };
     case 'tick':
       if (!SESSION_CLOCK_PHASES.includes(state.phase)) return state;
       return expireQueueDiff({ ...state, sessionElapsedSec: state.sessionElapsedSec + 1 }, state.sessionElapsedSec + 1);
