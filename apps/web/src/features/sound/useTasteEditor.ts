@@ -1,7 +1,11 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GenreCount, TasteEntityType, TastePolarity } from '@auracle/shared';
-import { loadBrowseCatalog, loadGenres, type BrowseCatalog } from './catalogBrowse';
-import { describeSaveError, fetchTaste, saveTaste } from './tasteApi';
+import { queryKeys } from '@/shared/query/keys';
+import type { BrowseCatalog } from './catalogBrowse';
+import { useBrowseCatalogQuery, useGenresQuery } from './useCatalogQueries';
+import { describeSaveError, saveTaste } from './tasteApi';
+import { useTasteQuery } from './useTasteQuery';
 import { hydrateSelection, setPolarity, togglePolarity, toSaveRequest, type Selection } from './tasteSelection';
 
 export type TasteLoadState = 'loading' | 'ready' | 'error';
@@ -26,40 +30,64 @@ export interface TasteEditor {
 
 /** Loads catalog options + the current taste profile, and manages save flow. */
 export function useTasteEditor(): TasteEditor {
-  const [loadState, setLoadState] = useState<TasteLoadState>('loading');
-  const [genres, setGenres] = useState<GenreCount[]>([]);
-  const [catalog, setCatalog] = useState<BrowseCatalog>(EMPTY_CATALOG);
+  const queryClient = useQueryClient();
+  const tasteQuery = useTasteQuery();
+  const genresQuery = useGenresQuery();
+  const browseQuery = useBrowseCatalogQuery();
   const [selection, setSelection] = useState<Selection>({});
   const [freeText, setFreeTextState] = useState('');
   const [saveState, setSaveState] = useState<TasteSaveState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [hydrated, setHydrated] = useState(false);
 
-  // Latest edited state, so a save that resolves after the user keeps editing
-  // doesn't clobber those edits when it rehydrates from the response.
   const latest = useRef({ selection, freeText });
   useEffect(() => {
     latest.current = { selection, freeText };
   });
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const [genreList, browse, profile] = await Promise.all([loadGenres(), loadBrowseCatalog(), fetchTaste()]);
-        if (cancelled) return;
-        setGenres(genreList);
-        setCatalog(browse);
-        setSelection(hydrateSelection(profile.preferences));
-        setFreeTextState(profile.freeText ?? '');
-        setLoadState('ready');
-      } catch {
-        if (!cancelled) setLoadState('error');
+    setHydrated(false);
+  }, [tasteQuery.dataUpdatedAt]);
+
+  useEffect(() => {
+    if (!tasteQuery.data || hydrated) return;
+    setSelection(hydrateSelection(tasteQuery.data.preferences));
+    setFreeTextState(tasteQuery.data.freeText ?? '');
+    setHydrated(true);
+  }, [tasteQuery.data, hydrated]);
+
+  const saveMutation = useMutation({
+    mutationFn: saveTaste,
+    onMutate: () => {
+      setSaveState('saving');
+      setErrorMessage('');
+    },
+    onSuccess: (res) => {
+      const savedSelection = selection;
+      const savedFreeText = freeText;
+      const edited =
+        latest.current.selection !== savedSelection || latest.current.freeText !== savedFreeText;
+      if (edited) {
+        setSaveState('idle');
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      setSelection(hydrateSelection(res.preferences));
+      setFreeTextState(res.freeText ?? '');
+      setSaveState('saved');
+      queryClient.setQueryData(queryKeys.taste, res);
+    },
+    onError: (err) => {
+      setErrorMessage(describeSaveError(err));
+      setSaveState('error');
+    },
+  });
+
+  const loadState: TasteLoadState =
+    tasteQuery.isPending || genresQuery.isPending || browseQuery.isPending
+      ? 'loading'
+      : tasteQuery.isError || genresQuery.isError || browseQuery.isError
+        ? 'error'
+        : 'ready';
 
   const setFreeText = useCallback((value: string) => {
     setSaveState('idle');
@@ -82,35 +110,13 @@ export function useTasteEditor(): TasteEditor {
   }, []);
 
   const save = useCallback(() => {
-    setSaveState('saving');
-    setErrorMessage('');
-    const savedSelection = selection;
-    const savedFreeText = freeText;
-    void (async () => {
-      try {
-        const res = await saveTaste(toSaveRequest(savedSelection, savedFreeText));
-        // If the user edited during the in-flight save, keep their edits and
-        // leave the form dirty rather than overwriting with the server echo.
-        const edited =
-          latest.current.selection !== savedSelection || latest.current.freeText !== savedFreeText;
-        if (edited) {
-          setSaveState('idle');
-          return;
-        }
-        setSelection(hydrateSelection(res.preferences));
-        setFreeTextState(res.freeText ?? '');
-        setSaveState('saved');
-      } catch (err) {
-        setErrorMessage(describeSaveError(err));
-        setSaveState('error');
-      }
-    })();
-  }, [selection, freeText]);
+    saveMutation.mutate(toSaveRequest(selection, freeText));
+  }, [freeText, saveMutation, selection]);
 
   return {
     loadState,
-    genres,
-    catalog,
+    genres: genresQuery.data ?? [],
+    catalog: browseQuery.data ?? EMPTY_CATALOG,
     selection,
     freeText,
     saveState,

@@ -22,7 +22,7 @@ import {
   IconShuffle,
   IconSkipNext,
   IconSkipPrevious,
-} from '@/shared/ui/Icons';
+} from '@/shared/ui/icons';
 import styles from './MiniControlBar.module.css';
 
 const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [

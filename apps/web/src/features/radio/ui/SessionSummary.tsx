@@ -3,7 +3,7 @@ import type { FlowTrackRef } from '@auracle/shared';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { isSessionComplete, selectQueueRefresh } from '@/features/radio/session/playbackSelectors';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
-import { IconChevronUp } from '@/shared/ui/Icons';
+import { IconChevronUp } from '@/shared/ui/icons';
 import { cn } from '@/shared/lib/cn';
 import styles from './SessionSummary.module.css';
 

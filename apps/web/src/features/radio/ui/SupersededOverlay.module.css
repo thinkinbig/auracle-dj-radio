@@ -2,14 +2,16 @@
   position: fixed;
   inset: 0;
   z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: 24px;
   background: rgba(8, 10, 16, 0.62);
   backdrop-filter: blur(18px);
 }
 
 .card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 51;
+  transform: translate(-50%, -50%);
   max-width: 420px;
   width: 100%;
   padding: 32px;

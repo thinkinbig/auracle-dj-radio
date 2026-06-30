@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { IconChevronUp, IconPause, IconPlay } from '@/shared/ui/Icons';
+import { IconChevronUp, IconPause, IconPlay } from '@/shared/ui/icons';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { cn } from '@/shared/lib/cn';
 import { filterCatalog, loadBrowseCatalog, type BrowseCatalog, type BrowseTrack } from './catalogBrowse';

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { Drawer } from 'vaul';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
-import { IconChevronUp } from '@/shared/ui/Icons';
+import { IconChevronUp } from '@/shared/ui/icons';
 import { useMobileChrome } from './mobileChrome';
 import styles from './PlaylistDrawer.module.css';
 
@@ -16,9 +17,8 @@ function prefersReducedMotion(): boolean {
 }
 
 /**
- * Retractable bottom playlist for the mobile (<768px) layout. It sits in the
- * normal stack between the now-playing card and mini bar, so track changes do
- * not remeasure or cover the card content.
+ * Retractable bottom playlist for the mobile (<768px) layout. Uses vaul for
+ * drag-to-close; the peek handle stays in the bottom chrome rail.
  */
 export function PlaylistDrawer() {
   const state = useRadioState();
@@ -26,7 +26,7 @@ export function PlaylistDrawer() {
   const current = useTrackMeta(state.trackId);
   const count = state.remainingTrackIds.length + 1;
 
-  const drawerRef = useRef<HTMLElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const { reportScroll, setChromePinned, showChrome } = useMobileChrome();
 
@@ -46,7 +46,6 @@ export function PlaylistDrawer() {
     list.addEventListener('scroll', onScroll, { passive: true });
     return () => list.removeEventListener('scroll', onScroll);
   }, [open, reportScroll]);
-
 
   useGSAP(
     () => {
@@ -83,44 +82,45 @@ export function PlaylistDrawer() {
   );
 
   return (
-    <section
-      ref={drawerRef}
-      className={cn(styles.drawer, open && styles.drawerOpen)}
-      aria-label="Up next"
+    <Drawer.Root
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) showChrome();
+      }}
+      shouldScaleBackground={false}
     >
-      <span className={styles.grip} aria-hidden />
-      <button
-        type="button"
-        className={styles.handle}
-        onClick={() => {
-          setOpen((wasOpen) => {
-            const next = !wasOpen;
-            if (next) showChrome();
-            return next;
-          });
-        }}
-        aria-expanded={open}
-        aria-controls="playlist-drawer-list"
-      >
-        <span className={styles.handleLabel}>Up next</span>
-        {!open && <span className={styles.handleCount}>{count} tracks</span>}
-        <IconChevronUp size={18} className={styles.chevron} />
-      </button>
+      <div className={styles.peek} aria-label="Up next">
+        <span className={styles.grip} aria-hidden />
+        <Drawer.Trigger asChild>
+          <button type="button" className={styles.handle}>
+            <span className={styles.handleLabel}>Up next</span>
+            {!open && <span className={styles.handleCount}>{count} tracks</span>}
+            <IconChevronUp size={18} className={cn(styles.chevron, open && styles.chevronOpen)} />
+          </button>
+        </Drawer.Trigger>
+      </div>
 
-      <ul id="playlist-drawer-list" ref={listRef} className={styles.list} aria-hidden={!open}>
-        <li className={cn(styles.item, styles.itemCurrent)}>
-          <span className={styles.index}>▶</span>
-          <div className={styles.itemText}>
-            <p className={styles.title}>{current.title}</p>
-            <p className={styles.artist}>{current.artist}</p>
-          </div>
-          <span className={styles.duration}>{formatTime(current.durationSec)}</span>
-        </li>
-        {state.remainingTrackIds.map((id, i) => (
-          <DrawerItem key={id} id={id} index={i + 2} />
-        ))}
-      </ul>
-    </section>
+      <Drawer.Portal>
+        <Drawer.Overlay className={styles.overlay} />
+        <Drawer.Content ref={drawerRef} className={styles.sheet} aria-label="Up next tracks">
+          <div className={styles.sheetHandle} aria-hidden />
+          <ul id="playlist-drawer-list" ref={listRef} className={styles.list}>
+            <li className={cn(styles.item, styles.itemCurrent)}>
+              <span className={styles.index}>▶</span>
+              <div className={styles.itemText}>
+                <p className={styles.title}>{current.title}</p>
+                <p className={styles.artist}>{current.artist}</p>
+              </div>
+              <span className={styles.duration}>{formatTime(current.durationSec)}</span>
+            </li>
+            {state.remainingTrackIds.map((id, i) => (
+              <DrawerItem key={id} id={id} index={i + 2} />
+            ))}
+          </ul>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }
 

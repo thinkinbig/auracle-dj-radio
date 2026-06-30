@@ -1,0 +1,271 @@
+.productSurface {
+  position: relative;
+  overflow-x: hidden;
+  isolation: isolate;
+  min-height: 100dvh;
+  padding:
+    132px max(28px, calc((100vw - 1120px) / 2))
+    88px;
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 16% 16%, rgba(75, 222, 128, 0.2), transparent 28%),
+    radial-gradient(circle at 82% 8%, rgba(244, 114, 182, 0.16), transparent 30%),
+    linear-gradient(135deg, #070807 0%, #111513 44%, #050505 100%);
+  background-size: 120% 120%, 130% 130%, 100% 100%;
+  animation: productAmbientShift 18s ease-in-out infinite alternate;
+}
+
+.productSurface::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.024), transparent 34%, rgba(255, 255, 255, 0.018) 66%, transparent),
+    radial-gradient(circle at 50% 50%, transparent 0, rgba(0, 0, 0, 0.34) 72%);
+  opacity: 0.9;
+}
+
+.pageTransition {
+  --content-enter-delay: 0ms;
+}
+
+.pageTransition > * {
+  animation: softPageEnter 720ms var(--ease-out) var(--content-enter-delay) both;
+}
+
+.homeSurface.pageTransition > * {
+  animation: none;
+}
+
+.featureSurface.pageTransition > *,
+.pageTransition .pageIntro,
+.pageTransition .historyLayout {
+  animation: none;
+}
+
+.homeSurface.pageTransition .homeCopy h1,
+.homeSurface.pageTransition .homeSignal,
+.homeSurface.pageTransition .homeLede,
+.homeSurface.pageTransition .homeActions,
+.homeSurface.pageTransition .sessionPreview,
+.homeSurface.pageTransition .homeShortcutCard,
+.pageTransition .pageIntro .kicker,
+.pageTransition .pageIntro h1,
+.pageTransition .pageIntro p:not(.kicker),
+.pageTransition .pageIntro .primaryButton,
+.pageTransition .historyPanel {
+  animation: softPageEnter 760ms var(--ease-out) var(--content-enter-delay) both;
+}
+
+.homeSurface.pageTransition .homeCopy h1 {
+  --content-enter-delay: 0ms;
+}
+
+.homeSurface.pageTransition .homeSignal {
+  --content-enter-delay: 140ms;
+}
+
+.homeSurface.pageTransition .homeLede {
+  --content-enter-delay: 210ms;
+}
+
+.homeSurface.pageTransition .homeActions {
+  --content-enter-delay: 280ms;
+}
+
+.homeSurface.pageTransition .sessionPreview {
+  --content-enter-delay: 360ms;
+}
+
+.homeSurface.pageTransition .homeShortcutCard:nth-child(1) {
+  --content-enter-delay: 500ms;
+}
+
+.homeSurface.pageTransition .homeShortcutCard:nth-child(2) {
+  --content-enter-delay: 580ms;
+}
+
+.homeSurface.pageTransition .homeShortcutCard:nth-child(3) {
+  --content-enter-delay: 660ms;
+}
+
+.pageTransition .pageIntro .kicker {
+  --content-enter-delay: 0ms;
+}
+
+.pageTransition .pageIntro h1 {
+  --content-enter-delay: 90ms;
+}
+
+.pageTransition .pageIntro p:not(.kicker) {
+  --content-enter-delay: 180ms;
+}
+
+.pageTransition .pageIntro .primaryButton {
+  --content-enter-delay: 260ms;
+}
+
+.pageTransition .historyPanel:nth-child(1) {
+  --content-enter-delay: 380ms;
+}
+
+.pageTransition .historyPanel:nth-child(2) {
+  --content-enter-delay: 460ms;
+}
+
+.pageTransition .historyPanel:nth-child(3) {
+  --content-enter-delay: 540ms;
+}
+
+.pageTransition .historyPanel:nth-child(4) {
+  --content-enter-delay: 620ms;
+}
+
+.featureSurface {
+  padding-top: 118px;
+}
+.kicker {
+  color: rgba(141, 247, 167, 0.78);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.homeCopy h1 {
+  max-width: 520px;
+  margin-top: 0;
+  font-size: 5rem;
+  font-weight: 760;
+  line-height: 0.98;
+  letter-spacing: 0;
+  text-wrap: balance;
+  text-shadow: 0 18px 78px rgba(0, 0, 0, 0.42);
+}
+
+.pageIntro h1 {
+  max-width: 820px;
+  font-size: 5.8rem;
+  font-weight: 760;
+  line-height: 0.94;
+  letter-spacing: 0;
+}
+
+.homeSignal {
+  margin-top: 24px;
+  color: rgba(141, 247, 167, 0.84);
+  font-size: 1rem;
+  font-weight: 820;
+}
+
+.homeLede {
+  max-width: 430px;
+  margin-top: 24px;
+  color: rgba(248, 250, 252, 0.62);
+  font-size: 1.04rem;
+  line-height: 1.68;
+}
+
+.pageIntro p:not(.kicker) {
+  max-width: 660px;
+  color: rgba(248, 250, 252, 0.62);
+  font-size: 1.04rem;
+  line-height: 1.68;
+}
+
+.homeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 34px;
+}
+
+.primaryButton,
+.textButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 840;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.primaryButton {
+  min-height: 50px;
+  padding: 0 26px;
+  color: #061209;
+  background: linear-gradient(135deg, #69e690 0%, #43c978 100%);
+  box-shadow: 0 18px 44px rgba(75, 222, 128, 0.22);
+}
+
+.textButton {
+  justify-self: start;
+  min-height: 36px;
+  padding: 0;
+  color: rgba(141, 247, 167, 0.86);
+}
+
+.primaryButton:hover,
+.textButton:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton:focus-visible,
+.textButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.32);
+}
+.listenLayout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.listenLayout > * {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 980px) {
+  :root {
+    --listen-bottom-nav: 84px;
+  }
+
+  .listenLayout {
+    height: calc(100svh - var(--listen-bottom-nav) - env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+  }
+
+  .listenLayout > * {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .productSurface {
+    padding:
+      104px max(18px, env(safe-area-inset-left, 0px))
+      calc(104px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .featureSurface {
+    padding-top: 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .productSurface {
+    animation: none;
+  }
+}

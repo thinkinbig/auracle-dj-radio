@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type { AuthUser, ImportedPlaylistProfile, PlaylistImportSource, PlaylistImportTrack } from '@auracle/shared';
+import type { ImportedPlaylistProfile, PlaylistImportSource, PlaylistImportTrack } from '@auracle/shared';
+import { useAuth } from '@/features/marketing/AuthProvider';
 import { AppBrand } from '@/features/marketing/AppBrand';
 import { CatalogArchivePanel } from '@/features/sound/CatalogArchivePanel';
 import { cn } from '@/shared/lib/cn';
@@ -8,7 +9,6 @@ import { parsePlaylistInput, sourceLabel } from './playlistImportParser';
 import styles from './ImportPlaylistScreen.module.css';
 
 interface ImportPlaylistScreenProps {
-  user: AuthUser;
   onClose: () => void;
   embedded?: boolean;
 }
@@ -23,8 +23,9 @@ const SOURCE_OPTIONS: { value: PlaylistImportSource; label: string; detail: stri
   { value: 'spotify_export', label: 'Spotify export', detail: 'Metadata CSV or JSON' },
 ];
 
-export function ImportPlaylistScreen({ user, onClose, embedded = false }: ImportPlaylistScreenProps) {
-  const isGuest = user.id === 'guest';
+export function ImportPlaylistScreen({ onClose, embedded = false }: ImportPlaylistScreenProps) {
+  const { user } = useAuth();
+  const isGuest = user!.id === 'guest';
   const [source, setSource] = useState<PlaylistImportSource>('csv');
   const [name, setName] = useState('My music archive');
   const [rawInput, setRawInput] = useState(SAMPLE);

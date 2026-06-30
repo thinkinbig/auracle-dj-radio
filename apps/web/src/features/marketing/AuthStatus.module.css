@@ -63,10 +63,8 @@
 }
 
 .panel {
-  position: absolute;
-  top: 58px;
-  right: 0;
   width: min(356px, calc(100vw - 32px));
+  z-index: 100;
   display: grid;
   gap: 0;
   padding: 18px 20px 16px;
@@ -302,10 +300,6 @@
     width: 30px;
     height: 30px;
     font-size: 0.7rem;
-  }
-
-  .panel {
-    top: 52px;
   }
 }
 

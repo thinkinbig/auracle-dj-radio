@@ -1,3 +1,4 @@
+import * as Dialog from '@radix-ui/react-dialog';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import styles from './SupersededOverlay.module.css';
 
@@ -11,21 +12,26 @@ export function SupersededOverlay() {
   const { superseded } = useRadioState();
   const { handleReturnToSetup } = useRadioActions();
 
-  if (!superseded) return null;
-
   return (
-    <div className={styles.backdrop} role="alertdialog" aria-modal="true" aria-labelledby="superseded-title">
-      <div className={styles.card}>
-        <p className={styles.kicker}>Playback moved</p>
-        <h2 id="superseded-title">Playing on another device</h2>
-        <p className={styles.body}>
-          You started a new session somewhere else, so this one stopped. Your taste and memory carry
-          over — pick up a fresh set here whenever you like.
-        </p>
-        <button type="button" className={styles.primary} onClick={handleReturnToSetup}>
-          Start a new set
-        </button>
-      </div>
-    </div>
+    <Dialog.Root open={superseded}>
+      <Dialog.Portal>
+        <Dialog.Overlay className={styles.backdrop} />
+        <Dialog.Content className={styles.card} aria-describedby="superseded-body">
+          <p className={styles.kicker}>Playback moved</p>
+          <Dialog.Title asChild>
+            <h2 id="superseded-title">Playing on another device</h2>
+          </Dialog.Title>
+          <Dialog.Description asChild>
+            <p id="superseded-body" className={styles.body}>
+              You started a new session somewhere else, so this one stopped. Your taste and memory carry over — pick
+              up a fresh set here whenever you like.
+            </p>
+          </Dialog.Description>
+          <button type="button" className={styles.primary} onClick={handleReturnToSetup}>
+            Start a new set
+          </button>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

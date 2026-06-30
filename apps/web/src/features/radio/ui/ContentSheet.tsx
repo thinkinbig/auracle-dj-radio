@@ -14,7 +14,7 @@ import {
   playbackProgressPct,
   selectQueueRefresh,
 } from '@/features/radio/session/playbackSelectors';
-import { IconChevronUp, IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/Icons';
+import { IconChevronUp, IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/icons';
 import { IntentOnboarding } from './IntentOnboarding';
 import { SessionSummary } from './SessionSummary';
 import { Skeleton } from '@/shared/ui/Skeleton';

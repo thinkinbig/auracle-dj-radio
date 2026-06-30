@@ -1,4 +1,4 @@
-import type { AuthUser } from '@auracle/shared';
+import { useAuth } from '@/features/marketing/AuthProvider';
 import { AppBrand } from '@/features/marketing/AppBrand';
 import { SpotifyPlaybackControl } from '@/features/spotify/SpotifyPlaybackControl';
 import { cn } from '@/shared/lib/cn';
@@ -6,14 +6,14 @@ import { TastePanel } from './TastePanel';
 import styles from './SoundScreen.module.css';
 
 interface SoundScreenProps {
-  user: AuthUser;
   onClose: () => void;
   onOpenImport?: () => void;
   embedded?: boolean;
 }
 
-export function SoundScreen({ user, onClose, onOpenImport, embedded = false }: SoundScreenProps) {
-  const isGuest = user.id === 'guest';
+export function SoundScreen({ onClose, onOpenImport, embedded = false }: SoundScreenProps) {
+  const { user } = useAuth();
+  const isGuest = user!.id === 'guest';
 
   return (
     <div className={cn(styles.page, isGuest && styles.guestPage, embedded && styles.embeddedPage)}>

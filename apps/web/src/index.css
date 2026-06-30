@@ -163,3 +163,33 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+@keyframes productAmbientShift {
+  from {
+    background-position:
+      0% 0%,
+      100% 0%,
+      0% 0%;
+  }
+  to {
+    background-position:
+      8% 12%,
+      88% 8%,
+      0% 0%;
+  }
+}
+
+@keyframes softPageEnter {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+

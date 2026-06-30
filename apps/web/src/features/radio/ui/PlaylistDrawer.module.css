@@ -1,23 +1,43 @@
-.drawer {
+.peek {
   position: relative;
   z-index: var(--z-sheet);
   flex: 0 0 var(--drawer-handle-h);
   min-height: var(--drawer-handle-h);
-  max-height: var(--drawer-handle-h);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background: var(--card-bg);
   border-radius: 20px 20px 0 0;
   box-shadow: var(--shadow-sheet);
-  transition:
-    flex-basis var(--duration-normal) var(--ease-out),
-    max-height var(--duration-normal) var(--ease-out);
 }
 
-.drawerOpen {
-  flex-basis: min(38svh, 320px);
-  max-height: min(38svh, 320px);
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-sheet) - 1);
+  background: rgba(8, 10, 16, 0.28);
+}
+
+.sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  flex-direction: column;
+  max-height: min(42svh, 360px);
+  border-radius: 20px 20px 0 0;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sheet);
+}
+
+.sheetHandle {
+  flex-shrink: 0;
+  width: 36px;
+  height: 4px;
+  margin: 10px auto 4px;
+  border-radius: 2px;
+  background: var(--progress-track);
 }
 
 .grip {
@@ -71,7 +91,7 @@
   transition: transform 0.28s var(--ease-out);
 }
 
-.handle[aria-expanded='true'] .chevron {
+.chevronOpen {
   transform: rotate(180deg);
 }
 
@@ -86,7 +106,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-md) var(--space-md);
+  padding: var(--space-xs) var(--space-md) calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
 }
 
 .list::-webkit-scrollbar {
