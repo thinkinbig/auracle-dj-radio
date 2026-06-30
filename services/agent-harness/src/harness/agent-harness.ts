@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Condition, HostMode, RegenerateSessionResponse, SessionIntent, SpotifyTrackRef, TastePreference, TrackMeta } from "@auracle/shared";
+import type { Condition, Energy, HostMode, RegenerateSessionResponse, SessionIntent, SpotifyTrackRef, TastePreference, TrackMeta } from "@auracle/shared";
 import { ANONYMOUS_USER_ID, parseHostMode } from "@auracle/shared";
 import { buildRegistration } from "../dj/registration.js";
 import { buildNowPlayingContextInject, toCueTrack } from "../dj/prompt.js";
@@ -11,6 +11,7 @@ import { extendQueue } from "../session/extend.js";
 import { changedIdsFromRemaining, type OrchestrationDeps } from "../session/replan.js";
 import { swapNextOnQuickSkip } from "../session/skip-swap.js";
 import { SessionStore, type SessionState } from "../session/store.js";
+import { inferSpotifyEnergy } from "../session/spotify-energy.js";
 import { runTool, type ToolCall } from "../session/tool-runner.js";
 import { parsePlaylistFeedback, runPlaylistFeedback, type PlaylistFeedbackOutcome } from "../session/playlist-feedback.js";
 
@@ -91,6 +92,7 @@ export class AgentHarness {
       candidatesById,
       mem0Context,
       spotifyCandidates,
+      spotifyMatchedEnergy: plan.spotifyMatchedEnergy,
     });
     if (authenticated) this.deps.store.setActiveForUser(userId, state.id);
 
@@ -135,6 +137,11 @@ export class AgentHarness {
    */
   private async refineSessionCopywriting(state: SessionState): Promise<void> {
     try {
+      // Real per-track energy for the Spotify pool (#74): reuse exact catalog
+      // matches, LLM-infer only the remainder. Runs here in the async refine —
+      // off the first-Start critical path, which already shipped on placeholder
+      // energy via the provisional plan.
+      const spotifyEnergyByUri = await this.resolveSpotifyEnergy(state);
       const plan = await this.deps.music.planTracklist({
         intent: state.intent,
         mode: "full",
@@ -143,6 +150,7 @@ export class AgentHarness {
         taste: state.taste,
         tieBreakSeed: state.tieBreakSeed,
         spotifyCandidates: state.spotifyCandidates,
+        spotifyEnergyByUri,
       });
       const previousTitle = state.title;
       const previousSubtitle = state.subtitle;
@@ -186,6 +194,20 @@ export class AgentHarness {
     } catch (err) {
       this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "copywriting refine failed");
     }
+  }
+
+  /**
+   * Build the uri→energy map for the Spotify pool (#74): exact catalog matches
+   * (captured by the provisional plan) win; the rest get one batched LLM inference.
+   * Returns undefined for local-only sessions so their path is untouched.
+   */
+  private async resolveSpotifyEnergy(state: SessionState): Promise<Record<string, Energy> | undefined> {
+    const candidates = state.spotifyCandidates;
+    if (!candidates?.length) return undefined;
+    const matched = state.spotifyMatchedEnergy ?? {};
+    const unmatched = candidates.filter((c) => matched[c.uri] === undefined);
+    const inferred = await inferSpotifyEnergy(unmatched);
+    return { ...inferred, ...matched };
   }
 
   /**

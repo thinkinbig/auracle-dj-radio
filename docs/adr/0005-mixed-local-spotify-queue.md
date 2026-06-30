@@ -29,7 +29,7 @@ GET /me/top + /me/saved        retrieveCandidates (catalog)
 filter is_playable        ──►  + injected Spotify pool  ──►   chooseNext (one energy model)
 POST pool → harness                    ▲                              │
                                batched energy-infer LLM               ▼
-                               (parallel with flow LLM)        FlowTrackRef[] with
+                               (in async refine)               FlowTrackRef[] with
                                async copywriter → persona      source + inline spotify{}
                                                                       │
                                                                       ▼
@@ -63,13 +63,18 @@ POST pool → harness                    ▲                              │
    exact reuse from the local catalog when the track exists there (title+artist
    match). This keeps `chooseNext` and adjacency unchanged.
 
-5. **Energy inference runs parallel to the flow LLM; copy stays async.** Energy
-   blocks ranking, so it is synchronous — but it is independent of the flow LLM's
-   curve output, so a batched energy call (one structured request over the
-   gathered pool) fires **concurrently** with the 5–20s flow call (cost = max,
-   not sum). Persona/concept are only needed when the DJ *speaks* a track, so they
-   route to the existing async copywriter refine (`agent-harness.ts:128`) and
-   never touch the critical path.
+5. **Energy inference runs in the async refine, off the first-Start critical
+   path.** The original framing here ("parallel with the 5–20s flow LLM") was
+   stale: the music-selection redesign ([ADR-0001](0001-talk-over-instead-of-crossfade.md)/Epic
+   #26) made flow ordering **deterministic** — there is no flow LLM to parallelize
+   with. First Start already runs on the LLM-free *provisional* plan, where Spotify
+   candidates sit at a placeholder mid energy, so it carries zero inference latency.
+   Real energy is supplied by the existing async copywriter refine
+   (`refineSessionCopywriting`): one batched structured call over the gathered pool
+   (in `agent-harness`, which owns LLM orchestration; `music-engine` stays
+   deterministic), which then re-ranks the remaining queue. Exact catalog matches
+   are reused (decision 4) so only the remainder is inferred. Persona/concept,
+   needed only when the DJ *speaks* a track, ride the same async refine.
 
 6. **One `MusicPlayer` interface; both backends warm per session.** The WebAudio
    bus carries DJ voice + *local* music; when a Spotify track plays, the DJ voice
@@ -121,8 +126,8 @@ POST pool → harness                    ▲                              │
 - **The energy axis is the load-bearing constraint.** Because `chooseNext` ranks
   purely on energy and Spotify will no longer supply it, the entire unified-ranker
   premise rests on giving Spotify candidates a credible `energy` (decision 4).
-  Everything else (parallel inference, async copy) exists to pay that cost without
-  regressing first-Start latency.
+  Everything else (deferring inference to the async refine, async copy) exists to
+  pay that cost without regressing first-Start latency.
 - **DJ voice is orthogonal to the music source.** Recognising that the bus always
   carries the DJ voice — only music moves — is what shrinks the player abstraction
   to a clean swappable interface (decision 6) instead of a second audio
@@ -137,9 +142,9 @@ POST pool → harness                    ▲                              │
   Spotify candidate pool; `chooseNext` is unchanged (energy axis preserved via
   decision 4).
 - `services/agent-harness`: receives and **caches** the gathered pool in session
-  state (decision 10); orchestrates the parallel energy call (decision 5);
-  extends the async copywriter (`agent-harness.ts:128`) to generate persona/
-  concept for Spotify tracks.
+  state (decision 10); runs the batched energy-inference call inside the async
+  refine (decision 5); extends the async copywriter (`refineSessionCopywriting`)
+  to generate persona/concept for Spotify tracks.
 - `apps/web/src/features/spotify`: `buildSpotifyQueueFromTaste` gains the Premium
   check (decision 8) and `is_playable` filter (decision 9); the gathered pool is
   POSTed at session start (ideally prefetched at Spotify-connect time so it is

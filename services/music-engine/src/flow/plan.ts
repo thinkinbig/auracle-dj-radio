@@ -15,26 +15,64 @@ export interface PlanDeps {
 }
 
 /**
- * Placeholder energy for a Spotify candidate (ADR-0005 §4): Spotify's audio-features
- * endpoint is deprecated, so until #74 LLM-infers a real value, every Spotify track
- * sits mid-arc. `chooseNext` ranks it against local tracks on this one axis.
+ * Fallback energy for a Spotify candidate (ADR-0005 §4): Spotify's audio-features
+ * endpoint is deprecated, so energy is supplied externally — either reused exactly
+ * from a matching catalog track or LLM-inferred by agent-harness (#74). When neither
+ * is available yet (the fast provisional path), the track sits mid-arc so `chooseNext`
+ * can still rank it against local tracks on this one axis.
  */
 const SPOTIFY_PLACEHOLDER_ENERGY: Energy = 3;
 
-/** Turn the client-gathered Spotify refs into rankable candidates + a uri→ref lookup for stamping. */
+/** Normalize a title/artist for tolerant equality (case, punctuation, spacing). */
+function normalizeMatchKey(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Exact catalog-energy reuse (ADR-0005 §4): when a gathered Spotify track is the
+ * same recording as one in our catalog (normalized title+artist), reuse the
+ * authored energy rather than inferring it. Returns a uri→energy map of the hits.
+ */
+function matchCatalogEnergy(tracks: TrackRow[], refs: SpotifyTrackRef[]): Record<string, Energy> {
+  const byTitleArtist = new Map<string, Energy>();
+  for (const t of tracks) {
+    byTitleArtist.set(`${normalizeMatchKey(t.title)} | ${normalizeMatchKey(t.artist)}`, t.energy);
+  }
+  const matched: Record<string, Energy> = {};
+  for (const r of refs) {
+    const energy = byTitleArtist.get(`${normalizeMatchKey(r.title)} | ${normalizeMatchKey(r.artist)}`);
+    if (energy !== undefined) matched[r.uri] = energy;
+  }
+  return matched;
+}
+
+/**
+ * Turn the client-gathered Spotify refs into rankable candidates + a uri→ref lookup
+ * for stamping. Energy precedence: externally supplied (`energyByUri`, the merged
+ * catalog-match + LLM map from agent-harness) → exact catalog match → placeholder.
+ */
 function spotifyCandidatePool(
   refs: SpotifyTrackRef[] | undefined,
   scene: string,
-): { pool: TrackCandidate[]; byUri: Map<string, SpotifyTrackRef> } {
+  tracks: TrackRow[],
+  energyByUri?: Record<string, Energy>,
+): { pool: TrackCandidate[]; byUri: Map<string, SpotifyTrackRef>; matchedEnergy: Record<string, Energy> } {
+  const list = refs ?? [];
+  const matchedEnergy = list.length ? matchCatalogEnergy(tracks, list) : {};
   const byUri = new Map<string, SpotifyTrackRef>();
   const pool: TrackCandidate[] = [];
-  for (const r of refs ?? []) {
+  for (const r of list) {
     if (byUri.has(r.uri)) continue;
     byUri.set(r.uri, r);
+    const energy = energyByUri?.[r.uri] ?? matchedEnergy[r.uri] ?? SPOTIFY_PLACEHOLDER_ENERGY;
     // uri is the slot id; the client plays it directly (no catalog entry to resolve).
-    pool.push({ id: r.uri, energy: SPOTIFY_PLACEHOLDER_ENERGY, tempo: 0, genre: "", scene });
+    pool.push({ id: r.uri, energy, tempo: 0, genre: "", scene });
   }
-  return { pool, byUri };
+  return { pool, byUri, matchedEnergy };
 }
 
 /** Stamp `source:"spotify"` + inline metadata onto slots the planner picked from the Spotify pool. */
@@ -50,6 +88,8 @@ export interface PlanResult {
   result: FlowResult;
   violations: Violation[];
   candidatesById: Map<string, TrackCandidate>;
+  /** uri→energy for Spotify candidates that matched a catalog track (ADR-0005 §4); lets agent-harness LLM-infer only the remainder. */
+  spotifyMatchedEnergy?: Record<string, Energy>;
 }
 
 /**
@@ -100,6 +140,7 @@ function clonePlan(p: PlanResult): PlanResult {
     result: { ...p.result, tracklist: p.result.tracklist.map((t) => ({ ...t })) },
     violations: [...p.violations],
     candidatesById: new Map(p.candidatesById),
+    spotifyMatchedEnergy: p.spotifyMatchedEnergy,
   };
 }
 
@@ -112,11 +153,12 @@ export async function createPlanCached(
   taste?: TastePreference[],
   tieBreakSeed?: string,
   spotifyCandidates?: SpotifyTrackRef[],
+  spotifyEnergyByUri?: Record<string, Energy>,
 ): Promise<PlanResult> {
   // A mixed pool is per-user (the listener's own Spotify library), so it must not
   // be served from — or written to — the shared local-only plan cache.
   if (spotifyCandidates?.length) {
-    return createPlan(deps, intent, memories, energyWeights, taste, tieBreakSeed, spotifyCandidates);
+    return createPlan(deps, intent, memories, energyWeights, taste, tieBreakSeed, spotifyCandidates, spotifyEnergyByUri);
   }
   const key = planKey(intent, memories, energyWeights, taste, tieBreakSeed);
   const hit = cacheGet(key);
@@ -151,11 +193,13 @@ export async function createProvisionalPlan(
   taste?: TastePreference[],
   tieBreakSeed?: string,
   spotifyCandidates?: SpotifyTrackRef[],
-): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate> }> {
+  spotifyEnergyByUri?: Record<string, Energy>,
+): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate>; spotifyMatchedEnergy?: Record<string, Energy> }> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
-  const { pool: spotifyPool, byUri } = spotifyCandidatePool(spotifyCandidates, intent.scene);
+  const tracks = deps.tracks();
+  const { pool: spotifyPool, byUri, matchedEnergy } = spotifyCandidatePool(spotifyCandidates, intent.scene, tracks, spotifyEnergyByUri);
   const candidates = [
-    ...retrieveCandidates(deps.tracks(), {
+    ...retrieveCandidates(tracks, {
       mood: intent.mood,
       scene: intent.scene,
       limit: 24,
@@ -175,6 +219,7 @@ export async function createProvisionalPlan(
       tracklist: stampSpotify(buildProvisionalArc(candidates, intent.mood), byUri),
     },
     candidatesById,
+    spotifyMatchedEnergy: matchedEnergy,
   };
 }
 
@@ -210,11 +255,13 @@ export async function createPlan(
   taste?: TastePreference[],
   tieBreakSeed?: string,
   spotifyCandidates?: SpotifyTrackRef[],
+  spotifyEnergyByUri?: Record<string, Energy>,
 ): Promise<PlanResult> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
-  const { pool: spotifyPool, byUri } = spotifyCandidatePool(spotifyCandidates, intent.scene);
+  const tracks = deps.tracks();
+  const { pool: spotifyPool, byUri, matchedEnergy } = spotifyCandidatePool(spotifyCandidates, intent.scene, tracks, spotifyEnergyByUri);
   const candidates = [
-    ...retrieveCandidates(deps.tracks(), {
+    ...retrieveCandidates(tracks, {
       mood: intent.mood,
       scene: intent.scene,
       limit: 24,
@@ -233,7 +280,7 @@ export async function createPlan(
     remainingSlots: FULL_SESSION_LENGTH,
     candidates,
   });
-  return { ...plan, result: { ...plan.result, tracklist: stampSpotify(plan.result.tracklist, byUri) } };
+  return { ...plan, result: { ...plan.result, tracklist: stampSpotify(plan.result.tracklist, byUri) }, spotifyMatchedEnergy: matchedEnergy };
 }
 
 export interface ReplanInput {

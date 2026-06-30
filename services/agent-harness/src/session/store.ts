@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ArcStage, Condition, FlowTrackRef, HostMode, SessionIntent, SpotifyTrackRef, TastePreference, TrackCandidate } from "@auracle/shared";
+import type { ArcStage, Condition, Energy, FlowTrackRef, HostMode, SessionIntent, SpotifyTrackRef, TastePreference, TrackCandidate } from "@auracle/shared";
 import { inferHostModeFromScene } from "@auracle/shared";
 
 export interface SessionState {
@@ -15,6 +15,8 @@ export interface SessionState {
   tieBreakSeed: string;
   /** Listener's gathered Spotify library pool (ADR-0005); reused by the refine/replan re-rank, static per session. */
   spotifyCandidates?: SpotifyTrackRef[];
+  /** uri→energy for Spotify candidates matched to a catalog track (#74); lets the refine LLM-infer only the remainder. */
+  spotifyMatchedEnergy?: Record<string, Energy>;
   hostMode: HostMode;
   title: string;
   subtitle: string;
@@ -74,6 +76,7 @@ export class SessionStore {
     candidatesById: Map<string, TrackCandidate>;
     mem0Context: string;
     spotifyCandidates?: SpotifyTrackRef[];
+    spotifyMatchedEnergy?: Record<string, Energy>;
   }): SessionState {
     const energyById = new Map<string, number>();
     for (const ref of params.tracklist) {
@@ -89,6 +92,7 @@ export class SessionStore {
       taste: params.taste,
       tieBreakSeed: params.tieBreakSeed,
       spotifyCandidates: params.spotifyCandidates,
+      spotifyMatchedEnergy: params.spotifyMatchedEnergy,
       hostMode: inferHostModeFromScene(params.intent.scene),
       title: params.title,
       subtitle: params.subtitle,

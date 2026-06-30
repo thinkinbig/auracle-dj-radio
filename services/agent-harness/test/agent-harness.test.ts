@@ -18,6 +18,17 @@ function candidate(id: string, energy: Energy): TrackCandidate {
   return { id, energy, tempo: 90 + energy * 5, genre: `g${id}`, scene: "studying" };
 }
 
+function spotifyRef(n: number) {
+  return {
+    uri: `spotify:track:${n}`,
+    title: `Song ${n}`,
+    artist: `Artist ${n}`,
+    albumTitle: `Album ${n}`,
+    albumCoverUrl: `https://img/${n}.jpg`,
+    durationSec: 180,
+  };
+}
+
 class FakeMemoryService implements MemoryServiceClient {
   facts: { fact: string; userId: string }[] = [];
   events: { sessionId: string; userId: string; eventType: string; payload: unknown }[] = [];
@@ -85,10 +96,14 @@ class FakeMusicEngine implements MusicEngineClient {
         ? [candidate("d", 2), candidate("e", 4)]
         : [candidate("a", 3), candidate("b", 3), candidate("c", 5), candidate("f", 2), ...this.extraTracks];
     const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "fake" }));
+    // Mixed session (#74): pretend the first Spotify candidate matched a catalog track.
+    const firstUri = req.spotifyCandidates?.[0]?.uri;
+    const spotifyMatchedEnergy = firstUri ? { [firstUri]: 5 as Energy } : undefined;
     return {
       result: { session_title: "Fake Set, vol. 1", session_subtitle: "25 min · building", arc: "build", tracklist },
       violations: [],
       candidates,
+      spotifyMatchedEnergy,
     };
   }
   async searchCatalog(req: SearchCatalogRequest): Promise<{ candidates: TrackCandidate[] }> {
@@ -188,6 +203,32 @@ describe("agent-harness", () => {
 
     releaseFull();
     await app.close();
+  });
+
+  it("resolves Spotify pool energy (catalog match + inferred remainder) into the full plan (#74)", async () => {
+    // No API key → inferSpotifyEnergy takes its deterministic mid-energy fallback (no network).
+    const prevKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    try {
+      const { app, music } = buildTestApp();
+      await app.ready();
+      const spotifyCandidates = [spotifyRef(1), spotifyRef(2)];
+      const res = await app.inject({
+        method: "POST",
+        url: "/sessions",
+        payload: { mood: "calm", scene: "studying", spotifyCandidates },
+      });
+      expect(res.statusCode).toBe(200);
+
+      await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "full")).toBe(true));
+      const full = music.planCalls.find((c) => c.mode === "full");
+      expect(full?.spotifyEnergyByUri?.[spotifyCandidates[0]!.uri]).toBe(5); // catalog-matched wins
+      expect(full?.spotifyEnergyByUri?.[spotifyCandidates[1]!.uri]).toBe(3); // LLM fallback (mid)
+      await app.close();
+    } finally {
+      if (prevKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = prevKey;
+    }
   });
 
   it("runs mood_change replan in the background and pushes the new remaining list", async () => {
