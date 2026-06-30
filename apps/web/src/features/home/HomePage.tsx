@@ -1,4 +1,5 @@
 import { useAuth } from '@/features/marketing/AuthProvider';
+import { firstNameFromUser } from '@/features/marketing/guest';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
 import {
   deriveGeneratedSessions,
@@ -8,12 +9,12 @@ import {
   hasStartedSession,
 } from '@/features/radio/session/sessionDisplay';
 import type { SessionHistoryEntry } from '@/features/radio/session/sessionHistory';
+import { resolveProfileTasteWords, resolveTasteWords } from '@/features/sound/tasteDisplay';
+import { useTasteQuery } from '@/features/sound/useTasteQuery';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { IconArrowRight, IconPlay } from '@/shared/ui/icons';
 import chrome from '@/app/ProductChrome.module.css';
 import styles from './HomePage.module.css';
-
-const HOME_DNA = ['Reflective', 'Late Night', 'Curious'] as const;
 
 export interface HomePageProps {
   history: SessionHistoryEntry[];
@@ -35,13 +36,19 @@ export function HomePage({
   const { user } = useAuth();
   if (!user) return null;
   const state = useRadioState();
+  const tasteQuery = useTasteQuery();
   const hasSession = hasStartedSession(state);
   const latestSavedSession = history[0];
-  const firstName = user.name.split(/\s+/).filter(Boolean)[0] ?? 'there';
+  const firstName = firstNameFromUser(user);
   const sessionTitle = deriveSessionTitle(hasSession, state, latestSavedSession);
   const sessionDuration = deriveSessionDurationLabel(hasSession, state, latestSavedSession);
   const sessionTimeline = deriveSessionTimeline(hasSession, state, latestSavedSession);
   const generatedSessions = deriveGeneratedSessions(hasSession, state, history);
+  const tasteWords = resolveProfileTasteWords(
+    user,
+    tasteQuery.data ? resolveTasteWords(tasteQuery.data.preferences) : [],
+    tasteQuery,
+  );
   const libraryTrackCount = state.sessionTracklist.length;
   const previewArtworkTrackId = hasSession ? state.trackId : latestSavedSession?.tracks[0]?.id ?? '';
   const previewArtwork = useTrackMeta(previewArtworkTrackId);
@@ -53,7 +60,7 @@ export function HomePage({
       : '';
 
   return (
-    <main className={`${chrome.productSurface} ${styles.homeSurface} ${styles.pageTransition}`}>
+    <main className={`${chrome.productSurface} ${chrome.homeSurface} ${chrome.pageTransition}`}>
       <section className={styles.homeHero} aria-labelledby="home-title">
         <div className={styles.homeCopy}>
           <h1 id="home-title">Welcome back, {firstName}.</h1>
@@ -119,7 +126,7 @@ export function HomePage({
           </div>
           <div className={styles.tasteGraphWrap} aria-label="Taste DNA overview">
             <div className={styles.tasteLegend}>
-              {HOME_DNA.map((item) => (
+              {tasteWords.map((item) => (
                 <span key={item}>
                   <i aria-hidden />
                   <strong>{item}</strong>

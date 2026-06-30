@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GenreCount, TasteEntityType, TastePolarity } from '@auracle/shared';
 import { queryKeys } from '@/shared/query/keys';
 import type { BrowseCatalog } from './catalogBrowse';
+import { EMPTY_BROWSE_CATALOG } from './catalogBrowse';
 import { useBrowseCatalogQuery, useGenresQuery } from './useCatalogQueries';
 import { describeSaveError, saveTaste } from './tasteApi';
 import { useTasteQuery } from './useTasteQuery';
@@ -11,7 +12,6 @@ import { hydrateSelection, setPolarity, togglePolarity, toSaveRequest, type Sele
 export type TasteLoadState = 'loading' | 'ready' | 'error';
 export type TasteSaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-const EMPTY_CATALOG: BrowseCatalog = { artists: [], tracks: [] };
 
 export interface TasteEditor {
   loadState: TasteLoadState;
@@ -116,7 +116,7 @@ export function useTasteEditor(): TasteEditor {
   return {
     loadState,
     genres: genresQuery.data ?? [],
-    catalog: browseQuery.data ?? EMPTY_CATALOG,
+    catalog: browseQuery.data ?? EMPTY_BROWSE_CATALOG,
     selection,
     freeText,
     saveState,

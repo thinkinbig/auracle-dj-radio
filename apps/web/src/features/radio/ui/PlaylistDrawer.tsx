@@ -3,18 +3,14 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { Drawer } from 'vaul';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
-import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
-import { formatTime } from '@/shared/lib/formatTime';
+import { QueueCurrentTrack, QueueUpcomingTrack } from '@/features/radio/ui/QueueTrackRow';
 import { cn } from '@/shared/lib/cn';
+import { prefersReducedMotion } from '@/shared/lib/motion';
 import { IconChevronUp } from '@/shared/ui/icons';
 import { useMobileChrome } from './mobileChrome';
 import styles from './PlaylistDrawer.module.css';
 
 gsap.registerPlugin(useGSAP);
-
-function prefersReducedMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 /**
  * Retractable bottom playlist for the mobile (<768px) layout. Uses vaul for
@@ -23,7 +19,6 @@ function prefersReducedMotion(): boolean {
 export function PlaylistDrawer() {
   const state = useRadioState();
   const [open, setOpen] = useState(false);
-  const current = useTrackMeta(state.trackId);
   const count = state.remainingTrackIds.length + 1;
 
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -52,7 +47,7 @@ export function PlaylistDrawer() {
       const list = listRef.current;
       if (!list || !open) return;
 
-      const items = gsap.utils.toArray<HTMLElement>(list.querySelectorAll(`.${styles.item}`));
+      const items = gsap.utils.toArray<HTMLElement>(list.querySelectorAll('[data-queue-row]'));
       if (items.length === 0) return;
 
       if (prefersReducedMotion()) {
@@ -106,34 +101,13 @@ export function PlaylistDrawer() {
         <Drawer.Content ref={drawerRef} className={styles.sheet} aria-label="Up next tracks">
           <div className={styles.sheetHandle} aria-hidden />
           <ul id="playlist-drawer-list" ref={listRef} className={styles.list}>
-            <li className={cn(styles.item, styles.itemCurrent)}>
-              <span className={styles.index}>▶</span>
-              <div className={styles.itemText}>
-                <p className={styles.title}>{current.title}</p>
-                <p className={styles.artist}>{current.artist}</p>
-              </div>
-              <span className={styles.duration}>{formatTime(current.durationSec)}</span>
-            </li>
+            <QueueCurrentTrack trackId={state.trackId} as="li" variant="drawer" />
             {state.remainingTrackIds.map((id, i) => (
-              <DrawerItem key={id} id={id} index={i + 2} />
+              <QueueUpcomingTrack key={id} id={id} index={i + 2} as="li" variant="drawer" />
             ))}
           </ul>
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>
-  );
-}
-
-function DrawerItem({ id, index }: { id: string; index: number }) {
-  const track = useTrackMeta(id);
-  return (
-    <li className={styles.item}>
-      <span className={styles.index}>{index}</span>
-      <div className={styles.itemText}>
-        <p className={styles.title}>{track.title}</p>
-        <p className={styles.artist}>{track.artist}</p>
-      </div>
-      <span className={styles.duration}>{formatTime(track.durationSec)}</span>
-    </li>
   );
 }

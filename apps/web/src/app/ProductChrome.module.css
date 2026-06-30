@@ -123,6 +123,10 @@
   --content-enter-delay: 620ms;
 }
 
+.homeSurface {
+  /* Marker for home-specific page-transition stagger (see .homeSurface.pageTransition rules). */
+}
+
 .featureSurface {
   padding-top: 118px;
 }
@@ -266,6 +270,20 @@
 
 @media (prefers-reduced-motion: reduce) {
   .productSurface {
+    animation: none;
+  }
+
+  .homeSurface.pageTransition .homeCopy h1,
+  .homeSurface.pageTransition .homeSignal,
+  .homeSurface.pageTransition .homeLede,
+  .homeSurface.pageTransition .homeActions,
+  .homeSurface.pageTransition .sessionPreview,
+  .homeSurface.pageTransition .homeShortcutCard,
+  .pageTransition .pageIntro .kicker,
+  .pageTransition .pageIntro h1,
+  .pageTransition .pageIntro p:not(.kicker),
+  .pageTransition .pageIntro .primaryButton,
+  .pageTransition .historyPanel {
     animation: none;
   }
 }

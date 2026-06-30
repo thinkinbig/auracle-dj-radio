@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconChevronUp, IconPause, IconPlay } from '@/shared/ui/icons';
+import { LoreDisclosure } from '@/shared/ui/LoreDisclosure';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { cn } from '@/shared/lib/cn';
-import { filterCatalog, loadBrowseCatalog, type BrowseCatalog, type BrowseTrack } from './catalogBrowse';
+import { EMPTY_BROWSE_CATALOG, filterCatalog, type BrowseTrack } from './catalogBrowse';
+import { useBrowseCatalogQuery } from './useCatalogQueries';
 import { useCatalogPreview } from './useCatalogPreview';
 import styles from './CatalogArchivePanel.module.css';
-
-const EMPTY_CATALOG: BrowseCatalog = { artists: [], tracks: [] };
 
 function CatalogSkeleton() {
   return (
@@ -32,15 +32,15 @@ function ArchiveTrackRow({
   playing,
   active,
   onTogglePlay,
+  tone = 'default',
 }: {
   track: BrowseTrack;
   playing: boolean;
   active: boolean;
   onTogglePlay: () => void;
+  tone?: 'default' | 'library';
 }) {
   const lore = track.lore.trim();
-  const [expanded, setExpanded] = useState(false);
-  const loreId = `archive-lore-${track.id}`;
 
   return (
     <div className={cn(styles.trackRow, active && styles.trackRowActive, active && !playing && styles.trackRowPaused)}>
@@ -63,26 +63,12 @@ function ArchiveTrackRow({
         <p className={styles.trackArtist}>{track.artist}</p>
         {playing ? <span className={styles.nowPlayingTag}>Now previewing</span> : null}
         {lore ? (
-          <>
-            <button
-              type="button"
-              className={styles.loreToggle}
-              aria-expanded={expanded}
-              aria-controls={loreId}
-              onClick={() => setExpanded((open) => !open)}
-            >
-              {expanded ? 'Hide story' : 'Track story'}
-              <IconChevronUp
-                size={14}
-                className={cn(styles.loreChevron, !expanded && styles.loreChevronCollapsed)}
-              />
-            </button>
-            {expanded ? (
-              <p id={loreId} className={styles.lore}>
-                {lore}
-              </p>
-            ) : null}
-          </>
+          <LoreDisclosure
+            lore={lore}
+            id={`archive-lore-${track.id}`}
+            tone={tone === 'library' ? 'library' : 'purple'}
+            bodyClassName={styles.lore}
+          />
         ) : null}
       </div>
     </div>
@@ -97,38 +83,26 @@ interface CatalogArchivePanelProps {
 
 /** Artist → album → track browse with local preview playback. */
 export function CatalogArchivePanel({ tone = 'default', onTrackCount }: CatalogArchivePanelProps) {
-  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [catalog, setCatalog] = useState<BrowseCatalog>(EMPTY_CATALOG);
+  const catalogQuery = useBrowseCatalogQuery();
+  const catalog = catalogQuery.data ?? EMPTY_BROWSE_CATALOG;
   const [query, setQuery] = useState('');
   const preview = useCatalogPreview();
   const onTrackCountRef = useRef(onTrackCount);
   onTrackCountRef.current = onTrackCount;
 
   useEffect(() => {
-    let cancelled = false;
-    void loadBrowseCatalog()
-      .then((next) => {
-        if (!cancelled) {
-          setCatalog(next);
-          setLoadState('ready');
-          onTrackCountRef.current?.(next.tracks.length);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLoadState('error');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (catalogQuery.data) {
+      onTrackCountRef.current?.(catalogQuery.data.tracks.length);
+    }
+  }, [catalogQuery.data]);
 
   const filtered = useMemo(() => filterCatalog(catalog, query), [catalog, query]);
   const tracksById = useMemo(() => new Map(filtered.tracks.map((t) => [t.id, t])), [filtered.tracks]);
   const isFiltering = query.trim().length > 0;
   const activeTrack = preview.activeId ? tracksById.get(preview.activeId) ?? catalog.tracks.find((t) => t.id === preview.activeId) : undefined;
 
-  if (loadState === 'loading') return <CatalogSkeleton />;
-  if (loadState === 'error') {
+  if (catalogQuery.isPending) return <CatalogSkeleton />;
+  if (catalogQuery.isError) {
     return <p className={styles.error}>Could not load the catalog. Refresh to try again.</p>;
   }
 
@@ -233,6 +207,7 @@ export function CatalogArchivePanel({ tone = 'default', onTrackCount }: CatalogA
                             playing={preview.isTrackPlaying(track.id)}
                             active={preview.isTrackActive(track.id)}
                             onTogglePlay={() => preview.toggle(track.id)}
+                            tone={tone}
                           />
                         ) : null;
                       })}

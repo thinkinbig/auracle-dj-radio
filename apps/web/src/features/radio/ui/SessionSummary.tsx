@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import type { FlowTrackRef } from '@auracle/shared';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { isSessionComplete, selectQueueRefresh } from '@/features/radio/session/playbackSelectors';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
-import { IconChevronUp } from '@/shared/ui/icons';
+import { LoreDisclosure } from '@/shared/ui/LoreDisclosure';
 import { cn } from '@/shared/lib/cn';
+import { SessionCompletePanel } from './SessionCompletePanel';
 import styles from './SessionSummary.module.css';
 
 export function SessionSummary() {
@@ -27,13 +27,15 @@ export function SessionSummary() {
           <p className={styles.kicker}>{complete ? 'Session complete' : 'Generated session'}</p>
           <h2 className={styles.title}>{state.sessionTitle}</h2>
           {complete ? (
-            <p className={styles.completeCopy}>
-              {extendPending
-                ? 'Holding the outro while we queue the next batch.'
-                : extendFailed
-                  ? 'The station paused here. Continue listening or start a new session.'
-                  : 'This set has played through. Start a new session when you are ready.'}
-            </p>
+            <SessionCompletePanel
+              part="copy"
+              surface="summary"
+              extendPending={extendPending}
+              extendFailed={extendFailed}
+              onRetry={handleRetryExtend}
+              onNewSession={handleReturnToSetup}
+              className={styles.completeCopy}
+            />
           ) : null}
         </div>
         <div className={styles.metrics} aria-label="Session progress">
@@ -42,15 +44,18 @@ export function SessionSummary() {
         </div>
       </div>
 
-      {complete && extendFailed ? (
-        <div className={styles.completeActions}>
-          <button type="button" className={styles.completePrimary} onClick={handleRetryExtend}>
-            Continue listening
-          </button>
-          <button type="button" className={styles.completeSecondary} onClick={handleReturnToSetup}>
-            New session
-          </button>
-        </div>
+      {complete ? (
+        <SessionCompletePanel
+          part="actions"
+          surface="summary"
+          extendPending={extendPending}
+          extendFailed={extendFailed}
+          onRetry={handleRetryExtend}
+          onNewSession={handleReturnToSetup}
+          className={styles.completeActions}
+          primaryButtonClassName={styles.completePrimary}
+          secondaryButtonClassName={styles.completeSecondary}
+        />
       ) : null}
 
       <ol className={styles.list}>
@@ -80,8 +85,6 @@ function SummaryTrack({
   const label = status === 'live' ? 'Live' : status === 'played' ? 'Played' : 'Queued';
   const lore = track.lore.trim();
   const canShowLore = lore && status !== 'queued';
-  const [loreExpanded, setLoreExpanded] = useState(false);
-  const loreId = `summary-lore-${trackRef.flow_position}-${trackRef.id}`;
 
   return (
     <li className={cn(styles.item, status === 'live' && styles.itemLive)}>
@@ -99,26 +102,11 @@ function SummaryTrack({
         <p className={styles.artist}>{track.artist}</p>
         <p className={styles.reason}>{trackRef.reason}</p>
         {canShowLore ? (
-          <>
-            <button
-              type="button"
-              className={styles.loreToggle}
-              aria-expanded={loreExpanded}
-              aria-controls={loreId}
-              onClick={() => setLoreExpanded((open) => !open)}
-            >
-              {loreExpanded ? 'Hide story' : 'Track story'}
-              <IconChevronUp
-                size={14}
-                className={cn(styles.loreChevron, !loreExpanded && styles.loreChevronCollapsed)}
-              />
-            </button>
-            {loreExpanded ? (
-              <p id={loreId} className={styles.lore}>
-                {lore}
-              </p>
-            ) : null}
-          </>
+          <LoreDisclosure
+            lore={lore}
+            id={`summary-lore-${trackRef.flow_position}-${trackRef.id}`}
+            bodyClassName={styles.lore}
+          />
         ) : null}
       </div>
     </li>

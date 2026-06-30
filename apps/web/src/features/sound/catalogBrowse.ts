@@ -36,6 +36,8 @@ export interface BrowseCatalog {
   tracks: BrowseTrack[];
 }
 
+export const EMPTY_BROWSE_CATALOG: BrowseCatalog = { artists: [], tracks: [] };
+
 /** Group flat catalog tracks into a stable artist/album/track tree (pure). */
 export function groupCatalog(tracks: TrackMeta[]): BrowseCatalog {
   const artists = new Map<string, BrowseArtist>();

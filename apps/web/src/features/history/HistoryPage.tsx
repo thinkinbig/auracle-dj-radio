@@ -1,6 +1,11 @@
 import type { FlowTrackRef } from '@auracle/shared';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
-import { formatSavedAt, hasStartedSession } from '@/features/radio/session/sessionDisplay';
+import {
+  deriveHistoryLiveRows,
+  deriveSessionTitle,
+  formatSavedAt,
+  hasStartedSession,
+} from '@/features/radio/session/sessionDisplay';
 import type { SessionHistoryEntry, SessionHistoryTrack } from '@/features/radio/session/sessionHistory';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
@@ -16,12 +21,14 @@ export function HistoryPage({ history, onOpenListen }: HistoryPageProps) {
   const state = useRadioState();
   const hasSession = hasStartedSession(state);
   const latestSession = history[0];
+  const sessionHeading = deriveSessionTitle(hasSession, state, latestSession);
+  const liveRows = deriveHistoryLiveRows(hasSession, state);
   const recentTranscript = latestSession?.transcript.slice(-3) ?? state.transcript.slice(-3);
   const trackHistory = latestSession?.tracks ?? state.sessionTracklist;
   const favoriteSession = history.find((session) => session.playlistFeedback === 'like');
 
   return (
-    <main className={`${chrome.productSurface} ${styles.pageTransition}`}>
+    <main className={`${chrome.productSurface} ${chrome.pageTransition}`}>
       <section className={styles.pageIntro} aria-labelledby="history-title">
         <h1 id="history-title">Listening memories, without the clutter.</h1>
         <p>
@@ -37,7 +44,7 @@ export function HistoryPage({ history, onOpenListen }: HistoryPageProps) {
         <article className={styles.historyPanel}>
           <div className={styles.sectionHeading}>
             <p className={chrome.kicker}>Sessions</p>
-            <h2>{latestSession ? latestSession.title : hasSession ? state.sessionTitle : 'No saved sessions yet'}</h2>
+            <h2>{sessionHeading}</h2>
           </div>
           {history.length > 0 ? (
             <div className={styles.sessionRows}>
@@ -50,14 +57,12 @@ export function HistoryPage({ history, onOpenListen }: HistoryPageProps) {
             </div>
           ) : hasSession ? (
             <div className={styles.sessionRows}>
-              <span>
-                <strong>{state.sessionSubtitle}</strong>
-                Current session · {formatTime(state.sessionElapsedSec)}
-              </span>
-              <span>
-                <strong>{state.trackTitle}</strong>
-                Now playing · {state.artist}
-              </span>
+              {liveRows.map((row) => (
+                <span key={row.strong}>
+                  <strong>{row.strong}</strong>
+                  {row.detail}
+                </span>
+              ))}
             </div>
           ) : (
             <p className={chrome.emptyText}>Start and finish a session, then it will appear here.</p>

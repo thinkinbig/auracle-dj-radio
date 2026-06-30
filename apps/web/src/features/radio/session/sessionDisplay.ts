@@ -130,3 +130,22 @@ export function deriveSessionMeta(hasSession: boolean, playback: PlaybackState):
     action: hasSession ? 'Resume' : 'Start',
   };
 }
+
+export interface HistoryLiveRow {
+  strong: string;
+  detail: string;
+}
+
+export function deriveHistoryLiveRows(hasSession: boolean, state: PlaybackState): HistoryLiveRow[] {
+  if (!hasSession) return [];
+  return [
+    {
+      strong: state.sessionSubtitle,
+      detail: `Current session · ${formatTime(state.sessionElapsedSec)}`,
+    },
+    {
+      strong: state.trackTitle,
+      detail: `Now playing · ${state.artist}`,
+    },
+  ];
+}

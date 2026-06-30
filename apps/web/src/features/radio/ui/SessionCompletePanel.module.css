@@ -1,0 +1,50 @@
+.root {
+  display: grid;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.copy {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.68);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: #8df7a7;
+  color: #071108;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-control);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(248, 250, 252, 0.88);
+  font-size: 14px;
+  font-weight: 600;
+}

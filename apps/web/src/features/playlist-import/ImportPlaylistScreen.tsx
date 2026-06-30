@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type { ImportedPlaylistProfile, PlaylistImportSource, PlaylistImportTrack } from '@auracle/shared';
+import { useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import type { ImportedPlaylistProfile, PlaylistImportListResponse, PlaylistImportSource, PlaylistImportTrack } from '@auracle/shared';
 import { useAuth } from '@/features/marketing/AuthProvider';
-import { AppBrand } from '@/features/marketing/AppBrand';
+import { isGuestUser } from '@/features/marketing/guest';
 import { CatalogArchivePanel } from '@/features/sound/CatalogArchivePanel';
+import { FeaturePageShell } from '@/shared/ui/FeaturePageShell';
+import enter from '@/shared/ui/FeatureEnter.module.css';
+import { queryKeys } from '@/shared/query/keys';
 import { cn } from '@/shared/lib/cn';
-import { describePlaylistImportError, fetchImportedPlaylists, saveImportedPlaylist } from './playlistImportApi';
+import { describePlaylistImportError, saveImportedPlaylist } from './playlistImportApi';
 import { parsePlaylistInput, sourceLabel } from './playlistImportParser';
+import { useImportedPlaylistsQuery } from './useImportedPlaylistsQuery';
 import styles from './ImportPlaylistScreen.module.css';
-
-interface ImportPlaylistScreenProps {
-  onClose: () => void;
-  embedded?: boolean;
-}
 
 const SAMPLE = `Night Drive, Nova Pulse, After Hours, Synthwave, 2014
 Glass Coast, Mirrorline, Coastline, Dream pop, 2018
@@ -23,33 +23,24 @@ const SOURCE_OPTIONS: { value: PlaylistImportSource; label: string; detail: stri
   { value: 'spotify_export', label: 'Spotify export', detail: 'Metadata CSV or JSON' },
 ];
 
-export function ImportPlaylistScreen({ onClose, embedded = false }: ImportPlaylistScreenProps) {
+export function ImportPlaylistScreen() {
   const { user } = useAuth();
-  const isGuest = user!.id === 'guest';
+  const isGuest = isGuestUser(user!);
+  const queryClient = useQueryClient();
+  const playlistsQuery = useImportedPlaylistsQuery(!isGuest);
+  const profiles = playlistsQuery.data?.playlists ?? [];
   const [source, setSource] = useState<PlaylistImportSource>('csv');
   const [name, setName] = useState('My music archive');
   const [rawInput, setRawInput] = useState(SAMPLE);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState<ImportedPlaylistProfile | undefined>();
   const [error, setError] = useState<string | undefined>();
-  const [profiles, setProfiles] = useState<ImportedPlaylistProfile[]>([]);
   const [catalogTrackCount, setCatalogTrackCount] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const parsed = useMemo(() => parsePlaylistInput(rawInput, source), [rawInput, source]);
   const stats = useMemo(() => summarizePreview(parsed.tracks), [parsed.tracks]);
   const canSave = !isGuest && name.trim().length > 0 && parsed.tracks.length > 0 && !isSaving;
-
-  useEffect(() => {
-    if (isGuest) return;
-    let cancelled = false;
-    void fetchImportedPlaylists().then((res) => {
-      if (!cancelled) setProfiles(res.playlists);
-    }).catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [isGuest]);
 
   async function readFile(file: File | undefined) {
     if (!file) return;
@@ -66,7 +57,12 @@ export function ImportPlaylistScreen({ onClose, embedded = false }: ImportPlayli
     try {
       const res = await saveImportedPlaylist({ name: name.trim(), source, tracks: parsed.tracks });
       setSaved(res.profile);
-      setProfiles((current) => [res.profile, ...current.filter((profile) => profile.id !== res.profile.id)]);
+      queryClient.setQueryData<PlaylistImportListResponse>(queryKeys.playlists, (current) => {
+        const existing = current?.playlists ?? [];
+        return {
+          playlists: [res.profile, ...existing.filter((profile) => profile.id !== res.profile.id)],
+        };
+      });
     } catch (err) {
       setError(describePlaylistImportError(err));
     } finally {
@@ -75,27 +71,20 @@ export function ImportPlaylistScreen({ onClose, embedded = false }: ImportPlayli
   }
 
   return (
-    <div className={cn(styles.page, isGuest && styles.guestPage, embedded && styles.embeddedPage)}>
-      {!embedded ? <AppBrand onClick={onClose} label="Back to Auracle" /> : null}
-      <header className={styles.header}>
-        {!embedded ? (
-          <div className={styles.navRow}>
-            <button className={styles.backButton} type="button" onClick={onClose}>
-              Back
-            </button>
-            <span className={styles.contextLabel}>Library</span>
-          </div>
-        ) : null}
-
+    <FeaturePageShell
+      pageClassName={styles.page}
+      headerClassName={styles.header}
+      mainClassName={styles.main}
+      hero={
         <div className={styles.heroGrid}>
           <section className={styles.heroCopy} aria-labelledby="import-title">
-            <h1 id="import-title">Your music library.</h1>
-            <p>
+            <h1 id="import-title" className={cn(enter.enter, enter.d90)}>Your music library.</h1>
+            <p className={cn(enter.enter, enter.d180)}>
               Browse and preview every track in the Auracle catalog, or import playlists so future
               stations can learn from your history.
             </p>
           </section>
-          <div className={styles.memoryCard} aria-hidden>
+          <div className={cn(styles.memoryCard, enter.enter, enter.d280)} aria-hidden>
             <span>Local catalog</span>
             <strong>{catalogTrackCount != null ? `${catalogTrackCount} tracks` : '…'}</strong>
             <div className={styles.signalRows}>
@@ -105,157 +94,161 @@ export function ImportPlaylistScreen({ onClose, embedded = false }: ImportPlayli
             </div>
           </div>
         </div>
-      </header>
-
-      <main className={styles.main}>
-        <section className={styles.catalogPanel} aria-labelledby="library-catalog-title">
-          <div className={styles.panelHeader}>
-            <div>
-              <p className={styles.kicker}>Browse</p>
-              <h2 id="library-catalog-title">Auracle catalog</h2>
-            </div>
-            <span className={styles.countBadge}>On device</span>
+      }
+    >
+      <section className={cn(styles.catalogPanel, enter.enter, enter.d360)} aria-labelledby="library-catalog-title">
+        <div className={styles.panelHeader}>
+          <div>
+            <p className={styles.kicker}>Browse</p>
+            <h2 id="library-catalog-title">Auracle catalog</h2>
           </div>
-          <CatalogArchivePanel tone="library" onTrackCount={setCatalogTrackCount} />
-        </section>
+          <span className={styles.countBadge}>On device</span>
+        </div>
+        <CatalogArchivePanel tone="library" onTrackCount={setCatalogTrackCount} />
+      </section>
 
-        {isGuest ? (
-          <section className={styles.guestGate}>
-            <p className={styles.kicker}>Login required</p>
-            <h2>Import needs an account.</h2>
-            <p>Guest mode can browse and preview the catalog, but imported playlists are saved to your personal taste memory.</p>
-          </section>
-        ) : (
-          <>
-            <div className={styles.sectionDivider} role="separator" aria-label="Import section">
-              <span>Import your history</span>
-            </div>
+      {isGuest ? (
+        <GuestGate />
+      ) : (
+        <>
+          <div className={styles.sectionDivider} role="separator" aria-label="Import section">
+            <span>Import your history</span>
+          </div>
 
-            <section className={styles.importGrid}>
-              <div className={styles.editorPanel}>
-                <div className={styles.panelHeader}>
-                  <div>
-                    <p className={styles.kicker}>Source</p>
-                    <h2>Add playlist data</h2>
-                  </div>
-                  <button className={styles.fileButton} type="button" onClick={() => fileRef.current?.click()}>
-                    Choose file
-                  </button>
-                  <input
-                    ref={fileRef}
-                    className={styles.fileInput}
-                    type="file"
-                    accept=".csv,.txt,.json,.tsv"
-                    onChange={(event) => void readFile(event.target.files?.[0])}
-                  />
-                </div>
-
-                <label className={styles.label}>
-                  Playlist name
-                  <input value={name} onChange={(event) => setName(event.target.value)} maxLength={90} />
-                </label>
-
-                <div className={styles.sourceList} role="radiogroup" aria-label="Playlist source">
-                  {SOURCE_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={cn(styles.sourceCard, source === option.value && styles.sourceCardActive)}
-                      aria-pressed={source === option.value}
-                      onClick={() => setSource(option.value)}
-                    >
-                      <strong>{option.label}</strong>
-                      <span>{option.detail}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <label className={styles.label}>
-                  Metadata
-                  <textarea
-                    value={rawInput}
-                    onChange={(event) => setRawInput(event.target.value)}
-                    spellCheck={false}
-                    placeholder="Title, Artist, Album, Genre, Year"
-                  />
-                </label>
-              </div>
-
-              <aside className={styles.previewPanel} aria-label="Import preview">
-                <div className={styles.panelHeader}>
-                  <div>
-                    <p className={styles.kicker}>Preview</p>
-                    <h2>{sourceLabel(source)}</h2>
-                  </div>
-                  <span className={styles.countBadge}>{parsed.tracks.length} tracks</span>
-                </div>
-
-                <div className={styles.stats}>
-                  <span>
-                    <strong>{stats.topArtists[0] ?? 'No artist'}</strong>
-                    top artist
-                  </span>
-                  <span>
-                    <strong>{stats.topGenres[0] ?? 'Mixed'}</strong>
-                    top genre
-                  </span>
-                  <span>
-                    <strong>{stats.yearRange ?? 'Open'}</strong>
-                    years
-                  </span>
-                </div>
-
-                <div className={styles.trackPreview}>
-                  {parsed.tracks.slice(0, 8).map((track, index) => (
-                    <div key={`${track.title}-${track.artist}-${index}`} className={styles.trackRow}>
-                      <span>{String(index + 1).padStart(2, '0')}</span>
-                      <div>
-                        <strong>{track.title}</strong>
-                        <small>{track.artist}{track.album ? ` · ${track.album}` : ''}</small>
-                      </div>
-                      <em>{track.year ?? track.genre ?? ''}</em>
-                    </div>
-                  ))}
-                  {parsed.tracks.length === 0 ? <p className={styles.empty}>No valid tracks detected yet.</p> : null}
-                </div>
-
-                {parsed.warnings.length > 0 ? (
-                  <div className={styles.warnings} role="status">
-                    {parsed.warnings.slice(0, 3).map((warning) => <p key={warning}>{warning}</p>)}
-                  </div>
-                ) : null}
-
-                <button className={styles.saveButton} type="button" disabled={!canSave} onClick={() => void save()}>
-                  {isSaving ? 'Saving music...' : 'Save Music Memory'}
-                </button>
-                {saved ? <p className={styles.success}>Saved {saved.trackCount} tracks to your music memory.</p> : null}
-                {error ? <p className={styles.error} role="alert">{error}</p> : null}
-              </aside>
-            </section>
-
-            <section className={styles.savedPanel} aria-label="Imported playlists">
+          <section className={styles.importGrid}>
+            <div className={cn(styles.editorPanel, enter.enter, enter.d440)}>
               <div className={styles.panelHeader}>
                 <div>
-                  <p className={styles.kicker}>Saved imports</p>
-                  <h2>Music memory</h2>
+                  <p className={styles.kicker}>Source</p>
+                  <h2>Add playlist data</h2>
                 </div>
-                <span className={styles.countBadge}>{profiles.length}</span>
+                <button className={styles.fileButton} type="button" onClick={() => fileRef.current?.click()}>
+                  Choose file
+                </button>
+                <input
+                  ref={fileRef}
+                  className={styles.fileInput}
+                  type="file"
+                  accept=".csv,.txt,.json,.tsv"
+                  onChange={(event) => void readFile(event.target.files?.[0])}
+                />
               </div>
-              <div className={styles.savedList}>
-                {profiles.map((profile) => (
-                  <article key={profile.id} className={styles.savedItem}>
-                    <strong>{profile.name}</strong>
-                    <span>{profile.trackCount} tracks · {sourceLabel(profile.source)}</span>
-                    <small>{profile.summary.topArtists.slice(0, 3).join(', ') || 'Mixed artists'}</small>
-                  </article>
+
+              <label className={styles.label}>
+                Playlist name
+                <input value={name} onChange={(event) => setName(event.target.value)} maxLength={90} />
+              </label>
+
+              <div className={styles.sourceList} role="radiogroup" aria-label="Playlist source">
+                {SOURCE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={cn(styles.sourceCard, source === option.value && styles.sourceCardActive)}
+                    aria-pressed={source === option.value}
+                    onClick={() => setSource(option.value)}
+                  >
+                    <strong>{option.label}</strong>
+                    <span>{option.detail}</span>
+                  </button>
                 ))}
-                {profiles.length === 0 ? <p className={styles.empty}>No imported music yet.</p> : null}
               </div>
-            </section>
-          </>
-        )}
-      </main>
-    </div>
+
+              <label className={styles.label}>
+                Metadata
+                <textarea
+                  value={rawInput}
+                  onChange={(event) => setRawInput(event.target.value)}
+                  spellCheck={false}
+                  placeholder="Title, Artist, Album, Genre, Year"
+                />
+              </label>
+            </div>
+
+            <aside className={cn(styles.previewPanel, enter.enter, enter.d520)} aria-label="Import preview">
+              <div className={styles.panelHeader}>
+                <div>
+                  <p className={styles.kicker}>Preview</p>
+                  <h2>{sourceLabel(source)}</h2>
+                </div>
+                <span className={styles.countBadge}>{parsed.tracks.length} tracks</span>
+              </div>
+
+              <div className={styles.stats}>
+                <span>
+                  <strong>{stats.topArtists[0] ?? 'No artist'}</strong>
+                  top artist
+                </span>
+                <span>
+                  <strong>{stats.topGenres[0] ?? 'Mixed'}</strong>
+                  top genre
+                </span>
+                <span>
+                  <strong>{stats.yearRange ?? 'Open'}</strong>
+                  years
+                </span>
+              </div>
+
+              <div className={styles.trackPreview}>
+                {parsed.tracks.slice(0, 8).map((track, index) => (
+                  <div key={`${track.title}-${track.artist}-${index}`} className={styles.trackRow}>
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                    <div>
+                      <strong>{track.title}</strong>
+                      <small>{track.artist}{track.album ? ` · ${track.album}` : ''}</small>
+                    </div>
+                    <em>{track.year ?? track.genre ?? ''}</em>
+                  </div>
+                ))}
+                {parsed.tracks.length === 0 ? <p className={styles.empty}>No valid tracks detected yet.</p> : null}
+              </div>
+
+              {parsed.warnings.length > 0 ? (
+                <div className={styles.warnings} role="status">
+                  {parsed.warnings.slice(0, 3).map((warning) => <p key={warning}>{warning}</p>)}
+                </div>
+              ) : null}
+
+              <button className={styles.saveButton} type="button" disabled={!canSave} onClick={() => void save()}>
+                {isSaving ? 'Saving music...' : 'Save Music Memory'}
+              </button>
+              {saved ? <p className={styles.success}>Saved {saved.trackCount} tracks to your music memory.</p> : null}
+              {error ? <p className={styles.error} role="alert">{error}</p> : null}
+            </aside>
+          </section>
+
+          <section className={cn(styles.savedPanel, enter.enter, enter.d620)} aria-label="Imported playlists">
+            <div className={styles.panelHeader}>
+              <div>
+                <p className={styles.kicker}>Saved imports</p>
+                <h2>Music memory</h2>
+              </div>
+              <span className={styles.countBadge}>{profiles.length}</span>
+            </div>
+            <div className={styles.savedList}>
+              {profiles.map((profile) => (
+                <article key={profile.id} className={styles.savedItem}>
+                  <strong>{profile.name}</strong>
+                  <span>{profile.trackCount} tracks · {sourceLabel(profile.source)}</span>
+                  <small>{profile.summary.topArtists.slice(0, 3).join(', ') || 'Mixed artists'}</small>
+                </article>
+              ))}
+              {profiles.length === 0 ? <p className={styles.empty}>No imported music yet.</p> : null}
+            </div>
+          </section>
+        </>
+      )}
+    </FeaturePageShell>
+  );
+}
+
+function GuestGate() {
+  return (
+    <section className={cn(styles.guestGate, enter.enter, enter.d440)}>
+      <p className={styles.kicker}>Login required</p>
+      <h2>Import needs an account.</h2>
+      <p>Guest mode can browse and preview the catalog, but imported playlists are saved to your personal taste memory.</p>
+    </section>
   );
 }
 

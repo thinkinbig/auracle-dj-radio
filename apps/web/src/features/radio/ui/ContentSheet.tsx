@@ -14,19 +14,18 @@ import {
   playbackProgressPct,
   selectQueueRefresh,
 } from '@/features/radio/session/playbackSelectors';
-import { IconChevronUp, IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/icons';
+import { IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/icons';
+import { LoreToggle } from '@/shared/ui/LoreToggle';
 import { IntentOnboarding } from './IntentOnboarding';
+import { SessionCompletePanel } from './SessionCompletePanel';
 import { SessionSummary } from './SessionSummary';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { cn } from '@/shared/lib/cn';
+import { prefersReducedMotion } from '@/shared/lib/motion';
 import { useMobileChrome } from './mobileChrome';
 import styles from './ContentSheet.module.css';
 
 gsap.registerPlugin(useGSAP);
-
-function prefersReducedMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 export function ContentSheet() {
   const sheetRef = useRef<HTMLElement>(null);
@@ -168,16 +167,12 @@ export function ContentSheet() {
               <div className={styles.nowPlayingKickerRow}>
                 <p className={styles.trackKicker}>Now playing</p>
                 {!isWide && lore ? (
-                  <button
-                    type="button"
-                    className={styles.loreToggle}
-                    aria-expanded={loreExpanded}
-                    aria-controls="now-playing-lore"
-                    aria-label={loreExpanded ? 'Hide track story' : 'Show track story'}
-                    onClick={() => setLoreExpanded((open) => !open)}
-                  >
-                    <IconChevronUp size={16} className={styles.loreChevron} />
-                  </button>
+                  <LoreToggle
+                    variant="icon"
+                    expanded={loreExpanded}
+                    onToggle={() => setLoreExpanded((open) => !open)}
+                    controlsId="now-playing-lore"
+                  />
                 ) : null}
               </div>
               <div className={styles.nowPlayingBody}>
@@ -237,30 +232,16 @@ export function ContentSheet() {
 
       <div className={styles.controls}>
         {complete ? (
-          <div className={styles.completePanel} role="status" aria-live="polite">
-            {extendPending ? (
-              <p className={styles.completeCopy}>Finding more music for your station…</p>
-            ) : (
-              <>
-                <p className={styles.completeTitle}>Session complete</p>
-                <p className={styles.completeCopy}>
-                  {extendFailed
-                    ? 'We could not fetch the next batch. You can try again or start a fresh session.'
-                    : 'This set has played through. Keep listening or start something new.'}
-                </p>
-                <div className={styles.completeActions}>
-                  {extendFailed ? (
-                    <button type="button" className={styles.continueBtn} onClick={handleRetryExtend}>
-                      Continue listening
-                    </button>
-                  ) : null}
-                  <button type="button" className={styles.completeSecondaryBtn} onClick={handleReturnToSetup}>
-                    New session
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <SessionCompletePanel
+            surface="controls"
+            extendPending={extendPending}
+            extendFailed={extendFailed}
+            onRetry={handleRetryExtend}
+            onNewSession={handleReturnToSetup}
+            className={styles.completePanel}
+            primaryButtonClassName={styles.continueBtn}
+            secondaryButtonClassName={styles.completeSecondaryBtn}
+          />
         ) : (
           <>
         <button

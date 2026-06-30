@@ -1,0 +1,57 @@
+.enter {
+  animation: softPageEnter 760ms var(--ease-out) var(--content-enter-delay, 0ms) both;
+}
+
+.d0 {
+  --content-enter-delay: 0ms;
+}
+
+.d90 {
+  --content-enter-delay: 90ms;
+}
+
+.d180 {
+  --content-enter-delay: 180ms;
+}
+
+.d280 {
+  --content-enter-delay: 280ms;
+}
+
+.d360 {
+  --content-enter-delay: 360ms;
+}
+
+.d380 {
+  --content-enter-delay: 380ms;
+}
+
+.d440 {
+  --content-enter-delay: 440ms;
+}
+
+.d500 {
+  --content-enter-delay: 500ms;
+}
+
+.d520 {
+  --content-enter-delay: 520ms;
+}
+
+.d580 {
+  --content-enter-delay: 580ms;
+}
+
+.d620 {
+  --content-enter-delay: 620ms;
+}
+
+.d660 {
+  --content-enter-delay: 660ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    animation: none;
+  }
+}

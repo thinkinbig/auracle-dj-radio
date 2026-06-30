@@ -1,7 +1,7 @@
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { selectQueueRefresh } from '@/features/radio/session/playbackSelectors';
-import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
-import { formatTime } from '@/shared/lib/formatTime';
+import { QueueCurrentTrack, QueueUpcomingTrack } from '@/features/radio/ui/QueueTrackRow';
+import { useCatalogLoaded } from '@/shared/hooks/useTrackCatalog';
 import { cn } from '@/shared/lib/cn';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import styles from './TrackQueue.module.css';
@@ -22,7 +22,6 @@ export function TrackQueue() {
   const state = useRadioState();
   const { handlePlaylistFeedback, handleRetryExtend } = useRadioActions();
   const catalogLoaded = useCatalogLoaded();
-  const current = useTrackMeta(state.trackId);
   const recentlyChanged = new Set(state.recentlyChangedIds);
   const refresh = selectQueueRefresh(state);
   const extendRetryable = refresh.retryable;
@@ -98,36 +97,15 @@ export function TrackQueue() {
         </>
       ) : (
         <>
-          <div className={cn(styles.item, styles.itemCurrent)}>
-            <span className={styles.index}>▶</span>
-            <div className={styles.itemText}>
-              <p className={styles.title}>{current.title}</p>
-              <p className={styles.artist}>{current.artist}</p>
-            </div>
-            <span className={styles.duration}>{formatTime(current.durationSec)}</span>
-          </div>
+          <QueueCurrentTrack trackId={state.trackId} />
 
           <ul className={styles.list}>
             {state.remainingTrackIds.map((id, i) => (
-              <TrackQueueItem key={id} id={id} index={i + 2} changed={recentlyChanged.has(id)} />
+              <QueueUpcomingTrack key={id} id={id} index={i + 2} changed={recentlyChanged.has(id)} />
             ))}
           </ul>
         </>
       )}
     </aside>
-  );
-}
-
-function TrackQueueItem({ id, index, changed }: { id: string; index: number; changed: boolean }) {
-  const track = useTrackMeta(id);
-  return (
-    <li className={cn(styles.item, changed && styles.itemChanged)}>
-      <span className={styles.index}>{index}</span>
-      <div className={styles.itemText}>
-        <p className={styles.title}>{track.title}</p>
-        <p className={styles.artist}>{track.artist}</p>
-      </div>
-      <span className={styles.duration}>{formatTime(track.durationSec)}</span>
-    </li>
   );
 }

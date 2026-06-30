@@ -1,73 +1,3 @@
-.pageTransition {
-  --content-enter-delay: 0ms;
-}
-
-.homeSurface.pageTransition > * {
-  animation: none;
-}
-.homeSurface.pageTransition .homeCopy h1,
-.homeSurface.pageTransition .homeSignal,
-.homeSurface.pageTransition .homeLede,
-.homeSurface.pageTransition .homeActions,
-.homeSurface.pageTransition .sessionPreview,
-.homeSurface.pageTransition .homeShortcutCard,
-.homeSurface.pageTransition .homeCopy h1 {
-  --content-enter-delay: 0ms;
-}
-
-.homeSurface.pageTransition .homeSignal {
-  --content-enter-delay: 140ms;
-}
-
-.homeSurface.pageTransition .homeLede {
-  --content-enter-delay: 210ms;
-}
-
-.homeSurface.pageTransition .homeActions {
-  --content-enter-delay: 280ms;
-}
-
-.homeSurface.pageTransition .sessionPreview {
-  --content-enter-delay: 360ms;
-}
-
-.homeSurface.pageTransition .homeShortcutCard:nth-child(1) {
-  --content-enter-delay: 500ms;
-}
-
-.homeSurface.pageTransition .homeShortcutCard:nth-child(2) {
-  --content-enter-delay: 580ms;
-}
-
-.homeSurface.pageTransition .homeShortcutCard:nth-child(3) {
-  --content-enter-delay: 660ms;
-}
-.homeSurface {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  padding:
-    126px max(24px, calc((100vw - 1160px) / 2))
-    76px;
-  background:
-    radial-gradient(circle at 16% 16%, rgba(75, 222, 128, 0.2), transparent 28%),
-    radial-gradient(circle at 82% 8%, rgba(244, 114, 182, 0.16), transparent 30%),
-    linear-gradient(135deg, #070807 0%, #111513 44%, #050505 100%);
-  background-size: 120% 120%, 130% 130%, 100% 100%;
-}
-
-.homeSurface::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.024), transparent 34%, rgba(255, 255, 255, 0.018) 66%, transparent),
-    radial-gradient(circle at 50% 50%, transparent 0, rgba(0, 0, 0, 0.34) 72%);
-  opacity: 0.9;
-}
-
 .homeHero,
 .homeGrid,
 .homeCardGrid,
@@ -667,17 +597,6 @@
   .homeGrid,
   .homeCardGrid {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .homeSurface.pageTransition .homeCopy h1,
-  .homeSurface.pageTransition .homeSignal,
-  .homeSurface.pageTransition .homeLede,
-  .homeSurface.pageTransition .homeActions,
-  .homeSurface.pageTransition .sessionPreview,
-  .homeSurface.pageTransition .homeShortcutCard {
-    animation: none;
   }
 }
 

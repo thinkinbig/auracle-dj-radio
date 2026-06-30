@@ -16,7 +16,7 @@ import { AuthStatus } from '@/features/marketing/AuthStatus';
 import { useAuth } from '@/features/marketing/AuthProvider';
 import { LandingPage } from '@/features/marketing/LandingPage';
 import { ImportPlaylistScreen } from '@/features/playlist-import/ImportPlaylistScreen';
-import { MoodPickerScreen } from '@/features/radio/ui/MoodPickerScreen';
+import { OnboardingPage } from '@/features/radio/ui/OnboardingPage';
 import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import { SoundScreen } from '@/features/sound/SoundScreen';
 import { handleSpotifyRedirect } from '@/features/spotify/spotifyPlayback';
@@ -46,7 +46,7 @@ function AppContent() {
     return () => window.removeEventListener('keydown', onKey);
   }, [state.phase, handleTogglePause, handleSkipTrack]);
 
-  if (appView === 'mood_picking') return <MoodPickerScreen />;
+  if (appView === 'mood_picking') return <OnboardingPage />;
 
   return <PlayerScreen />;
 }
@@ -115,7 +115,7 @@ function LoggedInApp() {
           path={paths.import}
           element={
             <main className={`${chrome.productSurface} ${chrome.featureSurface} ${chrome.pageTransition}`}>
-              <ImportPlaylistScreen onClose={() => navigate(paths.home)} embedded />
+              <ImportPlaylistScreen />
             </main>
           }
         />
@@ -124,9 +124,8 @@ function LoggedInApp() {
           element={
             <main className={`${chrome.productSurface} ${chrome.featureSurface} ${chrome.pageTransition}`}>
               <SoundScreen
-                onClose={() => navigate(paths.home)}
+                onGuestBack={() => navigate(paths.home)}
                 onOpenImport={() => navigate(paths.import)}
-                embedded
               />
             </main>
           }

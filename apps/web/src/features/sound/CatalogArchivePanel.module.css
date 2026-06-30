@@ -457,14 +457,6 @@
   color: rgba(141, 247, 167, 0.98);
 }
 
-.shellLibrary .loreToggle {
-  color: rgba(141, 247, 167, 0.82);
-}
-
-.shellLibrary .loreToggle:hover {
-  color: rgba(167, 255, 190, 0.95);
-}
-
 .shellLibrary .entityKicker {
   color: rgba(141, 247, 167, 0.72);
 }
@@ -523,35 +515,10 @@
   background: rgba(141, 247, 167, 0.12);
 }
 
-.loreToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  padding: 0;
-  color: rgba(190, 148, 255, 0.82);
-  font-size: 11px;
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.loreToggle:hover {
-  color: rgba(210, 178, 255, 0.95);
-}
-
-.loreChevron {
-  transition: transform var(--duration-fast) var(--ease-out);
-}
-
-.loreChevronCollapsed {
-  transform: rotate(180deg);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .playBtn,
   .nowPlayingBtn,
-  .artistChevron,
-  .loreChevron {
+  .artistChevron {
     transition: none;
   }
 

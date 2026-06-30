@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from 'react';
-import type { AuthUser, SessionIntent } from '@auracle/shared';
+import type { SessionIntent } from '@auracle/shared';
+import { useAuth } from '@/features/marketing/AuthProvider';
+import { firstNameFromUser } from '@/features/marketing/guest';
 import { evalMode } from '@/shared/lib/evalMode';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { isCurating } from '@/features/radio/session/playbackSelectors';
@@ -11,12 +13,14 @@ import styles from './OnboardingPage.module.css';
  * creation is in flight (`curating`), the same screen stays mounted with its
  * controls disabled.
  */
-export function OnboardingPage({ user }: { user: AuthUser }) {
+export function OnboardingPage() {
+  const { user } = useAuth();
+  if (!user) return null;
   const state = useRadioState();
   const { handleStart } = useRadioActions();
   const curating = isCurating(state.phase);
   const greeting = useMemo(() => getGreeting(new Date()), []);
-  const firstName = user.name.split(/\s+/).filter(Boolean)[0] ?? 'there';
+  const firstName = firstNameFromUser(user);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });

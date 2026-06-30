@@ -1,45 +1,3 @@
-.pageTransition {
-  --content-enter-delay: 0ms;
-}
-
-.pageTransition .pageIntro .kicker,
-.pageTransition .pageIntro h1,
-.pageTransition .pageIntro p:not(.kicker),
-.pageTransition .pageIntro .primaryButton,
-.pageTransition .historyPanel {
-  animation: softPageEnter 760ms var(--ease-out) var(--content-enter-delay) both;
-}
-.pageTransition .pageIntro .kicker {
-  --content-enter-delay: 0ms;
-}
-
-.pageTransition .pageIntro h1 {
-  --content-enter-delay: 90ms;
-}
-
-.pageTransition .pageIntro p:not(.kicker) {
-  --content-enter-delay: 180ms;
-}
-
-.pageTransition .pageIntro .primaryButton {
-  --content-enter-delay: 260ms;
-}
-
-.pageTransition .historyPanel:nth-child(1) {
-  --content-enter-delay: 380ms;
-}
-
-.pageTransition .historyPanel:nth-child(2) {
-  --content-enter-delay: 460ms;
-}
-
-.pageTransition .historyPanel:nth-child(3) {
-  --content-enter-delay: 540ms;
-}
-
-.pageTransition .historyPanel:nth-child(4) {
-  --content-enter-delay: 620ms;
-}
 .historyPanel {
   display: grid;
   gap: 18px;
@@ -394,16 +352,6 @@
 
   .pageIntro h1 {
     font-size: 4.15rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pageTransition .pageIntro .kicker,
-  .pageTransition .pageIntro h1,
-  .pageTransition .pageIntro p:not(.kicker),
-  .pageTransition .pageIntro .primaryButton,
-  .pageTransition .historyPanel {
-    animation: none;
   }
 }
 
