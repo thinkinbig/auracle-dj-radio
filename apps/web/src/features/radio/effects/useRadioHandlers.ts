@@ -57,7 +57,7 @@ export function useRadioHandlers({
         ? await gatherSpotifyCandidates().catch(() => undefined)
         : undefined;
       const session = await createSession(intent, spotifyCandidates);
-      void prefetchTracks(session.tracklist.map((t) => t.id));
+      void prefetchTracks(session.tracklist);
       store.dispatchRef.current({ type: 'start', session });
     } catch (err) {
       if (err instanceof SessionAuthError) {
@@ -67,7 +67,7 @@ export function useRadioHandlers({
         return;
       }
       console.error('[radio] start failed', err);
-      void prefetchTracks(DEMO_SESSION.tracklist.map((t) => t.id));
+      void prefetchTracks(DEMO_SESSION.tracklist);
       store.dispatchRef.current({ type: 'start', session: DEMO_SESSION });
     }
   }, [store, audio, setAnalyser, onAuthExpired]);
@@ -134,7 +134,7 @@ export function useRadioHandlers({
       }
       const regenerated = result.regenerate;
       if (!regenerated) return;
-      void prefetchTracks(regenerated.remaining.map((track) => track.id));
+      void prefetchTracks(regenerated.remaining);
       store.dispatchRef.current({
         type: 'tracklist_updated',
         remaining: regenerated.remaining,

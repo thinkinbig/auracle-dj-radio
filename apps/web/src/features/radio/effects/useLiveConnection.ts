@@ -113,8 +113,7 @@ export function useLiveConnection({
           } else if (msg.type === 'phase') {
             onLivePhase(msg.phase);
           } else if (msg.type === 'tracklist_updated') {
-            const remainingIds = msg.remaining.map((t) => t.id);
-            void prefetchTracks(remainingIds);
+            void prefetchTracks(msg.remaining);
             store.dispatchRef.current({
               type: 'tracklist_updated',
               remaining: msg.remaining,

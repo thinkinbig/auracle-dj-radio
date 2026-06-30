@@ -1,4 +1,4 @@
-import type { TrackMeta } from '@auracle/shared';
+import type { FlowTrackRef, SpotifyTrackRef, TrackMeta } from '@auracle/shared';
 
 export interface TrackDisplay {
   id: string;
@@ -93,8 +93,45 @@ export async function loadTrackCatalog(): Promise<void> {
   }
 }
 
+/** Build display metadata for a Spotify slot from its inline ref (ADR-0005 §7 — no local catalog entry). */
+function fromSpotifyRef(s: SpotifyTrackRef): TrackDisplay {
+  return {
+    id: s.uri,
+    title: s.title,
+    artist: s.artist,
+    albumTitle: s.albumTitle,
+    albumCoverUrl: s.albumCoverUrl,
+    artistPhotoUrl: '',
+    lore: '',
+    artistPersona: '',
+    albumConcept: '',
+    mood: '',
+    durationSec: s.durationSec,
+  };
+}
+
+/**
+ * Seed display metadata for Spotify slots straight from their inline ref. A
+ * Spotify track has no `/tracks/{id}` entry (its id is a `spotify:` uri), so
+ * resolving it through the local catalog 404s and shows "Unknown" — instead the
+ * queue/now-playing read the inline title/artist/cover the server already sent.
+ */
+export function seedSpotifyTracks(refs: FlowTrackRef[]): void {
+  let changed = false;
+  for (const ref of refs) {
+    if (ref.source === 'spotify' && ref.spotify) {
+      cache[ref.spotify.uri] = fromSpotifyRef(ref.spotify);
+      changed = true;
+    }
+  }
+  if (changed) emitCatalogChange();
+}
+
 export async function fetchTrack(id: string): Promise<TrackDisplay> {
   if (cache[id]) return cache[id]!;
+  // Spotify slots are seeded from their inline ref (seedSpotifyTracks); never hit
+  // the local catalog for a `spotify:` uri — it has no entry and would 404.
+  if (id.startsWith('spotify:')) return getTrackMeta(id);
 
   try {
     const res = await fetch(`/tracks/${id}`);
@@ -114,8 +151,11 @@ export async function fetchTrack(id: string): Promise<TrackDisplay> {
   return meta;
 }
 
-export async function prefetchTracks(ids: string[]): Promise<void> {
-  await Promise.all(ids.map((id) => fetchTrack(id)));
+export async function prefetchTracks(refs: FlowTrackRef[]): Promise<void> {
+  // Spotify slots resolve from their inline ref; only local slots need a fetch.
+  seedSpotifyTracks(refs);
+  const localIds = refs.filter((r) => r.source !== 'spotify').map((r) => r.id);
+  await Promise.all(localIds.map((id) => fetchTrack(id)));
 }
 
 /** @internal test helper */
