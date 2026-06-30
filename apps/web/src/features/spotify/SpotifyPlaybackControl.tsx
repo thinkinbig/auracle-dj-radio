@@ -89,6 +89,12 @@ export function SpotifyPlaybackControl({ compact = false, className }: SpotifyPl
           <p className={styles.banner} role="alert">
             <strong>Spotify unavailable — playing local tracks only.</strong>
             <span>{spotify.error}</span>
+            {/sdk/i.test(spotify.error) ? (
+              <span>
+                An ad blocker is likely blocking Spotify&apos;s player (sdk.scdn.co). Allow it for
+                this site (or pause the blocker) and reconnect.
+              </span>
+            ) : null}
           </p>
         ) : (
           <p className={styles.error}>{spotify.error}</p>
