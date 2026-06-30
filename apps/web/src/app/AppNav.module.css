@@ -15,10 +15,14 @@
   transform: translateX(-50%);
 }
 
-.appNav button {
+.appNav button,
+.appNav a {
   min-height: 34px;
   padding: 0 12px;
   border-radius: 999px;
+  border: none;
+  background: transparent;
+  text-decoration: none;
   color: rgba(248, 250, 252, 0.58);
   font-size: 0.78rem;
   font-weight: 760;
@@ -29,13 +33,15 @@
     transform var(--duration-fast) var(--ease-out);
 }
 
-.appNav button:hover {
+.appNav button:hover,
+.appNav a:hover {
   color: rgba(248, 250, 252, 0.9);
   background: rgba(255, 255, 255, 0.045);
   transform: translateY(-1px);
 }
 
-.appNav button:focus-visible {
+.appNav button:focus-visible,
+.appNav a:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.3);
 }
@@ -1286,7 +1292,8 @@
     transform: none;
   }
 
-  .appNav button {
+  .appNav button,
+  .appNav a {
     flex: 1 1 0;
     min-width: 0;
     padding-inline: 8px;
@@ -1363,7 +1370,8 @@
     padding: 3px;
   }
 
-  .appNav button {
+  .appNav button,
+  .appNav a {
     min-height: 34px;
     font-size: 0.66rem;
   }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { RadioSessionProvider, useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { getAppView } from '@/features/radio/session/playbackSelectors';
 import {
@@ -23,17 +24,8 @@ import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
 import { IconArrowRight, IconPlay } from '@/shared/ui/Icons';
 import type { AuthUser, FlowTrackRef } from '@auracle/shared';
+import { paths, PRODUCT_NAV } from './paths';
 import styles from './AppNav.module.css';
-
-type ProductPage = 'home' | 'listen' | 'import' | 'sound' | 'history';
-
-const PRODUCT_NAV: { id: ProductPage; label: string }[] = [
-  { id: 'home', label: 'Home' },
-  { id: 'listen', label: 'Listen' },
-  { id: 'import', label: 'Library' },
-  { id: 'sound', label: 'Taste' },
-  { id: 'history', label: 'History' },
-];
 
 const HOME_DNA = ['Reflective', 'Late Night', 'Curious'] as const;
 
@@ -64,7 +56,7 @@ function AppContent({ user }: { user: AuthUser }) {
 }
 
 function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
-  const [activePage, setActivePage] = useState<ProductPage>('home');
+  const navigate = useNavigate();
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryEntry[]>(() => loadSessionHistory(user.id));
   const state = useRadioState();
   const { handleReturnToSetup } = useRadioActions();
@@ -86,7 +78,7 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
   }, [saveCurrentSession, state.phase, state.sessionId]);
 
   function openListen() {
-    setActivePage('listen');
+    navigate(paths.listen);
   }
 
   function startNewSession() {
@@ -94,70 +86,22 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
       saveCurrentSession();
       handleReturnToSetup();
     }
-    setActivePage('listen');
-  }
-
-  function renderPage() {
-    if (activePage === 'listen') {
-      return (
-        <div className={styles.listenLayout}>
-          <AppContent user={user} />
-        </div>
-      );
-    }
-
-    if (activePage === 'import') {
-      return (
-        <main className={`${styles.productSurface} ${styles.featureSurface} ${styles.pageTransition}`}>
-          <ImportPlaylistScreen user={user} onClose={() => setActivePage('home')} embedded />
-        </main>
-      );
-    }
-
-    if (activePage === 'sound') {
-      return (
-        <main className={`${styles.productSurface} ${styles.featureSurface} ${styles.pageTransition}`}>
-          <SoundScreen
-            user={user}
-            onClose={() => setActivePage('home')}
-            onOpenImport={() => setActivePage('import')}
-            embedded
-          />
-        </main>
-      );
-    }
-
-    if (activePage === 'history') {
-      return <HistoryPage history={sessionHistory} onOpenListen={openListen} />;
-    }
-
-    return (
-      <HomePage
-        user={user}
-        history={sessionHistory}
-        onContinue={openListen}
-        onStartNew={startNewSession}
-        onOpenSound={() => setActivePage('sound')}
-        onOpenImport={() => setActivePage('import')}
-        onOpenHistory={() => setActivePage('history')}
-      />
-    );
+    navigate(paths.listen);
   }
 
   return (
     <>
-      <AppBrand onClick={() => setActivePage('home')} label="Home" />
+      <AppBrand onClick={() => navigate(paths.home)} label="Home" />
       <nav className={styles.appNav} aria-label="Primary">
         {PRODUCT_NAV.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={activePage === item.id ? styles.active : undefined}
-            aria-current={activePage === item.id ? 'page' : undefined}
-            onClick={() => setActivePage(item.id)}
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.end}
+            className={({ isActive }) => (isActive ? styles.active : undefined)}
           >
             {item.label}
-          </button>
+          </NavLink>
         ))}
       </nav>
       <AuthStatus
@@ -166,7 +110,56 @@ function LoggedInApp({ user, onLogout }: { user: AuthUser; onLogout: () => void 
         onOpenListen={openListen}
         playback={state}
       />
-      {renderPage()}
+      <Routes>
+        <Route
+          path={paths.listen}
+          element={
+            <div className={styles.listenLayout}>
+              <AppContent user={user} />
+            </div>
+          }
+        />
+        <Route
+          path={paths.import}
+          element={
+            <main className={`${styles.productSurface} ${styles.featureSurface} ${styles.pageTransition}`}>
+              <ImportPlaylistScreen user={user} onClose={() => navigate(paths.home)} embedded />
+            </main>
+          }
+        />
+        <Route
+          path={paths.sound}
+          element={
+            <main className={`${styles.productSurface} ${styles.featureSurface} ${styles.pageTransition}`}>
+              <SoundScreen
+                user={user}
+                onClose={() => navigate(paths.home)}
+                onOpenImport={() => navigate(paths.import)}
+                embedded
+              />
+            </main>
+          }
+        />
+        <Route
+          path={paths.history}
+          element={<HistoryPage history={sessionHistory} onOpenListen={openListen} />}
+        />
+        <Route
+          path={paths.home}
+          element={
+            <HomePage
+              user={user}
+              history={sessionHistory}
+              onContinue={openListen}
+              onStartNew={startNewSession}
+              onOpenSound={() => navigate(paths.sound)}
+              onOpenImport={() => navigate(paths.import)}
+              onOpenHistory={() => navigate(paths.history)}
+            />
+          }
+        />
+        <Route path="*" element={<Navigate to={paths.home} replace />} />
+      </Routes>
     </>
   );
 }
@@ -493,6 +486,7 @@ function formatSavedAt(timestamp: number): string {
 }
 
 export default function App() {
+  const navigate = useNavigate();
   const [user, setUser] = useState<AuthUser | undefined>();
   const [isRestoringUser, setIsRestoringUser] = useState(true);
 
@@ -513,8 +507,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void handleSpotifyRedirect();
-  }, []);
+    const wasSpotifyCallback = window.location.pathname === '/spotify/callback';
+    void handleSpotifyRedirect().then(() => {
+      if (!wasSpotifyCallback) return;
+      const nextPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      navigate(nextPath, { replace: true });
+    });
+  }, [navigate]);
 
   if (isRestoringUser) {
     return null;
