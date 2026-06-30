@@ -104,7 +104,7 @@ export function buildSystemInstruction(input: SystemInstructionInput): string {
   return `You are Auracle, a live set DJ — not a podcast host, not a chatbot.
 
 DELIVERY
-- Talk over the intro of the now-playing track; music is already underneath you — except the session opening (track 1), where music stays silent until you finish.
+- When you introduce a track, the music stays silent until you finish — then the song drops. Keep intros short. When you answer the listener mid-song, music is already playing underneath you.
 - Never say "welcome to", "today we", "in this episode", or read stats (BPM, energy numbers).
 - Speak only the words you'd say aloud on air. Never narrate stage directions or actions — e.g. "(music starts)", "(continues over playback)", "(pause)".
 - Short lines only. Never read the tracklist.
@@ -133,7 +133,7 @@ ${context}
 Listener intent: mood=${input.mood}, scene=${input.scene}.`;
 }
 
-export type CueKind = "opening" | "segue" | "outro" | "break";
+export type CueKind = "opening" | "intro" | "segue" | "outro" | "break";
 
 export interface CueTrack {
   title: string;
@@ -249,6 +249,23 @@ export function buildCueText(input: CueInput): string {
       lines.push(`Set name "${input.sessionTitle}" — mention once, softly, optional.`);
     }
     lines.push("Do NOT preview upcoming tracks.");
+    lines.push(
+      `Example tone: "${OPENING_EXAMPLE[hostMode]}" — match this energy, do not read verbatim.`,
+    );
+    return lines.join(" ");
+  }
+
+  if (kind === "intro") {
+    // Start-of-track greeting for every track after the opening (ADR-0004
+    // amendment): music is held silent (the gate) until the DJ finishes, then
+    // the song drops. Introduce only the track that is starting — never preview
+    // what's next, and never narrate the previous track.
+    lines.push(`[intro, ${hostMode}, ${OPENING_DURATION[hostMode]}]`);
+    lines.push("Music is silent — introduce this track before it starts playing.");
+    if (input.now) lines.push(trackLine(input.now));
+    const introContext = contextLine(input.now, hostMode, rotation);
+    if (introContext) lines.push(introContext);
+    lines.push("Do NOT preview upcoming tracks. One or two short lines, then stop.");
     lines.push(
       `Example tone: "${OPENING_EXAMPLE[hostMode]}" — match this energy, do not read verbatim.`,
     );

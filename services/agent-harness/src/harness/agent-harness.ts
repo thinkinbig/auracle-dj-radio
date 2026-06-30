@@ -339,7 +339,7 @@ export class AgentHarness {
     state.trackStartedAtMs = Date.now();
 
     // Inject silent now-playing context so the DJ can answer mid-song questions
-    // ("introduce this track/artist") — ADR-0004 removed start-of-track segue cues.
+    // ("introduce this track/artist") — background only, not spoken.
     void resolveCueTrack(this.deps.music, state, state.tracklist[state.currentTrackIndex])
       .then((track) => {
         const inject = buildNowPlayingContextInject(track, state.hostMode);
@@ -349,6 +349,15 @@ export class AgentHarness {
       .catch((err) =>
         this.deps.log?.warn({ err: (err as Error).message, sessionId: id }, "now playing context inject failed"),
       );
+
+    // Spoken start-of-track greeting (ADR-0004 amendment): every track after the
+    // opening gets introduced as it starts, over the browser's silent gate. Track
+    // 0's opening is auto-cued on connect, so only index > 0 fires here.
+    if (state.currentTrackIndex > 0) {
+      void buildAndPushCue(this.orchestration, state, "intro").catch((err) =>
+        this.deps.log?.warn({ err: (err as Error).message, sessionId: id }, "intro cue push failed"),
+      );
+    }
 
     // Rolling extend (E1): keep the station on air when the queue runs low.
     // Fire-and-forget and debounced inside the module so it never blocks now_playing.
