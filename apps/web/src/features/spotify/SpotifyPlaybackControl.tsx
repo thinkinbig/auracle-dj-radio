@@ -81,7 +81,19 @@ export function SpotifyPlaybackControl({ compact = false, className }: SpotifyPl
           </button>
         ) : null}
       </div>
-      {spotify.error && !compact ? <p className={styles.error}>{spotify.error}</p> : null}
+      {!compact && spotify.error ? (
+        connected && !active ? (
+          // Signed in but Spotify isn't usable (SDK blocked, not Premium, connect
+          // failed) → the session falls back to local-only. Spell out the
+          // consequence prominently so it isn't mistaken for a silent local choice.
+          <p className={styles.banner} role="alert">
+            <strong>Spotify unavailable — playing local tracks only.</strong>
+            <span>{spotify.error}</span>
+          </p>
+        ) : (
+          <p className={styles.error}>{spotify.error}</p>
+        )
+      ) : null}
     </div>
   );
 }
