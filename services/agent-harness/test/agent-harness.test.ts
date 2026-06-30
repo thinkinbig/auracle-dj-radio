@@ -96,14 +96,18 @@ class FakeMusicEngine implements MusicEngineClient {
         ? [candidate("d", 2), candidate("e", 4)]
         : [candidate("a", 3), candidate("b", 3), candidate("c", 5), candidate("f", 2), ...this.extraTracks];
     const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "fake" }));
-    // Mixed session (#74): pretend the first Spotify candidate matched a catalog track.
+    // Mixed session (#74/#75): pretend the first Spotify candidate matched a catalog track.
     const firstUri = req.spotifyCandidates?.[0]?.uri;
     const spotifyMatchedEnergy = firstUri ? { [firstUri]: 5 as Energy } : undefined;
+    const spotifyMatchedVoicing = firstUri
+      ? { [firstUri]: { artistPersona: "Matched persona", albumConcept: "Matched concept", lore: "Matched lore" } }
+      : undefined;
     return {
       result: { session_title: "Fake Set, vol. 1", session_subtitle: "25 min · building", arc: "build", tracklist },
       violations: [],
       candidates,
       spotifyMatchedEnergy,
+      spotifyMatchedVoicing,
     };
   }
   async searchCatalog(req: SearchCatalogRequest): Promise<{ candidates: TrackCandidate[] }> {
@@ -224,6 +228,42 @@ describe("agent-harness", () => {
       const full = music.planCalls.find((c) => c.mode === "full");
       expect(full?.spotifyEnergyByUri?.[spotifyCandidates[0]!.uri]).toBe(5); // catalog-matched wins
       expect(full?.spotifyEnergyByUri?.[spotifyCandidates[1]!.uri]).toBe(3); // LLM fallback (mid)
+      await app.close();
+    } finally {
+      if (prevKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = prevKey;
+    }
+  });
+
+  it("pushes resolved Spotify voicing to the client after the refine (#75)", async () => {
+    const prevKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY; // unmatched tracks infer to {}; matched voicing still pushes
+    try {
+      const { app, proxy } = buildTestApp();
+      await app.ready();
+      const spotifyCandidates = [spotifyRef(1), spotifyRef(2)];
+      await app.inject({
+        method: "POST",
+        url: "/sessions",
+        payload: { mood: "calm", scene: "studying", spotifyCandidates },
+      });
+
+      await vi.waitFor(() =>
+        expect(
+          proxy.injectCalls.some((c) => c.payload.ui_events?.some((e) => e.type === "spotify_voicing")),
+        ).toBe(true),
+      );
+      const push = proxy.injectCalls.find((c) => c.payload.ui_events?.some((e) => e.type === "spotify_voicing"))!;
+      const event = push.payload.ui_events!.find((e) => e.type === "spotify_voicing") as {
+        type: "spotify_voicing";
+        voicing: Record<string, { artistPersona: string; albumConcept: string; lore: string }>;
+      };
+      // Catalog-matched track carries reused voicing verbatim.
+      expect(event.voicing[spotifyCandidates[0]!.uri]).toEqual({
+        artistPersona: "Matched persona",
+        albumConcept: "Matched concept",
+        lore: "Matched lore",
+      });
       await app.close();
     } finally {
       if (prevKey === undefined) delete process.env.GEMINI_API_KEY;

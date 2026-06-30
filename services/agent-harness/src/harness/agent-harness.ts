@@ -153,7 +153,13 @@ export class AgentHarness {
       // background — the tracklist refine push isn't held up waiting on it, and the
       // result lands before the DJ speaks those tracks (matches were seeded at create).
       void this.resolveSpotifyVoicing(state).then((voicing) => {
-        if (voicing) state.spotifyVoicing = voicing;
+        if (!voicing) return;
+        state.spotifyVoicing = voicing;
+        // Surface the resolved blurbs to the now-playing UI (#75): a Spotify track
+        // has no catalog entry to carry persona/concept, so push them over Lane 3.
+        void this.deps.proxy
+          .inject(state.id, { ui_events: [{ type: "spotify_voicing", voicing }] })
+          .catch((err) => this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "spotify voicing push failed"));
       });
       const plan = await this.deps.music.planTracklist({
         intent: state.intent,

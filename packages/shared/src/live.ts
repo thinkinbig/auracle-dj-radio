@@ -1,4 +1,4 @@
-import type { FlowTrackRef } from "./flow.js";
+import type { FlowTrackRef, SpotifyVoicing } from "./flow.js";
 import type { HostMode } from "./host-mode.js";
 
 /**
@@ -41,6 +41,13 @@ export type ServerMessage =
       before_remaining_ids?: string[];
     }
   | { type: "queue_refresh"; status: QueueRefreshStatus }
+  /**
+   * uri→DJ voicing (artist persona / album concept) for Spotify tracks, resolved
+   * by the async copywriter (#75) and pushed so the now-playing UI can show a
+   * blurb a Spotify track has no catalog entry to carry. Arrives a few seconds
+   * after session start; the client merges it into its track display cache.
+   */
+  | { type: "spotify_voicing"; voicing: Record<string, SpotifyVoicing> }
   | { type: "intent"; intent: Intent }
   | { type: "error"; message: string; circuit_state?: string; retry_after_sec?: number }
   /**

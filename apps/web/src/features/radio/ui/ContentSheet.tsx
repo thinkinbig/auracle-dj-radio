@@ -55,7 +55,14 @@ export function ContentSheet() {
     .filter(Boolean)
     .join(' · ');
   const queuedLabel = `${state.remainingTrackIds.length} in queue`;
-  const lore = state.lore.trim();
+  // Now-playing blurb: local tracks carry lore; a Spotify track has no catalog
+  // entry, so fall back to the resolved artist persona / album concept the
+  // copywriter pushes a few seconds in (#75). Sourced from the live catalog meta
+  // (not the track-change snapshot) so a late voicing push fills it in.
+  const lore =
+    track.lore.trim() ||
+    [track.artistPersona, track.albumConcept].map((s) => s.trim()).filter(Boolean).join(' ') ||
+    state.lore.trim();
   const [loreExpanded, setLoreExpanded] = useState(false);
   const { reportScroll, showChrome } = useMobileChrome();
 

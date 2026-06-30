@@ -1,4 +1,4 @@
-import type { FlowTrackRef, SpotifyTrackRef, TrackMeta } from '@auracle/shared';
+import type { FlowTrackRef, SpotifyTrackRef, SpotifyVoicing, TrackMeta } from '@auracle/shared';
 
 export interface TrackDisplay {
   id: string;
@@ -123,6 +123,23 @@ export function seedSpotifyTracks(refs: FlowTrackRef[]): void {
       cache[ref.spotify.uri] = fromSpotifyRef(ref.spotify);
       changed = true;
     }
+  }
+  if (changed) emitCatalogChange();
+}
+
+/**
+ * Merge DJ voicing (artist persona / album concept / lore) into already-seeded
+ * Spotify entries (#75). The copywriter resolves it a few seconds after start and
+ * pushes it over Lane 3, so the now-playing blurb fills in once it lands. Only
+ * touches existing entries — the inline title/artist/cover are already seeded.
+ */
+export function mergeSpotifyVoicing(voicing: Record<string, SpotifyVoicing>): void {
+  let changed = false;
+  for (const [uri, v] of Object.entries(voicing)) {
+    const existing = cache[uri];
+    if (!existing) continue;
+    cache[uri] = { ...existing, artistPersona: v.artistPersona, albumConcept: v.albumConcept, lore: v.lore };
+    changed = true;
   }
   if (changed) emitCatalogChange();
 }
