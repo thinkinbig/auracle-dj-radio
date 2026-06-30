@@ -71,6 +71,29 @@ describe("taste-weighting", () => {
     expect(skippedEnergy).toBeLessThan(noPenalty);
   });
 
+  // #69: voice like/dislike persists as a TastePreference with `source: "session"`,
+  // and plan/replan weighting must read it identically to onboarding-sourced prefs so
+  // feedback measurably changes future selections (the cross-session taste loop).
+  it("downranks an artist avoided via session feedback (source: session)", () => {
+    const sessionAvoid = buildTasteScorer([
+      pref({ entityType: "artist", entityId: "lana-del-delay", polarity: "avoid", source: "session", strength: 2 }),
+    ]);
+    const neutral = scoreRetrievalCandidate(track, { mood: "focused", scene: "study" }).score;
+    const avoided = scoreRetrievalCandidate(track, { mood: "focused", scene: "study", taste: sessionAvoid }).score;
+    expect(avoided).toBeLessThan(neutral);
+  });
+
+  it("treats session-sourced prefer/avoid symmetrically with onboarding source", () => {
+    const onboardingAvoid = buildTasteScorer([
+      pref({ entityType: "artist", entityId: "lana-del-delay", polarity: "avoid", source: "onboarding", strength: 2 }),
+    ]);
+    const sessionAvoid = buildTasteScorer([
+      pref({ entityType: "artist", entityId: "lana-del-delay", polarity: "avoid", source: "session", strength: 2 }),
+    ]);
+    // Source is provenance only — it must not change the weighting magnitude.
+    expect(sessionAvoid.scoreFor(track)).toBe(onboardingAvoid.scoreFor(track));
+  });
+
   it("produces a stable, order-independent cache key", () => {
     const a = [pref({ entityType: "genre", entityId: "house", polarity: "avoid" }), pref({ entityType: "artist", entityId: "x", polarity: "prefer" })];
     const b = [a[1]!, a[0]!];
