@@ -131,6 +131,7 @@ function replaceRemainingTrackRefs(state: PlaybackState, remaining: FlowTrackRef
     id: state.trackId,
     flow_position: currentCutoff,
     reason: 'Now playing',
+    source: 'local',
   };
   const kept = state.sessionTracklist.length > 0
     ? state.sessionTracklist.slice(0, currentCutoff)

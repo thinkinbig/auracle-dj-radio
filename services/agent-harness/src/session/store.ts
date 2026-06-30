@@ -196,7 +196,7 @@ export class SessionStore {
     const idx = state.currentTrackIndex + 1;
     const existing = state.tracklist[idx];
     if (!existing) return null;
-    state.tracklist[idx] = { id: candidate.id, flow_position: existing.flow_position, reason };
+    state.tracklist[idx] = { id: candidate.id, flow_position: existing.flow_position, reason, source: existing.source ?? "local" };
     state.energyById.set(candidate.id, candidate.energy);
     return { before: existing.id, after: candidate.id };
   }
@@ -233,6 +233,7 @@ export class SessionStore {
       id: r.id,
       flow_position: offset + i + 1,
       reason: r.reason,
+      source: r.source ?? "local",
     }));
     state.tracklist = [...head, ...merged];
     for (const ref of fresh) {
@@ -258,7 +259,7 @@ export class SessionStore {
     const appended = [...newRefs]
       .filter((r) => !existing.has(r.id))
       .sort((a, b) => a.flow_position - b.flow_position)
-      .map((r, i) => ({ id: r.id, flow_position: base + i + 1, reason: r.reason }));
+      .map((r, i) => ({ id: r.id, flow_position: base + i + 1, reason: r.reason, source: r.source ?? "local" }));
     state.tracklist = [...state.tracklist, ...appended];
     for (const ref of appended) {
       const c = candidatesById.get(ref.id);

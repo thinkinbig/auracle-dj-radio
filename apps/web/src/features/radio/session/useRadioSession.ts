@@ -54,6 +54,7 @@ export function useRadioSession(onAuthExpired?: () => void): RadioSession {
       trackId: state.trackId,
       remainingTrackIds: state.remainingTrackIds,
       isTalking: state.isTalking,
+      sessionTracklist: state.sessionTracklist,
     },
     opening,
   });

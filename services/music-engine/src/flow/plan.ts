@@ -146,7 +146,7 @@ function buildProvisionalArc(candidates: TrackCandidate[], mood: string): FlowTr
     const pick = chooseNext(pool, target, prev);
     if (!pick) return;
     pool.splice(pool.indexOf(pick), 1);
-    slots.push({ id: pick.id, flow_position: i + 1, reason: "mood arc target " + target.toFixed(1) + " (provisional)" });
+    slots.push({ id: pick.id, flow_position: i + 1, reason: "mood arc target " + target.toFixed(1) + " (provisional)", source: "local" });
     prev = pick;
   });
 
@@ -301,7 +301,7 @@ function buildExtendChain(candidates: TrackCandidate[], count: number, seedEnerg
     const pick = chooseNext(pool, target, prev);
     if (!pick) break;
     pool.splice(pool.indexOf(pick), 1);
-    slots.push({ id: pick.id, flow_position: pos, reason: "rolling extend" });
+    slots.push({ id: pick.id, flow_position: pos, reason: "rolling extend", source: "local" });
     prev = pick;
   }
   return slots;

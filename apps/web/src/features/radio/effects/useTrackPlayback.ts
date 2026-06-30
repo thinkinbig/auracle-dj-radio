@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react';
+import type { TrackSource } from '@auracle/shared';
 import {
   musicVolume,
   shouldPlayMusic,
   TALK_WINDOW,
 } from '../lib/playbackCoordinator';
 import { postNowPlaying, postSessionEvent } from '../lib/sessionApi';
+import { createLocalPlayer } from '../playback/LocalPlayer';
+import type { MusicPlayer, MusicPlayerCallbacks } from '../playback/MusicPlayer';
 import type { RadioCommands } from '../lib/radioCommands';
 import type { PlaybackState } from '@/features/radio/session/types';
 import type { OpeningGateControls } from './useOpeningGate';
@@ -16,51 +19,43 @@ interface TrackPlaybackInput {
   commands: RadioCommands;
   state: Pick<
     PlaybackState,
-    'phase' | 'currentTrackIndex' | 'sessionId' | 'trackId' | 'remainingTrackIds' | 'isTalking'
+    'phase' | 'currentTrackIndex' | 'sessionId' | 'trackId' | 'remainingTrackIds' | 'isTalking' | 'sessionTracklist'
   >;
   opening: OpeningGateControls;
 }
 
-/** Music element listeners, per-track loading, duck policy, and pause/resume DJ sync. */
+/** Resolve a slot's backend; absent source means local (backward-compatible). ADR-0005. */
+function sourceAt(state: Pick<PlaybackState, 'sessionTracklist'>, index: number): TrackSource {
+  return state.sessionTracklist[index]?.source ?? 'local';
+}
+
+/**
+ * Per-track loading, duck policy, and pause/resume DJ sync — delegated to a
+ * `MusicPlayer` chosen by `track.source` (ADR-0005 §6). The talk-window break,
+ * the advance, and the DJ-voice duck stay here; only the music transport moves
+ * into the player.
+ */
 export function useTrackPlayback({ store, audio, commands, state, opening }: TrackPlaybackInput): void {
   const { openingReleased, armForTrack } = opening;
   const nextTrackId = state.remainingTrackIds[0];
+  const currentSource = sourceAt(state, state.currentTrackIndex);
+  const nextSource = sourceAt(state, state.currentTrackIndex + 1);
   const prevPhaseRef = useRef(state.phase);
   // Track index we've already fired an end-of-track cue for, so the final-seconds
   // trigger runs once per track (ADR-0004).
   const cuedTrackRef = useRef(-1);
-  // Private to this hook: the hidden element that prefetches the next track's audio.
-  const preloadRef = useRef<HTMLAudioElement | null>(null);
-
-  const applyPlaybackPolicy = useCallback(() => {
-    const bus = audio.audioBusRef.current;
-    const el = audio.audioRef.current;
-    const s = store.stateRef.current;
-    if (!bus || !el) return;
-
-    const policy = {
-      phase: s.phase,
-      currentTrackIndex: s.currentTrackIndex,
-      openingReleased,
-      isTalking: s.isTalking,
-    };
-    // Snap the music away fast when the listener grabs the floor; otherwise the
-    // default talk-over fade.
-    bus.setMusicVolume(musicVolume(policy), s.isTalking ? 0.12 : undefined);
-    if (s.phase === 'paused') el.pause();
-    else if (shouldPlayMusic(policy)) void el.play().catch(() => {});
-  }, [store, audio, openingReleased]);
+  // One player per backend, instantiated once and kept warm for the session.
+  const playersRef = useRef<Partial<Record<TrackSource, MusicPlayer>>>({});
 
   // Final-seconds talk break: the DJ wraps over the track tail, then a listening
   // window opens (ADR-0004). The window — not `ended` — drives the advance.
   const maybeTriggerBreak = useCallback(
-    (el: HTMLAudioElement) => {
+    (currentSec: number, durationSec: number) => {
       const s = store.stateRef.current;
       if (s.inBreak || s.phase !== 'playing') return;
       if (cuedTrackRef.current === s.currentTrackIndex) return;
-      const dur = el.duration;
-      if (!Number.isFinite(dur) || dur <= 0) return;
-      if (el.currentTime < dur - TALK_WINDOW.leadSec) return;
+      if (!Number.isFinite(durationSec) || durationSec <= 0) return;
+      if (currentSec < durationSec - TALK_WINDOW.leadSec) return;
 
       cuedTrackRef.current = s.currentTrackIndex;
       const hasNext = s.remainingTrackIds.length > 0;
@@ -72,40 +67,67 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
     [store, commands],
   );
 
+  const maybeAdvanceAtEnd = useCallback(() => {
+    if (commands.consumeSkipGuard()) return;
+    // In a break where the DJ actually engaged (phase moved off 'playing'), the
+    // listening window owns the advance. If the DJ never started by the time the
+    // track ends (Live down / demo fallback), advance normally rather than
+    // stalling until the hard cap.
+    const s = store.stateRef.current;
+    if (s.inBreak && s.phase !== 'playing') return;
+    store.dispatchRef.current({ type: 'advance' });
+  }, [store, commands]);
+
+  // Latest callbacks behind a stable ref so each player is created exactly once.
+  const callbacksRef = useRef<MusicPlayerCallbacks>({
+    onProgress: () => {},
+    onDuration: () => {},
+    onEnded: () => {},
+  });
+  callbacksRef.current = {
+    onProgress: (currentSec, durationSec) => {
+      store.dispatchRef.current({ type: 'progress', progressSec: Math.floor(currentSec) });
+      maybeTriggerBreak(currentSec, durationSec);
+    },
+    onDuration: (durationSec) => {
+      store.dispatchRef.current({ type: 'duration', durationSec: Math.floor(durationSec) });
+    },
+    onEnded: () => maybeAdvanceAtEnd(),
+  };
+
+  // Instantiate players once; dispose on unmount. The callbacks indirect through
+  // the ref so the player instances never need to be rebuilt.
   useEffect(() => {
-    const el = audio.audioRef.current ?? (audio.audioRef.current = new Audio());
-    const onTime = () => {
-      store.dispatchRef.current({
-        type: 'progress',
-        progressSec: Math.floor(el.currentTime),
-      });
-      maybeTriggerBreak(el);
+    const stableCb: MusicPlayerCallbacks = {
+      onProgress: (c, d) => callbacksRef.current.onProgress(c, d),
+      onDuration: (d) => callbacksRef.current.onDuration(d),
+      onEnded: () => callbacksRef.current.onEnded(),
     };
-    const onMeta = () =>
-      store.dispatchRef.current({
-        type: 'duration',
-        durationSec: Math.floor(el.duration),
-      });
-    const onEnded = () => {
-      if (commands.consumeSkipGuard()) return;
-      // In a break where the DJ actually engaged (phase moved off 'playing'),
-      // the listening window owns the advance. If the DJ never started by the
-      // time the track ends (Live down / demo fallback), advance normally rather
-      // than stalling until the hard cap.
-      const s = store.stateRef.current;
-      if (s.inBreak && s.phase !== 'playing') return;
-      store.dispatchRef.current({ type: 'advance' });
-    };
-    el.addEventListener('timeupdate', onTime);
-    el.addEventListener('loadedmetadata', onMeta);
-    el.addEventListener('ended', onEnded);
+    const players = playersRef.current;
+    players.local = createLocalPlayer(audio, stableCb);
     return () => {
-      el.removeEventListener('timeupdate', onTime);
-      el.removeEventListener('loadedmetadata', onMeta);
-      el.removeEventListener('ended', onEnded);
-      el.pause();
+      Object.values(players).forEach((p) => p?.dispose());
+      playersRef.current = {};
     };
-  }, [store, audio, commands, maybeTriggerBreak]);
+  }, [audio]);
+
+  const applyPlaybackPolicy = useCallback(() => {
+    const s = store.stateRef.current;
+    const player = playersRef.current[sourceAt(s, s.currentTrackIndex)];
+    if (!player) return;
+
+    const policy = {
+      phase: s.phase,
+      currentTrackIndex: s.currentTrackIndex,
+      openingReleased,
+      isTalking: s.isTalking,
+    };
+    // Snap the music away fast when the listener grabs the floor; otherwise the
+    // default talk-over fade.
+    player.setMusicVolume(musicVolume(policy), s.isTalking ? 0.12 : undefined);
+    if (s.phase === 'paused') player.pause();
+    else if (shouldPlayMusic(policy)) player.resume();
+  }, [store, openingReleased]);
 
   useEffect(() => {
     if (!state.sessionId) return;
@@ -121,30 +143,24 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
     // No start-of-track cue: the DJ now speaks at the END of each track (ADR-0004).
     // Track 0's opening greeting is auto-cued by the proxy on connect.
 
-    const el = audio.audioRef.current;
-    if (el) {
-      el.preload = 'auto';
-      el.src = `/tracks/${state.trackId}/audio`;
-      el.load();
-      el.pause();
-      el.currentTime = 0;
-      if (!isOpening) void el.play().catch(() => {});
-    }
+    playersRef.current[currentSource]?.load(
+      { id: state.trackId, source: currentSource },
+      { autostart: !isOpening },
+    );
   }, [
     store,
     audio,
     state.sessionId,
     state.currentTrackIndex,
     state.trackId,
+    currentSource,
     armForTrack,
   ]);
 
   useEffect(() => {
     if (!state.sessionId || !nextTrackId) return;
-    const pre = preloadRef.current ?? (preloadRef.current = new Audio());
-    pre.preload = 'auto';
-    pre.src = `/tracks/${nextTrackId}/audio`;
-  }, [state.sessionId, nextTrackId]);
+    playersRef.current[nextSource]?.preload({ id: nextTrackId, source: nextSource });
+  }, [state.sessionId, nextTrackId, nextSource]);
 
   useEffect(() => {
     applyPlaybackPolicy();

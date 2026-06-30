@@ -19,6 +19,7 @@ export class HeuristicFlowModel {
         id: pick.id,
         flow_position: i + 1,
         reason: `energy ${pick.energy} fits arc target ${target} (${pick.genre})`,
+        source: "local",
       });
       prev = pick;
     });
