@@ -52,12 +52,19 @@ const VOICING_SCHEMA = {
 };
 
 function buildPrompt(tracks: SpotifyTrackRef[]): string {
+  // Voice calibration (#78): the host always speaks English and borrows ONE short
+  // phrase from these blurbs on air (see buildSystemInstruction). Match the catalog's
+  // authored house style — present-tense, concrete sensory imagery, no biography —
+  // so a Spotify track reads the same as a local one when introduced. The exemplars
+  // are real catalog-style lines; they set register without being copied.
   return [
-    "You write short liner-note blurbs a radio DJ can borrow a phrase from on air.",
+    "You write short liner-note blurbs a radio DJ borrows a phrase from on air.",
+    "Write in English. Use present tense and concrete, sensory imagery — evocative mood, not factual claims.",
+    "Never invent biography, awards, chart history, or band members.",
     "For each track, write:",
     "- artistPersona: one vivid sentence (≤15 words) capturing the artist's style or vibe.",
     "- albumConcept: one vivid sentence (≤15 words) capturing the album's mood or theme.",
-    "Be evocative, not factual claims; never invent biography, awards, or chart history.",
+    'Style to match: artistPersona like "A night-owl producer who scores empty cities."; albumConcept like "Field recordings of 3am streets, reworked into ambient.".',
     "Return exactly one object per track, using the index shown.",
     "",
     ...tracks.map((t, i) => `${i}. "${t.title}" — ${t.artist} (${t.albumTitle})`),

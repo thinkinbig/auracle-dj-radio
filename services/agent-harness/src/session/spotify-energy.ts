@@ -51,10 +51,15 @@ const ENERGY_SCHEMA = {
 };
 
 function buildPrompt(tracks: SpotifyTrackRef[]): string {
+  // Arc calibration (#78): these ratings place each Spotify track on the same 1–5
+  // energy arc as the curated local catalog, where adjacent slots differ by ~1.
+  // A model that hedges everything to 3 flattens the arc, so we explicitly ask it
+  // to commit and use the full range — judging each track on its own feel.
   return [
     "Rate the listening energy of each track on an integer scale of 1 to 5:",
     "1 = very calm/ambient, 2 = relaxed, 3 = moderate, 4 = upbeat/driving, 5 = very high energy/intense.",
     "Judge by the recording's typical feel (tempo, intensity, loudness), not the lyrics.",
+    "Commit to a clear rating per track and use the full 1–5 range where warranted — do not default to 3 when unsure.",
     "Return exactly one {index, energy} object per track, using the index shown.",
     "",
     ...tracks.map((t, i) => `${i}. "${t.title}" — ${t.artist} (${t.albumTitle})`),
