@@ -1,4 +1,4 @@
-import type { TrackSource } from '@auracle/shared';
+import type { SpotifyTrackRef, TrackSource } from '@auracle/shared';
 
 /**
  * A track the player can load, narrowed to what playback needs. `source` selects
@@ -8,6 +8,7 @@ import type { TrackSource } from '@auracle/shared';
 export interface PlayableTrack {
   id: string;
   source: TrackSource;
+  spotify?: SpotifyTrackRef;
 }
 
 /** Normalized playback events — each backend reconciles its own model (events vs polling) to these. */

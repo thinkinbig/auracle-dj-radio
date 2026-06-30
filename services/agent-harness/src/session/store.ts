@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ArcStage, Condition, FlowTrackRef, HostMode, SessionIntent, TastePreference, TrackCandidate } from "@auracle/shared";
+import type { ArcStage, Condition, FlowTrackRef, HostMode, SessionIntent, SpotifyTrackRef, TastePreference, TrackCandidate } from "@auracle/shared";
 import { inferHostModeFromScene } from "@auracle/shared";
 
 export interface SessionState {
@@ -13,6 +13,8 @@ export interface SessionState {
   /** Structured taste prefer/avoid for this user (condition C only); reused by replan. */
   taste?: TastePreference[];
   tieBreakSeed: string;
+  /** Listener's gathered Spotify library pool (ADR-0005); reused by the refine/replan re-rank, static per session. */
+  spotifyCandidates?: SpotifyTrackRef[];
   hostMode: HostMode;
   title: string;
   subtitle: string;
@@ -71,6 +73,7 @@ export class SessionStore {
     tracklist: FlowTrackRef[];
     candidatesById: Map<string, TrackCandidate>;
     mem0Context: string;
+    spotifyCandidates?: SpotifyTrackRef[];
   }): SessionState {
     const energyById = new Map<string, number>();
     for (const ref of params.tracklist) {
@@ -85,6 +88,7 @@ export class SessionStore {
       energyWeights: params.energyWeights,
       taste: params.taste,
       tieBreakSeed: params.tieBreakSeed,
+      spotifyCandidates: params.spotifyCandidates,
       hostMode: inferHostModeFromScene(params.intent.scene),
       title: params.title,
       subtitle: params.subtitle,
@@ -196,7 +200,7 @@ export class SessionStore {
     const idx = state.currentTrackIndex + 1;
     const existing = state.tracklist[idx];
     if (!existing) return null;
-    state.tracklist[idx] = { id: candidate.id, flow_position: existing.flow_position, reason, source: existing.source ?? "local" };
+    state.tracklist[idx] = { id: candidate.id, flow_position: existing.flow_position, reason, source: existing.source ?? "local", spotify: existing.spotify };
     state.energyById.set(candidate.id, candidate.energy);
     return { before: existing.id, after: candidate.id };
   }
@@ -234,6 +238,7 @@ export class SessionStore {
       flow_position: offset + i + 1,
       reason: r.reason,
       source: r.source ?? "local",
+      spotify: r.spotify,
     }));
     state.tracklist = [...head, ...merged];
     for (const ref of fresh) {
@@ -259,7 +264,7 @@ export class SessionStore {
     const appended = [...newRefs]
       .filter((r) => !existing.has(r.id))
       .sort((a, b) => a.flow_position - b.flow_position)
-      .map((r, i) => ({ id: r.id, flow_position: base + i + 1, reason: r.reason, source: r.source ?? "local" }));
+      .map((r, i) => ({ id: r.id, flow_position: base + i + 1, reason: r.reason, source: r.source ?? "local", spotify: r.spotify }));
     state.tracklist = [...state.tracklist, ...appended];
     for (const ref of appended) {
       const c = candidatesById.get(ref.id);

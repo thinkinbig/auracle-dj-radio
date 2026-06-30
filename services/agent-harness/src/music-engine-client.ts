@@ -1,9 +1,11 @@
-import type { FlowResult, SessionIntent, TastePreference, TrackCandidate, TrackMeta } from "@auracle/shared";
+import type { FlowResult, SessionIntent, SpotifyTrackRef, TastePreference, TrackCandidate, TrackMeta } from "@auracle/shared";
 
 export interface PlanTracklistRequest {
   intent: SessionIntent;
   mode?: "provisional" | "full" | "replan" | "extend";
   memories?: string;
+  /** Listener's gathered Spotify library candidates, ranked into the same pool (ADR-0005). */
+  spotifyCandidates?: SpotifyTrackRef[];
   /** Energy-level skip weights (1–5 → 0–0.7) from user history; passed to retrieval scoring. */
   energyWeights?: Partial<Record<number, number>>;
   /** Structured taste prefer/avoid (Epic #3, S4); passed to retrieval weighting. */

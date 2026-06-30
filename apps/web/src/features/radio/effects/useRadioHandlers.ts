@@ -4,6 +4,7 @@ import { createAudioBus } from '../lib/liveAudio';
 import { createSession, extendSession, postHostMode, postPlaylistFeedback, postSessionEvent, SessionAuthError } from '../lib/sessionApi';
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
+import { gatherSpotifyCandidates, isSpotifyPlaybackEnabled } from '@/features/spotify/spotifyPlayback';
 import type { RadioCommands } from '../lib/radioCommands';
 import type { PlaylistFeedback } from '@/features/radio/session/types';
 import type { AudioRefs, StoreRefs } from './sessionRefs';
@@ -49,7 +50,13 @@ export function useRadioHandlers({
       }
       await audio.audioBusRef.current.resume();
       store.dispatchRef.current({ type: 'begin' });
-      const session = await createSession(intent);
+      // Gather the listener's Spotify library for the server to rank into the
+      // queue (ADR-0005). Best-effort: a failure or non-Premium user just yields a
+      // local-only session.
+      const spotifyCandidates = isSpotifyPlaybackEnabled()
+        ? await gatherSpotifyCandidates().catch(() => undefined)
+        : undefined;
+      const session = await createSession(intent, spotifyCandidates);
       void prefetchTracks(session.tracklist.map((t) => t.id));
       store.dispatchRef.current({ type: 'start', session });
     } catch (err) {

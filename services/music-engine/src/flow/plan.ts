@@ -1,4 +1,4 @@
-import type { FlowResult, FlowTrackRef, SessionIntent, TastePreference, TrackCandidate } from "@auracle/shared";
+import type { Energy, FlowResult, FlowTrackRef, SessionIntent, SpotifyTrackRef, TastePreference, TrackCandidate } from "@auracle/shared";
 import { FULL_SESSION_LENGTH, energyTargetsForMood } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
 import { HeuristicFlowModel } from "./llm/heuristic-flow.js";
@@ -12,6 +12,38 @@ import { chooseNext } from "./selection/choose-next.js";
 export interface PlanDeps {
   /** Returns the full track library (read from SQLite at call time). */
   tracks: () => TrackRow[];
+}
+
+/**
+ * Placeholder energy for a Spotify candidate (ADR-0005 §4): Spotify's audio-features
+ * endpoint is deprecated, so until #74 LLM-infers a real value, every Spotify track
+ * sits mid-arc. `chooseNext` ranks it against local tracks on this one axis.
+ */
+const SPOTIFY_PLACEHOLDER_ENERGY: Energy = 3;
+
+/** Turn the client-gathered Spotify refs into rankable candidates + a uri→ref lookup for stamping. */
+function spotifyCandidatePool(
+  refs: SpotifyTrackRef[] | undefined,
+  scene: string,
+): { pool: TrackCandidate[]; byUri: Map<string, SpotifyTrackRef> } {
+  const byUri = new Map<string, SpotifyTrackRef>();
+  const pool: TrackCandidate[] = [];
+  for (const r of refs ?? []) {
+    if (byUri.has(r.uri)) continue;
+    byUri.set(r.uri, r);
+    // uri is the slot id; the client plays it directly (no catalog entry to resolve).
+    pool.push({ id: r.uri, energy: SPOTIFY_PLACEHOLDER_ENERGY, tempo: 0, genre: "", scene });
+  }
+  return { pool, byUri };
+}
+
+/** Stamp `source:"spotify"` + inline metadata onto slots the planner picked from the Spotify pool. */
+function stampSpotify(tracklist: FlowTrackRef[], byUri: Map<string, SpotifyTrackRef>): FlowTrackRef[] {
+  if (byUri.size === 0) return tracklist;
+  return tracklist.map((ref) => {
+    const s = byUri.get(ref.id);
+    return s ? { ...ref, source: "spotify" as const, spotify: s } : ref;
+  });
 }
 
 export interface PlanResult {
@@ -79,7 +111,13 @@ export async function createPlanCached(
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
   tieBreakSeed?: string,
+  spotifyCandidates?: SpotifyTrackRef[],
 ): Promise<PlanResult> {
+  // A mixed pool is per-user (the listener's own Spotify library), so it must not
+  // be served from — or written to — the shared local-only plan cache.
+  if (spotifyCandidates?.length) {
+    return createPlan(deps, intent, memories, energyWeights, taste, tieBreakSeed, spotifyCandidates);
+  }
   const key = planKey(intent, memories, energyWeights, taste, tieBreakSeed);
   const hit = cacheGet(key);
   if (hit) return clonePlan(hit);
@@ -112,24 +150,29 @@ export async function createProvisionalPlan(
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
   tieBreakSeed?: string,
+  spotifyCandidates?: SpotifyTrackRef[],
 ): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate> }> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
-  const candidates = retrieveCandidates(deps.tracks(), {
-    mood: intent.mood,
-    scene: intent.scene,
-    limit: 24,
-    slots: FULL_SESSION_LENGTH,
-    energyWeights: effectiveEnergyWeights,
-    taste,
-    tieBreakSeed,
-  });
+  const { pool: spotifyPool, byUri } = spotifyCandidatePool(spotifyCandidates, intent.scene);
+  const candidates = [
+    ...retrieveCandidates(deps.tracks(), {
+      mood: intent.mood,
+      scene: intent.scene,
+      limit: 24,
+      slots: FULL_SESSION_LENGTH,
+      energyWeights: effectiveEnergyWeights,
+      taste,
+      tieBreakSeed,
+    }),
+    ...spotifyPool,
+  ];
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
   return {
     result: {
       session_title: provisionalTitle(intent),
       session_subtitle: `${intent.duration_min} min`,
       arc: "warm_up",
-      tracklist: buildProvisionalArc(candidates, intent.mood),
+      tracklist: stampSpotify(buildProvisionalArc(candidates, intent.mood), byUri),
     },
     candidatesById,
   };
@@ -166,18 +209,23 @@ export async function createPlan(
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
   tieBreakSeed?: string,
+  spotifyCandidates?: SpotifyTrackRef[],
 ): Promise<PlanResult> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
-  const candidates = retrieveCandidates(deps.tracks(), {
-    mood: intent.mood,
-    scene: intent.scene,
-    limit: 24,
-    slots: FULL_SESSION_LENGTH,
-    energyWeights: effectiveEnergyWeights,
-    taste,
-    tieBreakSeed,
-  });
-  return runHeuristicFlow({
+  const { pool: spotifyPool, byUri } = spotifyCandidatePool(spotifyCandidates, intent.scene);
+  const candidates = [
+    ...retrieveCandidates(deps.tracks(), {
+      mood: intent.mood,
+      scene: intent.scene,
+      limit: 24,
+      slots: FULL_SESSION_LENGTH,
+      energyWeights: effectiveEnergyWeights,
+      taste,
+      tieBreakSeed,
+    }),
+    ...spotifyPool,
+  ];
+  const plan = await runHeuristicFlow({
     intent,
     memories,
     played: [],
@@ -185,6 +233,7 @@ export async function createPlan(
     remainingSlots: FULL_SESSION_LENGTH,
     candidates,
   });
+  return { ...plan, result: { ...plan.result, tracklist: stampSpotify(plan.result.tracklist, byUri) } };
 }
 
 export interface ReplanInput {

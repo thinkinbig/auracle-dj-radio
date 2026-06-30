@@ -91,6 +91,22 @@ export function updateTranscript(
   return { lines: [...lines, line], activeId: id };
 }
 
+/**
+ * Display metadata for a slot. Local slots resolve from the catalog by id; Spotify
+ * slots use the inline payload (no catalog entry), with persona/photo left blank
+ * until the async copywriter fills them (ADR-0005, #75).
+ */
+function trackMetaFromRef(
+  ref: FlowTrackRef | undefined,
+  fallbackId: string,
+): { title: string; artist: string; albumTitle: string; albumCoverUrl: string; artistPhotoUrl: string; lore: string; durationSec: number } {
+  if (ref?.source === 'spotify' && ref.spotify) {
+    const s = ref.spotify;
+    return { title: s.title, artist: s.artist, albumTitle: s.albumTitle, albumCoverUrl: s.albumCoverUrl, artistPhotoUrl: '', lore: '', durationSec: s.durationSec };
+  }
+  return getTrackMeta(ref?.id ?? fallbackId);
+}
+
 function advanceTrack(state: PlaybackState): PlaybackState {
   const nextId = state.remainingTrackIds[0];
   if (!nextId) {
@@ -105,7 +121,8 @@ function advanceTrack(state: PlaybackState): PlaybackState {
     }
     return { ...state, phase: 'idle', progressSec: state.durationSec, inBreak: false, isTalking: false };
   }
-  const meta = getTrackMeta(nextId);
+  const nextRef = state.sessionTracklist[state.currentTrackIndex + 1];
+  const meta = trackMetaFromRef(nextRef, nextId);
   return {
     ...state,
     inBreak: false,
@@ -216,7 +233,7 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
       return { ...state, phase: 'curating', transcript: [], activeTranscriptId: null };
     case 'start': {
       const first = action.session.tracklist[0]!;
-      const meta = getTrackMeta(first.id);
+      const meta = trackMetaFromRef(first, first.id);
       const isDemoFallback = action.session.session_id === DEMO_SESSION.session_id;
       return {
         ...state,

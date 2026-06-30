@@ -18,6 +18,7 @@ import { ImportPlaylistScreen } from '@/features/playlist-import/ImportPlaylistS
 import { MoodPickerScreen } from '@/features/radio/ui/MoodPickerScreen';
 import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import { SoundScreen } from '@/features/sound/SoundScreen';
+import { handleSpotifyRedirect } from '@/features/spotify/spotifyPlayback';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { formatTime } from '@/shared/lib/formatTime';
 import { IconArrowRight, IconPlay } from '@/shared/ui/Icons';
@@ -509,6 +510,10 @@ export default function App() {
 
   useEffect(() => {
     void loadTrackCatalog();
+  }, []);
+
+  useEffect(() => {
+    void handleSpotifyRedirect();
   }, []);
 
   if (isRestoringUser) {

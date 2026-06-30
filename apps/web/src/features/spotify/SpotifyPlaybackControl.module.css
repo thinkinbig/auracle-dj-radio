@@ -1,0 +1,236 @@
+.root {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  color: rgba(248, 250, 252, 0.9);
+  background:
+    linear-gradient(180deg, rgba(30, 215, 96, 0.16), rgba(30, 215, 96, 0.05)),
+    rgba(10, 14, 12, 0.7);
+  border: 1px solid rgba(30, 215, 96, 0.24);
+}
+
+.compact {
+  grid-template-columns: auto;
+  width: auto;
+  padding: 0;
+  gap: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.compact .mark,
+.compact .copy {
+  display: none;
+}
+
+.active {
+  border-color: rgba(141, 247, 167, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 0 0 1px rgba(141, 247, 167, 0.08),
+    0 14px 34px rgba(0, 0, 0, 0.2);
+}
+
+.compact.active {
+  border: 0;
+  box-shadow: none;
+}
+
+.mark {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #1ed760;
+  box-shadow: 0 0 14px rgba(30, 215, 96, 0.56);
+}
+
+.copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.copy strong,
+.copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy strong {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.copy small {
+  color: rgba(248, 250, 252, 0.58);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modeSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.modeButton {
+  min-width: 72px;
+  height: 42px;
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  place-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border-radius: 14px;
+  color: rgba(248, 250, 252, 0.68);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.018)),
+    rgba(27, 31, 29, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 22px rgba(0, 0, 0, 0.16);
+  transition:
+    background var(--duration-fast),
+    color var(--duration-fast),
+    border-color var(--duration-fast),
+    box-shadow var(--duration-fast),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.modeButton:hover:not(:disabled) {
+  color: rgba(248, 250, 252, 0.92);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.072), rgba(255, 255, 255, 0.024)),
+    rgba(36, 41, 38, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.065),
+    0 0 18px rgba(141, 247, 167, 0.08),
+    0 12px 22px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
+}
+
+.modeButtonActive {
+  color: rgba(232, 255, 238, 0.98);
+  background:
+    linear-gradient(180deg, rgba(141, 247, 167, 0.18), rgba(141, 247, 167, 0.07)),
+    rgba(30, 43, 34, 0.94);
+  border-color: rgba(141, 247, 167, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 14px 24px rgba(0, 0, 0, 0.2);
+}
+
+.compact .modeSwitch {
+  gap: 6px;
+}
+
+.compact .modeButton {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  grid-template-columns: auto;
+  gap: 0;
+  padding: 0;
+  border-radius: 14px;
+}
+
+.compact .buttonLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.buttonLabel {
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.modeButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary,
+.secondary {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.primary {
+  color: #06110a;
+  background: #1ed760;
+}
+
+.secondary {
+  color: rgba(248, 250, 252, 0.72);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.primary:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.primary:focus-visible,
+.modeButton:focus-visible,
+.secondary:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.error {
+  grid-column: 2 / -1;
+  margin: 0;
+  color: #fecaca;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1120px) {
+  .compact {
+    width: auto;
+  }
+}

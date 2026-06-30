@@ -1,4 +1,4 @@
-import type { CreateSessionResponse, HostMode, PlaylistFeedback, PlaylistFeedbackResponse, RegenerateSessionResponse, SessionIntent } from '@auracle/shared';
+import type { CreateSessionResponse, HostMode, PlaylistFeedback, PlaylistFeedbackResponse, RegenerateSessionResponse, SessionIntent, SpotifyTrackRef } from '@auracle/shared';
 import { authHeaders, clearStoredToken, jsonAuthHeaders } from '@/features/marketing/authApi';
 import { DEMO_SESSION } from '@/data/demoData';
 
@@ -9,12 +9,15 @@ export class SessionAuthError extends Error {
   }
 }
 
-export async function createSession(intent: SessionIntent): Promise<CreateSessionResponse> {
+export async function createSession(
+  intent: SessionIntent,
+  spotifyCandidates?: SpotifyTrackRef[],
+): Promise<CreateSessionResponse> {
   try {
     const res = await fetch('/sessions', {
       method: 'POST',
       headers: jsonAuthHeaders(),
-      body: JSON.stringify(intent),
+      body: JSON.stringify(spotifyCandidates?.length ? { ...intent, spotifyCandidates } : intent),
     });
     if (res.status === 401) {
       clearStoredToken();

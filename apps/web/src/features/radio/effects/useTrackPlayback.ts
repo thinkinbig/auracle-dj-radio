@@ -7,7 +7,8 @@ import {
 } from '../lib/playbackCoordinator';
 import { postNowPlaying, postSessionEvent } from '../lib/sessionApi';
 import { createLocalPlayer } from '../playback/LocalPlayer';
-import type { MusicPlayer, MusicPlayerCallbacks } from '../playback/MusicPlayer';
+import { createSpotifyPlayer } from '../playback/SpotifyPlayer';
+import type { MusicPlayer, MusicPlayerCallbacks, PlayableTrack } from '../playback/MusicPlayer';
 import type { RadioCommands } from '../lib/radioCommands';
 import type { PlaybackState } from '@/features/radio/session/types';
 import type { OpeningGateControls } from './useOpeningGate';
@@ -105,6 +106,7 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
     };
     const players = playersRef.current;
     players.local = createLocalPlayer(audio, stableCb);
+    players.spotify = createSpotifyPlayer(stableCb);
     return () => {
       Object.values(players).forEach((p) => p?.dispose());
       playersRef.current = {};
@@ -143,8 +145,15 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
     // No start-of-track cue: the DJ now speaks at the END of each track (ADR-0004).
     // Track 0's opening greeting is auto-cued by the proxy on connect.
 
-    playersRef.current[currentSource]?.load(
-      { id: state.trackId, source: currentSource },
+    // Hand off cleanly: stop whatever the other backend was doing before the active
+    // one loads, so a local↔Spotify switch never leaves two sources live.
+    const players = playersRef.current;
+    for (const [src, p] of Object.entries(players)) {
+      if (src !== currentSource) p?.pause();
+    }
+    const currentRef = state.sessionTracklist[state.currentTrackIndex];
+    players[currentSource]?.load(
+      { id: state.trackId, source: currentSource, spotify: currentRef?.spotify },
       { autostart: !isOpening },
     );
   }, [
@@ -154,13 +163,16 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
     state.currentTrackIndex,
     state.trackId,
     currentSource,
+    state.sessionTracklist,
     armForTrack,
   ]);
 
   useEffect(() => {
     if (!state.sessionId || !nextTrackId) return;
-    playersRef.current[nextSource]?.preload({ id: nextTrackId, source: nextSource });
-  }, [state.sessionId, nextTrackId, nextSource]);
+    const nextRef = state.sessionTracklist[state.currentTrackIndex + 1];
+    const track: PlayableTrack = { id: nextTrackId, source: nextSource, spotify: nextRef?.spotify };
+    playersRef.current[nextSource]?.preload(track);
+  }, [state.sessionId, nextTrackId, nextSource, state.currentTrackIndex, state.sessionTracklist]);
 
   useEffect(() => {
     applyPlaybackPolicy();

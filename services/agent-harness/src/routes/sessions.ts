@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { ANONYMOUS_USER_ID, parseBearerToken, type Condition, type SessionIntent } from "@auracle/shared";
+import { ANONYMOUS_USER_ID, parseBearerToken, type Condition, type SessionIntent, type SpotifyTrackRef } from "@auracle/shared";
 import type { AgentHarness } from "../harness/agent-harness.js";
 import type { MemoryServiceClient } from "../memory-service-client.js";
 import type { ToolCall } from "../session/tool-runner.js";
@@ -39,14 +39,14 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
   }
 
   app.post("/sessions", async (req, reply) => {
-    const body = (req.body ?? {}) as Partial<SessionIntent> & { condition?: Condition };
+    const body = (req.body ?? {}) as Partial<SessionIntent> & { condition?: Condition; spotifyCandidates?: SpotifyTrackRef[] };
     if (!harness.parseSessionIntent(body)) return reply.code(400).send({ error: "mood and scene are required" });
     const token = parseBearerToken(req.headers.authorization);
     const resolved = await memory.resolveSessionUser(token);
     if (resolved.kind === "invalid_token") {
       return reply.code(401).send({ error: "invalid or expired token" });
     }
-    return harness.createSession(body as SessionIntent & { condition?: Condition }, resolved.userId);
+    return harness.createSession(body as SessionIntent & { condition?: Condition; spotifyCandidates?: SpotifyTrackRef[] }, resolved.userId);
   });
 
   app.get("/sessions/:id/registration", async (req, reply) => {

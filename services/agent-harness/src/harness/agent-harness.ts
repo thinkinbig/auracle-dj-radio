@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Condition, HostMode, RegenerateSessionResponse, SessionIntent, TastePreference, TrackMeta } from "@auracle/shared";
+import type { Condition, HostMode, RegenerateSessionResponse, SessionIntent, SpotifyTrackRef, TastePreference, TrackMeta } from "@auracle/shared";
 import { ANONYMOUS_USER_ID, parseHostMode } from "@auracle/shared";
 import { buildRegistration } from "../dj/registration.js";
 import { buildNowPlayingContextInject, toCueTrack } from "../dj/prompt.js";
@@ -28,6 +28,8 @@ export interface AgentHarnessDeps {
 
 export interface CreateSessionInput extends SessionIntent {
   condition?: Condition;
+  /** Listener's gathered Spotify library candidates (ADR-0005); ranked into the same pool. */
+  spotifyCandidates?: SpotifyTrackRef[];
 }
 
 function parseIntent(raw: unknown): SessionIntent | undefined {
@@ -72,7 +74,8 @@ export class AgentHarness {
           ])
         : ["", undefined, undefined];
     const tieBreakSeed = randomUUID();
-    const plan = await this.deps.music.planTracklist({ intent, mode: "provisional", memories: mem0Context, energyWeights, taste, tieBreakSeed });
+    const spotifyCandidates = input.spotifyCandidates?.length ? input.spotifyCandidates : undefined;
+    const plan = await this.deps.music.planTracklist({ intent, mode: "provisional", memories: mem0Context, energyWeights, taste, tieBreakSeed, spotifyCandidates });
     const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
     const state = this.deps.store.create({
       userId,
@@ -87,6 +90,7 @@ export class AgentHarness {
       tracklist: plan.result.tracklist,
       candidatesById,
       mem0Context,
+      spotifyCandidates,
     });
     if (authenticated) this.deps.store.setActiveForUser(userId, state.id);
 
@@ -138,6 +142,7 @@ export class AgentHarness {
         energyWeights: state.energyWeights,
         taste: state.taste,
         tieBreakSeed: state.tieBreakSeed,
+        spotifyCandidates: state.spotifyCandidates,
       });
       const previousTitle = state.title;
       const previousSubtitle = state.subtitle;
