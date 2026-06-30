@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ArcStage, Condition, Energy, FlowTrackRef, HostMode, SessionIntent, SpotifyTrackRef, TastePreference, TrackCandidate } from "@auracle/shared";
+import type { ArcStage, Condition, Energy, FlowTrackRef, HostMode, SessionIntent, SpotifyTrackRef, SpotifyVoicing, TastePreference, TrackCandidate } from "@auracle/shared";
 import { inferHostModeFromScene } from "@auracle/shared";
 
 export interface SessionState {
@@ -17,6 +17,10 @@ export interface SessionState {
   spotifyCandidates?: SpotifyTrackRef[];
   /** uri→energy for Spotify candidates matched to a catalog track (#74); lets the refine LLM-infer only the remainder. */
   spotifyMatchedEnergy?: Record<string, Energy>;
+  /** uri→voicing for Spotify candidates matched to a catalog track (#75); the reuse base the refine extends. */
+  spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
+  /** uri→resolved DJ voicing for the Spotify pool (#75): catalog reuse + LLM-improvised remainder. Seeded with matches, completed by the refine. */
+  spotifyVoicing?: Record<string, SpotifyVoicing>;
   hostMode: HostMode;
   title: string;
   subtitle: string;
@@ -77,6 +81,7 @@ export class SessionStore {
     mem0Context: string;
     spotifyCandidates?: SpotifyTrackRef[];
     spotifyMatchedEnergy?: Record<string, Energy>;
+    spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
   }): SessionState {
     const energyById = new Map<string, number>();
     for (const ref of params.tracklist) {
@@ -93,6 +98,10 @@ export class SessionStore {
       tieBreakSeed: params.tieBreakSeed,
       spotifyCandidates: params.spotifyCandidates,
       spotifyMatchedEnergy: params.spotifyMatchedEnergy,
+      spotifyMatchedVoicing: params.spotifyMatchedVoicing,
+      // Seed with catalog matches so a matched Spotify track-0 already has voicing
+      // for the opening cue; the async refine fills in the LLM-improvised remainder.
+      spotifyVoicing: params.spotifyMatchedVoicing ? { ...params.spotifyMatchedVoicing } : undefined,
       hostMode: inferHostModeFromScene(params.intent.scene),
       title: params.title,
       subtitle: params.subtitle,

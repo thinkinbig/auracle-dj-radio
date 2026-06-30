@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { Energy, SessionIntent, SpotifyTrackRef, TastePreference, TrackCandidate } from "@auracle/shared";
+import type { Energy, SessionIntent, SpotifyTrackRef, SpotifyVoicing, TastePreference, TrackCandidate } from "@auracle/shared";
 import { createPlanCached, createProvisionalPlan, extendPlan, replan, type PlanDeps, type PlanResult } from "../flow/plan.js";
 import { retrieveCandidates } from "../flow/retrieval/retrieve.js";
 
@@ -15,8 +15,9 @@ function toPlanResponse(p: PlanResult): {
   violations: PlanResult["violations"];
   candidates: TrackCandidate[];
   spotifyMatchedEnergy?: Record<string, Energy>;
+  spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
 } {
-  return { result: p.result, violations: p.violations, candidates: [...p.candidatesById.values()], spotifyMatchedEnergy: p.spotifyMatchedEnergy };
+  return { result: p.result, violations: p.violations, candidates: [...p.candidatesById.values()], spotifyMatchedEnergy: p.spotifyMatchedEnergy, spotifyMatchedVoicing: p.spotifyMatchedVoicing };
 }
 
 export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): void {
@@ -56,7 +57,7 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
     const mode = b.mode ?? "full";
     if (mode === "provisional") {
       const p = await createProvisionalPlan(deps, intent, b.memories ?? "", b.energyWeights, b.taste, b.tieBreakSeed, b.spotifyCandidates, b.spotifyEnergyByUri);
-      return { result: p.result, violations: [], candidates: [...p.candidatesById.values()], spotifyMatchedEnergy: p.spotifyMatchedEnergy };
+      return { result: p.result, violations: [], candidates: [...p.candidatesById.values()], spotifyMatchedEnergy: p.spotifyMatchedEnergy, spotifyMatchedVoicing: p.spotifyMatchedVoicing };
     }
     if (mode === "extend") {
       const e = b.extend ?? {};

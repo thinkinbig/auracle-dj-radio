@@ -73,8 +73,18 @@ POST pool → harness                    ▲                              │
    (`refineSessionCopywriting`): one batched structured call over the gathered pool
    (in `agent-harness`, which owns LLM orchestration; `music-engine` stays
    deterministic), which then re-ranks the remaining queue. Exact catalog matches
-   are reused (decision 4) so only the remainder is inferred. Persona/concept,
-   needed only when the DJ *speaks* a track, ride the same async refine.
+   are reused (decision 4) so only the remainder is inferred. DJ voicing
+   (persona/concept), needed only when the DJ *speaks* a track, rides the same
+   async refine (#75): the same title+artist match that reuses a local track's
+   energy also reuses its authored persona/concept/lore verbatim; the unmatched
+   remainder gets one batched LLM improvisation from title/artist (lore stays
+   catalog-only, never improvised). Both backends then resolve through one
+   `resolveCueTrack` seam — local slots via the catalog, Spotify slots from inline
+   metadata + the resolved voicing — so cues, the opening, and now-playing context
+   are source-agnostic. Voicing is best-effort and lazy: catalog matches are seeded
+   at session create (so a matched track-0 voices on the opening cue without
+   waiting), the improvised remainder lands before those tracks are spoken, and a
+   missing blurb falls back to a plain title/artist introduction.
 
 6. **One `MusicPlayer` interface; both backends warm per session.** The WebAudio
    bus carries DJ voice + *local* music; when a Spotify track plays, the DJ voice

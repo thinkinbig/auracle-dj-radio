@@ -1,7 +1,6 @@
 import type { FunctionDeclaration } from "@google/genai";
-import type { TrackMeta } from "@auracle/shared";
 import type { SessionState } from "../session/store.js";
-import { buildCueText, buildSystemInstruction, DJ_TOOLS, toCueTrack } from "./prompt.js";
+import { buildCueText, buildSystemInstruction, DJ_TOOLS, type CueTrack } from "./prompt.js";
 
 /**
  * The pre-baked registration contract memory-service hands the proxy at session
@@ -15,8 +14,8 @@ export interface Registration {
   openingCue: string;
 }
 
-/** Build the registration artifacts for `state`; `openingTrack` is track-0 metadata. */
-export function buildRegistration(state: SessionState, openingTrack: TrackMeta | undefined): Registration {
+/** Build the registration artifacts for `state`; `openingTrack` is track-0's resolved cue voicing. */
+export function buildRegistration(state: SessionState, openingTrack: CueTrack | undefined): Registration {
   return {
     systemInstruction: buildSystemInstruction({
       title: state.title,
@@ -33,7 +32,7 @@ export function buildRegistration(state: SessionState, openingTrack: TrackMeta |
       kind: "opening",
       hostMode: state.hostMode,
       sessionTitle: state.title,
-      now: toCueTrack(openingTrack),
+      now: openingTrack,
     }),
   };
 }

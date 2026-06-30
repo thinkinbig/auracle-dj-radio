@@ -1,17 +1,19 @@
 import { randomUUID } from "node:crypto";
-import type { Condition, Energy, HostMode, RegenerateSessionResponse, SessionIntent, SpotifyTrackRef, TastePreference, TrackMeta } from "@auracle/shared";
+import type { Condition, Energy, HostMode, RegenerateSessionResponse, SessionIntent, SpotifyTrackRef, SpotifyVoicing, TastePreference } from "@auracle/shared";
 import { ANONYMOUS_USER_ID, parseHostMode } from "@auracle/shared";
 import { buildRegistration } from "../dj/registration.js";
-import { buildNowPlayingContextInject, toCueTrack } from "../dj/prompt.js";
+import { buildNowPlayingContextInject } from "../dj/prompt.js";
 import type { MemoryServiceClient } from "../memory-service-client.js";
 import type { MusicEngineClient } from "../music-engine-client.js";
 import type { ProxyClient } from "../proxy-client.js";
 import { buildAndPushCue } from "../session/cue.js";
+import { resolveCueTrack } from "../session/cue-track.js";
 import { extendQueue } from "../session/extend.js";
 import { changedIdsFromRemaining, type OrchestrationDeps } from "../session/replan.js";
 import { swapNextOnQuickSkip } from "../session/skip-swap.js";
 import { SessionStore, type SessionState } from "../session/store.js";
 import { inferSpotifyEnergy } from "../session/spotify-energy.js";
+import { inferSpotifyVoicing } from "../session/spotify-voicing.js";
 import { runTool, type ToolCall } from "../session/tool-runner.js";
 import { parsePlaylistFeedback, runPlaylistFeedback, type PlaylistFeedbackOutcome } from "../session/playlist-feedback.js";
 
@@ -93,6 +95,7 @@ export class AgentHarness {
       mem0Context,
       spotifyCandidates,
       spotifyMatchedEnergy: plan.spotifyMatchedEnergy,
+      spotifyMatchedVoicing: plan.spotifyMatchedVoicing,
     });
     if (authenticated) this.deps.store.setActiveForUser(userId, state.id);
 
@@ -100,7 +103,7 @@ export class AgentHarness {
       .recordEvent(state.id, state.userId, "session_created", { intent, condition, tracklist: plan.result.tracklist })
       .catch((err) => this.deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "record session_created failed"));
 
-    const openingTrack = await this.openingTrack(state.tracklist[0]?.id);
+    const openingTrack = await resolveCueTrack(this.deps.music, state, state.tracklist[0]);
     const registration = buildRegistration(state, openingTrack);
     const token = randomUUID();
     try {
@@ -142,6 +145,13 @@ export class AgentHarness {
       // off the first-Start critical path, which already shipped on placeholder
       // energy via the provisional plan.
       const spotifyEnergyByUri = await this.resolveSpotifyEnergy(state);
+      // First-class DJ voicing for the Spotify pool (#75): reuse catalog matches,
+      // LLM-improvise the rest. Voicing doesn't feed the plan, so resolve it in the
+      // background — the tracklist refine push isn't held up waiting on it, and the
+      // result lands before the DJ speaks those tracks (matches were seeded at create).
+      void this.resolveSpotifyVoicing(state).then((voicing) => {
+        if (voicing) state.spotifyVoicing = voicing;
+      });
       const plan = await this.deps.music.planTracklist({
         intent: state.intent,
         mode: "full",
@@ -211,6 +221,21 @@ export class AgentHarness {
   }
 
   /**
+   * Build the uri→voicing map for the Spotify pool (#75): exact catalog matches
+   * (persona/concept/lore reused verbatim, captured by the provisional plan) win;
+   * the rest get one batched LLM improvisation from title/artist. Returns undefined
+   * for local-only sessions so their path is untouched.
+   */
+  private async resolveSpotifyVoicing(state: SessionState): Promise<Record<string, SpotifyVoicing> | undefined> {
+    const candidates = state.spotifyCandidates;
+    if (!candidates?.length) return undefined;
+    const matched = state.spotifyMatchedVoicing ?? {};
+    const unmatched = candidates.filter((c) => matched[c.uri] === undefined);
+    const inferred = await inferSpotifyVoicing(unmatched);
+    return { ...inferred, ...matched };
+  }
+
+  /**
    * Invalidate the user's prior session (issue #55): drop it from the store
    * (synchronously, so its APIs answer 410 right away), then best-effort push a
    * `session_superseded` ui event so the old device stops playback. A proxy miss
@@ -256,7 +281,7 @@ export class AgentHarness {
   async registration(id: string): Promise<ReturnType<typeof buildRegistration> | undefined> {
     const state = this.deps.store.get(id);
     if (!state) return undefined;
-    return buildRegistration(state, await this.openingTrack(state.tracklist[0]?.id));
+    return buildRegistration(state, await resolveCueTrack(this.deps.music, state, state.tracklist[0]));
   }
 
   async runTool(id: string, call: ToolCall): Promise<Awaited<ReturnType<typeof runTool>> | undefined> {
@@ -306,10 +331,9 @@ export class AgentHarness {
 
     // Inject silent now-playing context so the DJ can answer mid-song questions
     // ("introduce this track/artist") — ADR-0004 removed start-of-track segue cues.
-    void this.deps.music
-      .getTrack(trackId)
-      .then((meta) => {
-        const inject = buildNowPlayingContextInject(toCueTrack(meta), state.hostMode);
+    void resolveCueTrack(this.deps.music, state, state.tracklist[state.currentTrackIndex])
+      .then((track) => {
+        const inject = buildNowPlayingContextInject(track, state.hostMode);
         if (!inject) return;
         return this.deps.proxy.inject(id, { inject_text: inject });
       })
@@ -397,9 +421,5 @@ export class AgentHarness {
     if (!state) return false;
     await this.deps.memory.recordEvent(id, state.userId, eventType, payload ?? {});
     return true;
-  }
-
-  private async openingTrack(id: string | undefined): Promise<TrackMeta | undefined> {
-    return id ? this.deps.music.getTrack(id) : undefined;
   }
 }

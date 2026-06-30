@@ -23,6 +23,17 @@ export interface SpotifyTrackRef {
   durationSec: number;
 }
 
+/**
+ * DJ voicing blurbs for a Spotify track (ADR-0005 §5) — what the host borrows a
+ * phrase from on air. Reused verbatim from a matching catalog track, or LLM-
+ * improvised from title/artist; generated on the async copywriter pass.
+ */
+export interface SpotifyVoicing {
+  artistPersona: string;
+  albumConcept: string;
+  lore: string;
+}
+
 /** One ordered slot in a planned tracklist. */
 export interface FlowTrackRef {
   id: string;

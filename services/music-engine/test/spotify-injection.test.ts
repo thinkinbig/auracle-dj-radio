@@ -95,6 +95,39 @@ describe("Spotify candidate injection", () => {
     expect(candidatesById.get(ref.uri)?.energy).toBe(5);
   });
 
+  it("reuses catalog DJ voicing verbatim for a title+artist match (#75)", async () => {
+    const matched = {
+      ...track("Midnight Drive", "Neon Cat", 5),
+      artistPersona: "Neon-lit synthwave nightrider",
+      albumConcept: "A long drive through a sleeping city",
+      lore: "Cut in one take at 3am",
+    };
+    const deps: PlanDeps = { tracks: () => [matched] };
+    const ref: SpotifyTrackRef = {
+      uri: "spotify:track:match",
+      title: "midnight drive",
+      artist: "NEON CAT",
+      albumTitle: "Album",
+      albumCoverUrl: "https://img/m.jpg",
+      durationSec: 200,
+    };
+    const { spotifyMatchedVoicing } = await createProvisionalPlan(
+      deps, intent, "", undefined, undefined, undefined, [ref],
+    );
+    expect(spotifyMatchedVoicing?.[ref.uri]).toEqual({
+      artistPersona: "Neon-lit synthwave nightrider",
+      albumConcept: "A long drive through a sleeping city",
+      lore: "Cut in one take at 3am",
+    });
+  });
+
+  it("returns no matched voicing for an unmatched Spotify track (#75)", async () => {
+    const { spotifyMatchedVoicing } = await createProvisionalPlan(
+      emptyDeps, intent, "", undefined, undefined, undefined, [spotifyCandidate(1)],
+    );
+    expect(spotifyMatchedVoicing).toEqual({});
+  });
+
   it("uses provided spotifyEnergyByUri over the placeholder for unmatched tracks (#74)", async () => {
     const cands = [spotifyCandidate(1), spotifyCandidate(2)];
     const energyByUri = { [cands[0]!.uri]: 1 as Energy, [cands[1]!.uri]: 4 as Energy };

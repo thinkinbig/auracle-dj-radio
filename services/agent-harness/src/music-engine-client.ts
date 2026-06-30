@@ -1,4 +1,4 @@
-import type { Energy, FlowResult, SessionIntent, SpotifyTrackRef, TastePreference, TrackCandidate, TrackMeta } from "@auracle/shared";
+import type { Energy, FlowResult, SessionIntent, SpotifyTrackRef, SpotifyVoicing, TastePreference, TrackCandidate, TrackMeta } from "@auracle/shared";
 
 export interface PlanTracklistRequest {
   intent: SessionIntent;
@@ -36,6 +36,8 @@ export interface PlanResponse {
   candidates: TrackCandidate[];
   /** uri→energy for Spotify candidates that matched a catalog track (#74); the rest are LLM-inferred. */
   spotifyMatchedEnergy?: Record<string, Energy>;
+  /** uri→voicing for Spotify candidates that matched a catalog track (#75); the rest are LLM-improvised. */
+  spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
 }
 
 export interface SearchCatalogRequest {

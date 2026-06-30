@@ -1,4 +1,4 @@
-import type { Energy, FlowResult, FlowTrackRef, SessionIntent, SpotifyTrackRef, TastePreference, TrackCandidate } from "@auracle/shared";
+import type { Energy, FlowResult, FlowTrackRef, SessionIntent, SpotifyTrackRef, SpotifyVoicing, TastePreference, TrackCandidate } from "@auracle/shared";
 import { FULL_SESSION_LENGTH, energyTargetsForMood } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
 import { HeuristicFlowModel } from "./llm/heuristic-flow.js";
@@ -33,21 +33,28 @@ function normalizeMatchKey(value: string): string {
 }
 
 /**
- * Exact catalog-energy reuse (ADR-0005 §4): when a gathered Spotify track is the
- * same recording as one in our catalog (normalized title+artist), reuse the
- * authored energy rather than inferring it. Returns a uri→energy map of the hits.
+ * Exact catalog reuse (ADR-0005 §4–5): when a gathered Spotify track is the same
+ * recording as one in our catalog (normalized title+artist), reuse its authored
+ * energy and DJ voicing rather than inferring them. Returns uri→energy and
+ * uri→voicing maps of the hits.
  */
-function matchCatalogEnergy(tracks: TrackRow[], refs: SpotifyTrackRef[]): Record<string, Energy> {
-  const byTitleArtist = new Map<string, Energy>();
+function matchCatalog(
+  tracks: TrackRow[],
+  refs: SpotifyTrackRef[],
+): { energy: Record<string, Energy>; voicing: Record<string, SpotifyVoicing> } {
+  const byTitleArtist = new Map<string, TrackRow>();
   for (const t of tracks) {
-    byTitleArtist.set(`${normalizeMatchKey(t.title)} | ${normalizeMatchKey(t.artist)}`, t.energy);
+    byTitleArtist.set(`${normalizeMatchKey(t.title)} | ${normalizeMatchKey(t.artist)}`, t);
   }
-  const matched: Record<string, Energy> = {};
+  const energy: Record<string, Energy> = {};
+  const voicing: Record<string, SpotifyVoicing> = {};
   for (const r of refs) {
-    const energy = byTitleArtist.get(`${normalizeMatchKey(r.title)} | ${normalizeMatchKey(r.artist)}`);
-    if (energy !== undefined) matched[r.uri] = energy;
+    const t = byTitleArtist.get(`${normalizeMatchKey(r.title)} | ${normalizeMatchKey(r.artist)}`);
+    if (!t) continue;
+    energy[r.uri] = t.energy;
+    voicing[r.uri] = { artistPersona: t.artistPersona ?? "", albumConcept: t.albumConcept ?? "", lore: t.lore ?? "" };
   }
-  return matched;
+  return { energy, voicing };
 }
 
 /**
@@ -60,9 +67,16 @@ function spotifyCandidatePool(
   scene: string,
   tracks: TrackRow[],
   energyByUri?: Record<string, Energy>,
-): { pool: TrackCandidate[]; byUri: Map<string, SpotifyTrackRef>; matchedEnergy: Record<string, Energy> } {
+): {
+  pool: TrackCandidate[];
+  byUri: Map<string, SpotifyTrackRef>;
+  matchedEnergy: Record<string, Energy>;
+  matchedVoicing: Record<string, SpotifyVoicing>;
+} {
   const list = refs ?? [];
-  const matchedEnergy = list.length ? matchCatalogEnergy(tracks, list) : {};
+  const { energy: matchedEnergy, voicing: matchedVoicing } = list.length
+    ? matchCatalog(tracks, list)
+    : { energy: {}, voicing: {} };
   const byUri = new Map<string, SpotifyTrackRef>();
   const pool: TrackCandidate[] = [];
   for (const r of list) {
@@ -72,7 +86,7 @@ function spotifyCandidatePool(
     // uri is the slot id; the client plays it directly (no catalog entry to resolve).
     pool.push({ id: r.uri, energy, tempo: 0, genre: "", scene });
   }
-  return { pool, byUri, matchedEnergy };
+  return { pool, byUri, matchedEnergy, matchedVoicing };
 }
 
 /** Stamp `source:"spotify"` + inline metadata onto slots the planner picked from the Spotify pool. */
@@ -90,6 +104,8 @@ export interface PlanResult {
   candidatesById: Map<string, TrackCandidate>;
   /** uri→energy for Spotify candidates that matched a catalog track (ADR-0005 §4); lets agent-harness LLM-infer only the remainder. */
   spotifyMatchedEnergy?: Record<string, Energy>;
+  /** uri→voicing for Spotify candidates that matched a catalog track (ADR-0005 §5); reused verbatim so the DJ voices them like local tracks. */
+  spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
 }
 
 /**
@@ -141,6 +157,7 @@ function clonePlan(p: PlanResult): PlanResult {
     violations: [...p.violations],
     candidatesById: new Map(p.candidatesById),
     spotifyMatchedEnergy: p.spotifyMatchedEnergy,
+    spotifyMatchedVoicing: p.spotifyMatchedVoicing,
   };
 }
 
@@ -194,10 +211,10 @@ export async function createProvisionalPlan(
   tieBreakSeed?: string,
   spotifyCandidates?: SpotifyTrackRef[],
   spotifyEnergyByUri?: Record<string, Energy>,
-): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate>; spotifyMatchedEnergy?: Record<string, Energy> }> {
+): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate>; spotifyMatchedEnergy?: Record<string, Energy>; spotifyMatchedVoicing?: Record<string, SpotifyVoicing> }> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
   const tracks = deps.tracks();
-  const { pool: spotifyPool, byUri, matchedEnergy } = spotifyCandidatePool(spotifyCandidates, intent.scene, tracks, spotifyEnergyByUri);
+  const { pool: spotifyPool, byUri, matchedEnergy, matchedVoicing } = spotifyCandidatePool(spotifyCandidates, intent.scene, tracks, spotifyEnergyByUri);
   const candidates = [
     ...retrieveCandidates(tracks, {
       mood: intent.mood,
@@ -220,6 +237,7 @@ export async function createProvisionalPlan(
     },
     candidatesById,
     spotifyMatchedEnergy: matchedEnergy,
+    spotifyMatchedVoicing: matchedVoicing,
   };
 }
 
@@ -259,7 +277,7 @@ export async function createPlan(
 ): Promise<PlanResult> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
   const tracks = deps.tracks();
-  const { pool: spotifyPool, byUri, matchedEnergy } = spotifyCandidatePool(spotifyCandidates, intent.scene, tracks, spotifyEnergyByUri);
+  const { pool: spotifyPool, byUri, matchedEnergy, matchedVoicing } = spotifyCandidatePool(spotifyCandidates, intent.scene, tracks, spotifyEnergyByUri);
   const candidates = [
     ...retrieveCandidates(tracks, {
       mood: intent.mood,
@@ -280,7 +298,7 @@ export async function createPlan(
     remainingSlots: FULL_SESSION_LENGTH,
     candidates,
   });
-  return { ...plan, result: { ...plan.result, tracklist: stampSpotify(plan.result.tracklist, byUri) }, spotifyMatchedEnergy: matchedEnergy };
+  return { ...plan, result: { ...plan.result, tracklist: stampSpotify(plan.result.tracklist, byUri) }, spotifyMatchedEnergy: matchedEnergy, spotifyMatchedVoicing: matchedVoicing };
 }
 
 export interface ReplanInput {

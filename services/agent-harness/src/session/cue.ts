@@ -1,4 +1,5 @@
-import { buildCueText, toCueTrack, type CueKind } from "../dj/prompt.js";
+import { buildCueText, type CueKind } from "../dj/prompt.js";
+import { resolveCueTrack } from "./cue-track.js";
 import type { OrchestrationDeps } from "./replan.js";
 import type { SessionState } from "./store.js";
 
@@ -14,16 +15,14 @@ export async function buildAndPushCue(
   state: SessionState,
   kind: CueKind,
 ): Promise<void> {
-  const nowId = state.tracklist[state.currentTrackIndex]?.id;
-  const nextId = state.tracklist[state.currentTrackIndex + 1]?.id;
-  const now = nowId ? await deps.music.getTrack(nowId) : undefined;
-  const next = nextId ? await deps.music.getTrack(nextId) : undefined;
+  const now = await resolveCueTrack(deps.music, state, state.tracklist[state.currentTrackIndex]);
+  const next = await resolveCueTrack(deps.music, state, state.tracklist[state.currentTrackIndex + 1]);
   const cueText = buildCueText({
     kind,
     hostMode: state.hostMode,
     sessionTitle: state.title,
-    now: toCueTrack(now),
-    next: toCueTrack(next),
+    now,
+    next,
     contextRotation: state.currentTrackIndex,
   });
   await deps.proxy.inject(state.id, { inject_text: cueText });
