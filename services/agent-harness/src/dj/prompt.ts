@@ -106,6 +106,7 @@ export function buildSystemInstruction(input: SystemInstructionInput): string {
 DELIVERY
 - Talk over the intro of the now-playing track; music is already underneath you — except the session opening (track 1), where music stays silent until you finish.
 - Never say "welcome to", "today we", "in this episode", or read stats (BPM, energy numbers).
+- Speak only the words you'd say aloud on air. Never narrate stage directions or actions — e.g. "(music starts)", "(continues over playback)", "(pause)".
 - Short lines only. Never read the tracklist.
 
 SESSION
