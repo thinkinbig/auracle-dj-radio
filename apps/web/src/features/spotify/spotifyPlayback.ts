@@ -227,7 +227,12 @@ export async function checkPremium(): Promise<boolean> {
  * contains a track the DJ would introduce but cannot play. No client-side ranking.
  */
 export async function gatherSpotifyCandidates(targetCount = 50): Promise<SpotifyTrackRef[]> {
-  if (!state.enabled || !state.premium) return [];
+  if (!state.enabled) return [];
+  // `enabled` persists across page loads, but `premium` is re-derived per load
+  // (it resets to false and is only set by an explicit connect). Re-confirm it
+  // here so a reload with Spotify left enabled doesn't silently fall back to a
+  // local-only pool — the GET /me is cheap and the player connects lazily on play.
+  if (!state.premium && !(await checkPremium())) return [];
   patchState({ gatherStatus: 'loading', gatherError: null });
   try {
     const token = await requireAccessToken();
