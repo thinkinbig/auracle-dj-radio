@@ -145,6 +145,9 @@ export class AgentHarness {
       // off the first-Start critical path, which already shipped on placeholder
       // energy via the provisional plan.
       const spotifyEnergyByUri = await this.resolveSpotifyEnergy(state);
+      // Cache the resolved pool energy so regenerate/extend can re-rank the mix
+      // without re-inferring or a fresh client gather (#77).
+      state.spotifyEnergyByUri = spotifyEnergyByUri;
       // First-class DJ voicing for the Spotify pool (#75): reuse catalog matches,
       // LLM-improvise the rest. Voicing doesn't feed the plan, so resolve it in the
       // background — the tracklist refine push isn't held up waiting on it, and the

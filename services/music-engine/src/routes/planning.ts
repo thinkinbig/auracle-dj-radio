@@ -70,6 +70,8 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
         memories: b.memories ?? "",
         taste: b.taste,
         tieBreakSeed: b.tieBreakSeed,
+        spotifyCandidates: b.spotifyCandidates,
+        spotifyEnergyByUri: b.spotifyEnergyByUri,
       });
       return toPlanResponse(p);
     }
@@ -86,6 +88,8 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
         memories: b.memories ?? "",
         taste: b.taste,
         tieBreakSeed: b.tieBreakSeed,
+        spotifyCandidates: b.spotifyCandidates,
+        spotifyEnergyByUri: b.spotifyEnergyByUri,
       });
       return toPlanResponse(p);
     }

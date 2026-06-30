@@ -48,6 +48,9 @@ export async function extendQueue(
       taste,
       extend: { playedIds, appendSlots: EXTEND_APPEND_SLOTS, lastPlayedEnergy },
       tieBreakSeed: state.tieBreakSeed,
+      // Append from the same cached mixed pool — no fresh gather (#77).
+      spotifyCandidates: state.spotifyCandidates,
+      spotifyEnergyByUri: state.spotifyEnergyByUri,
     });
 
     const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));

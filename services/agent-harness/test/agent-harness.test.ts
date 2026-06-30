@@ -231,6 +231,64 @@ describe("agent-harness", () => {
     }
   });
 
+  it("re-ranks the cached Spotify pool on regenerate — no fresh gather (#77)", async () => {
+    const prevKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY; // inferSpotifyEnergy → deterministic mid fallback, no network
+    try {
+      const { app, music } = buildTestApp();
+      await app.ready();
+      const spotifyCandidates = [spotifyRef(1), spotifyRef(2)];
+      const created = await app.inject({
+        method: "POST",
+        url: "/sessions",
+        payload: { mood: "calm", scene: "studying", spotifyCandidates },
+      });
+      const { session_id } = created.json<{ session_id: string }>();
+      // Wait for the refine to land so the resolved pool energy is cached on state.
+      await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "full")).toBe(true));
+
+      await app.inject({ method: "POST", url: `/sessions/${session_id}/regenerate` });
+
+      const replanCall = music.planCalls.find((c) => c.mode === "replan");
+      expect(replanCall?.spotifyCandidates).toEqual(spotifyCandidates);
+      expect(replanCall?.spotifyEnergyByUri?.[spotifyCandidates[0]!.uri]).toBe(5); // catalog-matched
+      expect(replanCall?.spotifyEnergyByUri?.[spotifyCandidates[1]!.uri]).toBe(3); // LLM fallback (mid)
+      await app.close();
+    } finally {
+      if (prevKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = prevKey;
+    }
+  });
+
+  it("appends from the cached Spotify pool on rolling extend — no fresh gather (#77)", async () => {
+    const prevKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    try {
+      const { app, music } = buildTestApp();
+      await app.ready();
+      const spotifyCandidates = [spotifyRef(1), spotifyRef(2)];
+      const created = await app.inject({
+        method: "POST",
+        url: "/sessions",
+        payload: { mood: "calm", scene: "studying", condition: "C", spotifyCandidates },
+      });
+      const { session_id } = created.json<{ session_id: string }>();
+      await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "full")).toBe(true));
+
+      // tracklist a,b,c,f; playing "b" leaves remaining [c,f] (== threshold) → extend.
+      await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
+
+      await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "extend")).toBe(true));
+      const extendCall = music.planCalls.find((c) => c.mode === "extend");
+      expect(extendCall?.spotifyCandidates).toEqual(spotifyCandidates);
+      expect(extendCall?.spotifyEnergyByUri?.[spotifyCandidates[0]!.uri]).toBe(5);
+      await app.close();
+    } finally {
+      if (prevKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = prevKey;
+    }
+  });
+
   it("runs mood_change replan in the background and pushes the new remaining list", async () => {
     const { app, proxy, music, memory } = buildTestApp();
     await app.ready();

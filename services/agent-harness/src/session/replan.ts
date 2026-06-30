@@ -125,6 +125,9 @@ export async function applyReplan(
     taste,
     replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: count, avoidIds: params.reroll ? replacedWindow : undefined },
     tieBreakSeed: params.reroll ? randomUUID() : state.tieBreakSeed,
+    // Re-rank the cached Spotify pool into the refill — no fresh gather (#77).
+    spotifyCandidates: state.spotifyCandidates,
+    spotifyEnergyByUri: state.spotifyEnergyByUri,
   });
 
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));

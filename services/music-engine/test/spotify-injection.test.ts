@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { Energy, SpotifyTrackRef, Track } from "@auracle/shared";
 import { manifestToTracks, loadCatalogManifest } from "../src/catalog/manifest.js";
-import { createProvisionalPlan, type PlanDeps } from "../src/flow/plan.js";
+import { createProvisionalPlan, extendPlan, replan, type PlanDeps } from "../src/flow/plan.js";
 
 const realTracks = manifestToTracks(loadCatalogManifest());
 const realDeps: PlanDeps = { tracks: () => realTracks };
@@ -146,6 +146,56 @@ describe("Spotify candidate injection", () => {
     for (const ref of result.tracklist) {
       expect(ref.source).toBe("local");
       expect(ref.spotify).toBeUndefined();
+    }
+  });
+
+  it("re-ranks the cached Spotify pool into a regenerate, stamping source (#77)", async () => {
+    const cands = [spotifyCandidate(1), spotifyCandidate(2)];
+    const energyByUri = { [cands[0]!.uri]: 3 as Energy, [cands[1]!.uri]: 3 as Energy };
+    const p = await replan(emptyDeps, {
+      intent,
+      playedIds: [],
+      played: [],
+      lastPlayedEnergy: null,
+      remainingSlots: 2,
+      spotifyCandidates: cands,
+      spotifyEnergyByUri: energyByUri,
+    });
+    expect(p.result.tracklist.length).toBeGreaterThan(0);
+    for (const ref of p.result.tracklist) {
+      expect(ref.source).toBe("spotify");
+      expect(ref.spotify).toEqual(cands.find((c) => c.uri === ref.id));
+    }
+  });
+
+  it("excludes already-played/kept Spotify uris from a re-rank (#77)", async () => {
+    const cands = [spotifyCandidate(1), spotifyCandidate(2), spotifyCandidate(3)];
+    const p = await replan(emptyDeps, {
+      intent,
+      playedIds: [cands[0]!.uri],
+      played: [],
+      lastPlayedEnergy: null,
+      remainingSlots: 5,
+      spotifyCandidates: cands,
+    });
+    expect(p.result.tracklist.map((r) => r.id)).not.toContain(cands[0]!.uri);
+  });
+
+  it("appends mixed Spotify tracks on rolling extend, excluding queued uris (#77)", async () => {
+    const cands = [spotifyCandidate(1), spotifyCandidate(2)];
+    const p = await extendPlan(emptyDeps, {
+      intent,
+      playedIds: [cands[0]!.uri], // already queued → must not reappear
+      appendSlots: 4,
+      lastPlayedEnergy: 3,
+      spotifyCandidates: cands,
+    });
+    const ids = p.result.tracklist.map((r) => r.id);
+    expect(ids).not.toContain(cands[0]!.uri);
+    expect(ids).toContain(cands[1]!.uri);
+    for (const ref of p.result.tracklist) {
+      expect(ref.source).toBe("spotify");
+      expect(ref.spotify).toBeDefined();
     }
   });
 });

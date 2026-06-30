@@ -17,6 +17,8 @@ export interface SessionState {
   spotifyCandidates?: SpotifyTrackRef[];
   /** uri→energy for Spotify candidates matched to a catalog track (#74); lets the refine LLM-infer only the remainder. */
   spotifyMatchedEnergy?: Record<string, Energy>;
+  /** uri→resolved energy for the whole Spotify pool (#74): catalog match + LLM-inferred. Set by the refine; reused by regenerate/extend re-ranking (#77). */
+  spotifyEnergyByUri?: Record<string, Energy>;
   /** uri→voicing for Spotify candidates matched to a catalog track (#75); the reuse base the refine extends. */
   spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
   /** uri→resolved DJ voicing for the Spotify pool (#75): catalog reuse + LLM-improvised remainder. Seeded with matches, completed by the refine. */

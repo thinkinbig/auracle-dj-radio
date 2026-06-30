@@ -320,6 +320,10 @@ export interface ReplanInput {
    * (genuinely-fresh picks first) rather than coming back short.
    */
   avoidIds?: string[];
+  /** Cached Spotify library pool (ADR-0005 §10); re-ranked into the refill, no fresh gather (#77). */
+  spotifyCandidates?: SpotifyTrackRef[];
+  /** uri→energy for the cached pool (catalog-match + LLM-inferred); resolved once per session (#74). */
+  spotifyEnergyByUri?: Record<string, Energy>;
 }
 
 /** Mid-session replan: re-fill only the remaining slots, excluding played tracks. */
@@ -350,14 +354,21 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
     const seen = new Set(candidates.map((c) => c.id));
     candidates = [...candidates, ...retrieve(hardExclude).filter((c) => !seen.has(c.id))];
   }
-  return runHeuristicFlow({
+  // Re-rank the cached Spotify pool into the same refill (#77): the library is
+  // static per session, so no fresh gather. Exclude played/kept slots — and, on a
+  // re-roll, the slots being replaced — so picks never duplicate or repeat.
+  const { pool: spotifyPool, byUri } = spotifyCandidatePool(input.spotifyCandidates, input.intent.scene, tracks, input.spotifyEnergyByUri);
+  const spotifyExclude = new Set([...input.playedIds, ...(input.avoidIds ?? [])]);
+  const mixed = [...candidates, ...spotifyPool.filter((c) => !spotifyExclude.has(c.id))];
+  const plan = await runHeuristicFlow({
     intent: input.intent,
     memories: input.memories ?? "",
     played: input.played,
     lastPlayedEnergy: input.lastPlayedEnergy,
     remainingSlots: input.remainingSlots,
-    candidates,
+    candidates: mixed,
   });
+  return { ...plan, result: { ...plan.result, tracklist: stampSpotify(plan.result.tracklist, byUri) } };
 }
 
 export interface ExtendInput {
@@ -374,6 +385,10 @@ export interface ExtendInput {
   /** Structured taste prefer/avoid (condition C); undefined for A/B. */
   taste?: TastePreference[];
   tieBreakSeed?: string;
+  /** Cached Spotify library pool (ADR-0005 §10); re-ranked into the append, no fresh gather (#77). */
+  spotifyCandidates?: SpotifyTrackRef[];
+  /** uri→energy for the cached pool (catalog-match + LLM-inferred); resolved once per session (#74). */
+  spotifyEnergyByUri?: Record<string, Energy>;
 }
 
 /**
@@ -384,19 +399,27 @@ export interface ExtendInput {
  */
 export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<PlanResult> {
   const effectiveEnergyWeights = mergeEnergyWeights(input.energyWeights, energyWeightsFromMemories(input.memories ?? ""));
-  const candidates = retrieveCandidates(deps.tracks(), {
-    mood: input.intent.mood,
-    scene: input.intent.scene,
-    excludeIds: new Set(input.playedIds),
-    limit: Math.max(24, input.appendSlots * 3),
-    slots: input.appendSlots,
-    lastPlayedEnergy: input.lastPlayedEnergy,
-    energyWeights: effectiveEnergyWeights,
-    taste: input.taste,
-    tieBreakSeed: input.tieBreakSeed,
-  });
+  const tracks = deps.tracks();
+  const exclude = new Set(input.playedIds);
+  // Append from the same mixed pool (#77): cached Spotify library (minus already-
+  // queued uris) ranked alongside the local catalog against the rolling target.
+  const { pool: spotifyPool, byUri } = spotifyCandidatePool(input.spotifyCandidates, input.intent.scene, tracks, input.spotifyEnergyByUri);
+  const candidates = [
+    ...retrieveCandidates(tracks, {
+      mood: input.intent.mood,
+      scene: input.intent.scene,
+      excludeIds: exclude,
+      limit: Math.max(24, input.appendSlots * 3),
+      slots: input.appendSlots,
+      lastPlayedEnergy: input.lastPlayedEnergy,
+      energyWeights: effectiveEnergyWeights,
+      taste: input.taste,
+      tieBreakSeed: input.tieBreakSeed,
+    }),
+    ...spotifyPool.filter((c) => !exclude.has(c.id)),
+  ];
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
-  const tracklist = buildExtendChain(candidates, input.appendSlots, input.lastPlayedEnergy);
+  const tracklist = stampSpotify(buildExtendChain(candidates, input.appendSlots, input.lastPlayedEnergy), byUri);
   return {
     result: { session_title: "", session_subtitle: "", arc: "peak", tracklist },
     violations: [],
