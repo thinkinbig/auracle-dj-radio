@@ -5,7 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { resolve, dirname, join } from 'node:path';
 import type { ServerResponse } from 'node:http';
 
-const srcDir = resolve(dirname(fileURLToPath(import.meta.url)), 'src');
+const webDir = dirname(fileURLToPath(import.meta.url));
+const srcDir = resolve(webDir, 'src');
+/** Same repo-root .env as music-engine / memory-service (see .env.example). */
+const repoRoot = resolve(webDir, '../..');
 
 /** agent-harness owns session orchestration. */
 const harnessTarget = process.env.AGENT_HARNESS_PROXY_TARGET ?? 'http://localhost:3030';
@@ -60,6 +63,7 @@ function catalogDev(): Plugin {
 
 export default defineConfig(() => {
   return {
+    envDir: repoRoot,
     plugins: [react(), catalogDev()],
     resolve: {
       alias: {
