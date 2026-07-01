@@ -246,6 +246,49 @@ describe("memory-service internal memory/events API", () => {
     expect(bWeights[2]).toBeUndefined();
   });
 
+  it("reads events back for offline eval scripts via /events/query (#66)", async () => {
+    await app.inject({
+      method: "POST",
+      url: "/events",
+      payload: { session_id: "q-s1", user_id: "q-user", event_type: "track_started", payload: { track_id: "t1" } },
+    });
+    await app.inject({
+      method: "POST",
+      url: "/events",
+      payload: {
+        session_id: "q-s1",
+        user_id: "q-user",
+        event_type: "playlist_feedback",
+        payload: { feedback: "dislike", track_id: "t1", remaining_ids: ["t2"], source: "dj_tool" },
+      },
+    });
+    await app.inject({
+      method: "POST",
+      url: "/events",
+      payload: { session_id: "q-s2", user_id: "q-user", event_type: "track_started", payload: { track_id: "t9" } },
+    });
+
+    // By session: both q-s1 events, in insertion order, payload parsed.
+    const bySession = await app.inject({ method: "POST", url: "/events/query", payload: { session_id: "q-s1" } });
+    expect(bySession.statusCode).toBe(200);
+    const rows = bySession.json<{ events: { event_type: string; ts: number; payload: { track_id?: string } }[] }>().events;
+    expect(rows.map((e) => e.event_type)).toEqual(["track_started", "playlist_feedback"]);
+    expect(rows[0]!.payload).toEqual({ track_id: "t1" });
+    expect(rows[0]!.ts).toBeGreaterThan(0);
+
+    // By user + event_type across sessions.
+    const byUserType = await app.inject({
+      method: "POST",
+      url: "/events/query",
+      payload: { user_id: "q-user", event_type: "track_started" },
+    });
+    expect(byUserType.json<{ events: { session_id: string }[] }>().events.map((e) => e.session_id)).toEqual(["q-s1", "q-s2"]);
+
+    // No filter → 400 (analytics read, not a full dump).
+    const unfiltered = await app.inject({ method: "POST", url: "/events/query", payload: { limit: 5 } });
+    expect(unfiltered.statusCode).toBe(400);
+  });
+
   it("rejects malformed internal API calls", async () => {
     const recall = await app.inject({ method: "POST", url: "/memory/recall", payload: {} });
     expect(recall.statusCode).toBe(400);

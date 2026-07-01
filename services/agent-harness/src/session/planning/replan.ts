@@ -323,10 +323,14 @@ export async function regenerateAndPush(
       beforeRemainingIds: outcome.before,
     });
   } catch (err) {
-    await deps.memory.recordEvent(state.id, state.userId, "replan_failed", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    await pushQueueRefresh(deps, state.id, "error");
+    // Both cleanup calls are best-effort: this runs void'ed (fire-and-forget), so a
+    // failure here (e.g. proxy down) must not escape as an unhandled rejection.
+    await deps.memory
+      .recordEvent(state.id, state.userId, "replan_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      .catch(() => {});
+    await pushQueueRefresh(deps, state.id, "error").catch(() => {});
   }
 }
 
