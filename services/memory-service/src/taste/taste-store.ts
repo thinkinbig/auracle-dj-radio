@@ -109,6 +109,43 @@ export class TasteStore {
     replace();
   }
 
+  /**
+   * Merge session-sourced feedback prefs into the profile without touching the
+   * rest (#69) — unlike `saveProfile`'s PUT semantics. Per (entity_type,
+   * entity_id): no row → insert as given; same polarity → strengthen (+1,
+   * capped at 3); flipped polarity → replace at the incoming base strength.
+   * Returns the stored rows after the merge.
+   */
+  upsertSessionFeedback(userId: string, preferences: TastePreference[]): TastePreference[] {
+    const read = this.db.prepare(
+      `SELECT polarity, strength FROM taste_prefs WHERE user_id = ? AND entity_type = ? AND entity_id = ?`,
+    );
+    const write = this.db.prepare(
+      `INSERT INTO taste_prefs (user_id, entity_type, entity_id, polarity, strength, source)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, entity_type, entity_id) DO UPDATE SET
+         polarity = excluded.polarity,
+         strength = excluded.strength,
+         source = excluded.source`,
+    );
+    const stored: TastePreference[] = [];
+    const merge = this.db.transaction(() => {
+      for (const p of preferences) {
+        const existing = read.get(userId, p.entityType, p.entityId) as
+          | { polarity: TastePreference["polarity"]; strength: number | null }
+          | undefined;
+        const strength =
+          existing && existing.polarity === p.polarity
+            ? (Math.min(3, (existing.strength ?? 2) + 1) as 1 | 2 | 3)
+            : p.strength;
+        write.run(userId, p.entityType, p.entityId, p.polarity, strength ?? null, "session");
+        stored.push({ ...p, ...(strength !== undefined ? { strength } : {}), source: "session" });
+      }
+    });
+    merge();
+    return stored;
+  }
+
   /** All user ids that have a stored profile or preferences (for taste:migrate). */
   listUserIds(): string[] {
     const rows = this.db

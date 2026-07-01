@@ -15,7 +15,8 @@ function testManifest(artistId = "a-lana-delay"): CatalogManifest {
   return {
     artists: [{ id: artistId, name: "Lana Delay", slug: "lana-del-delay" }],
     albums: [{ id: "alb-lana-delay-midnight", title: "Born to Delay", slug: "lana-del-delay/born-to-delay", artistId }],
-    tracks: [{ id: "t01" }, { id: "t02" }],
+    // t01 has the full album/genre join (session-feedback rollups); t02 is bare.
+    tracks: [{ id: "t01", albumId: "alb-lana-delay-midnight", title: "Neon Rain", genreSlug: "lo-fi" }, { id: "t02" }],
   } as unknown as CatalogManifest;
 }
 
@@ -470,10 +471,117 @@ describe("memory-service /users/me/taste (S2)", () => {
     }
   });
 
-  // #69: a consumer of `playlist_feedback` session_events must upsert a session-sourced
-  // TastePreference (avoid on dislike, prefer on like) for the track and/or its artist.
-  // No such consumer exists yet (feedback is telemetry-only — see the agent-harness
-  // guard test), so these lock the target contract for when the loop is closed.
-  it.todo("upserts a session-sourced avoid pref from a dislike playlist_feedback event (#69)");
-  it.todo("is idempotent: duplicate dislike for the same track+session yields one taste row (#69)");
+  it("derives and persists session-sourced prefs (+ mem0 mirror) from a dislike (#69)", async () => {
+    const { id, token } = await registerUser("feedback-dislike@example.com");
+    const factsBefore = memory.facts.length;
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/taste/session-feedback",
+      payload: { user_id: id, session_id: "s-fb-1", track_id: "t01", feedback: "dislike", persist: true },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ preferences: unknown[]; persisted: boolean }>();
+    expect(body.persisted).toBe(true);
+    // Track pref (finest grain, strength 2) + artist rollup (strength 1) per #69.
+    expect(body.preferences).toEqual([
+      { entityType: "track", entityId: "t01", polarity: "avoid", strength: 2, source: "session" },
+      { entityType: "artist", entityId: "lana-del-delay", polarity: "avoid", strength: 1, source: "session" },
+    ]);
+
+    // Durable rows readable on the next session via GET /users/me/taste and /taste/weights.
+    const profile = await app.inject({ method: "GET", url: "/users/me/taste", headers: { authorization: `Bearer ${token}` } });
+    const prefs = profile.json<TasteProfileResponse>().preferences;
+    expect(prefs.find((p) => p.entityType === "track")).toMatchObject({ entityId: "t01", polarity: "avoid", source: "session", status: "active" });
+    expect(prefs.find((p) => p.entityType === "artist")).toMatchObject({ entityId: "lana-del-delay", polarity: "avoid", source: "session", status: "active" });
+
+    // mem0 mirror is human-readable, session-attributed, and names catalog labels.
+    expect(memory.facts).toHaveLength(factsBefore + 1);
+    const fact = memory.facts.at(-1)!;
+    expect(fact.userId).toBe(id);
+    expect(fact.sessionId).toBe("s-fb-1");
+    expect(fact.fact).toContain("disliked");
+    expect(fact.fact).toContain("Neon Rain");
+    expect(fact.fact).toContain("Lana Delay");
+    expect(fact.fact).toContain("Lo-Fi");
+  });
+
+  it("keeps one row per entity: repeats strengthen (capped), a flip resets polarity (#69)", async () => {
+    const { id, token } = await registerUser("feedback-repeat@example.com");
+    const feedback = (fb: "like" | "dislike") =>
+      app.inject({
+        method: "POST",
+        url: "/taste/session-feedback",
+        payload: { user_id: id, session_id: "s-fb-2", track_id: "t01", feedback: fb, persist: true },
+      });
+    const trackPref = async () => {
+      const profile = await app.inject({ method: "GET", url: "/users/me/taste", headers: { authorization: `Bearer ${token}` } });
+      const prefs = profile.json<TasteProfileResponse>().preferences;
+      return { row: prefs.find((p) => p.entityType === "track" && p.entityId === "t01"), count: prefs.filter((p) => p.entityType === "track" && p.entityId === "t01").length };
+    };
+
+    await feedback("dislike");
+    await feedback("dislike"); // duplicate in the same session → still one row, strengthened
+    let { row, count } = await trackPref();
+    expect(count).toBe(1);
+    expect(row).toMatchObject({ polarity: "avoid", strength: 3 });
+
+    await feedback("dislike"); // strength stays capped at 3
+    ({ row } = await trackPref());
+    expect(row?.strength).toBe(3);
+
+    await feedback("like"); // opposite reaction replaces the row at base strength
+    ({ row, count } = await trackPref());
+    expect(count).toBe(1);
+    expect(row).toMatchObject({ polarity: "prefer", strength: 2 });
+  });
+
+  it("never persists feedback for the anonymous identity or when persist is off (#69)", async () => {
+    const factsBefore = memory.facts.length;
+
+    const anonymous = await app.inject({
+      method: "POST",
+      url: "/taste/session-feedback",
+      payload: { user_id: ANONYMOUS_USER_ID, session_id: "s-fb-3", track_id: "t01", feedback: "dislike", persist: true },
+    });
+    expect(anonymous.statusCode).toBe(200);
+    expect(anonymous.json<{ persisted: boolean; preferences: unknown[] }>().persisted).toBe(false);
+    // Derived prefs still come back for the in-session queue nudge (#68).
+    expect(anonymous.json<{ preferences: unknown[] }>().preferences).toHaveLength(2);
+    const anonWeights = await app.inject({ method: "POST", url: "/taste/weights", payload: { user_id: ANONYMOUS_USER_ID } });
+    expect(anonWeights.json<{ preferences: unknown[] }>().preferences).toHaveLength(0);
+
+    // Conditions A/B send persist: false — derived only, nothing stored.
+    const { id, token } = await registerUser("feedback-nopersist@example.com");
+    const derivedOnly = await app.inject({
+      method: "POST",
+      url: "/taste/session-feedback",
+      payload: { user_id: id, session_id: "s-fb-3", track_id: "t01", feedback: "like", persist: false },
+    });
+    expect(derivedOnly.json<{ persisted: boolean }>().persisted).toBe(false);
+    const profile = await app.inject({ method: "GET", url: "/users/me/taste", headers: { authorization: `Bearer ${token}` } });
+    expect(profile.json<TasteProfileResponse>().preferences).toHaveLength(0);
+
+    expect(memory.facts).toHaveLength(factsBefore); // no mem0 mirror either
+  });
+
+  it("returns no prefs for a track without catalog identity, and 400 on malformed calls", async () => {
+    const spotify = await app.inject({
+      method: "POST",
+      url: "/taste/session-feedback",
+      payload: { user_id: "u-any", session_id: "s-fb-4", track_id: "spotify:track:xyz", feedback: "dislike", persist: true },
+    });
+    expect(spotify.statusCode).toBe(200);
+    expect(spotify.json<{ preferences: unknown[]; persisted: boolean }>()).toEqual({ preferences: [], persisted: false });
+
+    const missing = await app.inject({ method: "POST", url: "/taste/session-feedback", payload: { user_id: "u", track_id: "t01" } });
+    expect(missing.statusCode).toBe(400);
+    // regenerate is not a taste signal — the harness handles it as a queue rebuild.
+    const regenerate = await app.inject({
+      method: "POST",
+      url: "/taste/session-feedback",
+      payload: { user_id: "u", session_id: "s", track_id: "t01", feedback: "regenerate" },
+    });
+    expect(regenerate.statusCode).toBe(400);
+  });
 });

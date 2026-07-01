@@ -24,6 +24,13 @@ export interface CatalogIndex {
    * when the entity is unknown / orphaned.
    */
   label(entityType: TasteEntityType, entityId: string): string;
+  /**
+   * Stable taste entities a catalog track rolls up to (artist slug via the
+   * album join, genre taxonomy slug), for session-feedback prefs (#69).
+   * `undefined` when the track is unknown — e.g. an external (Spotify) queue
+   * item, which has no stable catalog identity to hang a preference on.
+   */
+  trackEntities(trackId: string): { artistSlug?: string; genreSlug?: string } | undefined;
 }
 
 /** Build a snapshot index from an in-memory manifest + taxonomy. */
@@ -44,6 +51,24 @@ export function buildCatalogIndex(
   const artistNames = new Map(manifest.artists.map((a) => [a.slug ?? slugify(a.name), a.name]));
   const albumTitles = new Map(manifest.albums.map((a) => [a.slug ?? slugify(a.title), a.title]));
   const trackTitles = new Map(manifest.tracks.map((t) => [t.id, t.title]));
+
+  // trackId → stable rollup entities (artist slug via album join, genre taxonomy slug).
+  const artistSlugById = new Map(manifest.artists.map((a) => [a.id, a.slug ?? slugify(a.name)]));
+  const albumArtistId = new Map(manifest.albums.map((a) => [a.id, a.artistId]));
+  const trackRollups = new Map(
+    manifest.tracks.map((t) => {
+      const artistId = albumArtistId.get(t.albumId);
+      const artistSlug = artistId !== undefined ? artistSlugById.get(artistId) : undefined;
+      const genreSlug = t.genreSlug ?? taxonomy.mapping[t.genre];
+      return [
+        t.id,
+        {
+          ...(artistSlug !== undefined ? { artistSlug } : {}),
+          ...(genreSlug !== undefined && genreSlugs.has(genreSlug) ? { genreSlug } : {}),
+        },
+      ];
+    }),
+  );
 
   return {
     revision,
@@ -74,6 +99,9 @@ export function buildCatalogIndex(
         default:
           return entityId;
       }
+    },
+    trackEntities(trackId) {
+      return trackRollups.get(trackId);
     },
   };
 }

@@ -5,6 +5,7 @@ import { pushQueueUpdate, pushQueueRefresh } from "../delivery/queue-update.js";
 import type { PlaylistFeedbackSource } from "@auracle/shared";
 import type { OrchestrationDeps } from "../deps.js";
 import type { SessionState } from "../state.js";
+import { overlaySessionTaste } from "./session-taste.js";
 
 /**
  * On-air adjustment tier (design §2.2):
@@ -71,6 +72,8 @@ interface ReplanWindow {
 
 interface ReplanContext extends ReplanWindow {
   intent: SessionIntent;
+  /** Mood before this replan, to tell a real mood shift from a same-mood re-rank. */
+  previousMood: string;
   before: string[];
   playedIds: string[];
   lastPlayedEnergy: number | null;
@@ -123,12 +126,19 @@ async function buildReplanContext(
   return {
     ...window,
     intent: { ...state.intent, mood: params.mood },
+    previousMood: state.intent.mood,
     before,
     playedIds,
     lastPlayedEnergy: windowSeedEnergy(state, params, window),
     replacedWindow: remainingRefs.slice(window.start, window.start + window.count).map((r) => r.id),
     personalized,
-    taste: personalized ? await deps.memory.tasteWeights(state.userId).catch(() => undefined) : undefined,
+    // Stored prefs are condition-C-only, but this session's own like/dislike
+    // signal (#68) overlays in B and C alike — a session-scoped reaction is
+    // not cross-session personalization.
+    taste: overlaySessionTaste(
+      personalized ? await deps.memory.tasteWeights(state.userId).catch(() => undefined) : undefined,
+      state.sessionTaste,
+    ),
   };
 }
 
@@ -219,6 +229,9 @@ function rememberPersonalizedMoodShift(
 ): void {
   // A successful mood shift is a cross-session preference signal — Condition C only.
   if (!context.personalized) return;
+  // A same-mood, same-energy re-rank (feedback nudge, regenerate re-roll) is not a
+  // mood shift — writing one would spam mem0 with "shifted to <current mood>" facts.
+  if (params.mood === context.previousMood && (params.energy_delta ?? "same") === "same") return;
   void deps.memory
     .remember(
       `During a ${state.intent.scene} session the user shifted the mood to "${params.mood}" (${params.energy_delta ?? "same"} energy).`,

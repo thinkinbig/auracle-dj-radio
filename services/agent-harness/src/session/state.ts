@@ -32,6 +32,14 @@ export interface SessionState {
   energyWeights?: Partial<Record<number, number>>;
   /** Structured taste prefer/avoid for this user (condition C only); reused by replan. */
   taste?: TastePreference[];
+  /**
+   * Ephemeral prefs derived from this session's like/dislike feedback (#68).
+   * Merged over the stored taste on every replan/extend so feedback shifts the
+   * queue in B and C alike; never persisted here (memory-service owns that, C only).
+   */
+  sessionTaste: TastePreference[];
+  /** `feedback:trackId` pairs already forwarded to taste derivation (dedupe DJ tool double-fires). */
+  tasteFeedbackSent: Set<string>;
   tieBreakSeed: string;
   /** Listener's gathered external library pool (ADR-0005); re-sent to music-engine on the refine/replan/extend re-rank, static per session. Energy/voicing resolution now lives in music-engine (memoized), so the harness holds only the raw seeds. */
   seeds?: TrackSeed[];
@@ -153,6 +161,8 @@ export class SessionStore {
       planRefined: false,
       refineListeners: new Set(),
       rememberedQuickSkipEnergies: new Set(),
+      sessionTaste: [],
+      tasteFeedbackSent: new Set(),
     };
     this.sessions.set(state.id, state);
     return state;

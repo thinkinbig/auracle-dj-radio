@@ -8,6 +8,7 @@ import type {
   PlanTracklistRequest,
   ProxyClient,
   SearchCatalogRequest,
+  SessionTasteFeedbackRequest,
 } from "@auracle/clients";
 import type { Registration } from "../src/dj/registration.js";
 import { buildServer } from "../src/server.js";
@@ -59,12 +60,19 @@ class FakeMemoryService implements MemoryServiceClient {
   skipWeights: Partial<Record<number, number>> = {};
   tasteValue: TastePreference[] = [];
   tasteCalls: string[] = [];
+  /** What sessionTasteFeedback derives per call (memory-service's job in prod). */
+  tasteFeedbackValue: TastePreference[] = [];
+  tasteFeedbackCalls: SessionTasteFeedbackRequest[] = [];
   async recall(): Promise<string> {
     return this.recallValue;
   }
   async tasteWeights(userId: string): Promise<TastePreference[]> {
     this.tasteCalls.push(userId);
     return this.tasteValue;
+  }
+  async sessionTasteFeedback(input: SessionTasteFeedbackRequest): Promise<TastePreference[]> {
+    this.tasteFeedbackCalls.push(input);
+    return this.tasteFeedbackValue;
   }
   async recallForIntent(userId: string, mood: string, scene: string): Promise<string> {
     this.recallIntentCalls.push({ userId, mood, scene });
@@ -373,39 +381,117 @@ describe("agent-harness", () => {
     await app.close();
   });
 
-  it("records like/dislike feedback as telemetry only — no mem0 write, even in condition C (#66/#69 gap)", async () => {
-    const { app, memory } = buildTestApp();
+  it("dislike nudges the upcoming queue and persists session taste for a logged-in C user (#68/#69)", async () => {
+    const { app, memory, music, proxy } = buildTestApp();
+    memory.tokenToUser.set("tok-1", "user-1");
+    const derived: TastePreference[] = [
+      { entityType: "track", entityId: "a", polarity: "avoid", strength: 2, source: "session" },
+      { entityType: "artist", entityId: "artist-a", polarity: "avoid", strength: 1, source: "session" },
+    ];
+    memory.tasteFeedbackValue = derived;
     await app.ready();
     const created = await app.inject({
       method: "POST",
       url: "/sessions",
+      headers: { authorization: "Bearer tok-1" },
       payload: { mood: "calm", scene: "studying", condition: "C" },
     });
     const { session_id } = created.json<{ session_id: string }>();
-    const factsBefore = memory.facts.length;
 
-    for (const feedback of ["like", "dislike"] as const) {
-      const res = await app.inject({
-        method: "POST",
-        url: `/sessions/${session_id}/tool`,
-        payload: { name: "playlist_feedback", args: { feedback } },
-      });
-      expect(res.statusCode).toBe(200);
-    }
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "playlist_feedback", args: { feedback: "dislike" } },
+    });
+    expect(res.statusCode).toBe(200);
 
-    // The feedback signal is logged for offline eval (#66) but does NOT yet mutate
-    // the durable taste model / mem0 — that closed loop is #69. This guard locks the
-    // telemetry-only contract so the gap is explicit and a future taste-write is a
-    // deliberate, test-breaking change.
-    expect(memory.events.filter((e) => e.eventType === "playlist_feedback")).toHaveLength(2);
-    expect(memory.facts).toHaveLength(factsBefore);
+    // Taste derivation goes through memory-service, persisted for the logged-in C user (#69).
+    await vi.waitFor(() => expect(memory.tasteFeedbackCalls).toHaveLength(1));
+    expect(memory.tasteFeedbackCalls[0]).toEqual({
+      sessionId: session_id,
+      userId: "user-1",
+      trackId: "a",
+      feedback: "dislike",
+      persist: true,
+    });
+
+    // The in-session effect (#68): a background nudge replan re-fills the next 1–2
+    // slots, re-rolled away from their previous occupants, with the derived avoid
+    // prefs in the rank.
+    await vi.waitFor(() => expect(orchestrationInjects(proxy).length).toBe(1));
+    const updated = proxy.injectCalls.at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
+      | { remaining: { id: string }[]; changed_ids?: string[]; before_remaining_ids?: string[] }
+      | undefined;
+    expect(updated?.remaining.map((r) => r.id)).toEqual(["d", "e", "f"]);
+    expect(updated?.changed_ids).toEqual(["d", "e"]);
+    const replanCall = music.planCalls.find((c) => c.mode === "replan");
+    expect(replanCall?.replan?.remainingSlots).toBe(2);
+    expect(replanCall?.replan?.avoidIds).toEqual(["b", "c"]);
+    expect(replanCall?.taste).toEqual(expect.arrayContaining(derived));
+
+    // The mem0 mirror is memory-service's write, not a second one from the harness.
+    expect(memory.facts.filter((f) => f.fact.includes("dislike"))).toHaveLength(0);
     await app.close();
   });
 
-  // #68/#69: a voice dislike should steer what plays next (in-session queue shift)
-  // and persist to the structured taste model (cross-session). Neither is wired yet
-  // (`runPlaylistFeedback` logs the event and returns), so this is a documented gap.
-  it.todo("dislike feedback adjusts the upcoming queue / writes session-sourced taste (#68/#69)");
+  it("like nudges without persisting for an anonymous B session; duplicate feedback derives once (#68)", async () => {
+    const { app, memory, music, proxy } = buildTestApp();
+    const derived: TastePreference[] = [
+      { entityType: "track", entityId: "a", polarity: "prefer", strength: 2, source: "session" },
+      { entityType: "artist", entityId: "artist-a", polarity: "prefer", strength: 1, source: "session" },
+    ];
+    memory.tasteFeedbackValue = derived;
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "playlist_feedback", args: { feedback: "like" } },
+    });
+    await vi.waitFor(() => expect(orchestrationInjects(proxy).length).toBe(1));
+
+    // Derived for the in-session rank, but never persisted outside condition C (#69).
+    expect(memory.tasteFeedbackCalls).toHaveLength(1);
+    expect(memory.tasteFeedbackCalls[0]).toMatchObject({ feedback: "like", trackId: "a", persist: false });
+    // A like keeps the deterministic seed (no re-roll) and leans via prefer weights.
+    const replanCall = music.planCalls.find((c) => c.mode === "replan");
+    expect(replanCall?.replan?.avoidIds).toBeUndefined();
+    expect(replanCall?.taste).toEqual(expect.arrayContaining(derived));
+
+    // A DJ tool double-fire for the same track derives taste only once.
+    await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "playlist_feedback", args: { feedback: "like" } },
+    });
+    await vi.waitFor(() => expect(orchestrationInjects(proxy).length).toBe(2));
+    expect(memory.tasteFeedbackCalls).toHaveLength(1);
+    await app.close();
+  });
+
+  it("condition A: dislike derives taste telemetry but leaves the fixed playlist alone", async () => {
+    const { app, memory, music } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "A" },
+    });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "playlist_feedback", args: { feedback: "dislike" } },
+    });
+
+    await vi.waitFor(() => expect(memory.tasteFeedbackCalls).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(music.planCalls.some((c) => c.mode === "replan")).toBe(false);
+    await app.close();
+  });
 
   it("regenerates the remaining queue from a DJ playlist_feedback tool call", async () => {
     const { app, proxy, music, memory } = buildTestApp();
