@@ -100,11 +100,24 @@ describe('radioCommands.cueTrack', () => {
 });
 
 describe('radioCommands.skipVoiceOver', () => {
-  it('cuts the turn locally only while the DJ is speaking', () => {
-    const speaking = harness({ phase: 'speaking' });
-    speaking.commands.skipVoiceOver();
-    expect(speaking.log).toEqual([{ ch: 'bus', call: 'skipDj' }]);
+  it('cuts the turn, releases opening on track 0, and ends the DJ turn in the reducer', () => {
+    const opening = harness({ phase: 'speaking', currentTrackIndex: 0 });
+    opening.commands.skipVoiceOver();
+    expect(opening.log).toEqual([
+      { ch: 'bus', call: 'skipDj' },
+      { ch: 'opening', call: 'release' },
+      { ch: 'dispatch', action: { type: 'skip_voice_over' } },
+    ]);
 
+    const midSet = harness({ phase: 'speaking', currentTrackIndex: 1 });
+    midSet.commands.skipVoiceOver();
+    expect(midSet.log).toEqual([
+      { ch: 'bus', call: 'skipDj' },
+      { ch: 'dispatch', action: { type: 'skip_voice_over' } },
+    ]);
+  });
+
+  it('is a no-op while not speaking', () => {
     const playing = harness({ phase: 'playing' });
     playing.commands.skipVoiceOver();
     expect(playing.log).toEqual([]);

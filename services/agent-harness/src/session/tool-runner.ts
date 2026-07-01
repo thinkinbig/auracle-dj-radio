@@ -1,11 +1,11 @@
 import { parseHostMode, type ServerMessage } from "@auracle/shared";
-import type { SessionState } from "./state.js";
 import type { OrchestrationDeps } from "./deps.js";
+import { changeHostMode } from "./lifecycle/host-mode.js";
+import type { SessionState } from "./state.js";
 import { routeMoodScope } from "./planning/mood-scope.js";
+import { runSkipTrack } from "./lifecycle/skip-track.js";
 import { parsePlaylistFeedback, runPlaylistFeedback } from "./planning/playlist-feedback.js";
 import { replanAndPush } from "./planning/replan.js";
-
-const SKIP_ONLY_TOOL_GUARD_MS = 1_500;
 
 /** Gemini function call forwarded from the proxy (Lane 1). */
 export interface ToolCall {
@@ -31,15 +31,8 @@ export async function runTool(
 ): Promise<ToolEnvelope> {
   const args = call.args ?? {};
   switch (call.name) {
-    case "skip_track": {
-      await deps.memory.recordEvent(state.id, state.userId, "skip_track", {});
-      // Browser is the sole playhead writer: this ui_event makes it advance, and the
-      // next now_playing closes the loop. Stamp the start to time that round trip.
-      const now = Date.now();
-      state.pendingSkipAtMs = now;
-      state.skipOnlyUntilMs = now + SKIP_ONLY_TOOL_GUARD_MS;
-      return { gemini_result: { ok: true }, ui_events: [{ type: "intent", intent: { type: "skip_track" } }] };
-    }
+    case "skip_track":
+      return runSkipTrack(deps, state, "dj_tool");
     case "pause_playback": {
       const action = args.action === "resume" ? "resume" : "pause";
       await deps.memory.recordEvent(state.id, state.userId, "pause_playback", { action });
@@ -61,21 +54,18 @@ export async function runTool(
     case "change_host_mode": {
       const nextMode = parseHostMode(args.host_mode);
       if (!nextMode) return { gemini_result: { ok: false, error: "invalid host_mode" }, ui_events: [] };
-      const previous = state.hostMode;
-      if (nextMode === previous) {
-        return { gemini_result: { ok: true, host_mode: previous, changed: false }, ui_events: [] };
-      }
-      state.hostMode = nextMode;
-      await deps.memory.recordEvent(state.id, state.userId, "change_host_mode", { host_mode: nextMode, previous });
+      const outcome = await changeHostMode(deps, state, nextMode, "dj_tool");
       return {
         gemini_result: {
           ok: true,
-          host_mode: nextMode,
-          previous,
-          changed: true,
-          note: "Adopt the new speaking style immediately; playlist unchanged.",
+          host_mode: outcome.host_mode,
+          previous: outcome.previous,
+          changed: outcome.changed,
+          ...(outcome.note ? { note: outcome.note } : {}),
         },
-        ui_events: [{ type: "intent", intent: { type: "host_mode_changed", host_mode: nextMode } }],
+        ui_events: outcome.changed
+          ? [{ type: "intent", intent: { type: "host_mode_changed", host_mode: outcome.host_mode } }]
+          : [],
       };
     }
     case "playlist_feedback": {

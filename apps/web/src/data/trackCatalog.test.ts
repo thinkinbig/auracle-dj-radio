@@ -1,13 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FlowTrackRef } from '@auracle/shared';
+import type { PlannedTrack } from '@auracle/shared';
 import {
   getTrackCatalogSnapshot,
   getTrackMeta,
   isCatalogLoaded,
   loadTrackCatalog,
-  mergeSpotifyVoicing,
   resetTrackCatalogForTests,
-  seedSpotifyTracks,
+  seedTracks,
   subscribeTrackCatalog,
 } from '@/data/trackCatalog';
 
@@ -62,42 +61,71 @@ describe('trackCatalog', () => {
     expect(isCatalogLoaded()).toBe(false);
   });
 
-  it('seeds Spotify slots from inline metadata, then fills voicing on a later push (#75)', () => {
-    const ref: FlowTrackRef = {
+  it('seeds a self-describing (non-catalog) slot from its inline metadata + voicing (#75)', () => {
+    const ref: PlannedTrack = {
       id: 'spotify:track:1',
+      uri: 'spotify:track:1',
       flow_position: 1,
       reason: 'r',
-      source: 'spotify',
-      spotify: {
-        uri: 'spotify:track:1',
-        title: 'Holding You',
-        artist: 'Cigarettes After Sex',
-        albumTitle: "X's",
-        albumCoverUrl: '/cover.jpg',
-        durationSec: 200,
-      },
+      title: 'Holding You',
+      artist: 'Cigarettes After Sex',
+      albumTitle: "X's",
+      albumCoverUrl: '/cover.jpg',
+      durationSec: 200,
+      energy: 3,
+      voicing: { artistPersona: 'Hazy slowcore romantics', albumConcept: 'Cigarette-smoke ballads', lore: '' },
     };
-    seedSpotifyTracks([ref]);
+    seedTracks([ref]);
     expect(getTrackMeta('spotify:track:1')).toMatchObject({
       title: 'Holding You',
       artist: 'Cigarettes After Sex',
       durationSec: 200,
-      artistPersona: '',
-      albumConcept: '',
-    });
-
-    mergeSpotifyVoicing({
-      'spotify:track:1': { artistPersona: 'Hazy slowcore romantics', albumConcept: 'Cigarette-smoke ballads', lore: '' },
-    });
-    expect(getTrackMeta('spotify:track:1')).toMatchObject({
-      title: 'Holding You', // inline fields preserved
       artistPersona: 'Hazy slowcore romantics',
       albumConcept: 'Cigarette-smoke ballads',
     });
   });
 
-  it('mergeSpotifyVoicing ignores a uri that was never seeded', () => {
-    mergeSpotifyVoicing({ 'spotify:track:ghost': { artistPersona: 'x', albumConcept: 'y', lore: '' } });
-    expect(getTrackMeta('spotify:track:ghost').artistPersona).toBe('');
+  it('re-seeding a slot updates its resolved voicing in place', () => {
+    const base: PlannedTrack = {
+      id: 'spotify:track:2',
+      uri: 'spotify:track:2',
+      flow_position: 1,
+      reason: 'r',
+      title: 'Apocalypse',
+      artist: 'Cigarettes After Sex',
+      albumTitle: 'Cigarettes After Sex',
+      albumCoverUrl: '/cover.jpg',
+      durationSec: 290,
+      energy: 3,
+      voicing: { artistPersona: '', albumConcept: '', lore: '' },
+    };
+    seedTracks([base]);
+    expect(getTrackMeta('spotify:track:2').artistPersona).toBe('');
+
+    seedTracks([{ ...base, voicing: { artistPersona: 'Dream-pop reverb', albumConcept: 'Widescreen longing', lore: '' } }]);
+    expect(getTrackMeta('spotify:track:2')).toMatchObject({
+      title: 'Apocalypse', // inline fields preserved
+      artistPersona: 'Dream-pop reverb',
+      albumConcept: 'Widescreen longing',
+    });
+  });
+
+  it('does not seed a catalog (local:) slot (resolved by id instead)', () => {
+    const local: PlannedTrack = {
+      id: 't42',
+      uri: 'local:t42',
+      flow_position: 1,
+      reason: 'r',
+      title: '',
+      artist: '',
+      albumTitle: '',
+      albumCoverUrl: '',
+      durationSec: 0,
+      energy: 3,
+      voicing: { artistPersona: '', albumConcept: '', lore: '' },
+    };
+    seedTracks([local]);
+    // No cache entry seeded → getTrackMeta falls back to the id placeholder.
+    expect(getTrackMeta('t42').title).toBe('t42');
   });
 });

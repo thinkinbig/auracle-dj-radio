@@ -1,5 +1,5 @@
-import type { FlowTrackRef, TastePreference } from "@auracle/shared";
-import type { PlanResponse } from "../../music-engine-client.js";
+import type { PlannedTrack, TastePreference } from "@auracle/shared";
+import type { PlanResponse } from "@auracle/clients";
 import { pushQueueRefresh, pushQueueUpdate } from "../delivery/queue-update.js";
 import type { OrchestrationDeps } from "../deps.js";
 import { changedIdsFromRemaining } from "../planning/replan.js";
@@ -11,7 +11,7 @@ export const EXTEND_THRESHOLD = 2;
 export const EXTEND_APPEND_SLOTS = 4;
 
 interface ExtendContext {
-  before: FlowTrackRef[];
+  before: PlannedTrack[];
   beforeRemainingIds: string[];
   playedIds: string[];
   lastPlayedEnergy: number | null;
@@ -101,13 +101,12 @@ async function requestExtendPlan(
       lastPlayedEnergy: context.lastPlayedEnergy,
     },
     tieBreakSeed: state.tieBreakSeed,
-    // Append from the same cached mixed pool — no fresh gather (#77).
-    spotifyCandidates: state.spotifyCandidates,
-    spotifyEnergyByUri: state.spotifyEnergyByUri,
+    // Append from the same cached seed pool — no fresh gather (#77).
+    seeds: state.seeds,
   });
 }
 
-function applyExtendPlan(deps: OrchestrationDeps, state: SessionState, plan: PlanResponse): FlowTrackRef[] {
+function applyExtendPlan(deps: OrchestrationDeps, state: SessionState, plan: PlanResponse): PlannedTrack[] {
   const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
   return deps.store.appendTracks(state, plan.result.tracklist, candidatesById);
 }
@@ -125,7 +124,7 @@ async function recordQueueExtended(
   deps: OrchestrationDeps,
   state: SessionState,
   context: ExtendContext,
-  appended: FlowTrackRef[],
+  appended: PlannedTrack[],
 ): Promise<void> {
   await deps.memory.recordEvent(state.id, state.userId, "queue_extended", {
     before_count: context.before.length,

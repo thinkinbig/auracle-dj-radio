@@ -1,7 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import type { MemoryServiceClient } from "./memory-service-client.js";
-import type { MusicEngineClient } from "./music-engine-client.js";
-import type { ProxyClient } from "./proxy-client.js";
+import type { MemoryServiceClient, MusicEngineClient, ProxyClient } from "@auracle/clients";
 import { registerSessionRoutes } from "./routes/sessions.js";
 import { createSessionRuntime } from "./session/runtime.js";
 import { SessionStore } from "./session/state.js";

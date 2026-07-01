@@ -3,6 +3,7 @@ import { CatalogDb } from "./catalog-db.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerPlanningRoutes } from "./routes/planning.js";
 import type { PlanDeps } from "./flow/plan.js";
+import { resolveSeeds } from "./flow/resolve-seeds.js";
 
 export interface MusicEngine {
   app: FastifyInstance;
@@ -17,6 +18,7 @@ export function buildServer(dbPath: string): MusicEngine {
   const db = new CatalogDb(dbPath);
   const deps: PlanDeps = {
     tracks: () => db.allTracks(),
+    resolveSeeds,
   };
 
   const app = Fastify({ logger: true });

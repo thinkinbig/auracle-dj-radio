@@ -20,7 +20,7 @@ const { createSpotifyPlayer } = await import('./SpotifyPlayer');
 const URI = 'spotify:track:abc';
 
 function track(): PlayableTrack {
-  return { id: URI, source: 'spotify', spotify: { uri: URI, title: 't', artist: 'a', albumTitle: 'al', albumCoverUrl: '', durationSec: 200 } };
+  return { id: URI, uri: URI };
 }
 
 function snapshot(over: Partial<SpotifyPlaybackSnapshot> = {}): SpotifyPlaybackSnapshot {

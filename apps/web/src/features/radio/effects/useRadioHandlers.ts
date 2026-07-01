@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { HostMode, SessionIntent } from '@auracle/shared';
 import { createAudioBus } from '../lib/liveAudio';
-import { createSession, extendSession, postHostMode, postPlaylistFeedback, postSessionEvent, SessionAuthError } from '../lib/sessionApi';
+import { createSession, extendSession, postHostMode, postPlaylistFeedback, postSkipTrack, SessionAuthError } from '../lib/sessionApi';
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
 import { gatherSpotifyCandidates, isSpotifyPlaybackEnabled } from '@/features/spotify/spotifyPlayback';
@@ -50,13 +50,13 @@ export function useRadioHandlers({
       }
       await audio.audioBusRef.current.resume();
       store.dispatchRef.current({ type: 'begin' });
-      // Gather the listener's Spotify library for the server to rank into the
-      // queue (ADR-0005). Best-effort: a failure or non-Premium user just yields a
-      // local-only session.
-      const spotifyCandidates = isSpotifyPlaybackEnabled()
+      // Gather the listener's Spotify library as seeds for the server to rank into
+      // the queue (ADR-0005). Best-effort: a failure or non-Premium user just yields
+      // a catalog-only session.
+      const seeds = isSpotifyPlaybackEnabled()
         ? await gatherSpotifyCandidates().catch(() => undefined)
         : undefined;
-      const session = await createSession(intent, spotifyCandidates);
+      const session = await createSession(intent, seeds);
       void prefetchTracks(session.tracklist);
       store.dispatchRef.current({ type: 'start', session });
     } catch (err) {
@@ -99,11 +99,12 @@ export function useRadioHandlers({
 
   const handleSkipTrack = useCallback(() => {
     // Snapshot the skipped track before the command advances the Playhead, then
-    // log analytics only for this user-initiated skip (remote DJ-tool skips are
-    // recorded server-side by the relay).
+    // stamp the server skip path (same as the DJ tool) so skip latency / quick-skip
+    // learning run when now_playing lands.
     const s = store.stateRef.current;
+    const trackId = s.trackId;
     if (commands.skipTrack()) {
-      postSessionEvent(s.sessionId!, 'track_skipped', { track_id: s.trackId });
+      postSkipTrack(s.sessionId!, trackId);
     }
   }, [store, commands]);
 

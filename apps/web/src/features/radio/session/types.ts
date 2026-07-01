@@ -1,4 +1,4 @@
-import type { FlowTrackRef, HostMode, PlaylistFeedback } from '@auracle/shared';
+import type { PlannedTrack, HostMode, PlaylistFeedback } from '@auracle/shared';
 
 export type { PlaylistFeedback };
 export type UiPhase = 'idle' | 'curating' | 'opening' | 'playing' | 'speaking' | 'listening' | 'paused' | 'complete';
@@ -31,7 +31,7 @@ export interface PlaybackState {
   sessionElapsedSec: number;
   transcript: TranscriptLine[];
   activeTranscriptId: string | null;
-  sessionTracklist: FlowTrackRef[];
+  sessionTracklist: PlannedTrack[];
   remainingTrackIds: string[];
   currentTrackIndex: number;
   /** Proxy base URL + token for the browser↔proxy WebRTC session (null in demo fallback). */

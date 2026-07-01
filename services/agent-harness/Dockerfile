@@ -14,7 +14,7 @@ RUN pnpm install --frozen-lockfile --filter @auracle/agent-harness...
 COPY packages/shared/src packages/shared/src
 COPY services/agent-harness/src services/agent-harness/src
 
-RUN pnpm --filter @auracle/shared build && pnpm --filter @auracle/agent-harness build
+RUN pnpm --filter @auracle/shared build && pnpm --filter @auracle/clients build && pnpm --filter @auracle/agent-harness build
 
 RUN pnpm deploy --filter @auracle/agent-harness --prod --legacy /bundle
 

@@ -1,10 +1,16 @@
 import type { ServerMessage } from "@auracle/shared";
-import type { Registration } from "./dj/registration.js";
 
 /** Lane-3 async push body: an optional text nudge + browser ui events. */
 export interface InjectPayload {
   inject_text?: string;
   ui_events?: ServerMessage[];
+}
+
+/** Pre-baked registration the harness hands the proxy at session start. */
+export interface ProxyRegistration {
+  systemInstruction: string;
+  tools: unknown[];
+  openingCue: string;
 }
 
 /**
@@ -14,7 +20,7 @@ export interface InjectPayload {
  * push context, direct media), and later injects async business updates (Lane 3).
  */
 export interface ProxyClient {
-  register(sessionId: string, token: string, reg: Registration): Promise<void>;
+  register(sessionId: string, token: string, reg: ProxyRegistration): Promise<void>;
   inject(sessionId: string, payload: InjectPayload): Promise<void>;
 }
 
@@ -22,7 +28,7 @@ export interface ProxyClient {
 export class HttpProxyClient implements ProxyClient {
   constructor(private readonly baseUrl: string) {}
 
-  async register(sessionId: string, token: string, reg: Registration): Promise<void> {
+  async register(sessionId: string, token: string, reg: ProxyRegistration): Promise<void> {
     const res = await fetch(`${this.baseUrl}/session/${encodeURIComponent(sessionId)}/register`, {
       method: "POST",
       headers: { "content-type": "application/json" },

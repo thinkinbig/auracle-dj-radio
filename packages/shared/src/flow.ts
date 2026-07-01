@@ -1,4 +1,5 @@
 import type { ArcStage } from "./arc.js";
+import type { Energy } from "./track.js";
 
 /** Open-ended session intent from the listener (POST /sessions body). */
 export interface SessionIntent {
@@ -7,14 +8,25 @@ export interface SessionIntent {
   duration_min: number;
 }
 
-/** Which playback backend owns a slot. Absent ⇒ local (backward-compatible). ADR-0005. */
-export type TrackSource = "local" | "spotify";
+/**
+ * DJ voicing blurbs a track carries — what the host borrows a phrase from on air.
+ * For a catalog track these come straight from the manifest; for an externally
+ * seeded track music-engine reuses a matching catalog voicing or LLM-improvises
+ * one from title/artist. Provider-agnostic (no separate Spotify shape).
+ */
+export interface Voicing {
+  artistPersona: string;
+  albumConcept: string;
+  lore: string;
+}
 
 /**
- * Self-describing metadata for a Spotify-backed slot. Carried inline because a
- * Spotify track has no local catalog entry to resolve by `id` (ADR-0005 §7).
+ * An externally-sourced candidate the catalog doesn't own (e.g. a listener's
+ * Spotify library). Self-describing because there is no catalog entry to resolve
+ * by id. Provider-agnostic: any external backend seeds the same shape. `uri`
+ * carries the playback scheme (`spotify:track:...`).
  */
-export interface SpotifyTrackRef {
+export interface TrackSeed {
   uri: string;
   title: string;
   artist: string;
@@ -24,25 +36,26 @@ export interface SpotifyTrackRef {
 }
 
 /**
- * DJ voicing blurbs for a Spotify track (ADR-0005 §5) — what the host borrows a
- * phrase from on air. Reused verbatim from a matching catalog track, or LLM-
- * improvised from title/artist; generated on the async copywriter pass.
+ * One ordered, fully self-describing slot in a planned tracklist. There is no
+ * per-slot provider branch: `id` is the stable join/diff key (bare catalog id
+ * for a catalog track, the uri for a seeded one) and `uri` is the playback
+ * locator whose scheme selects the backend — `local:<id>` or `spotify:track:...`.
+ * Only the audio player reads the scheme; every layer above treats a slot
+ * uniformly. Energy and voicing are always resolved by music-engine (a
+ * provisional slot may carry placeholder values that the full plan fills in).
  */
-export interface SpotifyVoicing {
-  artistPersona: string;
-  albumConcept: string;
-  lore: string;
-}
-
-/** One ordered slot in a planned tracklist. */
-export interface FlowTrackRef {
+export interface PlannedTrack {
   id: string;
+  uri: string;
   flow_position: number;
   reason: string;
-  /** Playback backend for this slot; absent means local. ADR-0005. */
-  source?: TrackSource;
-  /** Present only when `source === "spotify"` — inline metadata (no catalog entry). */
-  spotify?: SpotifyTrackRef;
+  title: string;
+  artist: string;
+  albumTitle: string;
+  albumCoverUrl: string;
+  durationSec: number;
+  energy: Energy;
+  voicing: Voicing;
 }
 
 /** Output shape of deterministic Step-2 flow planning plus async copy text. */
@@ -50,5 +63,5 @@ export interface FlowResult {
   session_title: string;
   session_subtitle: string;
   arc: ArcStage;
-  tracklist: FlowTrackRef[];
+  tracklist: PlannedTrack[];
 }

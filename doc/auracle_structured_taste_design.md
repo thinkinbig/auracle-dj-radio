@@ -325,7 +325,7 @@ memory-service（:3020）持久化 per-user 结构化口味，并在保存时向
 
 - `prefer` → `× (1 + 0.3·strength)`；`avoid` → `× max(0.05, 1 − 0.3·strength)`（strength 默认 2）。
 - 偏好按 **slug**（`genreSlug`/`artistSlug`/`albumSlug`）与 `trackId` 匹配 `TrackRow`，换库稳定。
-- 编排层（agent-harness）在 `createSession` 载入 `taste` 存入 `SessionState`，初始 plan 与 replan 复用同一份；A/B 不加权。
+- 编排层（`agent-harness`）在 `session/lifecycle/create.ts` 载入 `taste` 存入 `SessionState`，初始 plan 与 `planning/replan.ts` 复用同一份；A/B 不加权。
 
 ### `pnpm --filter @auracle/memory-service taste:migrate [--prune]`
 

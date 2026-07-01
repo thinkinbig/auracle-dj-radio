@@ -1,4 +1,4 @@
-import type { FlowTrackRef } from "./flow.js";
+import type { PlannedTrack } from "./flow.js";
 import type { HostMode } from "./host-mode.js";
 import type { PlaylistFeedback } from "./live.js";
 
@@ -11,7 +11,7 @@ export interface CreateSessionResponse {
   session_title: string;
   session_subtitle: string;
   host_mode: HostMode;
-  tracklist: FlowTrackRef[];
+  tracklist: PlannedTrack[];
   mem0_context: string;
   /** Proxy base URL the browser POSTs its WebRTC SDP offer to. */
   proxy_url: string;
@@ -26,20 +26,20 @@ export interface SessionStateResponse {
   session_subtitle: string;
   host_mode: HostMode;
   current_track_index: number;
-  tracklist: FlowTrackRef[];
-  remaining: FlowTrackRef[];
+  tracklist: PlannedTrack[];
+  remaining: PlannedTrack[];
   mem0_context: string;
 }
 
-/** Response of POST /sessions/:id/regenerate. */
+/** Regenerate payload nested in POST /sessions/:id/playlist-feedback when feedback is regenerate. */
 export interface RegenerateSessionResponse {
   ok: boolean;
   replanned: boolean;
   session_title: string;
   session_subtitle: string;
   current_track_index: number;
-  tracklist: FlowTrackRef[];
-  remaining: FlowTrackRef[];
+  tracklist: PlannedTrack[];
+  remaining: PlannedTrack[];
   changed_ids?: string[];
   before_remaining_ids?: string[];
 }

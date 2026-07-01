@@ -3,7 +3,7 @@ import type { Phase } from '@auracle/shared';
 import { connectLiveSessionRtc } from '../lib/liveSessionRtc';
 import { getStoredToken } from '@/features/marketing/authApi';
 import { createMicAnalyser, type MicAnalyser } from '../lib/liveAudio';
-import { mergeSpotifyVoicing, prefetchTracks } from '@/data/trackCatalog';
+import { prefetchTracks } from '@/data/trackCatalog';
 import type { RadioCommands } from '../lib/radioCommands';
 import type { UiPhase } from '@/features/radio/session/types';
 import type { OpeningGateControls } from './useOpeningGate';
@@ -122,11 +122,6 @@ export function useLiveConnection({
               changedIds: msg.changed_ids,
               beforeRemainingIds: msg.before_remaining_ids,
             });
-          } else if (msg.type === 'spotify_voicing') {
-            // Fill in artist persona / album concept for Spotify rows once the
-            // copywriter resolves them; the now-playing panel re-renders via the
-            // catalog subscription (#75).
-            mergeSpotifyVoicing(msg.voicing);
           } else if (msg.type === 'queue_refresh') {
             store.dispatchRef.current({ type: 'queue_refresh', status: msg.status });
             if (msg.status === 'error' && store.stateRef.current.playlistFeedback === 'regenerate') {

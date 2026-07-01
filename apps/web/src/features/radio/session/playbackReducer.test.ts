@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest';
+import type { PlannedTrack } from '@auracle/shared';
 import { createInitialPlaybackState, mapServerPhase, playbackReducer, updateTranscript } from './playbackReducer';
 import { DEMO_SESSION } from '@/data/demoData';
+
+/** A minimal self-describing catalog slot for reducer fixtures. */
+function slot(id: string, flow_position: number, reason: string): PlannedTrack {
+  return {
+    id,
+    uri: `local:${id}`,
+    flow_position,
+    reason,
+    title: '',
+    artist: '',
+    albumTitle: '',
+    albumCoverUrl: '',
+    durationSec: 0,
+    energy: 3,
+    voicing: { artistPersona: '', albumConcept: '', lore: '' },
+  };
+}
 
 describe('mapServerPhase', () => {
   it('maps live phases to UI phases', () => {
@@ -82,6 +100,28 @@ describe('playbackReducer', () => {
     expect(listening.phase).toBe('listening');
   });
 
+  it('opens the listening window when the user skips voice-over during a break', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const inBreak = playbackReducer(base, { type: 'enter_break' });
+    const speaking = playbackReducer(inBreak, { type: 'server_phase', phase: 'dj_turn_start' });
+    const listening = playbackReducer(speaking, { type: 'skip_voice_over' });
+    expect(listening.phase).toBe('listening');
+    expect(listening.inBreak).toBe(true);
+  });
+
+  it('returns to playing when the user skips a mid-track intro voice-over', () => {
+    const base = playbackReducer(createInitialPlaybackState(), {
+      type: 'start',
+      session: DEMO_SESSION,
+    });
+    const speaking = playbackReducer(base, { type: 'server_phase', phase: 'dj_turn_start', trackIndex: 0 });
+    const playing = playbackReducer(speaking, { type: 'skip_voice_over' });
+    expect(playing.phase).toBe('playing');
+  });
+
   it('drops a stale DJ-turn phase frame from an earlier Playhead (skip mid-turn)', () => {
     const base = playbackReducer(createInitialPlaybackState(), {
       type: 'start',
@@ -144,8 +184,8 @@ describe('playbackReducer', () => {
     const updated = playbackReducer(regenerating, {
       type: 'tracklist_updated',
       remaining: [
-        { id: 'a', flow_position: 2, reason: 'fresh pivot' },
-        { id: 'b', flow_position: 3, reason: 'second fresh slot' },
+        slot('a', 2, 'fresh pivot'),
+        slot('b', 3, 'second fresh slot'),
       ],
     });
     expect(updated.playlistFeedback).toBe('regenerate');
@@ -165,7 +205,7 @@ describe('playbackReducer', () => {
     });
     const updated = playbackReducer(base, {
       type: 'tracklist_updated',
-      remaining: [{ id: 'a', flow_position: 2, reason: 'fresh pivot' }],
+      remaining: [slot('a', 2, 'fresh pivot')],
       changedIds: ['a'],
     });
     expect(updated.recentlyChangedIds).toEqual(['a']);
@@ -216,7 +256,7 @@ describe('playbackReducer', () => {
     const exhausted = playbackReducer({ ...waiting, remainingTrackIds: [], phase: 'complete' }, { type: 'advance' });
     const resumed = playbackReducer(exhausted, {
       type: 'tracklist_updated',
-      remaining: [{ id: 'a', flow_position: 2, reason: 'rolling extend' }],
+      remaining: [slot('a', 2, 'rolling extend')],
     });
     expect(resumed.phase).toBe('playing');
     expect(resumed.trackId).toBe('a');

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import type { TrackSource } from '@auracle/shared';
 import {
   musicVolume,
   shouldPlayMusic,
@@ -8,7 +7,7 @@ import {
 import { postNowPlaying, postSessionEvent } from '../lib/sessionApi';
 import { createLocalPlayer } from '../playback/LocalPlayer';
 import { createSpotifyPlayer } from '../playback/SpotifyPlayer';
-import type { MusicPlayer, MusicPlayerCallbacks, PlayableTrack } from '../playback/MusicPlayer';
+import { backendForUri, type Backend, type MusicPlayer, type MusicPlayerCallbacks, type PlayableTrack } from '../playback/MusicPlayer';
 import type { RadioCommands } from '../lib/radioCommands';
 import type { PlaybackState } from '@/features/radio/session/types';
 import type { OpeningGateControls } from './useOpeningGate';
@@ -25,28 +24,29 @@ interface TrackPlaybackInput {
   opening: OpeningGateControls;
 }
 
-/** Resolve a slot's backend; absent source means local (backward-compatible). ADR-0005. */
-function sourceAt(state: Pick<PlaybackState, 'sessionTracklist'>, index: number): TrackSource {
-  return state.sessionTracklist[index]?.source ?? 'local';
+/** Resolve a slot's backend from its uri scheme; absent slot means local. ADR-0005. */
+function backendAt(state: Pick<PlaybackState, 'sessionTracklist'>, index: number): Backend {
+  const uri = state.sessionTracklist[index]?.uri;
+  return uri ? backendForUri(uri) : 'local';
 }
 
 /**
  * Per-track loading, duck policy, and pause/resume DJ sync — delegated to a
- * `MusicPlayer` chosen by `track.source` (ADR-0005 §6). The talk-window break,
+ * `MusicPlayer` chosen by the slot's uri scheme (ADR-0005 §6). The talk-window break,
  * the advance, and the DJ-voice duck stay here; only the music transport moves
  * into the player.
  */
 export function useTrackPlayback({ store, audio, commands, state, opening }: TrackPlaybackInput): void {
   const { openingReleased, armForTrack } = opening;
   const nextTrackId = state.remainingTrackIds[0];
-  const currentSource = sourceAt(state, state.currentTrackIndex);
-  const nextSource = sourceAt(state, state.currentTrackIndex + 1);
+  const currentSource = backendAt(state, state.currentTrackIndex);
+  const nextSource = backendAt(state, state.currentTrackIndex + 1);
   const prevPhaseRef = useRef(state.phase);
   // Track index we've already fired an end-of-track cue for, so the final-seconds
   // trigger runs once per track (ADR-0004).
   const cuedTrackRef = useRef(-1);
   // One player per backend, instantiated once and kept warm for the session.
-  const playersRef = useRef<Partial<Record<TrackSource, MusicPlayer>>>({});
+  const playersRef = useRef<Partial<Record<Backend, MusicPlayer>>>({});
 
   // Final-seconds talk break: the DJ wraps over the track tail, then a listening
   // window opens (ADR-0004). The window — not `ended` — drives the advance.
@@ -115,7 +115,7 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
 
   const applyPlaybackPolicy = useCallback(() => {
     const s = store.stateRef.current;
-    const player = playersRef.current[sourceAt(s, s.currentTrackIndex)];
+    const player = playersRef.current[backendAt(s, s.currentTrackIndex)];
     if (!player) return;
 
     const policy = {
@@ -153,7 +153,7 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
     }
     const currentRef = state.sessionTracklist[state.currentTrackIndex];
     players[currentSource]?.load(
-      { id: state.trackId, source: currentSource, spotify: currentRef?.spotify },
+      { id: state.trackId, uri: currentRef?.uri ?? `local:${state.trackId}` },
       { autostart: !isOpening },
     );
   }, [
@@ -170,7 +170,7 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
   useEffect(() => {
     if (!state.sessionId || !nextTrackId) return;
     const nextRef = state.sessionTracklist[state.currentTrackIndex + 1];
-    const track: PlayableTrack = { id: nextTrackId, source: nextSource, spotify: nextRef?.spotify };
+    const track: PlayableTrack = { id: nextTrackId, uri: nextRef?.uri ?? `local:${nextTrackId}` };
     playersRef.current[nextSource]?.preload(track);
   }, [state.sessionId, nextTrackId, nextSource, state.currentTrackIndex, state.sessionTracklist]);
 

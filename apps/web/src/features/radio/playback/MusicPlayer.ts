@@ -1,14 +1,20 @@
-import type { SpotifyTrackRef, TrackSource } from '@auracle/shared';
+/** The audio transport for a slot — the only place a track's provenance survives. */
+export type Backend = 'local' | 'spotify';
 
 /**
- * A track the player can load, narrowed to what playback needs. `source` selects
- * the backend; `spotify` carries the inline metadata a Spotify slot needs (no
- * catalog entry to resolve by `id`). See ADR-0005.
+ * A track the player can load, narrowed to what playback needs. `uri` is the
+ * unified playback locator: its scheme (`local:` | `spotify:`) selects the backend
+ * and is the sole provider discriminator in the client. `id` is the catalog id a
+ * local slot loads its audio by. See ADR-0005.
  */
 export interface PlayableTrack {
   id: string;
-  source: TrackSource;
-  spotify?: SpotifyTrackRef;
+  uri: string;
+}
+
+/** Select the audio backend from a slot's uri scheme — the one allowed provider branch. */
+export function backendForUri(uri: string): Backend {
+  return uri.startsWith('spotify:') ? 'spotify' : 'local';
 }
 
 /** Normalized playback events — each backend reconciles its own model (events vs polling) to these. */

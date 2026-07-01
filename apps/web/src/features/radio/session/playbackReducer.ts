@@ -1,4 +1,4 @@
-import type { CreateSessionResponse, FlowTrackRef, Phase } from '@auracle/shared';
+import type { CreateSessionResponse, PlannedTrack, Phase } from '@auracle/shared';
 import { getTrackMeta } from '@/data/trackCatalog';
 import { sanitizeTranscriptText } from '@/features/radio/lib/transcriptText';
 import { DEMO_SESSION } from '@/data/demoData';
@@ -14,6 +14,7 @@ export type PlaybackAction =
   | { type: 'toggle_pause' }
   | { type: 'set_playback'; paused: boolean }
   | { type: 'advance' }
+  | { type: 'skip_voice_over' }
   | { type: 'enter_break' }
   | { type: 'start_talk' }
   | { type: 'stop_talk' }
@@ -21,7 +22,7 @@ export type PlaybackAction =
   | { type: 'server_phase'; phase: Phase; trackIndex?: number }
   | {
       type: 'tracklist_updated';
-      remaining: FlowTrackRef[];
+      remaining: PlannedTrack[];
       sessionTitle?: string;
       sessionSubtitle?: string;
       changedIds?: string[];
@@ -92,17 +93,16 @@ export function updateTranscript(
 }
 
 /**
- * Display metadata for a slot. Local slots resolve from the catalog by id; Spotify
- * slots use the inline payload (no catalog entry), with persona/photo left blank
- * until the async copywriter fills them (ADR-0005, #75).
+ * Display metadata for a slot. Catalog (`local:`) slots resolve from the catalog by
+ * id; any other slot is self-describing — the planner stamped its inline metadata
+ * and voicing, so read them straight off the slot (photo left blank; ADR-0005, #75).
  */
 function trackMetaFromRef(
-  ref: FlowTrackRef | undefined,
+  ref: PlannedTrack | undefined,
   fallbackId: string,
 ): { title: string; artist: string; albumTitle: string; albumCoverUrl: string; artistPhotoUrl: string; lore: string; durationSec: number } {
-  if (ref?.source === 'spotify' && ref.spotify) {
-    const s = ref.spotify;
-    return { title: s.title, artist: s.artist, albumTitle: s.albumTitle, albumCoverUrl: s.albumCoverUrl, artistPhotoUrl: '', lore: '', durationSec: s.durationSec };
+  if (ref && !ref.uri.startsWith('local:')) {
+    return { title: ref.title, artist: ref.artist, albumTitle: ref.albumTitle, albumCoverUrl: ref.albumCoverUrl, artistPhotoUrl: '', lore: ref.voicing.lore, durationSec: ref.durationSec };
   }
   return getTrackMeta(ref?.id ?? fallbackId);
 }
@@ -142,13 +142,20 @@ function advanceTrack(state: PlaybackState): PlaybackState {
   };
 }
 
-function replaceRemainingTrackRefs(state: PlaybackState, remaining: FlowTrackRef[]): FlowTrackRef[] {
+function replaceRemainingTrackRefs(state: PlaybackState, remaining: PlannedTrack[]): PlannedTrack[] {
   const currentCutoff = state.currentTrackIndex + 1;
-  const currentRef: FlowTrackRef = state.sessionTracklist[state.currentTrackIndex] ?? {
+  const currentRef: PlannedTrack = state.sessionTracklist[state.currentTrackIndex] ?? {
     id: state.trackId,
+    uri: `local:${state.trackId}`,
     flow_position: currentCutoff,
     reason: 'Now playing',
-    source: 'local',
+    title: '',
+    artist: '',
+    albumTitle: '',
+    albumCoverUrl: '',
+    durationSec: 0,
+    energy: 3,
+    voicing: { artistPersona: '', albumConcept: '', lore: '' },
   };
   const kept = state.sessionTracklist.length > 0
     ? state.sessionTracklist.slice(0, currentCutoff)
@@ -171,7 +178,7 @@ function uniqueIds(ids: string[]): string[] {
   return [...new Set(ids.filter(Boolean))];
 }
 
-function inferChangedIds(beforeIds: string[], afterRefs: FlowTrackRef[]): string[] {
+function inferChangedIds(beforeIds: string[], afterRefs: PlannedTrack[]): string[] {
   const changed: string[] = [];
   const afterIds = afterRefs.map((ref) => ref.id);
   const max = Math.max(beforeIds.length, afterIds.length);
@@ -381,6 +388,13 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         : state;
     case 'advance':
       return advanceTrack(state);
+    case 'skip_voice_over':
+      if (state.phase !== 'speaking') return state;
+      return {
+        ...state,
+        phase: state.inBreak ? 'listening' : 'playing',
+        activeTranscriptId: null,
+      };
     case 'set_playback':
       if (state.phase === 'idle' || state.phase === 'curating') return state;
       return { ...state, phase: action.paused ? 'paused' : 'playing' };

@@ -84,8 +84,12 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
     },
 
     skipVoiceOver(): void {
-      if (deps.getState().phase !== 'speaking') return;
+      const s = deps.getState();
+      if (s.phase !== 'speaking') return;
       cutDjTurn();
+      if (s.currentTrackIndex === 0) deps.releaseOpening();
+      // End the DJ turn locally: resume playback or open the break window (ADR-0004).
+      deps.dispatch({ type: 'skip_voice_over' });
     },
 
     startTalk(): void {

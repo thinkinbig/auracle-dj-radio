@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { Energy, SessionIntent, SpotifyTrackRef, SpotifyVoicing, TastePreference, TrackCandidate } from "@auracle/shared";
+import type { SessionIntent, TastePreference, TrackCandidate, TrackSeed } from "@auracle/shared";
 import { createPlanCached, createProvisionalPlan, extendPlan, replan, type PlanDeps, type PlanResult } from "../flow/plan.js";
 import { retrieveCandidates } from "../flow/retrieval/retrieve.js";
 
@@ -14,10 +14,8 @@ function toPlanResponse(p: PlanResult): {
   result: PlanResult["result"];
   violations: PlanResult["violations"];
   candidates: TrackCandidate[];
-  spotifyMatchedEnergy?: Record<string, Energy>;
-  spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
 } {
-  return { result: p.result, violations: p.violations, candidates: [...p.candidatesById.values()], spotifyMatchedEnergy: p.spotifyMatchedEnergy, spotifyMatchedVoicing: p.spotifyMatchedVoicing };
+  return { result: p.result, violations: p.violations, candidates: [...p.candidatesById.values()] };
 }
 
 export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): void {
@@ -48,16 +46,15 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
       replan?: { playedIds?: string[]; played?: TrackCandidate[]; lastPlayedEnergy?: number | null; remainingSlots?: number; avoidIds?: string[] };
       extend?: { playedIds?: string[]; appendSlots?: number; lastPlayedEnergy?: number | null };
       tieBreakSeed?: string;
-      spotifyCandidates?: SpotifyTrackRef[];
-      spotifyEnergyByUri?: Record<string, Energy>;
+      seeds?: TrackSeed[];
     };
     const intent = parseIntent(b.intent);
     if (!intent) return reply.code(400).send({ error: "intent.mood and intent.scene are required" });
 
     const mode = b.mode ?? "full";
     if (mode === "provisional") {
-      const p = await createProvisionalPlan(deps, intent, b.memories ?? "", b.energyWeights, b.taste, b.tieBreakSeed, b.spotifyCandidates, b.spotifyEnergyByUri);
-      return { result: p.result, violations: [], candidates: [...p.candidatesById.values()], spotifyMatchedEnergy: p.spotifyMatchedEnergy, spotifyMatchedVoicing: p.spotifyMatchedVoicing };
+      const p = await createProvisionalPlan(deps, intent, b.memories ?? "", b.energyWeights, b.taste, b.tieBreakSeed, b.seeds);
+      return { result: p.result, violations: [], candidates: [...p.candidatesById.values()] };
     }
     if (mode === "extend") {
       const e = b.extend ?? {};
@@ -70,8 +67,7 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
         memories: b.memories ?? "",
         taste: b.taste,
         tieBreakSeed: b.tieBreakSeed,
-        spotifyCandidates: b.spotifyCandidates,
-        spotifyEnergyByUri: b.spotifyEnergyByUri,
+        seeds: b.seeds,
       });
       return toPlanResponse(p);
     }
@@ -88,11 +84,10 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
         memories: b.memories ?? "",
         taste: b.taste,
         tieBreakSeed: b.tieBreakSeed,
-        spotifyCandidates: b.spotifyCandidates,
-        spotifyEnergyByUri: b.spotifyEnergyByUri,
+        seeds: b.seeds,
       });
       return toPlanResponse(p);
     }
-    return toPlanResponse(await createPlanCached(deps, intent, b.memories ?? "", b.energyWeights, b.taste, b.tieBreakSeed, b.spotifyCandidates, b.spotifyEnergyByUri));
+    return toPlanResponse(await createPlanCached(deps, intent, b.memories ?? "", b.energyWeights, b.taste, b.tieBreakSeed, b.seeds));
   });
 }

@@ -1,14 +1,13 @@
 import { randomUUID } from "node:crypto";
-import type { Condition, Energy, FlowTrackRef, SessionIntent, SpotifyTrackRef, SpotifyVoicing, TastePreference } from "@auracle/shared";
+import type { Condition, PlannedTrack, SessionIntent, TastePreference, TrackSeed } from "@auracle/shared";
 import { ANONYMOUS_USER_ID } from "@auracle/shared";
 import { buildRegistration } from "../../dj/registration.js";
-import type { PlanResponse } from "../../music-engine-client.js";
+import type { PlanResponse } from "@auracle/clients";
 import { resolveCueTrack } from "../delivery/cue-track.js";
+import { pushQueueUpdate } from "../delivery/queue-update.js";
 import type { OrchestrationDeps } from "../deps.js";
 import { changedIdsFromRemaining } from "../planning/replan.js";
 import type { SessionState } from "../state.js";
-import { inferSpotifyEnergy } from "../spotify-energy.js";
-import { inferSpotifyVoicing } from "../spotify-voicing.js";
 
 interface SessionLifecycleLog {
   warn(payload: unknown, message?: string): void;
@@ -27,7 +26,7 @@ interface SessionCreateContext extends SessionPersonalization {
   authenticated: boolean;
   supersededId?: string;
   tieBreakSeed: string;
-  spotifyCandidates?: SpotifyTrackRef[];
+  seeds?: TrackSeed[];
 }
 
 interface RefineSnapshot {
@@ -39,14 +38,14 @@ interface RefineSnapshot {
 
 interface RefineOutcome {
   changed: boolean;
-  remaining: FlowTrackRef[];
+  remaining: PlannedTrack[];
   previousRemainingIds: string[];
 }
 
 export interface CreateSessionInput extends SessionIntent {
   condition?: Condition;
-  /** Listener's gathered Spotify library candidates (ADR-0005); ranked into the same pool. */
-  spotifyCandidates?: SpotifyTrackRef[];
+  /** Listener's gathered external library candidates (ADR-0005); ranked into the same pool. */
+  seeds?: TrackSeed[];
 }
 
 export interface CreateSessionDeps extends OrchestrationDeps {
@@ -92,7 +91,7 @@ async function prepareSessionCreateContext(
   const supersededId = authenticated ? deps.store.activeSessionForUser(userId) : undefined;
   const personalization = await initialPersonalization(deps, condition, userId, intent);
   const tieBreakSeed = randomUUID();
-  const spotifyCandidates = input.spotifyCandidates?.length ? input.spotifyCandidates : undefined;
+  const seeds = input.seeds?.length ? input.seeds : undefined;
 
   return {
     userId,
@@ -101,7 +100,7 @@ async function prepareSessionCreateContext(
     authenticated,
     supersededId,
     tieBreakSeed,
-    spotifyCandidates,
+    seeds,
     ...personalization,
   };
 }
@@ -114,7 +113,7 @@ async function buildProvisionalPlan(deps: CreateSessionDeps, context: SessionCre
     energyWeights: context.energyWeights,
     taste: context.taste,
     tieBreakSeed: context.tieBreakSeed,
-    spotifyCandidates: context.spotifyCandidates,
+    seeds: context.seeds,
   });
 }
 
@@ -133,9 +132,7 @@ function persistProvisionalSession(deps: CreateSessionDeps, context: SessionCrea
     tracklist: plan.result.tracklist,
     candidatesById,
     mem0Context: context.mem0Context,
-    spotifyCandidates: context.spotifyCandidates,
-    spotifyMatchedEnergy: plan.spotifyMatchedEnergy,
-    spotifyMatchedVoicing: plan.spotifyMatchedVoicing,
+    seeds: context.seeds,
   });
 }
 
@@ -199,10 +196,10 @@ async function registerWithProxy(deps: CreateSessionDeps, state: SessionState): 
  */
 async function refineSessionCopywriting(deps: CreateSessionDeps, state: SessionState): Promise<void> {
   try {
-    const spotifyEnergyByUri = await prepareSpotifyEnergyRefine(state);
-    startSpotifyVoicingRefine(deps, state);
-
-    const plan = await buildFullRefinePlan(deps, state, spotifyEnergyByUri);
+    // The full plan resolves seed energy + voicing inside music-engine (memoized)
+    // and returns fully self-describing slots; the resolved voicing rides the queue
+    // update below, so there is no separate inference or voicing push here.
+    const plan = await buildFullRefinePlan(deps, state);
     const snapshot = captureRefineSnapshot(deps, state);
     const outcome = applyFullRefinePlan(deps, state, plan, snapshot);
 
@@ -212,27 +209,7 @@ async function refineSessionCopywriting(deps: CreateSessionDeps, state: SessionS
   }
 }
 
-async function prepareSpotifyEnergyRefine(state: SessionState): Promise<Record<string, Energy> | undefined> {
-  const spotifyEnergyByUri = await resolveSpotifyEnergy(state);
-  state.spotifyEnergyByUri = spotifyEnergyByUri;
-  return spotifyEnergyByUri;
-}
-
-function startSpotifyVoicingRefine(deps: CreateSessionDeps, state: SessionState): void {
-  void resolveSpotifyVoicing(state).then((voicing) => {
-    if (!voicing) return;
-    state.spotifyVoicing = voicing;
-    void deps.proxy
-      .inject(state.id, { ui_events: [{ type: "spotify_voicing", voicing }] })
-      .catch((err) => deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "spotify voicing push failed"));
-  });
-}
-
-async function buildFullRefinePlan(
-  deps: CreateSessionDeps,
-  state: SessionState,
-  spotifyEnergyByUri: Record<string, Energy> | undefined,
-): Promise<PlanResponse> {
+async function buildFullRefinePlan(deps: CreateSessionDeps, state: SessionState): Promise<PlanResponse> {
   return deps.music.planTracklist({
     intent: state.intent,
     mode: "full",
@@ -240,8 +217,7 @@ async function buildFullRefinePlan(
     energyWeights: state.energyWeights,
     taste: state.taste,
     tieBreakSeed: state.tieBreakSeed,
-    spotifyCandidates: state.spotifyCandidates,
-    spotifyEnergyByUri,
+    seeds: state.seeds,
   });
 }
 
@@ -284,38 +260,11 @@ function applyFullRefinePlan(
 }
 
 async function pushRefineUpdate(deps: CreateSessionDeps, state: SessionState, outcome: RefineOutcome): Promise<void> {
-  await deps.proxy
-    .inject(state.id, {
-      ui_events: [
-        {
-          type: "tracklist_updated",
-          remaining: outcome.remaining,
-          changed_ids: changedIdsFromRemaining(outcome.previousRemainingIds, outcome.remaining),
-          before_remaining_ids: outcome.previousRemainingIds,
-          session_title: state.title,
-          session_subtitle: state.subtitle,
-        },
-      ],
-    })
-    .catch((err) => deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "copywriting refine proxy push failed"));
-}
-
-async function resolveSpotifyEnergy(state: SessionState): Promise<Record<string, Energy> | undefined> {
-  const candidates = state.spotifyCandidates;
-  if (!candidates?.length) return undefined;
-  const matched = state.spotifyMatchedEnergy ?? {};
-  const unmatched = candidates.filter((c) => matched[c.uri] === undefined);
-  const inferred = await inferSpotifyEnergy(unmatched);
-  return { ...inferred, ...matched };
-}
-
-async function resolveSpotifyVoicing(state: SessionState): Promise<Record<string, SpotifyVoicing> | undefined> {
-  const candidates = state.spotifyCandidates;
-  if (!candidates?.length) return undefined;
-  const matched = state.spotifyMatchedVoicing ?? {};
-  const unmatched = candidates.filter((c) => matched[c.uri] === undefined);
-  const inferred = await inferSpotifyVoicing(unmatched);
-  return { ...inferred, ...matched };
+  await pushQueueUpdate(deps, state, {
+    remaining: outcome.remaining,
+    changedIds: changedIdsFromRemaining(outcome.previousRemainingIds, outcome.remaining),
+    beforeRemainingIds: outcome.previousRemainingIds,
+  }).catch((err) => deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "copywriting refine proxy push failed"));
 }
 
 async function supersedeSession(deps: CreateSessionDeps, oldId: string, userId: string): Promise<void> {

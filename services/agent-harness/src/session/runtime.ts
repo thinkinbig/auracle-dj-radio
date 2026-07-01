@@ -1,12 +1,14 @@
-import { parseHostMode, type HostMode, type PlaylistFeedbackSource, type RegenerateSessionResponse } from "@auracle/shared";
+import { parseHostMode, type PlaylistFeedbackSource } from "@auracle/shared";
 import type { Registration } from "../dj/registration.js";
 import { buildAndPushCue } from "./delivery/cue.js";
 import type { OrchestrationDeps, SessionLog } from "./deps.js";
 import { extendQueue } from "./lifecycle/extend.js";
 import { createSession, type CreateSessionInput } from "./lifecycle/create.js";
+import { changeHostMode } from "./lifecycle/host-mode.js";
 import { markNowPlaying } from "./lifecycle/now-playing.js";
 import { parsePlaylistFeedback, runPlaylistFeedback, type PlaylistFeedbackOutcome } from "./planning/playlist-feedback.js";
 import { sessionInvalidationReason, sessionOwner as getSessionOwner, sessionRegistration, sessionSnapshot, type SessionSnapshot } from "./queries.js";
+import { runSkipTrack } from "./lifecycle/skip-track.js";
 import { runTool, type ToolCall, type ToolEnvelope } from "./tool-runner.js";
 
 export interface SessionRuntimeDeps extends OrchestrationDeps {
@@ -22,10 +24,10 @@ export interface SessionRuntime {
   registration(id: string): Promise<Registration | undefined>;
   runTool(id: string, call: ToolCall): Promise<ToolEnvelope | undefined>;
   playlistFeedback(id: string, feedback: unknown): Promise<PlaylistFeedbackOutcome | undefined | false>;
+  skipTrack(id: string, trackId?: string): Promise<boolean>;
   markNowPlaying(id: string, trackId: string): Promise<Record<string, unknown> | undefined | false>;
   cue(id: string, kind: "break" | "outro"): Promise<boolean>;
   changeHostMode(id: string, rawMode: unknown): Promise<Record<string, unknown> | undefined | false>;
-  regenerateQueue(id: string): Promise<RegenerateSessionResponse | undefined>;
   retryExtend(id: string): Promise<boolean>;
   recordClientEvent(id: string, eventType: string, payload: unknown): Promise<boolean>;
 }
@@ -60,6 +62,9 @@ export function createSessionRuntime(deps: SessionRuntimeDeps): SessionRuntime {
     playlistFeedback(id, feedback) {
       return applyPlaylistFeedback(orchestration, id, feedback, "ui");
     },
+    skipTrack(id, trackId) {
+      return applySkipTrack(orchestration, id, trackId);
+    },
     markNowPlaying(id, trackId) {
       return markSessionNowPlaying(orchestration, id, trackId, deps.log);
     },
@@ -68,9 +73,6 @@ export function createSessionRuntime(deps: SessionRuntimeDeps): SessionRuntime {
     },
     changeHostMode(id, rawMode) {
       return changeSessionHostMode(orchestration, id, rawMode);
-    },
-    regenerateQueue(id) {
-      return regenerateQueue(orchestration, id);
     },
     retryExtend(id) {
       return retrySessionExtend(orchestration, id, deps.log);
@@ -104,10 +106,11 @@ async function applyPlaylistFeedback(
   return runPlaylistFeedback(deps, state, parsed, source);
 }
 
-async function regenerateQueue(deps: OrchestrationDeps, sessionId: string): Promise<RegenerateSessionResponse | undefined> {
-  const outcome = await applyPlaylistFeedback(deps, sessionId, "regenerate", "ui");
-  if (!outcome) return undefined;
-  return outcome.regenerate;
+async function applySkipTrack(deps: OrchestrationDeps, sessionId: string, trackId?: string): Promise<boolean> {
+  const state = deps.store.get(sessionId);
+  if (!state) return false;
+  await runSkipTrack(deps, state, "ui", trackId);
+  return true;
 }
 
 async function markSessionNowPlaying(
@@ -137,16 +140,8 @@ async function changeSessionHostMode(
   if (!state) return undefined;
   const nextMode = parseHostMode(rawMode);
   if (!nextMode) return false;
-  const previous: HostMode = state.hostMode;
-  const changed = nextMode !== previous;
-  if (changed) {
-    state.hostMode = nextMode;
-    await deps.memory.recordEvent(sessionId, state.userId, "change_host_mode", { host_mode: nextMode, previous, source: "ui" });
-    await deps.proxy.inject(sessionId, {
-      inject_text: `[host mode → ${nextMode}] Adopt this speaking style from your next line; don't announce the switch. Playlist unchanged.`,
-    });
-  }
-  return { ok: true, host_mode: nextMode, previous, changed };
+  const outcome = await changeHostMode(deps, state, nextMode, "ui");
+  return { ...outcome };
 }
 
 async function retrySessionExtend(deps: OrchestrationDeps, sessionId: string, log?: SessionLog): Promise<boolean> {

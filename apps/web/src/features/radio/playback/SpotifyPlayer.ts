@@ -106,7 +106,7 @@ export function createSpotifyPlayer(cb: MusicPlayerCallbacks): MusicPlayer {
   return {
     load(track, { autostart }) {
       clearWatchdog();
-      pendingUri = track.spotify?.uri ?? null;
+      pendingUri = track.uri;
       started = false;
       endedFired = false;
       confirmedStarted = false;

@@ -1,4 +1,4 @@
-import type { FlowTrackRef, QueueRefreshStatus } from "@auracle/shared";
+import type { PlannedTrack, QueueRefreshStatus } from "@auracle/shared";
 import type { OrchestrationDeps } from "../deps.js";
 import type { SessionState } from "../state.js";
 
@@ -8,7 +8,7 @@ import type { SessionState } from "../state.js";
  * `changedIds` flags the slots that moved so the UI can highlight them (E4).
  */
 export interface QueueUpdate {
-  remaining: FlowTrackRef[];
+  remaining: PlannedTrack[];
   changedIds?: string[];
   beforeRemainingIds?: string[];
 }

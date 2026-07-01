@@ -133,7 +133,7 @@ A 条件：`mood_change` **不**触发重排（仅 DJ 口头回应或 noop）。
 | 评估项 | 测试 (文件 · 名称) | 状态 |
 |--------|-------------------|------|
 | #66 telemetry 捕获 | `agent-harness.test.ts` · "records playlist_feedback from the UI playlist-feedback route" / "...from a DJ tool call and surfaces it to the client" | ✅ |
-| #66 regenerate 事件 | `agent-harness.test.ts` · "regenerates the remaining queue from a DJ playlist_feedback tool call" | ✅ |
+| #66 regenerate 事件 | `agent-harness.test.ts` · "regenerates the remaining queue from a DJ playlist_feedback tool call" / "regenerates the remaining queue on request"（UI 走 `POST /playlist-feedback`） | ✅ |
 | #66/#69 telemetry-only 守卫 | `agent-harness.test.ts` · "records like/dislike feedback as telemetry only — no mem0 write, even in condition C" | ✅ |
 | #68/#69 in-session / 跨会话写入 | `agent-harness.test.ts` · "dislike feedback adjusts the upcoming queue / writes session-sourced taste" | ⏳ todo（待 #69 接线） |
 | #69 plan 权重读取 session taste | `taste-weighting.test.ts` · "downranks an artist avoided via session feedback (source: session)" / "treats session-sourced prefer/avoid symmetrically with onboarding source" | ✅ |
