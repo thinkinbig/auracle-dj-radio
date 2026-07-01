@@ -46,6 +46,8 @@ export interface CreateSessionInput extends SessionIntent {
   condition?: Condition;
   /** Listener's gathered external library candidates (ADR-0005); ranked into the same pool. */
   seeds?: TrackSeed[];
+  /** Short aggregate Spotify taste summary from the browser; no raw listening history. */
+  spotify_taste_summary?: string;
 }
 
 export interface CreateSessionDeps extends OrchestrationDeps {
@@ -89,7 +91,11 @@ async function prepareSessionCreateContext(
   const condition: Condition = input.condition ?? "C";
   const authenticated = userId !== ANONYMOUS_USER_ID;
   const supersededId = authenticated ? deps.store.activeSessionForUser(userId) : undefined;
-  const personalization = await initialPersonalization(deps, condition, userId, intent);
+  const personalization = mergeSpotifyTasteSummary(
+    await initialPersonalization(deps, condition, userId, intent),
+    condition,
+    input.spotify_taste_summary,
+  );
   const tieBreakSeed = randomUUID();
   const seeds = input.seeds?.length ? input.seeds : undefined;
 
@@ -174,6 +180,25 @@ async function initialPersonalization(
     deps.memory.tasteWeights(userId).catch(() => undefined),
   ]);
   return { mem0Context, energyWeights, taste };
+}
+
+function mergeSpotifyTasteSummary(
+  personalization: SessionPersonalization,
+  condition: Condition,
+  rawSummary: string | undefined,
+): SessionPersonalization {
+  if (condition !== "C") return personalization;
+  const spotifySummary = sanitizeSpotifyTasteSummary(rawSummary);
+  if (!spotifySummary) return personalization;
+  return {
+    ...personalization,
+    mem0Context: [personalization.mem0Context, spotifySummary].filter(Boolean).join("\n\n"),
+  };
+}
+
+function sanitizeSpotifyTasteSummary(rawSummary: string | undefined): string {
+  if (!rawSummary || typeof rawSummary !== "string") return "";
+  return rawSummary.replace(/\s+/g, " ").trim().slice(0, 900);
 }
 
 async function registerWithProxy(deps: CreateSessionDeps, state: SessionState): Promise<string> {

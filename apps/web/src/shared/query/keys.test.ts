@@ -4,6 +4,7 @@ import { queryKeys } from './keys';
 describe('queryKeys', () => {
   it('uses stable taste and catalog keys', () => {
     expect(queryKeys.taste).toEqual(['taste']);
+    expect(queryKeys.spotifyTaste).toEqual(['spotifyTaste']);
     expect(queryKeys.trackCatalog).toEqual(['trackCatalog']);
   });
 });

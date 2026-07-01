@@ -60,10 +60,6 @@ interface SpotifyApiTrack {
   };
 }
 
-interface SpotifyTopTracksResponse {
-  items: SpotifyApiTrack[];
-}
-
 interface SpotifySavedTracksResponse {
   items: Array<{ track: SpotifyApiTrack | null }>;
 }
@@ -236,19 +232,13 @@ export async function gatherSpotifyCandidates(targetCount = 50): Promise<TrackSe
   patchState({ gatherStatus: 'loading', gatherError: null });
   try {
     const token = await requireAccessToken();
-    const [top, saved] = await Promise.all([
-      fetchSpotify<SpotifyTopTracksResponse>(
-        token,
-        'https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term&market=from_token',
-      ).catch(() => ({ items: [] })),
-      fetchSpotify<SpotifySavedTracksResponse>(
-        token,
-        'https://api.spotify.com/v1/me/tracks?limit=50&market=from_token',
-      ).catch(() => ({ items: [] })),
-    ]);
+    const saved = await fetchSpotify<SpotifySavedTracksResponse>(
+      token,
+      'https://api.spotify.com/v1/me/tracks?limit=50&market=from_token',
+    ).catch(() => ({ items: [] }));
     const seen = new Set<string>();
     const candidates: TrackSeed[] = [];
-    for (const t of [...saved.items.flatMap((i) => (i.track ? [i.track] : [])), ...top.items]) {
+    for (const t of saved.items.flatMap((i) => (i.track ? [i.track] : []))) {
       if (t.is_playable === false) continue;
       if (seen.has(t.uri)) continue;
       seen.add(t.uri);

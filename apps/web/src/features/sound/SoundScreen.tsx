@@ -1,18 +1,15 @@
 import { useAuth } from '@/features/marketing/AuthProvider';
 import { isGuestUser } from '@/features/marketing/guest';
-import { SpotifyPlaybackControl } from '@/features/spotify/SpotifyPlaybackControl';
+import { SpotifyTasteSummaryPanel } from '@/features/spotify/SpotifyTasteSummaryPanel';
 import { FeaturePageShell } from '@/shared/ui/FeaturePageShell';
-import enter from '@/shared/ui/FeatureEnter.module.css';
 import { cn } from '@/shared/lib/cn';
-import { TastePanel } from './TastePanel';
 import styles from './SoundScreen.module.css';
 
 interface SoundScreenProps {
   onGuestBack: () => void;
-  onOpenLibrary?: () => void;
 }
 
-export function SoundScreen({ onGuestBack, onOpenLibrary }: SoundScreenProps) {
+export function SoundScreen({ onGuestBack }: SoundScreenProps) {
   const { user } = useAuth();
   const isGuest = isGuestUser(user!);
 
@@ -24,37 +21,22 @@ export function SoundScreen({ onGuestBack, onOpenLibrary }: SoundScreenProps) {
       hero={
         <div className={styles.heroGrid}>
           <div className={styles.headerCopy}>
-            <h1 className={cn(enter.enter, enter.d90)}>Make every station sound more like you.</h1>
-            <p className={cn(enter.enter, enter.d180)}>
-              Choose the genres, artists, albums, and tracks Auracle should follow or avoid when it
-              builds your radio.
+            <h1>Your Spotify taste.</h1>
+            <p>
+              A quiet profile of the artists, tracks, genres, and listening patterns that shape
+              your Auracle host.
             </p>
-          </div>
-          <div className={cn(styles.signalPanel, enter.enter, enter.d280)} aria-hidden>
-            <span>
-              <strong>L1</strong>
-              Your picks
-            </span>
-            <span>
-              <strong>L2</strong>
-              Listening history
-            </span>
-            <span>
-              <strong>L3</strong>
-              DJ memory
-            </span>
           </div>
         </div>
       }
     >
       {isGuest ? (
-        <section className={cn(styles.guestGate, enter.enter, enter.d380)} aria-live="polite">
+        <section className={styles.guestGate} aria-live="polite">
           <div>
             <p className={styles.kicker}>Login required</p>
-            <h2>Build a sound that follows you.</h2>
+            <h2>Build a profile that follows you.</h2>
             <p>
-              Guest mode plays a demo station. Sign in to save taste, learned preferences, and
-              listening signals across sessions.
+              Guest mode plays a demo station. Sign in to view Spotify-derived taste signals.
             </p>
           </div>
           <button className={styles.backToDemo} type="button" onClick={onGuestBack}>
@@ -62,60 +44,9 @@ export function SoundScreen({ onGuestBack, onOpenLibrary }: SoundScreenProps) {
           </button>
         </section>
       ) : (
-        <>
-            <section className={cn(styles.tasteSection, enter.enter, enter.d380)} aria-labelledby="sound-taste-title">
-            <div className={styles.blockHeader}>
-              <div>
-                <p className={styles.kicker}>Now editing</p>
-                <h2 id="sound-taste-title">Taste profile</h2>
-              </div>
-              <span className={styles.badge}>Structured</span>
-            </div>
-            <p className={styles.blockCopy}>
-              Set a few strong signals first. Auracle uses these choices when it builds future
-              stations.
-            </p>
-            <TastePanel />
-          </section>
-
-          <div className={styles.supportGrid}>
-              <section className={cn(styles.block, enter.enter, enter.d500)} aria-labelledby="sound-archive-title">
-              <div className={styles.blockHeader}>
-                <h2 id="sound-archive-title">Playback source</h2>
-                <span className={styles.badge}>Spotify</span>
-              </div>
-              <p className={styles.blockCopy}>
-                Connect Spotify or keep the local catalog as the station source.
-              </p>
-              <button className={styles.importButton} type="button" onClick={onOpenLibrary}>
-                Open Library
-              </button>
-              <SpotifyPlaybackControl />
-            </section>
-
-              <section className={cn(styles.block, enter.enter, enter.d580)} aria-labelledby="sound-learned-title">
-              <div className={styles.blockHeader}>
-                <h2 id="sound-learned-title">Learned taste</h2>
-                <span className={styles.badge}>mem0</span>
-              </div>
-              <p className={styles.blockCopy}>
-                Things Auracle learns from conversations and completed sessions.
-              </p>
-              <div className={styles.emptyState}>No learned preferences yet.</div>
-            </section>
-
-              <section className={cn(styles.block, enter.enter, enter.d660)} aria-labelledby="sound-signals-title">
-              <div className={styles.blockHeader}>
-                <h2 id="sound-signals-title">Listening signals</h2>
-                <span className={styles.badge}>Behavior</span>
-              </div>
-              <p className={styles.blockCopy}>
-                Skips, likes, and completed tracks will help future stations feel more precise.
-              </p>
-              <div className={styles.emptyState}>Listening signals appear after a few sessions.</div>
-            </section>
-          </div>
-        </>
+        <section className={styles.profileSection} aria-label="Spotify taste dashboard">
+          <SpotifyTasteSummaryPanel />
+        </section>
       )}
     </FeaturePageShell>
   );

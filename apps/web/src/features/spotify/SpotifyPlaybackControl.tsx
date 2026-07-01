@@ -72,7 +72,8 @@ export function SpotifyPlaybackControl({ compact = false, className }: SpotifyPl
             onClick={() => void enableSpotifyMode()}
             disabled={!configured || busy}
           >
-            {!configured ? 'Setup' : busy ? 'Wait' : 'Connect Spotify'}
+            <SpotifyGlyph />
+            <span>{!configured ? 'Setup Spotify' : busy ? 'Connecting' : 'Connect Spotify'}</span>
           </button>
         )}
         {!compact && connected ? (

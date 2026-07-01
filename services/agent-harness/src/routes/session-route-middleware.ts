@@ -22,7 +22,7 @@ interface OwnedSessionContext<Body> {
 }
 
 interface CreateSessionContext {
-  intent: SessionIntent & { condition?: Condition; seeds?: TrackSeed[] };
+  intent: SessionIntent & { condition?: Condition; seeds?: TrackSeed[]; spotify_taste_summary?: string };
   userId: string;
 }
 
@@ -48,7 +48,11 @@ export interface SessionRouteMiddleware {
 export function createSessionRouteMiddleware(deps: SessionRouteMiddlewareDeps): SessionRouteMiddleware {
   return {
     async create(req: FastifyRequest, reply: FastifyReply, handler: CreateSessionHandler) {
-      const body = (req.body ?? {}) as Partial<SessionIntent> & { condition?: Condition; seeds?: TrackSeed[] };
+      const body = (req.body ?? {}) as Partial<SessionIntent> & {
+        condition?: Condition;
+        seeds?: TrackSeed[];
+        spotify_taste_summary?: string;
+      };
       const intent = parseSessionIntent(body);
       if (!intent) return reply.code(400).send({ error: "mood and scene are required" });
 
@@ -58,7 +62,7 @@ export function createSessionRouteMiddleware(deps: SessionRouteMiddlewareDeps): 
         return reply.code(401).send({ error: "invalid or expired token" });
       }
       return handler({
-        intent: body as SessionIntent & { condition?: Condition; seeds?: TrackSeed[] },
+        intent: body as SessionIntent & { condition?: Condition; seeds?: TrackSeed[]; spotify_taste_summary?: string },
         userId: resolved.userId,
       });
     },

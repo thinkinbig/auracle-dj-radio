@@ -126,7 +126,6 @@ function LoggedInApp() {
             <main className={`${chrome.productSurface} ${chrome.featureSurface} ${chrome.pageTransition}`}>
               <SoundScreen
                 onGuestBack={() => navigate(paths.home)}
-                onOpenLibrary={() => navigate(paths.library)}
               />
             </main>
           }

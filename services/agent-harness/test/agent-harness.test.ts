@@ -563,7 +563,16 @@ describe("agent-harness", () => {
     now.mockReturnValue(2_000);
     const { app, memory } = buildTestApp();
     await app.ready();
-    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "B" } });
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: {
+        mood: "calm",
+        scene: "studying",
+        condition: "B",
+        spotify_taste_summary: "Spotify-derived Auracle taste summary: Top genres: ambient.",
+      },
+    });
     const { session_id } = created.json<{ session_id: string }>();
 
     now.mockReturnValue(2_100);
@@ -799,6 +808,22 @@ describe("agent-harness", () => {
     expect(music.planCalls[0]?.memories).toBe("");
     expect(music.planCalls[0]?.energyWeights).toBeUndefined();
     expect(music.planCalls[0]?.taste).toBeUndefined();
+    await app.close();
+  });
+
+  it("condition C appends sanitized Spotify taste summary to planning memories", async () => {
+    const { app, memory, music } = buildTestApp();
+    memory.recallValue = "prefers lighter energy";
+    await app.ready();
+    const spotifySummary = " Spotify-derived Auracle taste summary:\nTop genres: dream pop, ambient.  ";
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "C", spotify_taste_summary: spotifySummary },
+    });
+    const { mem0_context } = created.json<{ mem0_context: string }>();
+    expect(mem0_context).toBe("prefers lighter energy\n\nSpotify-derived Auracle taste summary: Top genres: dream pop, ambient.");
+    expect(music.planCalls[0]?.memories).toBe(mem0_context);
     await app.close();
   });
 

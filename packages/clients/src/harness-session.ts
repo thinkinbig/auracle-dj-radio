@@ -42,13 +42,19 @@ export class HarnessSessionClient {
   async createSession(
     intent: SessionIntent,
     seeds?: TrackSeed[],
+    spotifyTasteSummary?: string,
   ): Promise<CreateSessionResponse> {
     const { auth, createSessionFallback } = this.options;
+    const body = {
+      ...intent,
+      ...(seeds?.length ? { seeds } : {}),
+      ...(spotifyTasteSummary ? { spotify_taste_summary: spotifyTasteSummary } : {}),
+    };
     try {
       const res = await fetch(this.url("/sessions"), {
         method: "POST",
         headers: auth.jsonHeaders(),
-        body: JSON.stringify(seeds?.length ? { ...intent, seeds } : intent),
+        body: JSON.stringify(body),
       });
       if (res.status === 401) {
         auth.clearToken();

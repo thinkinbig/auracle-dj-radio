@@ -5,6 +5,9 @@ import { createSession, extendSession, postHostMode, postPlaylistFeedback, postS
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
 import { gatherSpotifyCandidates, isSpotifyPlaybackEnabled } from '@/features/spotify/spotifyPlayback';
+import { buildSpotifyTasteMemory, canReadSpotifyTaste, getSpotifyTasteProfile } from '@/features/spotify/spotifyTaste';
+import { queryKeys } from '@/shared/query/keys';
+import { queryClient } from '@/shared/query/queryClient';
 import type { RadioCommands } from '../lib/radioCommands';
 import type { PlaylistFeedback } from '@/features/radio/session/types';
 import type { AudioRefs, StoreRefs } from './sessionRefs';
@@ -53,10 +56,13 @@ export function useRadioHandlers({
       // Gather the listener's Spotify library as seeds for the server to rank into
       // the queue (ADR-0005). Best-effort: a failure or non-Premium user just yields
       // a catalog-only session.
-      const seeds = isSpotifyPlaybackEnabled()
-        ? await gatherSpotifyCandidates().catch(() => undefined)
-        : undefined;
-      const session = await createSession(intent, seeds);
+      const [seeds, spotifyTasteSummary] = await Promise.all([
+        isSpotifyPlaybackEnabled()
+          ? gatherSpotifyCandidates().catch(() => undefined)
+          : Promise.resolve(undefined),
+        readSpotifyTasteMemory().catch(() => undefined),
+      ]);
+      const session = await createSession(intent, seeds, spotifyTasteSummary);
       void prefetchTracks(session.tracklist);
       store.dispatchRef.current({ type: 'start', session });
     } catch (err) {
@@ -181,4 +187,14 @@ export function useRadioHandlers({
     handleTalkEnd,
     handleSendText,
   };
+}
+
+async function readSpotifyTasteMemory(): Promise<string | undefined> {
+  if (canReadSpotifyTaste() !== 'ready') return undefined;
+  const profile = await queryClient.fetchQuery({
+    queryKey: queryKeys.spotifyTaste,
+    queryFn: getSpotifyTasteProfile,
+    staleTime: 5 * 60 * 1000,
+  });
+  return buildSpotifyTasteMemory(profile);
 }

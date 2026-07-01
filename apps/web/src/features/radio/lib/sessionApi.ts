@@ -1,4 +1,5 @@
 import { HarnessSessionClient, SessionAuthError } from '@auracle/clients';
+import type { CreateSessionResponse, SessionIntent, TrackSeed } from '@auracle/shared';
 import { authHeaders, clearStoredToken, jsonAuthHeaders } from '@/features/marketing/authApi';
 import { DEMO_SESSION } from '@/data/demoData';
 
@@ -13,7 +14,35 @@ const client = new HarnessSessionClient({
   createSessionFallback: DEMO_SESSION,
 });
 
-export const createSession = client.createSession.bind(client);
+export async function createSession(
+  intent: SessionIntent,
+  seeds?: TrackSeed[],
+  spotifyTasteSummary?: string,
+): Promise<CreateSessionResponse> {
+  try {
+    const res = await fetch('/sessions', {
+      method: 'POST',
+      headers: jsonAuthHeaders(),
+      body: JSON.stringify({
+        ...intent,
+        ...(seeds?.length ? { seeds } : {}),
+        ...(spotifyTasteSummary ? { spotify_taste_summary: spotifyTasteSummary } : {}),
+      }),
+    });
+    if (res.status === 401) {
+      clearStoredToken();
+      throw new SessionAuthError();
+    }
+    if (res.ok) {
+      const body = (await res.json()) as CreateSessionResponse;
+      if (body.tracklist?.length) return body;
+    }
+  } catch (err) {
+    if (err instanceof SessionAuthError) throw err;
+  }
+  return DEMO_SESSION;
+}
+
 export const postSessionEvent = client.postSessionEvent.bind(client);
 export const extendSession = client.extendSession.bind(client);
 export const postPlaylistFeedback = client.postPlaylistFeedback.bind(client);
