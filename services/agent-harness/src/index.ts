@@ -3,7 +3,7 @@ import { HttpMemoryServiceClient } from "./memory-service-client.js";
 import { HttpMusicEngineClient } from "./music-engine-client.js";
 import { HttpProxyClient } from "./proxy-client.js";
 import { buildServer } from "./server.js";
-import { SessionStore } from "./session/store.js";
+import { SessionStore } from "./session/state.js";
 
 const app = buildServer({
   store: new SessionStore(),

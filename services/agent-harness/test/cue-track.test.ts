@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ANONYMOUS_USER_ID, type Energy, type FlowTrackRef, type SpotifyTrackRef, type TrackCandidate, type TrackMeta } from "@auracle/shared";
 import type { MusicEngineClient, PlanResponse } from "../src/music-engine-client.js";
-import { resolveCueTrack } from "../src/session/cue-track.js";
-import { SessionStore } from "../src/session/store.js";
+import { resolveCueTrack } from "../src/session/delivery/cue-track.js";
+import { SessionStore } from "../src/session/state.js";
 
 function spotifyRef(): SpotifyTrackRef {
   return {

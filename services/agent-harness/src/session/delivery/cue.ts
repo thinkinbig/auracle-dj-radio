@@ -1,7 +1,7 @@
-import { buildCueText, type CueKind } from "../dj/prompt.js";
+import { buildCueText, type CueKind } from "../../dj/prompt.js";
 import { resolveCueTrack } from "./cue-track.js";
-import type { OrchestrationDeps } from "./replan.js";
-import type { SessionState } from "./store.js";
+import type { OrchestrationDeps } from "../deps.js";
+import type { SessionState } from "../state.js";
 
 /**
  * Build the between-track scene-direction cue and push it to the live session as

@@ -1,5 +1,5 @@
 import type { FunctionDeclaration } from "@google/genai";
-import type { SessionState } from "../session/store.js";
+import type { SessionState } from "../session/state.js";
 import { buildCueText, buildSystemInstruction, DJ_TOOLS, type CueTrack } from "./prompt.js";
 
 /**

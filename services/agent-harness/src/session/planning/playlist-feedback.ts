@@ -1,6 +1,7 @@
 import type { PlaylistFeedback, PlaylistFeedbackSource, RegenerateSessionResponse, ServerMessage } from "@auracle/shared";
-import type { SessionState } from "./store.js";
-import { regenerateAndPush, regenerateRemaining, toRegenerateSessionResponse, type OrchestrationDeps } from "./replan.js";
+import type { OrchestrationDeps } from "../deps.js";
+import type { SessionState } from "../state.js";
+import { regenerateAndPush, regenerateRemaining, toRegenerateSessionResponse } from "./replan.js";
 
 export interface PlaylistFeedbackOutcome {
   gemini_result: Record<string, unknown>;

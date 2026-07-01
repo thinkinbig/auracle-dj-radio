@@ -1,19 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { FlowTrackRef, RegenerateSessionResponse } from "@auracle/shared";
-import type { MemoryServiceClient } from "../memory-service-client.js";
-import type { MusicEngineClient } from "../music-engine-client.js";
-import type { ProxyClient } from "../proxy-client.js";
-import { pushQueueUpdate, pushQueueRefresh } from "./queue-update.js";
+import type { FlowTrackRef, RegenerateSessionResponse, SessionIntent, TastePreference } from "@auracle/shared";
+import type { PlanResponse } from "../../music-engine-client.js";
+import { pushQueueUpdate, pushQueueRefresh } from "../delivery/queue-update.js";
 import type { PlaylistFeedbackSource } from "@auracle/shared";
-import type { SessionState, SessionStore } from "./store.js";
-
-/** Dependencies shared by the orchestration handlers (replan + tool dispatch). */
-export interface OrchestrationDeps {
-  store: SessionStore;
-  memory: MemoryServiceClient;
-  music: MusicEngineClient;
-  proxy: ProxyClient;
-}
+import type { OrchestrationDeps } from "../deps.js";
+import type { SessionState } from "../state.js";
 
 /**
  * On-air adjustment tier (design §2.2):
@@ -72,6 +63,22 @@ export interface RegenerateOutcome extends ReplanOutcome {
   before: string[];
 }
 
+interface ReplanWindow {
+  scope: ReplanScope;
+  start: number;
+  count: number;
+}
+
+interface ReplanContext extends ReplanWindow {
+  intent: SessionIntent;
+  before: string[];
+  playedIds: string[];
+  lastPlayedEnergy: number | null;
+  replacedWindow: string[];
+  personalized: boolean;
+  taste?: TastePreference[];
+}
+
 /**
  * Re-plan not-yet-played slots for a new mood (the Live `mood_change` tool calls
  * this). The current track keeps playing. Defaults to a `nudge` — only the next
@@ -91,70 +98,134 @@ export async function applyReplan(
     return { replanned: false, remaining: deps.store.remaining(state) };
   }
 
-  // nudge touches the next 1–2 slots, steer the latter ~half, full the whole
-  // remaining queue. The window drives how many tracks we ask the engine for and
-  // which remaining slots we overwrite (design §2.2).
+  const context = await buildReplanContext(deps, state, params, remainingCount);
+  const plan = await requestReplan(deps, state, params, context);
+  const nextRemaining = applyReplanResult(deps, state, context, plan);
+
+  await recordReplan(deps, state, params, context, plan, nextRemaining);
+  rememberPersonalizedMoodShift(deps, state, params, context);
+
+  return { replanned: true, remaining: nextRemaining };
+}
+
+async function buildReplanContext(
+  deps: OrchestrationDeps,
+  state: SessionState,
+  params: ReplanParams,
+  remainingCount: number,
+): Promise<ReplanContext> {
+  const window = selectReplanWindow(params, remainingCount);
+  const remainingRefs = deps.store.remaining(state);
+  const before = remainingRefs.map((r) => r.id);
+  const playedIds = playedAndKeptIds(state, remainingRefs, window);
+  const personalized = state.condition === "C";
+
+  return {
+    ...window,
+    intent: { ...state.intent, mood: params.mood },
+    before,
+    playedIds,
+    lastPlayedEnergy: windowSeedEnergy(state, params, window),
+    replacedWindow: remainingRefs.slice(window.start, window.start + window.count).map((r) => r.id),
+    personalized,
+    taste: personalized ? await deps.memory.tasteWeights(state.userId).catch(() => undefined) : undefined,
+  };
+}
+
+function selectReplanWindow(params: ReplanParams, remainingCount: number): ReplanWindow {
+  // The window drives how many tracks we ask the engine for and which remaining
+  // slots we overwrite: nudge=front 1-2, steer=latter half, full=all.
   const scope: ReplanScope = params.scope ?? "nudge";
   const { start, count } = scopeWindow(scope, remainingCount);
+  return { scope, start, count };
+}
 
-  // Seed the new chain from the energy of the track just before the replaced window
-  // (the current track for nudge/full; the last kept head slot for steer) so the
-  // refill glides on smoothly.
-  const seedTrack = state.tracklist[state.currentTrackIndex + start];
+function windowSeedEnergy(state: SessionState, params: ReplanParams, window: ReplanWindow): number | null {
+  // Seed from the track just before the replaced window (current for nudge/full,
+  // last kept head slot for steer), so the refill glides on smoothly.
+  const seedTrack = state.tracklist[state.currentTrackIndex + window.start];
   const seed = seedTrack ? (state.energyById.get(seedTrack.id) ?? null) : null;
-  const lastPlayedEnergy = nudge(seed, params.energy_delta);
-  // Exclude played + current AND every remaining slot we keep (head + tail of the
-  // window), so fresh picks never duplicate a track that stays in the queue.
-  const remainingRefs = deps.store.remaining(state);
-  const keptIds = [...remainingRefs.slice(0, start), ...remainingRefs.slice(start + count)].map((r) => r.id);
-  const playedIds = [...state.tracklist.slice(0, state.currentTrackIndex + 1).map((r) => r.id), ...keptIds];
-  const intent = { ...state.intent, mood: params.mood };
-  const before = remainingRefs.map((r) => r.id);
-  // On a re-roll, steer away from the occupants of the slots we're replacing and use
-  // a fresh seed, so a repeated Regenerate yields different tracks rather than the
-  // same deterministic plan (soft exclude — the engine tops up if the band runs dry).
-  const replacedWindow = remainingRefs.slice(start, start + count).map((r) => r.id);
+  return nudge(seed, params.energy_delta);
+}
 
-  const personalized = state.condition === "C";
-  const taste = personalized ? await deps.memory.tasteWeights(state.userId).catch(() => undefined) : undefined;
-  const { result, violations, candidates } = await deps.music.planTracklist({
-    intent,
+function playedAndKeptIds(state: SessionState, remainingRefs: FlowTrackRef[], window: ReplanWindow): string[] {
+  // Exclude played + current AND every remaining slot we keep, so fresh picks
+  // never duplicate a track that stays in the queue.
+  const keptIds = [...remainingRefs.slice(0, window.start), ...remainingRefs.slice(window.start + window.count)].map((r) => r.id);
+  return [...state.tracklist.slice(0, state.currentTrackIndex + 1).map((r) => r.id), ...keptIds];
+}
+
+function requestReplan(
+  deps: OrchestrationDeps,
+  state: SessionState,
+  params: ReplanParams,
+  context: ReplanContext,
+): Promise<PlanResponse> {
+  return deps.music.planTracklist({
+    intent: context.intent,
     mode: "replan",
-    memories: personalized ? state.mem0Context : "",
-    energyWeights: personalized ? state.energyWeights : undefined,
-    taste,
-    replan: { playedIds, played: [], lastPlayedEnergy, remainingSlots: count, avoidIds: params.reroll ? replacedWindow : undefined },
+    memories: context.personalized ? state.mem0Context : "",
+    energyWeights: context.personalized ? state.energyWeights : undefined,
+    taste: context.taste,
+    replan: {
+      playedIds: context.playedIds,
+      played: [],
+      lastPlayedEnergy: context.lastPlayedEnergy,
+      remainingSlots: context.count,
+      // On a re-roll, steer away from the occupants of the slots being replaced
+      // and use a fresh seed so repeated Regenerate yields different tracks.
+      avoidIds: params.reroll ? context.replacedWindow : undefined,
+    },
     tieBreakSeed: params.reroll ? randomUUID() : state.tieBreakSeed,
     // Re-rank the cached Spotify pool into the refill — no fresh gather (#77).
     spotifyCandidates: state.spotifyCandidates,
     spotifyEnergyByUri: state.spotifyEnergyByUri,
   });
+}
 
-  const candidatesById = new Map(candidates.map((c) => [c.id, c]));
-  const nextRemaining = deps.store.replaceRemaining(state, result.tracklist, candidatesById, { start, count });
-  state.intent = intent; // future replans build on the new mood
+function applyReplanResult(deps: OrchestrationDeps, state: SessionState, context: ReplanContext, plan: PlanResponse): FlowTrackRef[] {
+  const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
+  const nextRemaining = deps.store.replaceRemaining(state, plan.result.tracklist, candidatesById, {
+    start: context.start,
+    count: context.count,
+  });
+  state.intent = context.intent; // future replans build on the new mood
+  return nextRemaining;
+}
 
+async function recordReplan(
+  deps: OrchestrationDeps,
+  state: SessionState,
+  params: ReplanParams,
+  context: ReplanContext,
+  plan: PlanResponse,
+  nextRemaining: FlowTrackRef[],
+): Promise<void> {
   await deps.memory.recordEvent(state.id, state.userId, "replan", {
     mood: params.mood,
     energy_delta: params.energy_delta ?? "same",
-    scope,
-    before,
+    scope: context.scope,
+    before: context.before,
     after: nextRemaining.map((r) => r.id),
-    violations,
+    violations: plan.violations,
   });
+}
 
+function rememberPersonalizedMoodShift(
+  deps: OrchestrationDeps,
+  state: SessionState,
+  params: ReplanParams,
+  context: ReplanContext,
+): void {
   // A successful mood shift is a cross-session preference signal — Condition C only.
-  if (personalized) {
-    void deps.memory
-      .remember(
-        `During a ${state.intent.scene} session the user shifted the mood to "${params.mood}" (${params.energy_delta ?? "same"} energy).`,
-        state.id,
-        state.userId,
-      )
-      .catch(() => {});
-  }
-
-  return { replanned: true, remaining: nextRemaining };
+  if (!context.personalized) return;
+  void deps.memory
+    .remember(
+      `During a ${state.intent.scene} session the user shifted the mood to "${params.mood}" (${params.energy_delta ?? "same"} energy).`,
+      state.id,
+      state.userId,
+    )
+    .catch(() => {});
 }
 
 /** Full remaining-queue replan shared by UI regenerate and DJ tool push. */

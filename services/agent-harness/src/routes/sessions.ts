@@ -1,144 +1,81 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { ANONYMOUS_USER_ID, parseBearerToken, type Condition, type SessionIntent, type SpotifyTrackRef } from "@auracle/shared";
-import type { AgentHarness } from "../harness/agent-harness.js";
+import type { FastifyInstance } from "fastify";
 import type { MemoryServiceClient } from "../memory-service-client.js";
-import type { ToolCall } from "../session/tool-runner.js";
+import type { SessionRuntime } from "../session/runtime.js";
+import { createSessionRouteMiddleware } from "./session-route-middleware.js";
 
 interface SessionRouteDeps {
-  harness: AgentHarness;
+  harness: SessionRuntime;
   memory: MemoryServiceClient;
 }
 
 export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDeps): void {
-  const { harness, memory } = deps;
-
-  /**
-   * Ownership guard for client-facing /sessions/:id/* routes (issue #55). A
-   * session bound to an authenticated user may only be operated by that user's
-   * Bearer token. Guest sessions (anonymous owner) carry no binding and stay
-   * open. A superseded id answers 410 Gone so the old device gets a clear
-   * signal; an unknown id stays 404. Returns false (and sends the reply) when
-   * the caller is not allowed; the internal proxy→harness /tool path is exempt.
-   */
-  async function ensureOwner(req: FastifyRequest, reply: FastifyReply, id: string): Promise<boolean> {
-    const owner = harness.sessionOwner(id);
-    if (owner === undefined) {
-      const reason = harness.invalidationReason(id);
-      if (reason) reply.code(410).send({ error: "session superseded", reason });
-      else reply.code(404).send({ error: "session not found" });
-      return false;
-    }
-    if (owner === ANONYMOUS_USER_ID) return true;
-    const token = parseBearerToken(req.headers.authorization);
-    const resolved = await memory.resolveSessionUser(token);
-    if (resolved.kind !== "authenticated" || resolved.userId !== owner) {
-      reply.code(403).send({ error: "forbidden" });
-      return false;
-    }
-    return true;
-  }
+  const { harness } = deps;
+  const sessionRoute = createSessionRouteMiddleware(deps);
 
   app.post("/sessions", async (req, reply) => {
-    const body = (req.body ?? {}) as Partial<SessionIntent> & { condition?: Condition; spotifyCandidates?: SpotifyTrackRef[] };
-    if (!harness.parseSessionIntent(body)) return reply.code(400).send({ error: "mood and scene are required" });
-    const token = parseBearerToken(req.headers.authorization);
-    const resolved = await memory.resolveSessionUser(token);
-    if (resolved.kind === "invalid_token") {
-      return reply.code(401).send({ error: "invalid or expired token" });
-    }
-    return harness.createSession(body as SessionIntent & { condition?: Condition; spotifyCandidates?: SpotifyTrackRef[] }, resolved.userId);
+    return sessionRoute.create(req, reply, ({ intent, userId }) => harness.createSession(intent, userId));
   });
 
   app.get("/sessions/:id/registration", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const registration = await harness.registration(id);
-    if (!registration) return reply.code(404).send({ error: "session not found" });
-    return registration;
+    return sessionRoute.read(req, reply, (id) => harness.registration(id));
   });
 
   app.get("/sessions/:id", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const snapshot = harness.sessionSnapshot(id);
-    if (!snapshot) return reply.code(404).send({ error: "session not found" });
-    return snapshot;
+    return sessionRoute.read(req, reply, (id) => harness.sessionSnapshot(id));
   });
 
   app.post("/sessions/:id/tool", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const body = (req.body ?? {}) as Partial<ToolCall>;
-    if (!body.name) return reply.code(400).send({ error: "tool name is required" });
-    const outcome = await harness.runTool(id, { name: body.name, args: body.args });
-    if (!outcome) return reply.code(404).send({ error: "session not found" });
-    return outcome;
+    return sessionRoute.tool(req, reply, ({ id, call }) => harness.runTool(id, call));
   });
 
   app.post("/sessions/:id/now_playing", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    if (!(await ensureOwner(req, reply, id))) return reply;
-    const { track_id } = (req.body ?? {}) as { track_id?: string };
-    if (!track_id) return reply.code(400).send({ error: "track_id is required" });
-    const result = await harness.markNowPlaying(id, track_id);
-    if (result === undefined) return reply.code(404).send({ error: "session not found" });
-    if (result === false) return reply.code(400).send({ error: "unknown track_id" });
-    return result;
+    return sessionRoute.owned<{ track_id?: string }>(req, reply, async ({ id, body }) => {
+      if (!body.track_id) return reply.code(400).send({ error: "track_id is required" });
+      const result = await harness.markNowPlaying(id, body.track_id);
+      if (result === false) return reply.code(400).send({ error: "unknown track_id" });
+      return result;
+    });
   });
 
   app.post("/sessions/:id/cue", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    if (!(await ensureOwner(req, reply, id))) return reply;
-    const { kind } = (req.body ?? {}) as { kind?: string };
-    const ok = await harness.cue(id, kind === "outro" ? "outro" : "break");
-    if (!ok) return reply.code(404).send({ error: "session not found" });
-    return { ok: true };
+    return sessionRoute.ownedOk<{ kind?: string }>(req, reply, ({ id, body }) => harness.cue(id, body.kind === "outro" ? "outro" : "break"));
   });
 
   app.post("/sessions/:id/host-mode", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    if (!(await ensureOwner(req, reply, id))) return reply;
-    const { host_mode } = (req.body ?? {}) as { host_mode?: unknown };
-    const result = await harness.changeHostMode(id, host_mode);
-    if (result === undefined) return reply.code(404).send({ error: "session not found" });
-    if (result === false) return reply.code(400).send({ error: "host_mode is required" });
-    return result;
+    return sessionRoute.owned<{ host_mode?: unknown }>(req, reply, async ({ id, body }) => {
+      const result = await harness.changeHostMode(id, body.host_mode);
+      if (result === false) return reply.code(400).send({ error: "host_mode is required" });
+      return result;
+    });
   });
 
   app.post("/sessions/:id/playlist-feedback", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    if (!(await ensureOwner(req, reply, id))) return reply;
-    const { feedback } = (req.body ?? {}) as { feedback?: unknown };
-    const result = await harness.playlistFeedback(id, feedback);
-    if (result === undefined) return reply.code(404).send({ error: "session not found" });
-    if (result === false) return reply.code(400).send({ error: "feedback must be like, dislike, or regenerate" });
-    return {
-      ok: true,
-      feedback,
-      ...(result.regenerate ? { regenerate: result.regenerate } : {}),
-    };
+    return sessionRoute.owned<{ feedback?: unknown }>(req, reply, async ({ id, body }) => {
+      const result = await harness.playlistFeedback(id, body.feedback);
+      if (result === undefined) return undefined;
+      if (result === false) return reply.code(400).send({ error: "feedback must be like, dislike, or regenerate" });
+      return {
+        ok: true,
+        feedback: body.feedback,
+        ...(result.regenerate ? { regenerate: result.regenerate } : {}),
+      };
+    });
   });
 
   app.post("/sessions/:id/regenerate", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    if (!(await ensureOwner(req, reply, id))) return reply;
-    const result = await harness.regenerateQueue(id);
-    if (!result) return reply.code(404).send({ error: "session not found" });
-    return result;
+    return sessionRoute.owned<unknown>(req, reply, ({ id }) => harness.regenerateQueue(id));
   });
 
   app.post("/sessions/:id/extend", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    if (!(await ensureOwner(req, reply, id))) return reply;
-    const ok = await harness.retryExtend(id);
-    if (!ok) return reply.code(404).send({ error: "session not found" });
-    return { ok: true };
+    return sessionRoute.ownedOk<unknown>(req, reply, ({ id }) => harness.retryExtend(id));
   });
 
   app.post("/sessions/:id/events", async (req, reply) => {
-    const { id } = req.params as { id: string };
-    if (!(await ensureOwner(req, reply, id))) return reply;
-    const { event_type, payload } = (req.body ?? {}) as { event_type?: string; payload?: unknown };
-    if (!event_type) return reply.code(400).send({ error: "event_type is required" });
-    const ok = await harness.recordClientEvent(id, event_type, payload ?? {});
-    if (!ok) return reply.code(404).send({ error: "session not found" });
-    return { ok: true };
+    return sessionRoute.owned<{ event_type?: string; payload?: unknown }>(req, reply, async ({ id, body }) => {
+      if (!body.event_type) return reply.code(400).send({ error: "event_type is required" });
+      const ok = await harness.recordClientEvent(id, body.event_type, body.payload ?? {});
+      if (!ok) return reply.code(404).send({ error: "session not found" });
+      return { ok: true };
+    });
   });
 }
