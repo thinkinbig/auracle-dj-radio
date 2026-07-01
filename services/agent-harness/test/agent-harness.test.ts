@@ -515,7 +515,7 @@ describe("agent-harness", () => {
   });
 
   it("mirrors now_playing and records skip latency through memory-service", async () => {
-    const { app, memory } = buildTestApp();
+    const { app, memory, proxy } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
@@ -525,6 +525,14 @@ describe("agent-harness", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json<{ current_track_index: number }>().current_track_index).toBe(1);
     expect(memory.events.map((e) => e.eventType)).toContain("skip_latency");
+    await vi.waitFor(() =>
+      expect(proxy.injectCalls).toContainEqual(
+        expect.objectContaining({
+          sessionId: session_id,
+          payload: expect.objectContaining({ inject_text: expect.stringContaining("[intro") }),
+        }),
+      ),
+    );
     await app.close();
   });
 
