@@ -18,7 +18,7 @@ COPY apps/web/index.html apps/web/
 COPY apps/web/vite.config.ts apps/web/
 COPY apps/web/tsconfig.json apps/web/
 
-RUN pnpm --filter @auracle/shared build && pnpm --filter @auracle/web build
+RUN pnpm --filter @auracle/shared build && pnpm --filter @auracle/clients build && pnpm --filter @auracle/web build
 
 # ── Stage 2: nginx ───────────────────────────────────────────────
 FROM nginx:1.27-alpine AS runner

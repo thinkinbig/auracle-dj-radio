@@ -1,13 +1,11 @@
-import type { Energy, FlowResult, SessionIntent, SpotifyTrackRef, SpotifyVoicing, TastePreference, TrackCandidate, TrackMeta } from "@auracle/shared";
+import type { FlowResult, SessionIntent, TastePreference, TrackCandidate, TrackMeta, TrackSeed } from "@auracle/shared";
 
 export interface PlanTracklistRequest {
   intent: SessionIntent;
   mode?: "provisional" | "full" | "replan" | "extend";
   memories?: string;
-  /** Listener's gathered Spotify library candidates, ranked into the same pool (ADR-0005). */
-  spotifyCandidates?: SpotifyTrackRef[];
-  /** uri→energy for the Spotify pool (catalog-match + LLM-inferred, #74); ranks the mix on real energy. */
-  spotifyEnergyByUri?: Record<string, Energy>;
+  /** Externally-seeded candidates (e.g. the listener's Spotify library), ranked into the same pool. music-engine resolves their energy + voicing internally on `full`. */
+  seeds?: TrackSeed[];
   /** Energy-level skip weights (1–5 → 0–0.7) from user history; passed to retrieval scoring. */
   energyWeights?: Partial<Record<number, number>>;
   /** Structured taste prefer/avoid (Epic #3, S4); passed to retrieval weighting. */
@@ -34,10 +32,6 @@ export interface PlanResponse {
   /** Opaque to memory-service — recorded for analytics, never interpreted. */
   violations: unknown[];
   candidates: TrackCandidate[];
-  /** uri→energy for Spotify candidates that matched a catalog track (#74); the rest are LLM-inferred. */
-  spotifyMatchedEnergy?: Record<string, Energy>;
-  /** uri→voicing for Spotify candidates that matched a catalog track (#75); the rest are LLM-improvised. */
-  spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
 }
 
 export interface SearchCatalogRequest {

@@ -1,7 +1,5 @@
 import { config } from "./config.js";
-import { HttpMemoryServiceClient } from "./memory-service-client.js";
-import { HttpMusicEngineClient } from "./music-engine-client.js";
-import { HttpProxyClient } from "./proxy-client.js";
+import { HttpMemoryServiceClient, HttpMusicEngineClient, HttpProxyClient } from "@auracle/clients";
 import { buildServer } from "./server.js";
 import { SessionStore } from "./session/state.js";
 

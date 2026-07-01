@@ -1,4 +1,4 @@
-import type { FlowTrackRef } from '@auracle/shared';
+import type { PlannedTrack } from '@auracle/shared';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { isSessionComplete, selectQueueRefresh } from '@/features/radio/session/playbackSelectors';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
@@ -77,7 +77,7 @@ function SummaryTrack({
   index,
   status,
 }: {
-  trackRef: FlowTrackRef;
+  trackRef: PlannedTrack;
   index: number;
   status: 'played' | 'live' | 'queued';
 }) {

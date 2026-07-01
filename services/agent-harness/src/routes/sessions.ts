@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { MemoryServiceClient } from "../memory-service-client.js";
+import type { MemoryServiceClient } from "@auracle/clients";
 import type { SessionRuntime } from "../session/runtime.js";
 import { createSessionRouteMiddleware } from "./session-route-middleware.js";
 
@@ -26,6 +26,12 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
 
   app.post("/sessions/:id/tool", async (req, reply) => {
     return sessionRoute.tool(req, reply, ({ id, call }) => harness.runTool(id, call));
+  });
+
+  app.post("/sessions/:id/skip-track", async (req, reply) => {
+    return sessionRoute.ownedOk<{ track_id?: string }>(req, reply, ({ id, body }) =>
+      harness.skipTrack(id, body.track_id),
+    );
   });
 
   app.post("/sessions/:id/now_playing", async (req, reply) => {
@@ -60,10 +66,6 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
         ...(result.regenerate ? { regenerate: result.regenerate } : {}),
       };
     });
-  });
-
-  app.post("/sessions/:id/regenerate", async (req, reply) => {
-    return sessionRoute.owned<unknown>(req, reply, ({ id }) => harness.regenerateQueue(id));
   });
 
   app.post("/sessions/:id/extend", async (req, reply) => {

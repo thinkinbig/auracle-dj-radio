@@ -4,9 +4,9 @@ import {
   parseBearerToken,
   type Condition,
   type SessionIntent,
-  type SpotifyTrackRef,
+  type TrackSeed,
 } from "@auracle/shared";
-import type { MemoryServiceClient } from "../memory-service-client.js";
+import type { MemoryServiceClient } from "@auracle/clients";
 import { parseSessionIntent } from "../session/lifecycle/create.js";
 import type { SessionRuntime } from "../session/runtime.js";
 import type { ToolCall } from "../session/tool-runner.js";
@@ -22,7 +22,7 @@ interface OwnedSessionContext<Body> {
 }
 
 interface CreateSessionContext {
-  intent: SessionIntent & { condition?: Condition; spotifyCandidates?: SpotifyTrackRef[] };
+  intent: SessionIntent & { condition?: Condition; seeds?: TrackSeed[] };
   userId: string;
 }
 
@@ -48,7 +48,7 @@ export interface SessionRouteMiddleware {
 export function createSessionRouteMiddleware(deps: SessionRouteMiddlewareDeps): SessionRouteMiddleware {
   return {
     async create(req: FastifyRequest, reply: FastifyReply, handler: CreateSessionHandler) {
-      const body = (req.body ?? {}) as Partial<SessionIntent> & { condition?: Condition; spotifyCandidates?: SpotifyTrackRef[] };
+      const body = (req.body ?? {}) as Partial<SessionIntent> & { condition?: Condition; seeds?: TrackSeed[] };
       const intent = parseSessionIntent(body);
       if (!intent) return reply.code(400).send({ error: "mood and scene are required" });
 
@@ -58,7 +58,7 @@ export function createSessionRouteMiddleware(deps: SessionRouteMiddlewareDeps): 
         return reply.code(401).send({ error: "invalid or expired token" });
       }
       return handler({
-        intent: body as SessionIntent & { condition?: Condition; spotifyCandidates?: SpotifyTrackRef[] },
+        intent: body as SessionIntent & { condition?: Condition; seeds?: TrackSeed[] },
         userId: resolved.userId,
       });
     },

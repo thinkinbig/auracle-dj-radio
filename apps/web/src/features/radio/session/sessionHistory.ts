@@ -1,11 +1,11 @@
 import { getTrackMeta } from '@/data/trackCatalog';
 import type { PlaybackState, TranscriptLine } from './types';
-import type { FlowTrackRef } from '@auracle/shared';
+import type { PlannedTrack } from '@auracle/shared';
 
 const HISTORY_LIMIT = 12;
 const STORAGE_PREFIX = 'auracle:session-history:';
 
-export interface SessionHistoryTrack extends FlowTrackRef {
+export interface SessionHistoryTrack extends PlannedTrack {
   title: string;
   artist: string;
 }

@@ -1,3 +1,18 @@
+/**
+ * Declarative catalog of orchestration step names per session flow.
+ * Each step must exist as a function in the session modules (see session-flow.test.ts).
+ *
+ * Entry points:
+ * | Flow             | HTTP (runtime)        | DJ tool (tool-runner) | Side effect           |
+ * |------------------|-----------------------|-----------------------|-----------------------|
+ * | create           | POST /sessions        | —                     | refine (async)        |
+ * | nowPlaying       | POST .../now_playing  | —                     | extend, skip-swap     |
+ * | replan           | —                     | mood_change           | pushQueueUpdate       |
+ * | extend           | POST .../extend       | —                     | from nowPlaying       |
+ * | skipTrack        | POST .../skip-track   | skip_track            | pendingSkipAtMs       |
+ * | skipSwap         | —                     | skip_track→nowPlaying | —                     |
+ * | playlistFeedback | /playlist-feedback    | playlist_feedback     | regenerateAndPush     |
+ */
 export const SESSION_FLOW = {
   create: [
     "prepareSessionCreateContext",
@@ -10,6 +25,12 @@ export const SESSION_FLOW = {
     "supersedeSession",
     "sessionCreateResponse",
   ],
+  refine: [
+    "buildFullRefinePlan",
+    "captureRefineSnapshot",
+    "applyFullRefinePlan",
+    "pushRefineUpdate",
+  ],
   nowPlaying: [
     "applyPlayheadUpdate",
     "settleSkipTransition",
@@ -19,6 +40,21 @@ export const SESSION_FLOW = {
     "extendQueue",
     "nowPlayingResponse",
   ],
+  extend: [
+    "buildExtendContext",
+    "requestExtendPlan",
+    "applyExtendPlan",
+    "pushExtendUpdate",
+    "recordQueueExtended",
+  ],
+  skipSwap: [
+    "buildQuickSkipSwapContext",
+    "searchQuickSkipReplacements",
+    "selectQuickSkipReplacement",
+    "applyQuickSkipSwap",
+    "pushQuickSkipSwap",
+    "recordQuickSkipSwap",
+  ],
   replan: [
     "buildReplanContext",
     "requestReplan",
@@ -27,6 +63,8 @@ export const SESSION_FLOW = {
     "rememberPersonalizedMoodShift",
     "pushQueueUpdate",
   ],
+  playlistFeedback: ["runPlaylistFeedback", "regenerateRemaining", "regenerateAndPush"],
+  skipTrack: ["runSkipTrack"],
 } as const;
 
 export type SessionFlowName = keyof typeof SESSION_FLOW;

@@ -1,4 +1,4 @@
-import type { FlowTrackRef } from '@auracle/shared';
+import type { PlannedTrack } from '@auracle/shared';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
 import {
   deriveHistoryLiveRows,
@@ -128,7 +128,7 @@ export function HistoryPage({ history, onOpenListen }: HistoryPageProps) {
   );
 }
 
-function HistoryTrackRow({ track, index }: { track: FlowTrackRef | SessionHistoryTrack; index: number }) {
+function HistoryTrackRow({ track, index }: { track: PlannedTrack | SessionHistoryTrack; index: number }) {
   const meta = useTrackMeta(track.id);
   const title = 'title' in track ? track.title : meta.title;
   const artist = 'artist' in track ? track.artist : meta.artist;

@@ -1,5 +1,6 @@
-import type { FlowTrackRef, TrackCandidate } from "@auracle/shared";
+import type { TrackCandidate } from "@auracle/shared";
 import { MAX_ENERGY_JUMP, MAX_TEMPO_JUMP_BPM } from "@auracle/shared";
+import type { FlowSlot } from "../llm/flow-model.js";
 
 export type ViolationKind = "unknown_track" | "non_contiguous" | "tempo_jump" | "energy_jump" | "genre_repeat";
 
@@ -14,7 +15,7 @@ export interface Violation {
  * (packages/shared flow-rules + arc constants). Adjacency is enforced at
  * selection time (chooseNext); this does not drive repair or LLM retry.
  */
-export function validateTracklist(refs: FlowTrackRef[], byId: Map<string, TrackCandidate>): Violation[] {
+export function validateTracklist(refs: FlowSlot[], byId: Map<string, TrackCandidate>): Violation[] {
   const violations: Violation[] = [];
   const ordered = [...refs].sort((a, b) => a.flow_position - b.flow_position);
 

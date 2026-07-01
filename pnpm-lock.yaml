@@ -14,6 +14,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@auracle/clients':
+        specifier: workspace:*
+        version: link:../../packages/clients
       '@auracle/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -86,6 +89,16 @@ importers:
         specifier: ^4.19.2
         version: 4.22.4
 
+  packages/clients:
+    dependencies:
+      '@auracle/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.19
+
   packages/shared:
     devDependencies:
       '@types/node':
@@ -97,6 +110,9 @@ importers:
 
   services/agent-harness:
     dependencies:
+      '@auracle/clients':
+        specifier: workspace:*
+        version: link:../../packages/clients
       '@auracle/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -159,6 +175,9 @@ importers:
       '@auracle/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@google/genai':
+        specifier: ^2.8.0
+        version: 2.8.0
       better-sqlite3:
         specifier: ^11.6.0
         version: 11.10.0

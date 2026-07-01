@@ -1,4 +1,4 @@
-import type { FlowTrackRef, SpotifyTrackRef, SpotifyVoicing, TrackMeta } from '@auracle/shared';
+import type { PlannedTrack, TrackMeta } from '@auracle/shared';
 
 export interface TrackDisplay {
   id: string;
@@ -93,61 +93,45 @@ export async function loadTrackCatalog(): Promise<void> {
   }
 }
 
-/** Build display metadata for a Spotify slot from its inline ref (ADR-0005 §7 — no local catalog entry). */
-function fromSpotifyRef(s: SpotifyTrackRef): TrackDisplay {
+/** Build display metadata for a self-describing slot from its inline fields (ADR-0005 §7). */
+function fromSlot(ref: PlannedTrack): TrackDisplay {
   return {
-    id: s.uri,
-    title: s.title,
-    artist: s.artist,
-    albumTitle: s.albumTitle,
-    albumCoverUrl: s.albumCoverUrl,
+    id: ref.id,
+    title: ref.title,
+    artist: ref.artist,
+    albumTitle: ref.albumTitle,
+    albumCoverUrl: ref.albumCoverUrl,
     artistPhotoUrl: '',
-    lore: '',
-    artistPersona: '',
-    albumConcept: '',
+    lore: ref.voicing.lore,
+    artistPersona: ref.voicing.artistPersona,
+    albumConcept: ref.voicing.albumConcept,
     mood: '',
-    durationSec: s.durationSec,
+    durationSec: ref.durationSec,
   };
 }
 
 /**
- * Seed display metadata for Spotify slots straight from their inline ref. A
- * Spotify track has no `/tracks/{id}` entry (its id is a `spotify:` uri), so
- * resolving it through the local catalog 404s and shows "Unknown" — instead the
- * queue/now-playing read the inline title/artist/cover the server already sent.
+ * Seed display metadata for self-describing (non-catalog) slots straight from the
+ * slot. A catalog (`local:`) slot has a `/tracks/{id}` entry and is resolved by id
+ * instead; every other slot carries its title/artist/cover and resolved DJ voicing
+ * inline (the planner stamped them), so the queue/now-playing read them directly —
+ * no separate voicing push. Later tracklist updates re-seed with the resolved copy.
  */
-export function seedSpotifyTracks(refs: FlowTrackRef[]): void {
+export function seedTracks(refs: PlannedTrack[]): void {
   let changed = false;
   for (const ref of refs) {
-    if (ref.source === 'spotify' && ref.spotify) {
-      cache[ref.spotify.uri] = fromSpotifyRef(ref.spotify);
+    if (!ref.uri.startsWith('local:')) {
+      cache[ref.id] = fromSlot(ref);
       changed = true;
     }
   }
   if (changed) emitCatalogChange();
 }
 
-/**
- * Merge DJ voicing (artist persona / album concept / lore) into already-seeded
- * Spotify entries (#75). The copywriter resolves it a few seconds after start and
- * pushes it over Lane 3, so the now-playing blurb fills in once it lands. Only
- * touches existing entries — the inline title/artist/cover are already seeded.
- */
-export function mergeSpotifyVoicing(voicing: Record<string, SpotifyVoicing>): void {
-  let changed = false;
-  for (const [uri, v] of Object.entries(voicing)) {
-    const existing = cache[uri];
-    if (!existing) continue;
-    cache[uri] = { ...existing, artistPersona: v.artistPersona, albumConcept: v.albumConcept, lore: v.lore };
-    changed = true;
-  }
-  if (changed) emitCatalogChange();
-}
-
 export async function fetchTrack(id: string): Promise<TrackDisplay> {
   if (cache[id]) return cache[id]!;
-  // Spotify slots are seeded from their inline ref (seedSpotifyTracks); never hit
-  // the local catalog for a `spotify:` uri — it has no entry and would 404.
+  // Seeded slots are cached from their inline metadata (seedTracks); never hit the
+  // local catalog for a non-`local:` id (e.g. a `spotify:` uri) — it 404s.
   if (id.startsWith('spotify:')) return getTrackMeta(id);
 
   try {
@@ -168,10 +152,10 @@ export async function fetchTrack(id: string): Promise<TrackDisplay> {
   return meta;
 }
 
-export async function prefetchTracks(refs: FlowTrackRef[]): Promise<void> {
-  // Spotify slots resolve from their inline ref; only local slots need a fetch.
-  seedSpotifyTracks(refs);
-  const localIds = refs.filter((r) => r.source !== 'spotify').map((r) => r.id);
+export async function prefetchTracks(refs: PlannedTrack[]): Promise<void> {
+  // Seeded slots resolve from their inline metadata; only catalog slots need a fetch.
+  seedTracks(refs);
+  const localIds = refs.filter((r) => r.uri.startsWith('local:')).map((r) => r.id);
   await Promise.all(localIds.map((id) => fetchTrack(id)));
 }
 

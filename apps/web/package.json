@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@auracle/clients": "workspace:*",
     "@auracle/shared": "workspace:*",
     "@gsap/react": "^2.1.2",
     "@radix-ui/react-dialog": "^1.1.17",

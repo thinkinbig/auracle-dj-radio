@@ -1,7 +1,7 @@
-import type { FlowTrackRef, HostMode } from "@auracle/shared";
+import type { PlannedTrack, HostMode } from "@auracle/shared";
 import type { Registration } from "../dj/registration.js";
 import { buildRegistration } from "../dj/registration.js";
-import type { MusicEngineClient } from "../music-engine-client.js";
+import type { MusicEngineClient } from "@auracle/clients";
 import { resolveCueTrack } from "./delivery/cue-track.js";
 import { sessionStateView, type SessionStore } from "./state.js";
 
@@ -16,8 +16,8 @@ export interface SessionSnapshot {
   session_subtitle: string;
   host_mode: HostMode;
   current_track_index: number;
-  tracklist: FlowTrackRef[];
-  remaining: FlowTrackRef[];
+  tracklist: PlannedTrack[];
+  remaining: PlannedTrack[];
   mem0_context: string;
 }
 

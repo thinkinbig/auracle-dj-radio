@@ -1,4 +1,4 @@
-import type { FlowTrackRef, SpotifyVoicing } from "./flow.js";
+import type { PlannedTrack } from "./flow.js";
 import type { HostMode } from "./host-mode.js";
 
 /**
@@ -17,6 +17,9 @@ export type PlaylistFeedback = "like" | "dislike" | "regenerate";
 /** Who initiated playlist feedback — UI HTTP or Live DJ tool. */
 export type PlaylistFeedbackSource = "ui" | "dj_tool";
 
+/** Who initiated skip track — UI HTTP or Live DJ tool. */
+export type SkipTrackSource = "ui" | "dj_tool";
+
 /** Between-track DJ intents surfaced by Gemini Live function calling. */
 export type Intent =
   | { type: "skip_track" }
@@ -32,7 +35,7 @@ export type ServerMessage =
   | { type: "phase"; phase: Phase; track_index: number }
   | {
       type: "tracklist_updated";
-      remaining: FlowTrackRef[];
+      remaining: PlannedTrack[];
       session_title?: string;
       session_subtitle?: string;
       /** Ids of remaining tracks changed in this update, for queue diff highlighting. */
@@ -41,13 +44,6 @@ export type ServerMessage =
       before_remaining_ids?: string[];
     }
   | { type: "queue_refresh"; status: QueueRefreshStatus }
-  /**
-   * uri→DJ voicing (artist persona / album concept) for Spotify tracks, resolved
-   * by the async copywriter (#75) and pushed so the now-playing UI can show a
-   * blurb a Spotify track has no catalog entry to carry. Arrives a few seconds
-   * after session start; the client merges it into its track display cache.
-   */
-  | { type: "spotify_voicing"; voicing: Record<string, SpotifyVoicing> }
   | { type: "intent"; intent: Intent }
   | { type: "error"; message: string; circuit_state?: string; retry_after_sec?: number }
   /**

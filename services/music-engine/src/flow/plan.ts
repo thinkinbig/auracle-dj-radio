@@ -1,8 +1,8 @@
-import type { Energy, FlowResult, FlowTrackRef, SessionIntent, SpotifyTrackRef, SpotifyVoicing, TastePreference, TrackCandidate } from "@auracle/shared";
+import type { Energy, FlowResult, PlannedTrack, SessionIntent, TastePreference, TrackCandidate, TrackSeed, Voicing } from "@auracle/shared";
 import { FULL_SESSION_LENGTH, energyTargetsForMood } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
 import { HeuristicFlowModel } from "./llm/heuristic-flow.js";
-import type { FlowInput } from "./llm/flow-model.js";
+import type { FlowInput, FlowPlan, FlowSlot } from "./llm/flow-model.js";
 import { createSessionTitle } from "./session-title.js";
 import { energyWeightsFromMemories, mergeEnergyWeights } from "./weighting/memory-energy.js";
 import { retrieveCandidates } from "./retrieval/retrieve.js";
@@ -10,19 +10,31 @@ import { tasteCacheKey } from "./weighting/taste-weighting.js";
 import { validateTracklist, type Violation } from "./validation/validate.js";
 import { chooseNext } from "./selection/choose-next.js";
 
+/** Resolved energy + DJ voicing for externally-seeded tracks that have no catalog match. */
+export interface SeedResolution {
+  energy: Record<string, Energy>;
+  voicing: Record<string, Voicing>;
+}
+
 export interface PlanDeps {
   /** Returns the full track library (read from SQLite at call time). */
   tracks: () => TrackRow[];
+  /**
+   * Resolve energy + DJ voicing for seeded tracks with no exact catalog match
+   * (ADR-0005 §4–5) — LLM inference, memoized by uri. Optional: on the fast
+   * provisional path, or in tests, it is omitted and unmatched seeds fall back to
+   * a mid-arc placeholder energy and empty voicing until a full plan resolves them.
+   */
+  resolveSeeds?: (seeds: TrackSeed[]) => Promise<SeedResolution>;
 }
 
 /**
- * Fallback energy for a Spotify candidate (ADR-0005 §4): Spotify's audio-features
- * endpoint is deprecated, so energy is supplied externally — either reused exactly
- * from a matching catalog track or LLM-inferred by agent-harness (#74). When neither
- * is available yet (the fast provisional path), the track sits mid-arc so `chooseNext`
- * can still rank it against local tracks on this one axis.
+ * Fallback energy for a seeded track with no resolved value yet (the fast
+ * provisional path): it sits mid-arc so `chooseNext` can still rank it against
+ * catalog tracks on this one axis until a full plan infers its real energy.
  */
-const SPOTIFY_PLACEHOLDER_ENERGY: Energy = 3;
+const PLACEHOLDER_ENERGY: Energy = 3;
+const EMPTY_VOICING: Voicing = { artistPersona: "", albumConcept: "", lore: "" };
 
 /** Normalize a title/artist for tolerant equality (case, punctuation, spacing). */
 function normalizeMatchKey(value: string): string {
@@ -34,68 +46,121 @@ function normalizeMatchKey(value: string): string {
 }
 
 /**
- * Exact catalog reuse (ADR-0005 §4–5): when a gathered Spotify track is the same
- * recording as one in our catalog (normalized title+artist), reuse its authored
- * energy and DJ voicing rather than inferring them. Returns uri→energy and
- * uri→voicing maps of the hits.
+ * Exact catalog reuse (ADR-0005 §4–5): when a seeded track is the same recording
+ * as one in our catalog (normalized title+artist), reuse its authored energy and
+ * DJ voicing rather than inferring them. Returns uri→energy and uri→voicing of hits.
  */
 function matchCatalog(
   tracks: TrackRow[],
-  refs: SpotifyTrackRef[],
-): { energy: Record<string, Energy>; voicing: Record<string, SpotifyVoicing> } {
+  seeds: TrackSeed[],
+): { energy: Record<string, Energy>; voicing: Record<string, Voicing> } {
   const byTitleArtist = new Map<string, TrackRow>();
   for (const t of tracks) {
     byTitleArtist.set(`${normalizeMatchKey(t.title)} | ${normalizeMatchKey(t.artist)}`, t);
   }
   const energy: Record<string, Energy> = {};
-  const voicing: Record<string, SpotifyVoicing> = {};
-  for (const r of refs) {
-    const t = byTitleArtist.get(`${normalizeMatchKey(r.title)} | ${normalizeMatchKey(r.artist)}`);
+  const voicing: Record<string, Voicing> = {};
+  for (const s of seeds) {
+    const t = byTitleArtist.get(`${normalizeMatchKey(s.title)} | ${normalizeMatchKey(s.artist)}`);
     if (!t) continue;
-    energy[r.uri] = t.energy;
-    voicing[r.uri] = { artistPersona: t.artistPersona ?? "", albumConcept: t.albumConcept ?? "", lore: t.lore ?? "" };
+    energy[s.uri] = t.energy;
+    voicing[s.uri] = { artistPersona: t.artistPersona ?? "", albumConcept: t.albumConcept ?? "", lore: t.lore ?? "" };
   }
   return { energy, voicing };
 }
 
-/**
- * Turn the client-gathered Spotify refs into rankable candidates + a uri→ref lookup
- * for stamping. Energy precedence: externally supplied (`energyByUri`, the merged
- * catalog-match + LLM map from agent-harness) → exact catalog match → placeholder.
- */
-function spotifyCandidatePool(
-  refs: SpotifyTrackRef[] | undefined,
-  scene: string,
-  tracks: TrackRow[],
-  energyByUri?: Record<string, Energy>,
-): {
+/** Rankable seed pool + the lookups needed to stamp picked slots back into PlannedTracks. */
+interface SeedContext {
   pool: TrackCandidate[];
-  byUri: Map<string, SpotifyTrackRef>;
-  matchedEnergy: Record<string, Energy>;
-  matchedVoicing: Record<string, SpotifyVoicing>;
-} {
-  const list = refs ?? [];
-  const { energy: matchedEnergy, voicing: matchedVoicing } = list.length
-    ? matchCatalog(tracks, list)
-    : { energy: {}, voicing: {} };
-  const byUri = new Map<string, SpotifyTrackRef>();
-  const pool: TrackCandidate[] = [];
-  for (const r of list) {
-    if (byUri.has(r.uri)) continue;
-    byUri.set(r.uri, r);
-    const energy = energyByUri?.[r.uri] ?? matchedEnergy[r.uri] ?? SPOTIFY_PLACEHOLDER_ENERGY;
-    // uri is the slot id; the client plays it directly (no catalog entry to resolve).
-    pool.push({ id: r.uri, energy, tempo: 0, genre: "", scene });
-  }
-  return { pool, byUri, matchedEnergy, matchedVoicing };
+  byUri: Map<string, TrackSeed>;
+  energyByUri: Record<string, Energy>;
+  voicingByUri: Record<string, Voicing>;
 }
 
-/** Stamp `source:"spotify"` + inline metadata onto slots the planner picked from the Spotify pool. */
-function stampSpotify(tracklist: FlowTrackRef[], byUri: Map<string, SpotifyTrackRef>): FlowTrackRef[] {
-  if (byUri.size === 0) return tracklist;
-  return tracklist.map((ref) => {
-    const s = byUri.get(ref.id);
-    return s ? { ...ref, source: "spotify" as const, spotify: s } : ref;
+const EMPTY_SEED_CONTEXT: SeedContext = { pool: [], byUri: new Map(), energyByUri: {}, voicingByUri: {} };
+
+/**
+ * Turn seeded tracks into a rankable pool with resolved energy/voicing. Catalog
+ * matches always win (free, exact); `resolve` (full path) fills the remainder via
+ * LLM inference, absent (provisional path) they stay placeholder/empty. Ranking
+ * uses the resolved energy so a seeded track sits at its true arc position.
+ */
+async function buildSeedContext(
+  seeds: TrackSeed[] | undefined,
+  scene: string,
+  tracks: TrackRow[],
+  resolve?: (seeds: TrackSeed[]) => Promise<SeedResolution>,
+): Promise<SeedContext> {
+  if (!seeds?.length) return EMPTY_SEED_CONTEXT;
+  const byUri = new Map<string, TrackSeed>();
+  for (const s of seeds) if (!byUri.has(s.uri)) byUri.set(s.uri, s);
+  const list = [...byUri.values()];
+
+  const { energy: matchedEnergy, voicing: matchedVoicing } = matchCatalog(tracks, list);
+  let energyByUri: Record<string, Energy> = { ...matchedEnergy };
+  let voicingByUri: Record<string, Voicing> = { ...matchedVoicing };
+  if (resolve) {
+    const unmatched = list.filter((s) => matchedEnergy[s.uri] === undefined || matchedVoicing[s.uri] === undefined);
+    if (unmatched.length) {
+      const inferred = await resolve(unmatched);
+      // Catalog matches override inference (authored beats guessed).
+      energyByUri = { ...inferred.energy, ...matchedEnergy };
+      voicingByUri = { ...inferred.voicing, ...matchedVoicing };
+    }
+  }
+
+  const pool: TrackCandidate[] = list.map((s) => ({
+    id: s.uri,
+    energy: energyByUri[s.uri] ?? PLACEHOLDER_ENERGY,
+    tempo: 0,
+    genre: "",
+    scene,
+  }));
+  return { pool, byUri, energyByUri, voicingByUri };
+}
+
+/**
+ * Stamp ordered flow slots into self-describing PlannedTracks. Both backends land
+ * on the same shape: `id` is the join key, `uri` carries the scheme the player
+ * reads (`local:<id>` or the seed uri), and metadata/energy/voicing are inline.
+ * Local duration isn't in the catalog — the LocalPlayer discovers it at load — so
+ * it's stamped 0 here, matching how the client has always treated local length.
+ */
+function stampPlanned(slots: FlowSlot[], tracks: TrackRow[], seed: SeedContext): PlannedTrack[] {
+  const trackById = new Map(tracks.map((t) => [t.id, t]));
+  return slots.map((s): PlannedTrack => {
+    const ref = seed.byUri.get(s.id);
+    if (ref) {
+      return {
+        id: s.id,
+        uri: ref.uri,
+        flow_position: s.flow_position,
+        reason: s.reason,
+        title: ref.title,
+        artist: ref.artist,
+        albumTitle: ref.albumTitle,
+        albumCoverUrl: ref.albumCoverUrl,
+        durationSec: ref.durationSec,
+        energy: seed.energyByUri[s.id] ?? PLACEHOLDER_ENERGY,
+        voicing: seed.voicingByUri[s.id] ?? EMPTY_VOICING,
+      };
+    }
+    const t = trackById.get(s.id);
+    return {
+      id: s.id,
+      uri: `local:${s.id}`,
+      flow_position: s.flow_position,
+      reason: s.reason,
+      title: t?.title ?? s.id,
+      artist: t?.artist ?? "",
+      albumTitle: t?.albumTitle ?? "",
+      albumCoverUrl: t?.albumCoverPath ?? "",
+      durationSec: 0,
+      energy: t?.energy ?? PLACEHOLDER_ENERGY,
+      voicing: t
+        ? { artistPersona: t.artistPersona ?? "", albumConcept: t.albumConcept ?? "", lore: t.lore ?? "" }
+        : EMPTY_VOICING,
+    };
   });
 }
 
@@ -103,10 +168,6 @@ export interface PlanResult {
   result: FlowResult;
   violations: Violation[];
   candidatesById: Map<string, TrackCandidate>;
-  /** uri→energy for Spotify candidates that matched a catalog track (ADR-0005 §4); lets agent-harness LLM-infer only the remainder. */
-  spotifyMatchedEnergy?: Record<string, Energy>;
-  /** uri→voicing for Spotify candidates that matched a catalog track (ADR-0005 §5); reused verbatim so the DJ voices them like local tracks. */
-  spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
 }
 
 /**
@@ -157,8 +218,6 @@ function clonePlan(p: PlanResult): PlanResult {
     result: { ...p.result, tracklist: p.result.tracklist.map((t) => ({ ...t })) },
     violations: [...p.violations],
     candidatesById: new Map(p.candidatesById),
-    spotifyMatchedEnergy: p.spotifyMatchedEnergy,
-    spotifyMatchedVoicing: p.spotifyMatchedVoicing,
   };
 }
 
@@ -170,13 +229,12 @@ export async function createPlanCached(
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
   tieBreakSeed?: string,
-  spotifyCandidates?: SpotifyTrackRef[],
-  spotifyEnergyByUri?: Record<string, Energy>,
+  seeds?: TrackSeed[],
 ): Promise<PlanResult> {
-  // A mixed pool is per-user (the listener's own Spotify library), so it must not
-  // be served from — or written to — the shared local-only plan cache.
-  if (spotifyCandidates?.length) {
-    return createPlan(deps, intent, memories, energyWeights, taste, tieBreakSeed, spotifyCandidates, spotifyEnergyByUri);
+  // A mixed pool is per-user (the listener's own seeded library), so it must not
+  // be served from — or written to — the shared catalog-only plan cache.
+  if (seeds?.length) {
+    return createPlan(deps, intent, memories, energyWeights, taste, tieBreakSeed, seeds);
   }
   const key = planKey(intent, memories, energyWeights, taste, tieBreakSeed);
   const hit = cacheGet(key);
@@ -201,7 +259,8 @@ export function peekPlanCache(
 /**
  * Fast, LLM-free starter plan: retrieval + a deterministic energy-arc ordering.
  * Lets playback begin immediately while the real Flow refines tracks 2..N in the
- * background. Also the graceful fallback if that refine fails.
+ * background. Also the graceful fallback if that refine fails. Seeds are matched
+ * against the catalog (free) but not LLM-resolved here — that waits for the full plan.
  */
 export async function createProvisionalPlan(
   deps: PlanDeps,
@@ -210,12 +269,11 @@ export async function createProvisionalPlan(
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
   tieBreakSeed?: string,
-  spotifyCandidates?: SpotifyTrackRef[],
-  spotifyEnergyByUri?: Record<string, Energy>,
-): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate>; spotifyMatchedEnergy?: Record<string, Energy>; spotifyMatchedVoicing?: Record<string, SpotifyVoicing> }> {
+  seeds?: TrackSeed[],
+): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate> }> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
   const tracks = deps.tracks();
-  const { pool: spotifyPool, byUri, matchedEnergy, matchedVoicing } = spotifyCandidatePool(spotifyCandidates, intent.scene, tracks, spotifyEnergyByUri);
+  const seed = await buildSeedContext(seeds, intent.scene, tracks);
   const candidates = [
     ...retrieveCandidates(tracks, {
       mood: intent.mood,
@@ -226,7 +284,7 @@ export async function createProvisionalPlan(
       taste,
       tieBreakSeed,
     }),
-    ...spotifyPool,
+    ...seed.pool,
   ];
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
   return {
@@ -234,18 +292,16 @@ export async function createProvisionalPlan(
       session_title: provisionalTitle(intent, tieBreakSeed),
       session_subtitle: `${intent.duration_min} min`,
       arc: "warm_up",
-      tracklist: stampSpotify(buildProvisionalArc(candidates, intent.mood), byUri),
+      tracklist: stampPlanned(buildProvisionalArc(candidates, intent.mood), tracks, seed),
     },
     candidatesById,
-    spotifyMatchedEnergy: matchedEnergy,
-    spotifyMatchedVoicing: matchedVoicing,
   };
 }
 
 /** Fill starter slots by closest candidate energy to the mood-dependent arc targets. */
-function buildProvisionalArc(candidates: TrackCandidate[], mood: string): FlowTrackRef[] {
+function buildProvisionalArc(candidates: TrackCandidate[], mood: string): FlowSlot[] {
   const pool = [...candidates];
-  const slots: FlowTrackRef[] = [];
+  const slots: FlowSlot[] = [];
   const targets = energyTargetsForMood(FULL_SESSION_LENGTH, mood, null);
   let prev: TrackCandidate | undefined;
 
@@ -253,7 +309,7 @@ function buildProvisionalArc(candidates: TrackCandidate[], mood: string): FlowTr
     const pick = chooseNext(pool, target, prev);
     if (!pick) return;
     pool.splice(pool.indexOf(pick), 1);
-    slots.push({ id: pick.id, flow_position: i + 1, reason: "mood arc target " + target.toFixed(1) + " (provisional)", source: "local" });
+    slots.push({ id: pick.id, flow_position: i + 1, reason: "mood arc target " + target.toFixed(1) + " (provisional)" });
     prev = pick;
   });
 
@@ -272,12 +328,11 @@ export async function createPlan(
   energyWeights?: Partial<Record<number, number>>,
   taste?: TastePreference[],
   tieBreakSeed?: string,
-  spotifyCandidates?: SpotifyTrackRef[],
-  spotifyEnergyByUri?: Record<string, Energy>,
+  seeds?: TrackSeed[],
 ): Promise<PlanResult> {
   const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
   const tracks = deps.tracks();
-  const { pool: spotifyPool, byUri, matchedEnergy, matchedVoicing } = spotifyCandidatePool(spotifyCandidates, intent.scene, tracks, spotifyEnergyByUri);
+  const seed = await buildSeedContext(seeds, intent.scene, tracks, deps.resolveSeeds);
   const candidates = [
     ...retrieveCandidates(tracks, {
       mood: intent.mood,
@@ -288,7 +343,7 @@ export async function createPlan(
       taste,
       tieBreakSeed,
     }),
-    ...spotifyPool,
+    ...seed.pool,
   ];
   const plan = await runHeuristicFlow({
     intent,
@@ -299,7 +354,11 @@ export async function createPlan(
     candidates,
     tieBreakSeed,
   });
-  return { ...plan, result: { ...plan.result, tracklist: stampSpotify(plan.result.tracklist, byUri) }, spotifyMatchedEnergy: matchedEnergy, spotifyMatchedVoicing: matchedVoicing };
+  return {
+    result: { ...plan.result, tracklist: stampPlanned(plan.tracklist, tracks, seed) },
+    violations: plan.violations,
+    candidatesById: plan.candidatesById,
+  };
 }
 
 export interface ReplanInput {
@@ -321,10 +380,8 @@ export interface ReplanInput {
    * (genuinely-fresh picks first) rather than coming back short.
    */
   avoidIds?: string[];
-  /** Cached Spotify library pool (ADR-0005 §10); re-ranked into the refill, no fresh gather (#77). */
-  spotifyCandidates?: SpotifyTrackRef[];
-  /** uri→energy for the cached pool (catalog-match + LLM-inferred); resolved once per session (#74). */
-  spotifyEnergyByUri?: Record<string, Energy>;
+  /** Cached seeded library pool (ADR-0005 §10); re-ranked into the refill, no fresh gather (#77). */
+  seeds?: TrackSeed[];
 }
 
 /** Mid-session replan: re-fill only the remaining slots, excluding played tracks. */
@@ -355,12 +412,13 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
     const seen = new Set(candidates.map((c) => c.id));
     candidates = [...candidates, ...retrieve(hardExclude).filter((c) => !seen.has(c.id))];
   }
-  // Re-rank the cached Spotify pool into the same refill (#77): the library is
-  // static per session, so no fresh gather. Exclude played/kept slots — and, on a
-  // re-roll, the slots being replaced — so picks never duplicate or repeat.
-  const { pool: spotifyPool, byUri } = spotifyCandidatePool(input.spotifyCandidates, input.intent.scene, tracks, input.spotifyEnergyByUri);
-  const spotifyExclude = new Set([...input.playedIds, ...(input.avoidIds ?? [])]);
-  const mixed = [...candidates, ...spotifyPool.filter((c) => !spotifyExclude.has(c.id))];
+  // Re-rank the cached seeded pool into the same refill (#77): the library is
+  // static per session, so no fresh gather. Resolution is memoized by uri, so a
+  // replan reuses the energy/voicing the full plan already inferred. Exclude
+  // played/kept slots — and, on a re-roll, the slots being replaced.
+  const seed = await buildSeedContext(input.seeds, input.intent.scene, tracks, deps.resolveSeeds);
+  const seedExclude = new Set([...input.playedIds, ...(input.avoidIds ?? [])]);
+  const mixed = [...candidates, ...seed.pool.filter((c) => !seedExclude.has(c.id))];
   const plan = await runHeuristicFlow({
     intent: input.intent,
     memories: input.memories ?? "",
@@ -370,7 +428,11 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
     candidates: mixed,
     tieBreakSeed: input.tieBreakSeed,
   });
-  return { ...plan, result: { ...plan.result, tracklist: stampSpotify(plan.result.tracklist, byUri) } };
+  return {
+    result: { ...plan.result, tracklist: stampPlanned(plan.tracklist, tracks, seed) },
+    violations: plan.violations,
+    candidatesById: plan.candidatesById,
+  };
 }
 
 export interface ExtendInput {
@@ -387,10 +449,8 @@ export interface ExtendInput {
   /** Structured taste prefer/avoid (condition C); undefined for A/B. */
   taste?: TastePreference[];
   tieBreakSeed?: string;
-  /** Cached Spotify library pool (ADR-0005 §10); re-ranked into the append, no fresh gather (#77). */
-  spotifyCandidates?: SpotifyTrackRef[];
-  /** uri→energy for the cached pool (catalog-match + LLM-inferred); resolved once per session (#74). */
-  spotifyEnergyByUri?: Record<string, Energy>;
+  /** Cached seeded library pool (ADR-0005 §10); re-ranked into the append, no fresh gather (#77). */
+  seeds?: TrackSeed[];
 }
 
 /**
@@ -403,9 +463,10 @@ export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<Pl
   const effectiveEnergyWeights = mergeEnergyWeights(input.energyWeights, energyWeightsFromMemories(input.memories ?? ""));
   const tracks = deps.tracks();
   const exclude = new Set(input.playedIds);
-  // Append from the same mixed pool (#77): cached Spotify library (minus already-
-  // queued uris) ranked alongside the local catalog against the rolling target.
-  const { pool: spotifyPool, byUri } = spotifyCandidatePool(input.spotifyCandidates, input.intent.scene, tracks, input.spotifyEnergyByUri);
+  // Append from the same mixed pool (#77): cached seeded library (minus already-
+  // queued uris) ranked alongside the catalog against the rolling target. Seed
+  // resolution is memoized by uri, so extend reuses the full plan's inference.
+  const seed = await buildSeedContext(input.seeds, input.intent.scene, tracks, deps.resolveSeeds);
   const candidates = [
     ...retrieveCandidates(tracks, {
       mood: input.intent.mood,
@@ -418,10 +479,10 @@ export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<Pl
       taste: input.taste,
       tieBreakSeed: input.tieBreakSeed,
     }),
-    ...spotifyPool.filter((c) => !exclude.has(c.id)),
+    ...seed.pool.filter((c) => !exclude.has(c.id)),
   ];
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
-  const tracklist = stampSpotify(buildExtendChain(candidates, input.appendSlots, input.lastPlayedEnergy), byUri);
+  const tracklist = stampPlanned(buildExtendChain(candidates, input.appendSlots, input.lastPlayedEnergy), tracks, seed);
   return {
     result: { session_title: "", session_subtitle: "", arc: "peak", tracklist },
     violations: [],
@@ -430,9 +491,9 @@ export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<Pl
 }
 
 /** Greedy energy chain of up to `count` candidates, starting near `seedEnergy`. */
-function buildExtendChain(candidates: TrackCandidate[], count: number, seedEnergy: number | null): FlowTrackRef[] {
+function buildExtendChain(candidates: TrackCandidate[], count: number, seedEnergy: number | null): FlowSlot[] {
   const pool = [...candidates];
-  const slots: FlowTrackRef[] = [];
+  const slots: FlowSlot[] = [];
   let prev: TrackCandidate | undefined;
 
   for (let pos = 1; pos <= count && pool.length > 0; pos++) {
@@ -440,16 +501,23 @@ function buildExtendChain(candidates: TrackCandidate[], count: number, seedEnerg
     const pick = chooseNext(pool, target, prev);
     if (!pick) break;
     pool.splice(pool.indexOf(pick), 1);
-    slots.push({ id: pick.id, flow_position: pos, reason: "rolling extend", source: "local" });
+    slots.push({ id: pick.id, flow_position: pos, reason: "rolling extend" });
     prev = pick;
   }
   return slots;
 }
 
 /** Step 2 deterministic flow plan + safety-net validation (ADR-0001: no LLM retry/repair loop). */
-async function runHeuristicFlow(input: FlowInput): Promise<PlanResult> {
+async function runHeuristicFlow(input: FlowInput): Promise<{ result: FlowResult; tracklist: FlowSlot[]; violations: Violation[]; candidatesById: Map<string, TrackCandidate> }> {
   const candidatesById = new Map(input.candidates.map((c) => [c.id, c]));
-  const result = await new HeuristicFlowModel().plan(input);
-  const violations = validateTracklist(result.tracklist, candidatesById);
-  return { result, violations, candidatesById };
+  const plan: FlowPlan = await new HeuristicFlowModel().plan(input);
+  const violations = validateTracklist(plan.tracklist, candidatesById);
+  // `result` carries everything but the tracklist, which the caller stamps into
+  // PlannedTracks; `tracklist` is the lean ordered slots to stamp.
+  return {
+    result: { session_title: plan.session_title, session_subtitle: plan.session_subtitle, arc: plan.arc, tracklist: [] },
+    tracklist: plan.tracklist,
+    violations,
+    candidatesById,
+  };
 }

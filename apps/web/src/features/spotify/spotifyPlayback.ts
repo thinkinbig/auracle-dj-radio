@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import type { SpotifyTrackRef } from '@auracle/shared';
+import type { TrackSeed } from '@auracle/shared';
 import {
   beginSpotifyLogin,
   clearSpotifyToken,
@@ -226,7 +226,7 @@ export async function checkPremium(): Promise<boolean> {
  * Premium-gated; market-unplayable tracks are filtered here so the queue never
  * contains a track the DJ would introduce but cannot play. No client-side ranking.
  */
-export async function gatherSpotifyCandidates(targetCount = 50): Promise<SpotifyTrackRef[]> {
+export async function gatherSpotifyCandidates(targetCount = 50): Promise<TrackSeed[]> {
   if (!state.enabled) return [];
   // `enabled` persists across page loads, but `premium` is re-derived per load
   // (it resets to false and is only set by an explicit connect). Re-confirm it
@@ -247,7 +247,7 @@ export async function gatherSpotifyCandidates(targetCount = 50): Promise<Spotify
       ).catch(() => ({ items: [] })),
     ]);
     const seen = new Set<string>();
-    const candidates: SpotifyTrackRef[] = [];
+    const candidates: TrackSeed[] = [];
     for (const t of [...saved.items.flatMap((i) => (i.track ? [i.track] : [])), ...top.items]) {
       if (t.is_playable === false) continue;
       if (seen.has(t.uri)) continue;
@@ -317,7 +317,7 @@ export async function getSpotifyPlaybackSnapshot(): Promise<SpotifyPlaybackSnaps
   };
 }
 
-function toTrackRef(track: SpotifyApiTrack): SpotifyTrackRef {
+function toTrackRef(track: SpotifyApiTrack): TrackSeed {
   return {
     uri: track.uri,
     title: track.name,

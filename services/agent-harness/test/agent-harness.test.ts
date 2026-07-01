@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { ANONYMOUS_USER_ID, type Condition, type Energy, type FlowTrackRef, type TastePreference, type TrackCandidate, type TrackMeta } from "@auracle/shared";
-import type { MemoryServiceClient } from "../src/memory-service-client.js";
+import { ANONYMOUS_USER_ID, type Condition, type Energy, type PlannedTrack, type TastePreference, type TrackCandidate, type TrackMeta, type TrackSeed } from "@auracle/shared";
 import type {
+  InjectPayload,
+  MemoryServiceClient,
   MusicEngineClient,
   PlanResponse,
   PlanTracklistRequest,
+  ProxyClient,
   SearchCatalogRequest,
-} from "../src/music-engine-client.js";
-import type { InjectPayload, ProxyClient } from "../src/proxy-client.js";
+} from "@auracle/clients";
 import type { Registration } from "../src/dj/registration.js";
 import { buildServer } from "../src/server.js";
 import type { OrchestrationDeps } from "../src/session/deps.js";
@@ -19,7 +20,24 @@ function candidate(id: string, energy: Energy): TrackCandidate {
   return { id, energy, tempo: 90 + energy * 5, genre: `g${id}`, scene: "studying" };
 }
 
-function spotifyRef(n: number) {
+/** Turn a candidate id into a self-describing local PlannedTrack slot (what music-engine stamps). */
+function planned(id: string, flow_position: number, reason: string, energy: Energy = 3): PlannedTrack {
+  return {
+    id,
+    uri: `local:${id}`,
+    flow_position,
+    reason,
+    title: id,
+    artist: "",
+    albumTitle: "",
+    albumCoverUrl: "",
+    durationSec: 0,
+    energy,
+    voicing: { artistPersona: "", albumConcept: "", lore: "" },
+  };
+}
+
+function seed(n: number): TrackSeed {
   return {
     uri: `spotify:track:${n}`,
     title: `Song ${n}`,
@@ -89,26 +107,18 @@ class FakeMusicEngine implements MusicEngineClient {
     if (req.mode === "extend") {
       const slots = req.extend?.appendSlots ?? 4;
       const candidates = Array.from({ length: slots }, (_, i) => candidate(`x${i + 1}`, ((i % 5) + 1) as Energy));
-      const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "extend" }));
+      const tracklist: PlannedTrack[] = candidates.map((c, i) => planned(c.id, i + 1, "extend", c.energy));
       return { result: { session_title: "", session_subtitle: "", arc: "peak", tracklist }, violations: [], candidates };
     }
     const candidates =
       req.mode === "replan"
         ? [candidate("d", 2), candidate("e", 4)]
         : [candidate("a", 3), candidate("b", 3), candidate("c", 5), candidate("f", 2), ...this.extraTracks];
-    const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "fake" }));
-    // Mixed session (#74/#75): pretend the first Spotify candidate matched a catalog track.
-    const firstUri = req.spotifyCandidates?.[0]?.uri;
-    const spotifyMatchedEnergy = firstUri ? { [firstUri]: 5 as Energy } : undefined;
-    const spotifyMatchedVoicing = firstUri
-      ? { [firstUri]: { artistPersona: "Matched persona", albumConcept: "Matched concept", lore: "Matched lore" } }
-      : undefined;
+    const tracklist: PlannedTrack[] = candidates.map((c, i) => planned(c.id, i + 1, "fake", c.energy));
     return {
       result: { session_title: "Fake Set, vol. 1", session_subtitle: "25 min · building", arc: "build", tracklist },
       violations: [],
       candidates,
-      spotifyMatchedEnergy,
-      spotifyMatchedVoicing,
     };
   }
   async searchCatalog(req: SearchCatalogRequest): Promise<{ candidates: TrackCandidate[] }> {
@@ -184,7 +194,7 @@ describe("agent-harness", () => {
     await app.ready();
     const res = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     expect(res.statusCode).toBe(200);
-    const body = res.json<{ session_id: string; tracklist: FlowTrackRef[]; proxy_url: string; token: string }>();
+    const body = res.json<{ session_id: string; tracklist: PlannedTrack[]; proxy_url: string; token: string }>();
     expect(body.tracklist.map((t) => t.id)).toEqual(["a", "b", "c", "f"]);
     expect(body.proxy_url).toBe("http://proxy.test");
     expect(body.token).toBeTruthy();
@@ -205,7 +215,7 @@ describe("agent-harness", () => {
     const res = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
 
     expect(res.statusCode).toBe(200);
-    const body = res.json<{ tracklist: FlowTrackRef[] }>();
+    const body = res.json<{ tracklist: PlannedTrack[] }>();
     expect(body.tracklist.map((t) => t.id)).toEqual(["a", "b", "c", "f"]);
     expect(music.planCalls[0]?.mode).toBe("provisional");
     expect(music.fullStarted).toBe(1);
@@ -214,108 +224,58 @@ describe("agent-harness", () => {
     await app.close();
   });
 
-  it("resolves Spotify pool energy (catalog match + inferred remainder) into the full plan (#74)", async () => {
-    // No API key → inferSpotifyEnergy takes its deterministic mid-energy fallback (no network).
-    const prevKey = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY;
-    try {
-      const { app, music } = buildTestApp();
-      await app.ready();
-      const spotifyCandidates = [spotifyRef(1), spotifyRef(2)];
-      const res = await app.inject({
-        method: "POST",
-        url: "/sessions",
-        payload: { mood: "calm", scene: "studying", spotifyCandidates },
-      });
-      expect(res.statusCode).toBe(200);
+  it("forwards the seed pool to the full plan; music-engine resolves energy/voicing (#74/#75)", async () => {
+    const { app, music } = buildTestApp();
+    await app.ready();
+    const seeds = [seed(1), seed(2)];
+    const res = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", seeds },
+    });
+    expect(res.statusCode).toBe(200);
 
-      await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "full")).toBe(true));
-      const full = music.planCalls.find((c) => c.mode === "full");
-      expect(full?.spotifyEnergyByUri?.[spotifyCandidates[0]!.uri]).toBe(5); // catalog-matched wins
-      expect(full?.spotifyEnergyByUri?.[spotifyCandidates[1]!.uri]).toBe(3); // LLM fallback (mid)
-      await app.close();
-    } finally {
-      if (prevKey === undefined) delete process.env.GEMINI_API_KEY;
-      else process.env.GEMINI_API_KEY = prevKey;
-    }
+    await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "full")).toBe(true));
+    const full = music.planCalls.find((c) => c.mode === "full");
+    // The harness forwards the raw pool; energy/voicing resolution is music-engine's
+    // job now (no round-trip energyByUri), so it must not compute or send one.
+    expect(full?.seeds).toEqual(seeds);
+    expect((full as { spotifyEnergyByUri?: unknown } | undefined)?.spotifyEnergyByUri).toBeUndefined();
+    await app.close();
   });
 
-  it("pushes resolved Spotify voicing to the client after the refine (#75)", async () => {
-    const prevKey = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY; // unmatched tracks infer to {}; matched voicing still pushes
-    try {
-      const { app, proxy } = buildTestApp();
-      await app.ready();
-      const spotifyCandidates = [spotifyRef(1), spotifyRef(2)];
-      await app.inject({
-        method: "POST",
-        url: "/sessions",
-        payload: { mood: "calm", scene: "studying", spotifyCandidates },
-      });
+  it("re-ranks the cached seed pool on regenerate — no fresh gather (#77)", async () => {
+    const { app, music } = buildTestApp();
+    await app.ready();
+    const seeds = [seed(1), seed(2)];
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", seeds },
+    });
+    const { session_id } = created.json<{ session_id: string }>();
+    await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "full")).toBe(true));
 
-      await vi.waitFor(() =>
-        expect(
-          proxy.injectCalls.some((c) => c.payload.ui_events?.some((e) => e.type === "spotify_voicing")),
-        ).toBe(true),
-      );
-      const push = proxy.injectCalls.find((c) => c.payload.ui_events?.some((e) => e.type === "spotify_voicing"))!;
-      const event = push.payload.ui_events!.find((e) => e.type === "spotify_voicing") as {
-        type: "spotify_voicing";
-        voicing: Record<string, { artistPersona: string; albumConcept: string; lore: string }>;
-      };
-      // Catalog-matched track carries reused voicing verbatim.
-      expect(event.voicing[spotifyCandidates[0]!.uri]).toEqual({
-        artistPersona: "Matched persona",
-        albumConcept: "Matched concept",
-        lore: "Matched lore",
-      });
-      await app.close();
-    } finally {
-      if (prevKey === undefined) delete process.env.GEMINI_API_KEY;
-      else process.env.GEMINI_API_KEY = prevKey;
-    }
+    await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/playlist-feedback`,
+      payload: { feedback: "regenerate" },
+    });
+
+    const replanCall = music.planCalls.find((c) => c.mode === "replan");
+    expect(replanCall?.seeds).toEqual(seeds);
+    await app.close();
   });
 
-  it("re-ranks the cached Spotify pool on regenerate — no fresh gather (#77)", async () => {
-    const prevKey = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY; // inferSpotifyEnergy → deterministic mid fallback, no network
-    try {
+  it("appends from the cached seed pool on rolling extend — no fresh gather (#77)", async () => {
+    {
       const { app, music } = buildTestApp();
       await app.ready();
-      const spotifyCandidates = [spotifyRef(1), spotifyRef(2)];
+      const seeds = [seed(1), seed(2)];
       const created = await app.inject({
         method: "POST",
         url: "/sessions",
-        payload: { mood: "calm", scene: "studying", spotifyCandidates },
-      });
-      const { session_id } = created.json<{ session_id: string }>();
-      // Wait for the refine to land so the resolved pool energy is cached on state.
-      await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "full")).toBe(true));
-
-      await app.inject({ method: "POST", url: `/sessions/${session_id}/regenerate` });
-
-      const replanCall = music.planCalls.find((c) => c.mode === "replan");
-      expect(replanCall?.spotifyCandidates).toEqual(spotifyCandidates);
-      expect(replanCall?.spotifyEnergyByUri?.[spotifyCandidates[0]!.uri]).toBe(5); // catalog-matched
-      expect(replanCall?.spotifyEnergyByUri?.[spotifyCandidates[1]!.uri]).toBe(3); // LLM fallback (mid)
-      await app.close();
-    } finally {
-      if (prevKey === undefined) delete process.env.GEMINI_API_KEY;
-      else process.env.GEMINI_API_KEY = prevKey;
-    }
-  });
-
-  it("appends from the cached Spotify pool on rolling extend — no fresh gather (#77)", async () => {
-    const prevKey = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY;
-    try {
-      const { app, music } = buildTestApp();
-      await app.ready();
-      const spotifyCandidates = [spotifyRef(1), spotifyRef(2)];
-      const created = await app.inject({
-        method: "POST",
-        url: "/sessions",
-        payload: { mood: "calm", scene: "studying", condition: "C", spotifyCandidates },
+        payload: { mood: "calm", scene: "studying", condition: "C", seeds },
       });
       const { session_id } = created.json<{ session_id: string }>();
       await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "full")).toBe(true));
@@ -325,12 +285,8 @@ describe("agent-harness", () => {
 
       await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "extend")).toBe(true));
       const extendCall = music.planCalls.find((c) => c.mode === "extend");
-      expect(extendCall?.spotifyCandidates).toEqual(spotifyCandidates);
-      expect(extendCall?.spotifyEnergyByUri?.[spotifyCandidates[0]!.uri]).toBe(5);
+      expect(extendCall?.seeds).toEqual(seeds);
       await app.close();
-    } finally {
-      if (prevKey === undefined) delete process.env.GEMINI_API_KEY;
-      else process.env.GEMINI_API_KEY = prevKey;
     }
   });
 
@@ -486,20 +442,28 @@ describe("agent-harness", () => {
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
 
-    const res = await app.inject({ method: "POST", url: `/sessions/${session_id}/regenerate` });
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/playlist-feedback`,
+      payload: { feedback: "regenerate" },
+    });
     expect(res.statusCode).toBe(200);
     const body = res.json<{
-      replanned: boolean;
-      remaining: FlowTrackRef[];
-      tracklist: FlowTrackRef[];
-      changed_ids?: string[];
-      before_remaining_ids?: string[];
+      ok: boolean;
+      feedback: string;
+      regenerate: {
+        replanned: boolean;
+        remaining: PlannedTrack[];
+        tracklist: PlannedTrack[];
+        changed_ids?: string[];
+        before_remaining_ids?: string[];
+      };
     }>();
-    expect(body.replanned).toBe(true);
-    expect(body.remaining.map((r) => r.id)).toEqual(["d", "e"]);
-    expect(body.tracklist.map((r) => r.id)).toEqual(["a", "d", "e"]);
-    expect(body.changed_ids).toEqual(["d", "e"]);
-    expect(body.before_remaining_ids).toEqual(["b", "c", "f"]);
+    expect(body.regenerate.replanned).toBe(true);
+    expect(body.regenerate.remaining.map((r) => r.id)).toEqual(["d", "e"]);
+    expect(body.regenerate.tracklist.map((r) => r.id)).toEqual(["a", "d", "e"]);
+    expect(body.regenerate.changed_ids).toEqual(["d", "e"]);
+    expect(body.regenerate.before_remaining_ids).toEqual(["b", "c", "f"]);
     expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
     expect(memory.events.map((e) => e.eventType)).toContain("playlist_feedback");
     expect(memory.events.map((e) => e.eventType)).toContain("playlist_regenerate_requested");
@@ -534,6 +498,33 @@ describe("agent-harness", () => {
         }),
       ),
     );
+    await app.close();
+  });
+
+  it("records UI skip track through the shared skip path and times latency on now_playing", async () => {
+    const { app, memory } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "a" } });
+    const skip = await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/skip-track`,
+      payload: { track_id: "a" },
+    });
+    expect(skip.statusCode).toBe(200);
+    expect(skip.json()).toEqual({ ok: true });
+
+    const res = await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
+    expect(res.statusCode).toBe(200);
+    expect(memory.events).toContainEqual(
+      expect.objectContaining({
+        eventType: "skip_track",
+        payload: expect.objectContaining({ source: "ui", track_id: "a" }),
+      }),
+    );
+    expect(memory.events.map((e) => e.eventType)).toContain("skip_latency");
     await app.close();
   });
 
@@ -1009,7 +1000,7 @@ class NudgeMusicEngine implements MusicEngineClient {
     const n = req.replan?.remainingSlots ?? 0;
     const energy = Math.min(5, Math.max(1, req.replan?.lastPlayedEnergy ?? 3)) as Energy;
     const candidates = Array.from({ length: n }, (_, i) => candidate(`n${i + 1}`, energy));
-    const tracklist: FlowTrackRef[] = candidates.map((c, i) => ({ id: c.id, flow_position: i + 1, reason: "replan" }));
+    const tracklist: PlannedTrack[] = candidates.map((c, i) => planned(c.id, i + 1, "replan", c.energy));
     return { result: { session_title: "", session_subtitle: "", arc: "build", tracklist }, violations: [], candidates };
   }
   async searchCatalog(): Promise<{ candidates: TrackCandidate[] }> {
@@ -1023,11 +1014,7 @@ class NudgeMusicEngine implements MusicEngineClient {
 describe("applyReplan scopes (E2 mood_change nudge)", () => {
   // tracklist t1(1) t2(2) t3(3) t4(4) t5(5); current = t1 unless markStarted moves it.
   function makeSession(store: SessionStore, condition: Condition = "C") {
-    const tracklist: FlowTrackRef[] = ["t1", "t2", "t3", "t4", "t5"].map((id, i) => ({
-      id,
-      flow_position: i + 1,
-      reason: "seed",
-    }));
+    const tracklist: PlannedTrack[] = ["t1", "t2", "t3", "t4", "t5"].map((id, i) => planned(id, i + 1, "seed", (i + 1) as Energy));
     const candidatesById = new Map(tracklist.map((r, i) => [r.id, candidate(r.id, (i + 1) as Energy)]));
     return store.create({
       userId: ANONYMOUS_USER_ID,

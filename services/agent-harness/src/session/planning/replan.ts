@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { FlowTrackRef, RegenerateSessionResponse, SessionIntent, TastePreference } from "@auracle/shared";
-import type { PlanResponse } from "../../music-engine-client.js";
+import type { PlannedTrack, RegenerateSessionResponse, SessionIntent, TastePreference } from "@auracle/shared";
+import type { PlanResponse } from "@auracle/clients";
 import { pushQueueUpdate, pushQueueRefresh } from "../delivery/queue-update.js";
 import type { PlaylistFeedbackSource } from "@auracle/shared";
 import type { OrchestrationDeps } from "../deps.js";
@@ -43,7 +43,7 @@ function scopeWindow(scope: ReplanScope, remainingCount: number): { start: numbe
   return { start: 0, count: remainingCount }; // full
 }
 
-export function changedIdsFromRemaining(beforeIds: string[], afterRefs: FlowTrackRef[]): string[] {
+export function changedIdsFromRemaining(beforeIds: string[], afterRefs: PlannedTrack[]): string[] {
   const changed = new Set<string>();
   const afterIds = afterRefs.map((ref) => ref.id);
   const max = Math.max(beforeIds.length, afterIds.length);
@@ -56,7 +56,7 @@ export function changedIdsFromRemaining(beforeIds: string[], afterRefs: FlowTrac
 
 export interface ReplanOutcome {
   replanned: boolean;
-  remaining: FlowTrackRef[];
+  remaining: PlannedTrack[];
 }
 
 export interface RegenerateOutcome extends ReplanOutcome {
@@ -148,7 +148,7 @@ function windowSeedEnergy(state: SessionState, params: ReplanParams, window: Rep
   return nudge(seed, params.energy_delta);
 }
 
-function playedAndKeptIds(state: SessionState, remainingRefs: FlowTrackRef[], window: ReplanWindow): string[] {
+function playedAndKeptIds(state: SessionState, remainingRefs: PlannedTrack[], window: ReplanWindow): string[] {
   // Exclude played + current AND every remaining slot we keep, so fresh picks
   // never duplicate a track that stays in the queue.
   const keptIds = [...remainingRefs.slice(0, window.start), ...remainingRefs.slice(window.start + window.count)].map((r) => r.id);
@@ -177,13 +177,13 @@ function requestReplan(
       avoidIds: params.reroll ? context.replacedWindow : undefined,
     },
     tieBreakSeed: params.reroll ? randomUUID() : state.tieBreakSeed,
-    // Re-rank the cached Spotify pool into the refill — no fresh gather (#77).
-    spotifyCandidates: state.spotifyCandidates,
-    spotifyEnergyByUri: state.spotifyEnergyByUri,
+    // Re-rank the cached seed pool into the refill — no fresh gather (#77).
+    // music-engine reuses its memoized per-uri energy/voicing resolution.
+    seeds: state.seeds,
   });
 }
 
-function applyReplanResult(deps: OrchestrationDeps, state: SessionState, context: ReplanContext, plan: PlanResponse): FlowTrackRef[] {
+function applyReplanResult(deps: OrchestrationDeps, state: SessionState, context: ReplanContext, plan: PlanResponse): PlannedTrack[] {
   const candidatesById = new Map(plan.candidates.map((c) => [c.id, c]));
   const nextRemaining = deps.store.replaceRemaining(state, plan.result.tracklist, candidatesById, {
     start: context.start,
@@ -199,7 +199,7 @@ async function recordReplan(
   params: ReplanParams,
   context: ReplanContext,
   plan: PlanResponse,
-  nextRemaining: FlowTrackRef[],
+  nextRemaining: PlannedTrack[],
 ): Promise<void> {
   await deps.memory.recordEvent(state.id, state.userId, "replan", {
     mood: params.mood,

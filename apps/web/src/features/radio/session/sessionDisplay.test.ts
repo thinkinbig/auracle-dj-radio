@@ -1,10 +1,28 @@
 import { describe, expect, it } from 'vitest';
+import type { PlannedTrack } from '@auracle/shared';
 import { createInitialPlaybackState } from './playbackReducer';
 import {
   deriveSessionTimeline,
   formatSavedAt,
   hasStartedSession,
 } from './sessionDisplay';
+
+/** A minimal self-describing catalog slot for display fixtures. */
+function slot(id: string, flow_position: number, reason: string): PlannedTrack {
+  return {
+    id,
+    uri: `local:${id}`,
+    flow_position,
+    reason,
+    title: '',
+    artist: '',
+    albumTitle: '',
+    albumCoverUrl: '',
+    durationSec: 0,
+    energy: 3,
+    voicing: { artistPersona: '', albumConcept: '', lore: '' },
+  };
+}
 
 describe('sessionDisplay', () => {
   it('hasStartedSession is true when phase is not idle or sessionId exists', () => {
@@ -23,11 +41,7 @@ describe('sessionDisplay', () => {
       trackTitle: 'Current Song',
       sessionSubtitle: 'Now playing',
       currentTrackIndex: 0,
-      sessionTracklist: [
-        { id: 't1', flow_position: 1, reason: 'test' },
-        { id: 't2', flow_position: 2, reason: 'test' },
-        { id: 't3', flow_position: 3, reason: 'test' },
-      ],
+      sessionTracklist: [slot('t1', 1, 'test'), slot('t2', 2, 'test'), slot('t3', 3, 'test')],
     };
 
     const timeline = deriveSessionTimeline(true, state);

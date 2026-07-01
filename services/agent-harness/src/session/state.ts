@@ -1,6 +1,26 @@
 import { randomUUID } from "node:crypto";
-import type { ArcStage, Condition, Energy, FlowTrackRef, HostMode, SessionIntent, SpotifyTrackRef, SpotifyVoicing, TastePreference, TrackCandidate } from "@auracle/shared";
+import type { ArcStage, Condition, Energy, HostMode, PlannedTrack, SessionIntent, TastePreference, TrackCandidate, TrackSeed, Voicing } from "@auracle/shared";
 import { inferHostModeFromScene } from "@auracle/shared";
+
+const EMPTY_VOICING: Voicing = { artistPersona: "", albumConcept: "", lore: "" };
+
+/** Build a minimal self-describing local slot from a lean candidate (skip-swap). The
+ * client enriches local metadata by id (uri scheme `local:`), so inline is best-effort. */
+function localSlot(id: string, flow_position: number, reason: string, energy: Energy): PlannedTrack {
+  return {
+    id,
+    uri: `local:${id}`,
+    flow_position,
+    reason,
+    title: "",
+    artist: "",
+    albumTitle: "",
+    albumCoverUrl: "",
+    durationSec: 0,
+    energy,
+    voicing: EMPTY_VOICING,
+  };
+}
 
 export interface SessionState {
   id: string;
@@ -13,21 +33,13 @@ export interface SessionState {
   /** Structured taste prefer/avoid for this user (condition C only); reused by replan. */
   taste?: TastePreference[];
   tieBreakSeed: string;
-  /** Listener's gathered Spotify library pool (ADR-0005); reused by the refine/replan re-rank, static per session. */
-  spotifyCandidates?: SpotifyTrackRef[];
-  /** uri→energy for Spotify candidates matched to a catalog track (#74); lets the refine LLM-infer only the remainder. */
-  spotifyMatchedEnergy?: Record<string, Energy>;
-  /** uri→resolved energy for the whole Spotify pool (#74): catalog match + LLM-inferred. Set by the refine; reused by regenerate/extend re-ranking (#77). */
-  spotifyEnergyByUri?: Record<string, Energy>;
-  /** uri→voicing for Spotify candidates matched to a catalog track (#75); the reuse base the refine extends. */
-  spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
-  /** uri→resolved DJ voicing for the Spotify pool (#75): catalog reuse + LLM-improvised remainder. Seeded with matches, completed by the refine. */
-  spotifyVoicing?: Record<string, SpotifyVoicing>;
+  /** Listener's gathered external library pool (ADR-0005); re-sent to music-engine on the refine/replan/extend re-rank, static per session. Energy/voicing resolution now lives in music-engine (memoized), so the harness holds only the raw seeds. */
+  seeds?: TrackSeed[];
   hostMode: HostMode;
   title: string;
   subtitle: string;
   arc: ArcStage;
-  tracklist: FlowTrackRef[];
+  tracklist: PlannedTrack[];
   /** 0-based index of the currently playing slot. */
   currentTrackIndex: number;
   playedTrackIds: string[];
@@ -61,13 +73,13 @@ export interface SessionStateView {
   subtitle: string;
   arc: ArcStage;
   currentTrackIndex: number;
-  tracklist: ReadonlyArray<FlowTrackRef>;
-  remaining: ReadonlyArray<FlowTrackRef>;
+  tracklist: ReadonlyArray<PlannedTrack>;
+  remaining: ReadonlyArray<PlannedTrack>;
   mem0Context: string;
   planRefined: boolean;
 }
 
-export function sessionStateView(state: SessionState, remaining: ReadonlyArray<FlowTrackRef>): SessionStateView {
+export function sessionStateView(state: SessionState, remaining: ReadonlyArray<PlannedTrack>): SessionStateView {
   return {
     id: state.id,
     userId: state.userId,
@@ -110,12 +122,10 @@ export class SessionStore {
     title: string;
     subtitle: string;
     arc: ArcStage;
-    tracklist: FlowTrackRef[];
+    tracklist: PlannedTrack[];
     candidatesById: Map<string, TrackCandidate>;
     mem0Context: string;
-    spotifyCandidates?: SpotifyTrackRef[];
-    spotifyMatchedEnergy?: Record<string, Energy>;
-    spotifyMatchedVoicing?: Record<string, SpotifyVoicing>;
+    seeds?: TrackSeed[];
   }): SessionState {
     const energyById = new Map<string, number>();
     for (const ref of params.tracklist) {
@@ -130,12 +140,7 @@ export class SessionStore {
       energyWeights: params.energyWeights,
       taste: params.taste,
       tieBreakSeed: params.tieBreakSeed,
-      spotifyCandidates: params.spotifyCandidates,
-      spotifyMatchedEnergy: params.spotifyMatchedEnergy,
-      spotifyMatchedVoicing: params.spotifyMatchedVoicing,
-      // Seed with catalog matches so a matched Spotify track-0 already has voicing
-      // for the opening cue; the async refine fills in the LLM-improvised remainder.
-      spotifyVoicing: params.spotifyMatchedVoicing ? { ...params.spotifyMatchedVoicing } : undefined,
+      seeds: params.seeds,
       hostMode: inferHostModeFromScene(params.intent.scene),
       title: params.title,
       subtitle: params.subtitle,
@@ -210,7 +215,7 @@ export class SessionStore {
   }
 
   /** Slots after the current index, i.e. not yet played. */
-  remaining(state: SessionState): FlowTrackRef[] {
+  remaining(state: SessionState): PlannedTrack[] {
     return state.tracklist.slice(state.currentTrackIndex + 1);
   }
 
@@ -247,7 +252,9 @@ export class SessionStore {
     const idx = state.currentTrackIndex + 1;
     const existing = state.tracklist[idx];
     if (!existing) return null;
-    state.tracklist[idx] = { id: candidate.id, flow_position: existing.flow_position, reason, source: existing.source ?? "local", spotify: existing.spotify };
+    // Skip-swap always brings in a fresh catalog (local) track; the client enriches
+    // its metadata by id, so a minimal self-describing local slot is enough here.
+    state.tracklist[idx] = localSlot(candidate.id, existing.flow_position, reason, candidate.energy);
     state.energyById.set(candidate.id, candidate.energy);
     return { before: existing.id, after: candidate.id };
   }
@@ -264,10 +271,10 @@ export class SessionStore {
    */
   replaceRemaining(
     state: SessionState,
-    newRefs: FlowTrackRef[],
+    newRefs: PlannedTrack[],
     candidatesById: Map<string, TrackCandidate>,
     window?: { start?: number; count?: number },
-  ): FlowTrackRef[] {
+  ): PlannedTrack[] {
     const offset = state.currentTrackIndex + 1;
     const head = state.tracklist.slice(0, offset);
     const remaining = state.tracklist.slice(offset);
@@ -280,13 +287,7 @@ export class SessionStore {
       .filter((r) => !keptIds.has(r.id))
       .sort((a, b) => a.flow_position - b.flow_position)
       .slice(0, count);
-    const merged = [...keptHead, ...fresh, ...keptTail].map((r, i) => ({
-      id: r.id,
-      flow_position: offset + i + 1,
-      reason: r.reason,
-      source: r.source ?? "local",
-      spotify: r.spotify,
-    }));
+    const merged = [...keptHead, ...fresh, ...keptTail].map((r, i) => ({ ...r, flow_position: offset + i + 1 }));
     state.tracklist = [...head, ...merged];
     for (const ref of fresh) {
       const c = candidatesById.get(ref.id);
@@ -303,15 +304,15 @@ export class SessionStore {
    */
   appendTracks(
     state: SessionState,
-    newRefs: FlowTrackRef[],
+    newRefs: PlannedTrack[],
     candidatesById: Map<string, TrackCandidate>,
-  ): FlowTrackRef[] {
+  ): PlannedTrack[] {
     const existing = new Set(state.tracklist.map((r) => r.id));
     const base = state.tracklist.length;
     const appended = [...newRefs]
       .filter((r) => !existing.has(r.id))
       .sort((a, b) => a.flow_position - b.flow_position)
-      .map((r, i) => ({ id: r.id, flow_position: base + i + 1, reason: r.reason, source: r.source ?? "local", spotify: r.spotify }));
+      .map((r, i) => ({ ...r, flow_position: base + i + 1 }));
     state.tracklist = [...state.tracklist, ...appended];
     for (const ref of appended) {
       const c = candidatesById.get(ref.id);

@@ -1,4 +1,23 @@
-import type { FlowResult, SessionIntent, TrackCandidate } from "@auracle/shared";
+import type { ArcStage, SessionIntent, TrackCandidate } from "@auracle/shared";
+
+/**
+ * Internal, provider-agnostic tracklist slot the flow model / validation work on:
+ * just an ordered reference into the candidate set. plan.ts stamps these into the
+ * wire `PlannedTrack` (inline metadata + energy + voicing) once ordering is fixed.
+ */
+export interface FlowSlot {
+  id: string;
+  flow_position: number;
+  reason: string;
+}
+
+/** Flow model output before metadata stamping. */
+export interface FlowPlan {
+  session_title: string;
+  session_subtitle: string;
+  arc: ArcStage;
+  tracklist: FlowSlot[];
+}
 
 export interface FlowInput {
   intent: SessionIntent;
