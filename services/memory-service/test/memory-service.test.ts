@@ -474,6 +474,13 @@ describe("memory-service /users/me/taste (S2)", () => {
       await app2.close();
     }
   });
+
+  // #69: a consumer of `playlist_feedback` session_events must upsert a session-sourced
+  // TastePreference (avoid on dislike, prefer on like) for the track and/or its artist.
+  // No such consumer exists yet (feedback is telemetry-only — see the agent-harness
+  // guard test), so these lock the target contract for when the loop is closed.
+  it.todo("upserts a session-sourced avoid pref from a dislike playlist_feedback event (#69)");
+  it.todo("is idempotent: duplicate dislike for the same track+session yields one taste row (#69)");
 });
 
 describe("memory-service /users/me/playlists", () => {

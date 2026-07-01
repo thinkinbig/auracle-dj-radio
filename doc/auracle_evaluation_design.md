@@ -117,12 +117,31 @@ A 条件：`mood_change` **不**触发重排（仅 DJ 口头回应或 noop）。
 | `record_preference` | C only；`fact` |
 | `pause_playback` | `action`: pause / resume |
 | `change_host_mode` | UI 或 tool 切换主持风格 |
+| `playlist_feedback` | like / dislike / regenerate；`track_id`, `remaining_ids`, `source`（`dj_tool` / `ui`） |
+| `playlist_regenerate_requested` | regenerate 重排；`before` / `after` track id 列表 |
 
 重建 `played_track_ids[]`：按 `now_playing` / playhead 镜像逻辑或专用 play 事件（以实现为准），**不用**初始 plan。
 
 可选：Go side-channel `transcript` 与 `session_id` 离线 join。
 
 **P0 验收与实验 SOP**：见 `auracle_personalization_plan.md` §3–§4。
+
+### 反馈回路自动化测试 ↔ 评估项 (#66–#70)
+
+#70 将 #66–#69 的反馈回路（voice / DJ tool only）固化为自动化回归测试。下表把测试名映射到对应评估项；标 **todo** 的测试记录的是 #69「taste 写入」闭环尚未接线的 gap（实现落地前为 `it.todo`）。
+
+| 评估项 | 测试 (文件 · 名称) | 状态 |
+|--------|-------------------|------|
+| #66 telemetry 捕获 | `agent-harness.test.ts` · "records playlist_feedback from the UI playlist-feedback route" / "...from a DJ tool call and surfaces it to the client" | ✅ |
+| #66 regenerate 事件 | `agent-harness.test.ts` · "regenerates the remaining queue from a DJ playlist_feedback tool call" | ✅ |
+| #66/#69 telemetry-only 守卫 | `agent-harness.test.ts` · "records like/dislike feedback as telemetry only — no mem0 write, even in condition C" | ✅ |
+| #68/#69 in-session / 跨会话写入 | `agent-harness.test.ts` · "dislike feedback adjusts the upcoming queue / writes session-sourced taste" | ⏳ todo（待 #69 接线） |
+| #69 plan 权重读取 session taste | `taste-weighting.test.ts` · "downranks an artist avoided via session feedback (source: session)" / "treats session-sourced prefer/avoid symmetrically with onboarding source" | ✅ |
+| #69 feedback→taste consumer | `memory-service.test.ts` · "upserts a session-sourced avoid pref from a dislike playlist_feedback event" | ⏳ todo（待 #69 接线） |
+| #69 幂等 | `memory-service.test.ts` · "is idempotent: duplicate dislike for the same track+session yields one taste row" | ⏳ todo（待 #69 接线） |
+| #67 工具 fidelity | HITL 脚本（见 §标准化打断脚本），非单测 | 手动 |
+
+`reducer` 同步（web，DJ tool path）：`playbackReducer.test.ts` · "records playlist feedback without mutating the queue (server owns the tracklist)"。
 
 ---
 

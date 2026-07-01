@@ -154,9 +154,13 @@ class FakeProxyClient implements ProxyClient {
 
 /** Orchestration injects (replan, extend, cues) — excludes silent now-playing context. */
 function orchestrationInjects(proxy: FakeProxyClient) {
-  return proxy.injectCalls.filter(
-    (c) => !c.payload.inject_text?.includes("[now playing context"),
-  );
+  // An orchestration push (replan / swap / extend / regenerate) always carries
+  // ui_events. Passive per-track nudges are inject_text only — now-playing context,
+  // the start-of-track intro/outro greetings (ADR-0004), host-mode switches — and
+  // must not count toward "did an orchestration push happen". Matching on ui_events
+  // is robust to new passive nudges (the prior "[now playing context" string filter
+  // missed the intro greeting, making the ablation/swap assertions flaky).
+  return proxy.injectCalls.filter((c) => (c.payload.ui_events?.length ?? 0) > 0);
 }
 
 function buildTestApp() {
@@ -411,6 +415,40 @@ describe("agent-harness", () => {
     );
     await app.close();
   });
+
+  it("records like/dislike feedback as telemetry only — no mem0 write, even in condition C (#66/#69 gap)", async () => {
+    const { app, memory } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "C" },
+    });
+    const { session_id } = created.json<{ session_id: string }>();
+    const factsBefore = memory.facts.length;
+
+    for (const feedback of ["like", "dislike"] as const) {
+      const res = await app.inject({
+        method: "POST",
+        url: `/sessions/${session_id}/tool`,
+        payload: { name: "playlist_feedback", args: { feedback } },
+      });
+      expect(res.statusCode).toBe(200);
+    }
+
+    // The feedback signal is logged for offline eval (#66) but does NOT yet mutate
+    // the durable taste model / mem0 — that closed loop is #69. This guard locks the
+    // telemetry-only contract so the gap is explicit and a future taste-write is a
+    // deliberate, test-breaking change.
+    expect(memory.events.filter((e) => e.eventType === "playlist_feedback")).toHaveLength(2);
+    expect(memory.facts).toHaveLength(factsBefore);
+    await app.close();
+  });
+
+  // #68/#69: a voice dislike should steer what plays next (in-session queue shift)
+  // and persist to the structured taste model (cross-session). Neither is wired yet
+  // (`runPlaylistFeedback` logs the event and returns), so this is a documented gap.
+  it.todo("dislike feedback adjusts the upcoming queue / writes session-sourced taste (#68/#69)");
 
   it("regenerates the remaining queue from a DJ playlist_feedback tool call", async () => {
     const { app, proxy, music, memory } = buildTestApp();
@@ -824,7 +862,7 @@ describe("agent-harness", () => {
     await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "c" } });
 
     await vi.waitFor(() => expect(orchestrationInjects(proxy).length).toBeGreaterThan(0));
-    const updated = proxy.injectCalls.at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
+    const updated = orchestrationInjects(proxy).at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
       | { remaining: { id: string }[]; changed_ids?: string[]; before_remaining_ids?: string[] }
       | undefined;
     expect(updated).toBeTruthy();
@@ -892,7 +930,7 @@ describe("agent-harness", () => {
       c.payload.ui_events?.some((e) => e.type === "queue_refresh" && e.status === "pending"),
     );
     expect(pending).toBeDefined();
-    const updated = proxy.injectCalls.at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
+    const updated = orchestrationInjects(proxy).at(-1)!.payload.ui_events?.find((e) => e.type === "tracklist_updated") as
       | { remaining: { id: string }[]; changed_ids?: string[]; before_remaining_ids?: string[] }
       | undefined;
     expect(updated!.remaining.map((r) => r.id)).toEqual(["c", "f", "x1", "x2", "x3", "x4"]);
