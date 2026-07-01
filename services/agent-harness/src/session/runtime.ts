@@ -1,24 +1,17 @@
-import type { RegenerateSessionResponse } from "@auracle/shared";
+import { parseHostMode, type HostMode, type PlaylistFeedbackSource, type RegenerateSessionResponse } from "@auracle/shared";
 import type { Registration } from "../dj/registration.js";
-import type { MemoryServiceClient } from "../memory-service-client.js";
-import type { MusicEngineClient } from "../music-engine-client.js";
-import type { ProxyClient } from "../proxy-client.js";
-import { changeSessionHostMode, cueSession, markSessionNowPlaying, recordSessionClientEvent, retrySessionExtend } from "./client-controls.js";
-import { createSession, type CreateSessionInput } from "./create-session.js";
-import { applyPlaylistFeedback, regenerateQueue, runSessionTool } from "./interactions.js";
-import type { PlaylistFeedbackOutcome } from "./playlist-feedback.js";
+import { buildAndPushCue } from "./delivery/cue.js";
+import type { OrchestrationDeps, SessionLog } from "./deps.js";
+import { extendQueue } from "./lifecycle/extend.js";
+import { createSession, type CreateSessionInput } from "./lifecycle/create.js";
+import { markNowPlaying } from "./lifecycle/now-playing.js";
+import { parsePlaylistFeedback, runPlaylistFeedback, type PlaylistFeedbackOutcome } from "./planning/playlist-feedback.js";
 import { sessionInvalidationReason, sessionOwner as getSessionOwner, sessionRegistration, sessionSnapshot, type SessionSnapshot } from "./queries.js";
-import type { OrchestrationDeps } from "./replan.js";
-import { SessionStore } from "./store.js";
-import type { ToolCall, ToolEnvelope } from "./tool-runner.js";
+import { runTool, type ToolCall, type ToolEnvelope } from "./tool-runner.js";
 
-export interface SessionRuntimeDeps {
-  store: SessionStore;
-  memory: MemoryServiceClient;
-  music: MusicEngineClient;
-  proxy: ProxyClient;
+export interface SessionRuntimeDeps extends OrchestrationDeps {
   proxyPublicUrl: string;
-  log?: { warn(payload: unknown, message?: string): void; info(payload: unknown, message?: string): void };
+  log?: SessionLog;
 }
 
 export interface SessionRuntime {
@@ -86,4 +79,91 @@ export function createSessionRuntime(deps: SessionRuntimeDeps): SessionRuntime {
       return recordSessionClientEvent(orchestration, id, eventType, payload);
     },
   };
+}
+
+async function runSessionTool(
+  deps: OrchestrationDeps,
+  sessionId: string,
+  call: ToolCall,
+): Promise<ToolEnvelope | undefined> {
+  const state = deps.store.get(sessionId);
+  if (!state) return undefined;
+  return runTool(deps, state, call);
+}
+
+async function applyPlaylistFeedback(
+  deps: OrchestrationDeps,
+  sessionId: string,
+  feedback: unknown,
+  source: PlaylistFeedbackSource,
+): Promise<PlaylistFeedbackOutcome | undefined | false> {
+  const state = deps.store.get(sessionId);
+  if (!state) return undefined;
+  const parsed = parsePlaylistFeedback(feedback);
+  if (!parsed) return false;
+  return runPlaylistFeedback(deps, state, parsed, source);
+}
+
+async function regenerateQueue(deps: OrchestrationDeps, sessionId: string): Promise<RegenerateSessionResponse | undefined> {
+  const outcome = await applyPlaylistFeedback(deps, sessionId, "regenerate", "ui");
+  if (!outcome) return undefined;
+  return outcome.regenerate;
+}
+
+async function markSessionNowPlaying(
+  deps: OrchestrationDeps,
+  sessionId: string,
+  trackId: string,
+  log?: SessionLog,
+): Promise<Record<string, unknown> | undefined | false> {
+  const state = deps.store.get(sessionId);
+  if (!state) return undefined;
+  return markNowPlaying(deps, state, trackId, log);
+}
+
+async function cueSession(deps: OrchestrationDeps, sessionId: string, kind: "break" | "outro"): Promise<boolean> {
+  const state = deps.store.get(sessionId);
+  if (!state) return false;
+  await buildAndPushCue(deps, state, kind);
+  return true;
+}
+
+async function changeSessionHostMode(
+  deps: OrchestrationDeps,
+  sessionId: string,
+  rawMode: unknown,
+): Promise<Record<string, unknown> | undefined | false> {
+  const state = deps.store.get(sessionId);
+  if (!state) return undefined;
+  const nextMode = parseHostMode(rawMode);
+  if (!nextMode) return false;
+  const previous: HostMode = state.hostMode;
+  const changed = nextMode !== previous;
+  if (changed) {
+    state.hostMode = nextMode;
+    await deps.memory.recordEvent(sessionId, state.userId, "change_host_mode", { host_mode: nextMode, previous, source: "ui" });
+    await deps.proxy.inject(sessionId, {
+      inject_text: `[host mode → ${nextMode}] Adopt this speaking style from your next line; don't announce the switch. Playlist unchanged.`,
+    });
+  }
+  return { ok: true, host_mode: nextMode, previous, changed };
+}
+
+async function retrySessionExtend(deps: OrchestrationDeps, sessionId: string, log?: SessionLog): Promise<boolean> {
+  const state = deps.store.get(sessionId);
+  if (!state) return false;
+  await extendQueue(deps, state, log, { force: true });
+  return true;
+}
+
+async function recordSessionClientEvent(
+  deps: OrchestrationDeps,
+  sessionId: string,
+  eventType: string,
+  payload: unknown,
+): Promise<boolean> {
+  const state = deps.store.get(sessionId);
+  if (!state) return false;
+  await deps.memory.recordEvent(sessionId, state.userId, eventType, payload ?? {});
+  return true;
 }

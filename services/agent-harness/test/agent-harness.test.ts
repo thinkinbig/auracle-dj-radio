@@ -10,9 +10,10 @@ import type {
 import type { InjectPayload, ProxyClient } from "../src/proxy-client.js";
 import type { Registration } from "../src/dj/registration.js";
 import { buildServer } from "../src/server.js";
-import { editDistance, routeMoodScope } from "../src/session/mood-scope.js";
-import { applyReplan, type OrchestrationDeps } from "../src/session/replan.js";
-import { SessionStore } from "../src/session/store.js";
+import type { OrchestrationDeps } from "../src/session/deps.js";
+import { editDistance, routeMoodScope } from "../src/session/planning/mood-scope.js";
+import { applyReplan } from "../src/session/planning/replan.js";
+import { SessionStore } from "../src/session/state.js";
 
 function candidate(id: string, energy: Energy): TrackCandidate {
   return { id, energy, tempo: 90 + energy * 5, genre: `g${id}`, scene: "studying" };

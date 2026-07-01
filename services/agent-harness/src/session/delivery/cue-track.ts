@@ -1,7 +1,7 @@
 import type { FlowTrackRef } from "@auracle/shared";
-import { toCueTrack, type CueTrack } from "../dj/prompt.js";
-import type { MusicEngineClient } from "../music-engine-client.js";
-import type { SessionState } from "./store.js";
+import { toCueTrack, type CueTrack } from "../../dj/prompt.js";
+import type { MusicEngineClient } from "../../music-engine-client.js";
+import type { SessionState } from "../state.js";
 
 /** Mid-arc energy for a Spotify slot whose energy isn't resolved yet (mirrors plan.ts). */
 const SPOTIFY_PLACEHOLDER_ENERGY = 3;

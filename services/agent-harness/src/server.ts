@@ -4,7 +4,7 @@ import type { MusicEngineClient } from "./music-engine-client.js";
 import type { ProxyClient } from "./proxy-client.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
 import { createSessionRuntime } from "./session/runtime.js";
-import { SessionStore } from "./session/store.js";
+import { SessionStore } from "./session/state.js";
 
 export interface SessionServerDeps {
   store: SessionStore;

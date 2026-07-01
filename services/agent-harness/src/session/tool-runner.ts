@@ -1,8 +1,9 @@
 import { parseHostMode, type ServerMessage } from "@auracle/shared";
-import type { SessionState } from "./store.js";
-import { routeMoodScope } from "./mood-scope.js";
-import { parsePlaylistFeedback, runPlaylistFeedback } from "./playlist-feedback.js";
-import { replanAndPush, type OrchestrationDeps } from "./replan.js";
+import type { SessionState } from "./state.js";
+import type { OrchestrationDeps } from "./deps.js";
+import { routeMoodScope } from "./planning/mood-scope.js";
+import { parsePlaylistFeedback, runPlaylistFeedback } from "./planning/playlist-feedback.js";
+import { replanAndPush } from "./planning/replan.js";
 
 const SKIP_ONLY_TOOL_GUARD_MS = 1_500;
 

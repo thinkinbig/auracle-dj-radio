@@ -1,6 +1,6 @@
 import type { FlowTrackRef, QueueRefreshStatus } from "@auracle/shared";
-import type { OrchestrationDeps } from "./replan.js";
-import type { SessionState } from "./store.js";
+import type { OrchestrationDeps } from "../deps.js";
+import type { SessionState } from "../state.js";
 
 /**
  * A change to the not-yet-played queue, ready to deliver to clients. Produced by

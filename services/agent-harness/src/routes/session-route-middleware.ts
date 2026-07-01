@@ -7,7 +7,7 @@ import {
   type SpotifyTrackRef,
 } from "@auracle/shared";
 import type { MemoryServiceClient } from "../memory-service-client.js";
-import { parseSessionIntent } from "../session/create-session.js";
+import { parseSessionIntent } from "../session/lifecycle/create.js";
 import type { SessionRuntime } from "../session/runtime.js";
 import type { ToolCall } from "../session/tool-runner.js";
 

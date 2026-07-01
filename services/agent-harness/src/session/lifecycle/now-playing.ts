@@ -1,10 +1,10 @@
-import { buildNowPlayingContextInject } from "../dj/prompt.js";
-import { buildAndPushCue } from "./cue.js";
-import { resolveCueTrack } from "./cue-track.js";
+import { buildNowPlayingContextInject } from "../../dj/prompt.js";
+import { buildAndPushCue } from "../delivery/cue.js";
+import { resolveCueTrack } from "../delivery/cue-track.js";
 import { extendQueue } from "./extend.js";
-import type { OrchestrationDeps } from "./replan.js";
+import type { OrchestrationDeps } from "../deps.js";
 import { swapNextOnQuickSkip } from "./skip-swap.js";
-import type { SessionState } from "./store.js";
+import type { SessionState } from "../state.js";
 
 const QUICK_SKIP_MEMORY_THRESHOLD = 2;
 const QUICK_SKIP_MAX_LISTEN_MS = 60_000;
@@ -12,6 +12,11 @@ const QUICK_SKIP_MAX_LISTEN_MS = 60_000;
 interface NowPlayingLog {
   warn(payload: unknown, message?: string): void;
   info(payload: unknown, message?: string): void;
+}
+
+interface PlayheadUpdate {
+  prevIndex: number;
+  prevStartedAtMs: number | undefined;
 }
 
 /**
@@ -26,21 +31,41 @@ export async function markNowPlaying(
   trackId: string,
   log?: NowPlayingLog,
 ): Promise<Record<string, unknown> | false> {
+  const update = applyPlayheadUpdate(deps, state, trackId);
+  if (!update) return false;
+
+  await settleSkipTransition(deps, state, update, log);
+  startTrackSideEffects(deps, state, log);
+
+  return nowPlayingResponse(deps, state);
+}
+
+function applyPlayheadUpdate(deps: OrchestrationDeps, state: SessionState, trackId: string): PlayheadUpdate | false {
   const prevIndex = state.currentTrackIndex;
   const prevStartedAtMs = state.trackStartedAtMs;
   if (!deps.store.markStarted(state, trackId)) return false;
+  return { prevIndex, prevStartedAtMs };
+}
 
-  if (state.pendingSkipAtMs != null && state.currentTrackIndex !== prevIndex) {
-    await recordSkipTransition(deps, state, prevIndex, prevStartedAtMs, log);
-  }
+async function settleSkipTransition(
+  deps: OrchestrationDeps,
+  state: SessionState,
+  update: PlayheadUpdate,
+  log?: NowPlayingLog,
+): Promise<void> {
+  if (state.pendingSkipAtMs == null || state.currentTrackIndex === update.prevIndex) return;
+  await recordSkipTransition(deps, state, update.prevIndex, update.prevStartedAtMs, log);
+}
+
+function startTrackSideEffects(deps: OrchestrationDeps, state: SessionState, log?: NowPlayingLog): void {
   state.trackStartedAtMs = Date.now();
-
   pushNowPlayingContext(deps, state, log);
   pushIntroCue(deps, state, log);
-
   // Rolling extend is debounced internally and must never block now_playing.
   void extendQueue(deps, state, log);
+}
 
+function nowPlayingResponse(deps: OrchestrationDeps, state: SessionState): Record<string, unknown> {
   return { current_track_index: state.currentTrackIndex, remaining: deps.store.remaining(state) };
 }
 

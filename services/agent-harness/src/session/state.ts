@@ -52,6 +52,38 @@ export interface SessionState {
   extendPending?: boolean;
 }
 
+export interface SessionStateView {
+  id: string;
+  userId: string;
+  condition: Condition;
+  hostMode: HostMode;
+  title: string;
+  subtitle: string;
+  arc: ArcStage;
+  currentTrackIndex: number;
+  tracklist: ReadonlyArray<FlowTrackRef>;
+  remaining: ReadonlyArray<FlowTrackRef>;
+  mem0Context: string;
+  planRefined: boolean;
+}
+
+export function sessionStateView(state: SessionState, remaining: ReadonlyArray<FlowTrackRef>): SessionStateView {
+  return {
+    id: state.id,
+    userId: state.userId,
+    condition: state.condition,
+    hostMode: state.hostMode,
+    title: state.title,
+    subtitle: state.subtitle,
+    arc: state.arc,
+    currentTrackIndex: state.currentTrackIndex,
+    tracklist: state.tracklist,
+    remaining,
+    mem0Context: state.mem0Context,
+    planRefined: state.planRefined,
+  };
+}
+
 /** In-memory session state machine. Memory-service is the sole owner of session state. */
 export class SessionStore {
   private readonly sessions = new Map<string, SessionState>();
