@@ -3,6 +3,7 @@ import { FULL_SESSION_LENGTH, energyTargetsForMood } from "@auracle/shared";
 import type { TrackRow } from "../catalog-db.js";
 import { HeuristicFlowModel } from "./llm/heuristic-flow.js";
 import type { FlowInput } from "./llm/flow-model.js";
+import { createSessionTitle } from "./session-title.js";
 import { energyWeightsFromMemories, mergeEnergyWeights } from "./weighting/memory-energy.js";
 import { retrieveCandidates } from "./retrieval/retrieve.js";
 import { tasteCacheKey } from "./weighting/taste-weighting.js";
@@ -230,7 +231,7 @@ export async function createProvisionalPlan(
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
   return {
     result: {
-      session_title: provisionalTitle(intent),
+      session_title: provisionalTitle(intent, tieBreakSeed),
       session_subtitle: `${intent.duration_min} min`,
       arc: "warm_up",
       tracklist: stampSpotify(buildProvisionalArc(candidates, intent.mood), byUri),
@@ -259,9 +260,8 @@ function buildProvisionalArc(candidates: TrackCandidate[], mood: string): FlowTr
   return slots;
 }
 
-function provisionalTitle(intent: SessionIntent): string {
-  const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
-  return `${cap(intent.mood)} · ${cap(intent.scene)}`;
+function provisionalTitle(intent: SessionIntent, tieBreakSeed?: string): string {
+  return createSessionTitle(intent, tieBreakSeed);
 }
 
 /** Initial session plan: Step 1 retrieval → Step 2 Flow over a fresh 8-track arc. */
@@ -297,6 +297,7 @@ export async function createPlan(
     lastPlayedEnergy: null,
     remainingSlots: FULL_SESSION_LENGTH,
     candidates,
+    tieBreakSeed,
   });
   return { ...plan, result: { ...plan.result, tracklist: stampSpotify(plan.result.tracklist, byUri) }, spotifyMatchedEnergy: matchedEnergy, spotifyMatchedVoicing: matchedVoicing };
 }
@@ -367,6 +368,7 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
     lastPlayedEnergy: input.lastPlayedEnergy,
     remainingSlots: input.remainingSlots,
     candidates: mixed,
+    tieBreakSeed: input.tieBreakSeed,
   });
   return { ...plan, result: { ...plan.result, tracklist: stampSpotify(plan.result.tracklist, byUri) } };
 }

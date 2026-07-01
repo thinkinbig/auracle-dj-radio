@@ -3,6 +3,7 @@ dist/
 /data/
 *.tsbuildinfo
 .env
+.env.local
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

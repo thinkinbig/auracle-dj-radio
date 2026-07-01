@@ -71,6 +71,7 @@ export default defineConfig(() => {
       },
     },
     server: {
+      host: '127.0.0.1',
       port: 5173,
       strictPort: true,
       // Linux inotify limit (fs.inotify.max_user_watches) is shared across every

@@ -15,7 +15,6 @@ import {
   playbackProgressPct,
 } from '@/features/radio/session/playbackSelectors';
 import {
-  IconMic,
   IconPause,
   IconPlay,
   IconRepeat,
@@ -39,8 +38,6 @@ export function MiniControlBar() {
     handleSkipTrack,
     handleContinue,
     handleChangeHostMode,
-    handleTalkStart,
-    handleTalkEnd,
   } = useRadioActions();
   const waveRef = useRef<HTMLDivElement>(null);
   const barCount = useBarCount(waveRef, 5, 32, 160);
@@ -105,7 +102,6 @@ export function MiniControlBar() {
             onClick={handleContinue}
             aria-label="Continue to next track"
           >
-            {state.phase === 'listening' ? <IconMic size={14} /> : null}
             Continue
           </button>
         ) : (
@@ -144,19 +140,6 @@ export function MiniControlBar() {
               );
             })}
           </div>
-        )}
-        {!idle && !curating && !state.inBreak && (
-          <button
-            type="button"
-            className={cn(styles.btn, state.isTalking && styles.btnTalkActive)}
-            onPointerDown={handleTalkStart}
-            onPointerUp={handleTalkEnd}
-            onPointerLeave={handleTalkEnd}
-            aria-label="Hold to talk to AI host"
-            aria-pressed={state.isTalking}
-          >
-            <IconMic size={16} />
-          </button>
         )}
       </div>
     </footer>

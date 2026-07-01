@@ -14,7 +14,7 @@ import {
   playbackProgressPct,
   selectQueueRefresh,
 } from '@/features/radio/session/playbackSelectors';
-import { IconMic, IconPause, IconPlay, IconSkipNext } from '@/shared/ui/icons';
+import { IconPause, IconPlay, IconSkipNext } from '@/shared/ui/icons';
 import { LoreToggle } from '@/shared/ui/LoreToggle';
 import { IntentOnboarding } from './IntentOnboarding';
 import { SessionCompletePanel } from './SessionCompletePanel';
@@ -31,7 +31,7 @@ export function ContentSheet() {
   const sheetRef = useRef<HTMLElement>(null);
   const loreRef = useRef<HTMLParagraphElement>(null);
   const state = useRadioState();
-  const { handleStart, handleTogglePause, handleSkipTrack, handleContinue, handleTalkStart, handleTalkEnd, handleRetryExtend, handleReturnToSetup } = useRadioActions();
+  const { handleStart, handleTogglePause, handleSkipTrack, handleContinue, handleRetryExtend, handleReturnToSetup } = useRadioActions();
   const { isWide } = useLayoutMode();
   const paused = isPaused(state.phase);
   const idle = isIdle(state.phase);
@@ -47,7 +47,6 @@ export function ContentSheet() {
   const extendFailed = complete && refresh.failed;
   const pct = playbackProgressPct(state);
   const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
-  const artistPhotoUrl = state.artistPhotoUrl || track.artistPhotoUrl;
   const flowLabel = state.sessionSubtitle
     .split('·')
     .map((part) => part.trim())
@@ -151,7 +150,7 @@ export function ContentSheet() {
               <Skeleton variant="rect" width={88} height={88} className={styles.cover} />
               <div className={styles.trackInfo}>
                 <Skeleton variant="text" height={20} width="68%" />
-                <div className={styles.trackCredit}>
+                <div className={styles.skeletonMetaRow}>
                   <Skeleton variant="circle" width={32} height={32} />
                   <Skeleton variant="text" height={14} width="55%" className={styles.skeletonCredit} />
                 </div>
@@ -160,22 +159,8 @@ export function ContentSheet() {
           </>
         ) : (
           <>
-            <h1 className={styles.title} data-session-heading>
-              {state.sessionTitle}
-            </h1>
             <div className={styles.nowPlaying}>
-              <div className={styles.nowPlayingKickerRow}>
-                <p className={styles.trackKicker}>Now playing</p>
-                {!isWide && lore ? (
-                  <LoreToggle
-                    variant="icon"
-                    expanded={loreExpanded}
-                    onToggle={() => setLoreExpanded((open) => !open)}
-                    controlsId="now-playing-lore"
-                  />
-                ) : null}
-              </div>
-              <div className={styles.nowPlayingBody}>
+              <div className={styles.nowPlayingTop}>
                 {currentCoverUrl ? (
                   <img
                     className={styles.cover}
@@ -187,27 +172,21 @@ export function ContentSheet() {
                   />
                 ) : null}
                 <div className={styles.trackInfo}>
-                  <p className={styles.trackTitle}>{state.trackTitle}</p>
-                  <div className={styles.albumLine}>
-                    <p className={styles.trackCredit}>
-                      {artistPhotoUrl ? (
-                        <img
-                          className={styles.artistPhoto}
-                          src={artistPhotoUrl}
-                          alt=""
-                          width={32}
-                          height={32}
-                          loading="lazy"
-                        />
-                      ) : null}
-                      <span className={styles.trackCreditNames}>
-                        <span>{state.artist}</span>
-                        {state.albumTitle ? <small>{state.albumTitle}</small> : null}
-                      </span>
-                    </p>
-                    {track.mood ? <p className={styles.trackMood}>{track.mood}</p> : null}
-                  </div>
+                  <p className={styles.stationTitle} data-session-heading>{state.sessionTitle}</p>
+                  <h1 className={styles.trackTitle}>{state.trackTitle}</h1>
+                  <p className={styles.trackMeta}>
+                    {state.artist}
+                    {state.albumTitle ? ` · ${state.albumTitle}` : ''}
+                  </p>
                 </div>
+                {!isWide && lore ? (
+                  <LoreToggle
+                    variant="icon"
+                    expanded={loreExpanded}
+                    onToggle={() => setLoreExpanded((open) => !open)}
+                    controlsId="now-playing-lore"
+                  />
+                ) : null}
               </div>
               {showStory ? (
                 <p
@@ -218,12 +197,15 @@ export function ContentSheet() {
                   {lore}
                 </p>
               ) : null}
-              <div className={styles.sessionFlow}>
-                <div>
-                  <p className={styles.flowKicker}>Session flow</p>
-                  <p className={styles.flowText}>{flowLabel || 'Flow adjusting live'}</p>
-                </div>
-                <p className={styles.queueCount}>{queuedLabel}</p>
+              <div className={styles.sessionMetaBar}>
+                <p>
+                  <span>Flow</span>
+                  {flowLabel || 'Adjusting live'}
+                </p>
+                <p>
+                  <span>Queue</span>
+                  {queuedLabel}
+                </p>
               </div>
             </div>
           </>
@@ -261,7 +243,6 @@ export function ContentSheet() {
             onClick={handleContinue}
             aria-label="Continue to next track"
           >
-            {state.phase === 'listening' ? <IconMic size={15} /> : null}
             Continue
           </button>
         ) : (
@@ -273,20 +254,6 @@ export function ContentSheet() {
             aria-label="Next track"
           >
             <IconSkipNext size={18} />
-          </button>
-        )}
-
-        {!idle && !curating && !state.inBreak && (
-          <button
-            type="button"
-            className={cn(styles.talkBtn, state.isTalking && styles.talkBtnActive)}
-            onPointerDown={handleTalkStart}
-            onPointerUp={handleTalkEnd}
-            onPointerLeave={handleTalkEnd}
-            aria-label="Hold to talk to DJ"
-            aria-pressed={state.isTalking}
-          >
-            <IconMic size={18} />
           </button>
         )}
 

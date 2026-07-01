@@ -146,8 +146,18 @@ describe("music-engine HTTP", () => {
     const second = await createPlan(deps, { mood: "calm", scene: "study", duration_min: 25 });
 
     expect(first.result.tracklist.map((r) => r.id)).toEqual(second.result.tracklist.map((r) => r.id));
-    expect(first.result.session_title).toMatch(/^Calm Study, vol\. [1-9]$/);
+    expect(first.result.session_title).not.toContain("vol.");
     expect(first.violations.some((v) => v.kind === "genre_repeat")).toBe(true);
+  });
+
+  it("varies station-style session titles by session seed", async () => {
+    const deps = { tracks: () => [] };
+
+    const first = await createPlan(deps, { mood: "calm", scene: "study", duration_min: 25 }, "", undefined, undefined, "seed-a");
+    const second = await createPlan(deps, { mood: "calm", scene: "study", duration_min: 25 }, "", undefined, undefined, "seed-c");
+
+    expect(first.result.session_title).not.toContain("vol.");
+    expect(first.result.session_title).not.toEqual(second.result.session_title);
   });
 
   it("heuristic flow orders calm sessions inside the low-energy arc", async () => {

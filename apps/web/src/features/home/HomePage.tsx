@@ -4,8 +4,8 @@ import { useRadioState } from '@/features/radio/session/RadioSessionContext';
 import {
   deriveGeneratedSessions,
   deriveSessionDurationLabel,
-  deriveSessionTimeline,
   deriveSessionTitle,
+  formatSavedAt,
   hasStartedSession,
 } from '@/features/radio/session/sessionDisplay';
 import type { SessionHistoryEntry } from '@/features/radio/session/sessionHistory';
@@ -42,7 +42,6 @@ export function HomePage({
   const firstName = firstNameFromUser(user);
   const sessionTitle = deriveSessionTitle(hasSession, state, latestSavedSession);
   const sessionDuration = deriveSessionDurationLabel(hasSession, state, latestSavedSession);
-  const sessionTimeline = deriveSessionTimeline(hasSession, state, latestSavedSession);
   const generatedSessions = deriveGeneratedSessions(hasSession, state, history);
   const tasteWords = resolveProfileTasteWords(
     user,
@@ -58,6 +57,27 @@ export function HomePage({
     : previewArtwork.artistPhotoUrl
       ? `${previewArtwork.artist} image`
       : '';
+  const remainingTracks = Math.max(state.sessionTracklist.length - state.currentTrackIndex, 0);
+  const sessionOverview = hasSession
+    ? [
+        { label: 'Mode', value: state.sessionSubtitle || 'Live flow' },
+        { label: 'Elapsed', value: sessionDuration },
+        { label: 'Queue', value: remainingTracks === 1 ? '1 track' : `${remainingTracks} tracks` },
+      ]
+    : latestSavedSession
+      ? [
+          { label: 'Saved', value: formatSavedAt(latestSavedSession.savedAt) },
+          { label: 'Length', value: sessionDuration },
+          {
+            label: 'Flow',
+            value: latestSavedSession.trackCount === 1 ? '1 track' : `${latestSavedSession.trackCount} tracks`,
+          },
+        ]
+      : [
+          { label: 'Start', value: 'Mood first' },
+          { label: 'Taste', value: tasteWords[0] ?? 'Learning' },
+          { label: 'Library', value: libraryTrackCount > 0 ? `${libraryTrackCount} ready` : 'Ready' },
+        ];
 
   return (
     <main className={`${chrome.productSurface} ${chrome.homeSurface} ${chrome.pageTransition}`}>
@@ -101,12 +121,11 @@ export function HomePage({
             </div>
           </div>
 
-          <div className={styles.sessionPath} aria-label={hasSession ? 'Session path' : 'First session steps'}>
-            {sessionTimeline.map((item) => (
-              <span key={`${item.title}-${item.detail}`}>
-                <i aria-hidden />
-                <strong>{item.title}</strong>
-                <small>{item.detail}</small>
+          <div className={styles.sessionOverview} aria-label="Session overview">
+            {sessionOverview.map((item) => (
+              <span className={styles.sessionMetric} key={`${item.label}-${item.value}`}>
+                <small>{item.label}</small>
+                <strong>{item.value}</strong>
               </span>
             ))}
           </div>

@@ -9,4 +9,6 @@ export interface FlowInput {
   lastPlayedEnergy: number | null;
   remainingSlots: number;
   candidates: TrackCandidate[];
+  /** Session-scoped seed; changes per new session, stable within replan/refine. */
+  tieBreakSeed?: string;
 }
