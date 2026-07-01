@@ -134,14 +134,12 @@
   text-transform: uppercase;
 }
 
-.tasteWords,
-.memoryRows {
+.tasteWords {
   display: grid;
   gap: 5px;
 }
 
-.tasteWords span,
-.memoryRows span {
+.tasteWords span {
   min-width: 0;
   overflow: hidden;
   color: rgba(248, 250, 252, 0.88);
@@ -150,11 +148,6 @@
   line-height: 1.18;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.memoryRows span {
-  color: rgba(248, 250, 252, 0.6);
-  font-weight: 700;
 }
 
 .sectionActionRow {

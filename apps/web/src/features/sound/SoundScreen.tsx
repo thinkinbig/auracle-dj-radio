@@ -9,10 +9,10 @@ import styles from './SoundScreen.module.css';
 
 interface SoundScreenProps {
   onGuestBack: () => void;
-  onOpenImport?: () => void;
+  onOpenLibrary?: () => void;
 }
 
-export function SoundScreen({ onGuestBack, onOpenImport }: SoundScreenProps) {
+export function SoundScreen({ onGuestBack, onOpenLibrary }: SoundScreenProps) {
   const { user } = useAuth();
   const isGuest = isGuestUser(user!);
 
@@ -81,14 +81,14 @@ export function SoundScreen({ onGuestBack, onOpenImport }: SoundScreenProps) {
           <div className={styles.supportGrid}>
               <section className={cn(styles.block, enter.enter, enter.d500)} aria-labelledby="sound-archive-title">
               <div className={styles.blockHeader}>
-                <h2 id="sound-archive-title">Music history</h2>
-                <span className={styles.badge}>Import</span>
+                <h2 id="sound-archive-title">Playback source</h2>
+                <span className={styles.badge}>Spotify</span>
               </div>
               <p className={styles.blockCopy}>
-                Bring in playlists from the past so Auracle can understand your long-term taste.
+                Connect Spotify or keep the local catalog as the station source.
               </p>
-              <button className={styles.importButton} type="button" onClick={onOpenImport}>
-                Import Music
+              <button className={styles.importButton} type="button" onClick={onOpenLibrary}>
+                Open Library
               </button>
               <SpotifyPlaybackControl />
             </section>

@@ -21,7 +21,7 @@ export interface HomePageProps {
   onContinue: () => void;
   onStartNew: () => void;
   onOpenSound: () => void;
-  onOpenImport: () => void;
+  onOpenLibrary: () => void;
   onOpenHistory: () => void;
 }
 
@@ -30,7 +30,7 @@ export function HomePage({
   onContinue,
   onStartNew,
   onOpenSound,
-  onOpenImport,
+  onOpenLibrary,
   onOpenHistory,
 }: HomePageProps) {
   const { user } = useAuth();
@@ -168,14 +168,14 @@ export function HomePage({
           <div className={styles.libraryStack} aria-label="Library summary">
             <span>
               <strong>{libraryTrackCount > 0 ? libraryTrackCount : 'Ready'}</strong>
-              <small>{libraryTrackCount > 0 ? 'planned tracks in this flow' : 'to import playlists'}</small>
+              <small>{libraryTrackCount > 0 ? 'planned tracks in this flow' : 'Spotify or local catalog'}</small>
             </span>
             <span>
               <strong>Artists</strong>
               <small>Shape future radio sessions</small>
             </span>
           </div>
-          <button className={chrome.textButton} type="button" onClick={onOpenImport}>
+          <button className={chrome.textButton} type="button" onClick={onOpenLibrary}>
             Manage Library
             <IconArrowRight size={18} />
           </button>

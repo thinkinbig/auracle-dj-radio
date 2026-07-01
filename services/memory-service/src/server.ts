@@ -3,11 +3,9 @@ import type { AuthStore } from "./auth-store.js";
 import type { CatalogIndex } from "./catalog-index.js";
 import type { EventsDb } from "./events-db.js";
 import type { MemoryClient } from "./memory/client.js";
-import type { PlaylistStore } from "./playlist-store.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { registerMemoryRoutes } from "./routes/memory.js";
-import { registerPlaylistRoutes } from "./routes/playlists.js";
 import { registerTasteRoutes } from "./routes/taste.js";
 import type { TasteStore } from "./taste/taste-store.js";
 
@@ -16,14 +14,13 @@ export interface MemoryServiceDeps {
   memory: MemoryClient;
   auth: AuthStore;
   taste: TasteStore;
-  playlists: PlaylistStore;
   /** Live catalog (S1) for validating/resolving taste entities. */
   catalog: CatalogIndex;
 }
 
 /** Memory-service owns auth, cross-session memory, analytics events, and taste. */
 export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
-  const { events, memory, auth, taste, playlists, catalog } = deps;
+  const { events, memory, auth, taste, catalog } = deps;
   const app = Fastify({ logger: true });
 
   app.get("/health", async () => ({ ok: true, memory: { enabled: memory.enabled, degraded: memory.degraded } }));
@@ -32,7 +29,6 @@ export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
   registerEventRoutes(app, events);
   registerAuthRoutes(app, auth);
   registerTasteRoutes(app, { auth, taste, memory, catalog });
-  registerPlaylistRoutes(app, { auth, playlists, memory });
 
   return app;
 }

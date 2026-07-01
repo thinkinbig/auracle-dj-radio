@@ -15,7 +15,7 @@ import { AppBrand } from '@/features/marketing/AppBrand';
 import { AuthStatus } from '@/features/marketing/AuthStatus';
 import { useAuth } from '@/features/marketing/AuthProvider';
 import { LandingPage } from '@/features/marketing/LandingPage';
-import { ImportPlaylistScreen } from '@/features/playlist-import/ImportPlaylistScreen';
+import { LibraryScreen } from '@/features/library/LibraryScreen';
 import { OnboardingPage } from '@/features/radio/ui/OnboardingPage';
 import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import { SoundScreen } from '@/features/sound/SoundScreen';
@@ -112,20 +112,21 @@ function LoggedInApp() {
           }
         />
         <Route
-          path={paths.import}
+          path={paths.library}
           element={
             <main className={`${chrome.productSurface} ${chrome.featureSurface} ${chrome.pageTransition}`}>
-              <ImportPlaylistScreen />
+              <LibraryScreen />
             </main>
           }
         />
+        <Route path="/import" element={<Navigate to={paths.library} replace />} />
         <Route
           path={paths.sound}
           element={
             <main className={`${chrome.productSurface} ${chrome.featureSurface} ${chrome.pageTransition}`}>
               <SoundScreen
                 onGuestBack={() => navigate(paths.home)}
-                onOpenImport={() => navigate(paths.import)}
+                onOpenLibrary={() => navigate(paths.library)}
               />
             </main>
           }
@@ -139,7 +140,7 @@ function LoggedInApp() {
               onContinue={openListen}
               onStartNew={startNewSession}
               onOpenSound={() => navigate(paths.sound)}
-              onOpenImport={() => navigate(paths.import)}
+              onOpenLibrary={() => navigate(paths.library)}
               onOpenHistory={() => navigate(paths.history)}
             />
           }

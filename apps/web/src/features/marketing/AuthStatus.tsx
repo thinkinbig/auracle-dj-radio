@@ -1,9 +1,7 @@
 import * as Popover from '@radix-ui/react-popover';
 import { useEffect, useState } from 'react';
-import { useImportedPlaylistsQuery } from '@/features/playlist-import/useImportedPlaylistsQuery';
 import { deriveSessionMeta, hasStartedSession } from '@/features/radio/session/sessionDisplay';
 import type { PlaybackState } from '@/features/radio/session/types';
-import { resolveProfileMemoryLines, resolveMusicMemory } from '@/features/sound/memoryDisplay';
 import { resolveProfileTasteWords, resolveTasteWords } from '@/features/sound/tasteDisplay';
 import { useTasteQuery } from '@/features/sound/useTasteQuery';
 import { isGuestUser } from '@/features/marketing/guest';
@@ -25,7 +23,6 @@ export function AuthStatus({ onLogout, onOpenListen, playback }: AuthStatusProps
   const [view, setView] = useState<AccountView>('overview');
   const fetchProfile = open && !isGuestUser(user);
   const tasteQuery = useTasteQuery(fetchProfile);
-  const playlistsQuery = useImportedPlaylistsQuery(fetchProfile);
   const initials = user.name
     .split(/\s+/)
     .filter(Boolean)
@@ -40,9 +37,7 @@ export function AuthStatus({ onLogout, onOpenListen, playback }: AuthStatusProps
   const hasSession = hasStartedSession(playback);
   const { title: sessionTitle, meta: sessionMeta, action: sessionAction } = deriveSessionMeta(hasSession, playback);
   const tasteWords = tasteQuery.data ? resolveTasteWords(tasteQuery.data.preferences) : [];
-  const musicMemory = playlistsQuery.data ? resolveMusicMemory(playlistsQuery.data.playlists) : { playlistCount: 0, trackCount: 0 };
   const resolvedTasteWords = resolveProfileTasteWords(user, tasteWords, tasteQuery);
-  const memoryLines = resolveProfileMemoryLines(user, musicMemory, playlistsQuery);
   const accountStatus = isGuestUser(user) ? 'Demo station' : 'Signed in';
 
   return (
@@ -81,17 +76,6 @@ export function AuthStatus({ onLogout, onOpenListen, playback }: AuthStatusProps
                   <div className={styles.tasteWords} aria-label="Taste DNA">
                     {resolvedTasteWords.map((word) => (
                       <span key={word}>{word}</span>
-                    ))}
-                  </div>
-                </section>
-
-                <section className={styles.profileSection} aria-labelledby="profile-memory-title">
-                  <p className={styles.sectionLabel} id="profile-memory-title">
-                    Music Memory
-                  </p>
-                  <div className={styles.memoryRows}>
-                    {memoryLines.map((line) => (
-                      <span key={line}>{line}</span>
                     ))}
                   </div>
                 </section>

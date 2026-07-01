@@ -269,8 +269,8 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   </span>
                 </h1>
                 <p className={styles.lede}>
-                  Years of playlists and listening history become a personal Taste DNA, then turn into
-                  an AI-hosted radio session for whatever you're doing today.
+                  Spotify liked tracks and the Auracle catalog become a personal Taste DNA, then turn
+                  into an AI-hosted radio session for whatever you're doing today.
                 </p>
                 <div className={styles.actions}>
                   <button
@@ -373,12 +373,12 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
               <section className={styles.finalCta} aria-label="Start your AI radio">
                 <div>
                   <h2>
-                    Every playlist
-                    <span>tells a story.</span>
+                    Every station
+                    <span>finds a direction.</span>
                     <span>Yours is waiting.</span>
                   </h2>
                   <p>
-                    Import your music history. Auracle will uncover the Taste DNA behind years of listening.
+                    Connect Spotify or start from the local catalog. Auracle will shape the next station around your taste.
                   </p>
                 </div>
                 <div className={styles.ctaVisual} aria-hidden>

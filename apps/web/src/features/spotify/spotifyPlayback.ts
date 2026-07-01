@@ -60,10 +60,6 @@ interface SpotifyApiTrack {
   };
 }
 
-interface SpotifyTopTracksResponse {
-  items: SpotifyApiTrack[];
-}
-
 interface SpotifySavedTracksResponse {
   items: Array<{ track: SpotifyApiTrack | null }>;
 }
@@ -222,7 +218,7 @@ export async function checkPremium(): Promise<boolean> {
 }
 
 /**
- * Gather the listener's library as candidates for the server to rank (ADR-0005).
+ * Gather the listener's liked Spotify tracks as candidates for the server to rank.
  * Premium-gated; market-unplayable tracks are filtered here so the queue never
  * contains a track the DJ would introduce but cannot play. No client-side ranking.
  */
@@ -236,19 +232,13 @@ export async function gatherSpotifyCandidates(targetCount = 50): Promise<Spotify
   patchState({ gatherStatus: 'loading', gatherError: null });
   try {
     const token = await requireAccessToken();
-    const [top, saved] = await Promise.all([
-      fetchSpotify<SpotifyTopTracksResponse>(
-        token,
-        'https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term&market=from_token',
-      ).catch(() => ({ items: [] })),
-      fetchSpotify<SpotifySavedTracksResponse>(
-        token,
-        'https://api.spotify.com/v1/me/tracks?limit=50&market=from_token',
-      ).catch(() => ({ items: [] })),
-    ]);
+    const saved = await fetchSpotify<SpotifySavedTracksResponse>(
+      token,
+      `https://api.spotify.com/v1/me/tracks?limit=${Math.min(50, targetCount)}&market=from_token`,
+    );
     const seen = new Set<string>();
     const candidates: SpotifyTrackRef[] = [];
-    for (const t of [...saved.items.flatMap((i) => (i.track ? [i.track] : [])), ...top.items]) {
+    for (const t of saved.items.flatMap((i) => (i.track ? [i.track] : []))) {
       if (t.is_playable === false) continue;
       if (seen.has(t.uri)) continue;
       seen.add(t.uri);
@@ -257,11 +247,11 @@ export async function gatherSpotifyCandidates(targetCount = 50): Promise<Spotify
     }
     patchState({
       gatherStatus: 'ready',
-      gatherError: candidates.length > 0 ? null : 'No playable Spotify library tracks available',
+      gatherError: candidates.length > 0 ? null : 'No playable liked Spotify tracks available',
     });
     return candidates;
   } catch (err) {
-    const message = describeError(err, 'Could not read Spotify library');
+    const message = describeError(err, 'Could not read liked Spotify tracks');
     patchState({ gatherStatus: 'error', gatherError: message, error: message });
     return [];
   }
@@ -421,7 +411,7 @@ async function fetchSpotify<T = void>(token: string, url: string, init?: Request
     patchState({ authStatus: 'signed_out', error: 'Spotify sign-in expired' });
   }
   if (!res.ok) {
-    if (res.status === 403) throw new Error('Reconnect Spotify to allow library/top-track access, or use Premium for playback');
+    if (res.status === 403) throw new Error('Reconnect Spotify to allow liked-track access, or use Premium for playback');
     throw new Error(`Spotify API failed (${res.status})`);
   }
   if (res.status === 204) return undefined as T;

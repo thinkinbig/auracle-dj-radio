@@ -110,7 +110,7 @@ function resolveStatusLabel(spotify: SpotifyPlaybackState): string {
   if (spotify.authStatus === 'signed_out') return 'Premium playback';
   if (spotify.authStatus === 'error') return 'Needs reconnect';
   if (!spotify.enabled) return 'Local file catalog';
-  if (spotify.gatherStatus === 'loading') return 'Reading saved/top tracks';
+  if (spotify.gatherStatus === 'loading') return 'Reading liked tracks';
   if (spotify.gatherError) return spotify.gatherError;
   if (spotify.playerStatus === 'ready') return 'Spotify library mixed in';
   if (spotify.playerStatus === 'connecting') return 'Connecting';

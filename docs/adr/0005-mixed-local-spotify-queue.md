@@ -4,7 +4,7 @@ Spotify playback already works (`apps/web/src/features/spotify/*`): OAuth, a
 Premium Web Playback device, library gathering (`buildSpotifyQueueFromTaste`),
 and per-track play. But it was bolted onto the engine as `if (spotifyEnabled)`
 branches threaded through `useTrackPlayback`, with a **second, parallel
-recommender** (`rankSpotifyTracks` over the user's top/saved tracks) whose output
+recommender** (`rankSpotifyTracks` over the user's liked tracks) whose output
 lived in an index-aligned side-array (`spotifyQueue[currentTrackIndex]`). Local
 and Spotify were two systems glued at the playback layer.
 
@@ -121,7 +121,7 @@ POST pool → harness                    ▲                              │
    transient dead-air is frequent.
 
 10. **Regenerate re-ranks a server-cached pool.** The Spotify candidate source is
-    the user's library (top/saved), static within a session. The harness caches
+    the user's liked-track library, static within a session. The harness caches
     the gathered pool in session state (alongside `energyWeights` / `mem0Context`);
     regenerate/extend re-rank that cache + local catalog against the new target,
     with **no client round-trip**. Re-gathering would re-fetch identical data and

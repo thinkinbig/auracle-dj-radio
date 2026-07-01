@@ -3,7 +3,6 @@ import { AuthStore } from "./auth-store.js";
 import { loadCatalogIndex } from "./catalog-index.js";
 import { EventsDb } from "./events-db.js";
 import { createMemoryClient } from "./memory/client.js";
-import { PlaylistStore } from "./playlist-store.js";
 import { TasteStore } from "./taste/taste-store.js";
 import { buildServer } from "./server.js";
 
@@ -12,7 +11,6 @@ const app = buildServer({
   memory: createMemoryClient(),
   auth: new AuthStore(config.authDbPath),
   taste: new TasteStore(config.tastePrefsDbPath),
-  playlists: new PlaylistStore(config.playlistDbPath),
   catalog: loadCatalogIndex(),
 });
 
