@@ -8,6 +8,7 @@ export function useTrackCatalogBootstrap(): void {
     queryKey: queryKeys.trackCatalog,
     queryFn: async () => {
       await loadTrackCatalog();
+      return true;
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,

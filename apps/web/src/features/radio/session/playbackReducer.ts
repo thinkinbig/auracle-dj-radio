@@ -232,7 +232,10 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
     case 'begin':
       return { ...state, phase: 'curating', transcript: [], activeTranscriptId: null };
     case 'start': {
-      const first = action.session.tracklist[0]!;
+      const first = action.session.tracklist[0];
+      if (!first) {
+        return { ...state, phase: 'idle', liveWarning: 'Session has no tracks — try again or check the music-engine catalog.' };
+      }
       const meta = trackMetaFromRef(first, first.id);
       const isDemoFallback = action.session.session_id === DEMO_SESSION.session_id;
       return {

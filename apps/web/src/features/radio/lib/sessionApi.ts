@@ -23,7 +23,10 @@ export async function createSession(
       clearStoredToken();
       throw new SessionAuthError();
     }
-    if (res.ok) return (await res.json()) as CreateSessionResponse;
+    if (res.ok) {
+      const body = (await res.json()) as CreateSessionResponse;
+      if (body.tracklist?.length) return body;
+    }
   } catch (err) {
     if (err instanceof SessionAuthError) throw err;
     /* demo fallback on network / server errors */

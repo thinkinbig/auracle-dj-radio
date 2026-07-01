@@ -1,5 +1,5 @@
 import { useAuth } from '@/features/marketing/AuthProvider';
-import { firstNameFromUser } from '@/features/marketing/guest';
+import { firstNameFromUser, isGuestUser } from '@/features/marketing/guest';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
 import {
   deriveGeneratedSessions,
@@ -36,7 +36,7 @@ export function HomePage({
   const { user } = useAuth();
   if (!user) return null;
   const state = useRadioState();
-  const tasteQuery = useTasteQuery();
+  const tasteQuery = useTasteQuery(!isGuestUser(user));
   const hasSession = hasStartedSession(state);
   const latestSavedSession = history[0];
   const firstName = firstNameFromUser(user);
