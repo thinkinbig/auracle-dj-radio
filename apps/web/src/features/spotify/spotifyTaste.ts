@@ -100,20 +100,29 @@ export async function getSpotifyTasteProfile(): Promise<SpotifyTasteProfile> {
 
   const token = await requireTasteToken();
   const [artistsShort, artistsMedium, artistsLong, tracksMedium, saved, recent] = await Promise.all([
-    fetchSpotify<SpotifyTopArtistsResponse>(token, `${API_BASE}/me/top/artists?limit=20&time_range=short_term`),
-    fetchSpotify<SpotifyTopArtistsResponse>(token, `${API_BASE}/me/top/artists?limit=20&time_range=medium_term`),
-    fetchSpotify<SpotifyTopArtistsResponse>(token, `${API_BASE}/me/top/artists?limit=20&time_range=long_term`),
-    fetchSpotify<SpotifyTopTracksResponse>(token, `${API_BASE}/me/top/tracks?limit=20&time_range=medium_term&market=from_token`),
+    fetchSpotify<SpotifyTopArtistsResponse>(token, `${API_BASE}/me/top/artists?limit=20&time_range=short_term`).catch(() => ({ items: [] })),
+    fetchSpotify<SpotifyTopArtistsResponse>(token, `${API_BASE}/me/top/artists?limit=20&time_range=medium_term`).catch(() => ({ items: [] })),
+    fetchSpotify<SpotifyTopArtistsResponse>(token, `${API_BASE}/me/top/artists?limit=20&time_range=long_term`).catch(() => ({ items: [] })),
+    fetchSpotify<SpotifyTopTracksResponse>(token, `${API_BASE}/me/top/tracks?limit=20&time_range=medium_term&market=from_token`).catch(() => ({ items: [] })),
     fetchSavedTracks(token).catch(() => ({ total: 0, items: [] })),
     fetchSpotify<SpotifyRecentlyPlayedResponse>(token, `${API_BASE}/me/player/recently-played?limit=50`).catch(() => ({ items: [] })),
   ]);
 
-  const artists = mergeArtists(artistsShort.items, artistsMedium.items, artistsLong.items);
-  const tracks = tracksMedium.items.map(toTasteTrack).filter((track): track is SpotifyTasteTrack => Boolean(track));
   const savedTracks = saved.items.flatMap((item) => (item.track ? [item.track] : []));
   const recentTracks = recent.items.flatMap((item) => (item.track ? [item.track] : []));
+  if (!hasSpotifyToken()) return emptyTasteProfile('signed_out');
+
+  const spotifyTopArtists = mergeArtists(artistsShort.items, artistsMedium.items, artistsLong.items);
+  const tracks = firstNonEmpty(
+    tracksMedium.items,
+    uniqueTracks(savedTracks),
+    uniqueTracks(recentTracks),
+  ).map(toTasteTrack).filter((track): track is SpotifyTasteTrack => Boolean(track));
+  const artists = spotifyTopArtists.length > 0
+    ? spotifyTopArtists
+    : artistsFromTracks([...recentTracks, ...savedTracks]);
   const topGenres = rankCounts(countGenres(artists));
-  const recentArtists = rankCounts(countTrackArtists(recentTracks)).slice(0, 6);
+  const recentArtists = rankCounts(countTrackArtists(firstNonEmpty(recentTracks, savedTracks))).slice(0, 6);
   const metrics = buildMetrics({ artists, tracks, savedTracks, topGenres, recentArtists });
   const hostSeed = buildHostSeed({ topGenres, artists, tracks, recentArtists });
   const summary = buildSummary({ topGenres, artists, tracks, recentArtists, metrics });
@@ -213,6 +222,33 @@ function mergeArtists(...groups: SpotifyArtist[][]): SpotifyTasteArtist[] {
   return [...byId.values()].sort((a, b) => b.score - a.score).map(({ score: _score, ...artist }) => artist);
 }
 
+function artistsFromTracks(tracks: SpotifyTrack[]): SpotifyTasteArtist[] {
+  const byName = new Map<string, SpotifyTasteArtist & { count: number }>();
+  for (const track of tracks) {
+    for (const artist of track.artists) {
+      const name = artist.name.trim();
+      if (!name) continue;
+      const key = (artist.id || name).toLowerCase();
+      const current = byName.get(key);
+      if (current) {
+        current.count += 1;
+        continue;
+      }
+      byName.set(key, {
+        id: artist.id || key,
+        name,
+        genres: [],
+        popularity: null,
+        imageUrl: pickImage(track.album.images),
+        count: 1,
+      });
+    }
+  }
+  return [...byName.values()]
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .map(({ count: _count, ...artist }) => artist);
+}
+
 function toTasteArtist(artist: SpotifyArtist): SpotifyTasteArtist {
   return {
     id: artist.id || artist.name,
@@ -258,6 +294,22 @@ function countTrackArtists(tracks: SpotifyTrack[]): Map<string, number> {
     }
   }
   return counts;
+}
+
+function uniqueTracks(tracks: SpotifyTrack[]): SpotifyTrack[] {
+  const seen = new Set<string>();
+  const unique: SpotifyTrack[] = [];
+  for (const track of tracks) {
+    const key = track.id || track.uri;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(track);
+  }
+  return unique;
+}
+
+function firstNonEmpty<T>(...groups: T[][]): T[] {
+  return groups.find((group) => group.length > 0) ?? [];
 }
 
 function rankCounts(counts: Map<string, number>): Array<{ name: string; count: number }> {
