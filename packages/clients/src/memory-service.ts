@@ -5,6 +5,16 @@ export type ResolveSessionUserResult =
   | { kind: "authenticated"; userId: string }
   | { kind: "invalid_token" };
 
+/** Like/dislike on the playing track, forwarded for taste derivation (#68/#69). */
+export interface SessionTasteFeedbackRequest {
+  sessionId: string;
+  userId: string;
+  trackId: string;
+  feedback: "like" | "dislike";
+  /** Persist the derived prefs + mem0 mirror (condition C, logged-in). */
+  persist: boolean;
+}
+
 export interface MemoryServiceClient {
   recall(query: string, userId: string): Promise<string>;
   recallForIntent(userId: string, mood: string, scene: string): Promise<string>;
@@ -13,6 +23,12 @@ export interface MemoryServiceClient {
   skipRateByEnergy(userId: string, recentSessions: number): Promise<Partial<Record<number, number>>>;
   /** A user's active structured taste prefs for plan weighting (Epic #3, S4). */
   tasteWeights(userId: string): Promise<TastePreference[]>;
+  /**
+   * Derive (and, for condition C logged-in users, persist) the taste prefs a
+   * like/dislike rolls up to (#69). Returns the derived prefs — empty when the
+   * track has no catalog identity — for the in-session queue nudge (#68).
+   */
+  sessionTasteFeedback(input: SessionTasteFeedbackRequest): Promise<TastePreference[]>;
   /** Map Bearer token → user id; no token → anonymous; bad token → invalid_token. Never throws. */
   resolveSessionUser(token?: string): Promise<ResolveSessionUserResult>;
 }
@@ -62,6 +78,17 @@ export class HttpMemoryServiceClient implements MemoryServiceClient {
 
   async tasteWeights(userId: string): Promise<TastePreference[]> {
     const body = await this.postJson<{ preferences: TastePreference[] }>("/taste/weights", { user_id: userId });
+    return body.preferences;
+  }
+
+  async sessionTasteFeedback(input: SessionTasteFeedbackRequest): Promise<TastePreference[]> {
+    const body = await this.postJson<{ preferences: TastePreference[] }>("/taste/session-feedback", {
+      session_id: input.sessionId,
+      user_id: input.userId,
+      track_id: input.trackId,
+      feedback: input.feedback,
+      persist: input.persist,
+    });
     return body.preferences;
   }
 

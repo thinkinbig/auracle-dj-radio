@@ -11,7 +11,7 @@
  * | extend           | POST .../extend       | —                     | from nowPlaying       |
  * | skipTrack        | POST .../skip-track   | skip_track            | pendingSkipAtMs       |
  * | skipSwap         | —                     | skip_track→nowPlaying | —                     |
- * | playlistFeedback | /playlist-feedback    | playlist_feedback     | regenerateAndPush     |
+ * | playlistFeedback | /playlist-feedback    | playlist_feedback     | applyFeedbackEffects / regenerateAndPush |
  */
 export const SESSION_FLOW = {
   create: [
@@ -63,7 +63,7 @@ export const SESSION_FLOW = {
     "rememberPersonalizedMoodShift",
     "pushQueueUpdate",
   ],
-  playlistFeedback: ["runPlaylistFeedback", "regenerateRemaining", "regenerateAndPush"],
+  playlistFeedback: ["runPlaylistFeedback", "applyFeedbackEffects", "mergeSessionTaste", "regenerateRemaining", "regenerateAndPush"],
   skipTrack: ["runSkipTrack"],
 } as const;
 
