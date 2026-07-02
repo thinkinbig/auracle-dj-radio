@@ -83,6 +83,9 @@
 
 A 条件：`mood_change` **不**触发重排（仅 DJ 口头回应或 noop）。
 
+**反馈回路（like / dislike / regenerate）utterance sheet 与打分表**：见
+[`auracle_feedback_eval_runbook.md`](auracle_feedback_eval_runbook.md)（#66–#69 HITL 运行手册；离线打分用 `scripts/feedback-eval.mjs`）。
+
 ---
 
 ## 实验规模
@@ -128,18 +131,21 @@ A 条件：`mood_change` **不**触发重排（仅 DJ 口头回应或 noop）。
 
 ### 反馈回路自动化测试 ↔ 评估项 (#66–#70)
 
-#70 将 #66–#69 的反馈回路（voice / DJ tool only）固化为自动化回归测试。下表把测试名映射到对应评估项；标 **todo** 的测试记录的是 #69「taste 写入」闭环尚未接线的 gap（实现落地前为 `it.todo`）。
+#70 将 #66–#69 的反馈回路（voice / DJ tool only）固化为自动化回归测试；#68/#69 的实现（session taste + nudge replan + `POST /taste/session-feedback`）随 PR #80 落地，原 telemetry-only 守卫与 `it.todo` 已翻转为闭环测试。
 
 | 评估项 | 测试 (文件 · 名称) | 状态 |
 |--------|-------------------|------|
 | #66 telemetry 捕获 | `agent-harness.test.ts` · "records playlist_feedback from the UI playlist-feedback route" / "...from a DJ tool call and surfaces it to the client" | ✅ |
 | #66 regenerate 事件 | `agent-harness.test.ts` · "regenerates the remaining queue from a DJ playlist_feedback tool call" / "regenerates the remaining queue on request"（UI 走 `POST /playlist-feedback`） | ✅ |
-| #66/#69 telemetry-only 守卫 | `agent-harness.test.ts` · "records like/dislike feedback as telemetry only — no mem0 write, even in condition C" | ✅ |
-| #68/#69 in-session / 跨会话写入 | `agent-harness.test.ts` · "dislike feedback adjusts the upcoming queue / writes session-sourced taste" | ⏳ todo（待 #69 接线） |
+| #68 in-session shift + #69 持久化（C, 登录） | `agent-harness.test.ts` · "dislike nudges the upcoming queue and persists session taste for a logged-in C user (#68/#69)" | ✅ |
+| #68 B/匿名 nudge（不持久化）+ 去重 | `agent-harness.test.ts` · "like nudges without persisting for an anonymous B session; duplicate feedback derives once (#68)" | ✅ |
+| #68 条件 A noop | `agent-harness.test.ts` · "condition A: dislike derives taste telemetry but leaves the fixed playlist alone" | ✅ |
 | #69 plan 权重读取 session taste | `taste-weighting.test.ts` · "downranks an artist avoided via session feedback (source: session)" / "treats session-sourced prefer/avoid symmetrically with onboarding source" | ✅ |
-| #69 feedback→taste consumer | `memory-service.test.ts` · "upserts a session-sourced avoid pref from a dislike playlist_feedback event" | ⏳ todo（待 #69 接线） |
-| #69 幂等 | `memory-service.test.ts` · "is idempotent: duplicate dislike for the same track+session yields one taste row" | ⏳ todo（待 #69 接线） |
-| #67 工具 fidelity | HITL 脚本（见 §标准化打断脚本），非单测 | 手动 |
+| #69 feedback→taste consumer + mem0 镜像 | `memory-service.test.ts` · "derives and persists session-sourced prefs (+ mem0 mirror) from a dislike (#69)" | ✅ |
+| #69 幂等/强化/翻转 | `memory-service.test.ts` · "keeps one row per entity: repeats strengthen (capped), a flip resets polarity (#69)" | ✅ |
+| #69 匿名/persist-off 隔离 | `memory-service.test.ts` · "never persists feedback for the anonymous identity or when persist is off (#69)" | ✅ |
+| #66 离线 timeline 读取 | `memory-service.test.ts` · "reads events back for offline eval scripts via /events/query (#66)" | ✅ |
+| #67 工具 fidelity | HITL：`auracle_feedback_eval_runbook.md`（utterance sheet + 打分表），评分辅助 `scripts/feedback-eval.mjs` | 手动 |
 
 `reducer` 同步（web，DJ tool path）：`playbackReducer.test.ts` · "records playlist feedback without mutating the queue (server owns the tracklist)"。
 
@@ -152,7 +158,7 @@ A 条件：`mood_change` **不**触发重排（仅 DJ 口头回应或 noop）。
 - [ ] 样本量与统计检验（t-test / ANOVA；**配对** C vs B）  
 - [ ] Baseline「简单选曲」prompt 与 Flow 的公平性（时长、曲数一致）  
 - [x] 个性化条件边界（skip 权重 / mem0 / per-user）→ `auracle_personalization_plan.md`  
-- [ ] C vs B 歌单 Jaccard 与 replan Δenergy 自动化脚本  
+- [x] C vs B 歌单 Jaccard 与 replan Δenergy 自动化脚本 → `scripts/feedback-eval.mjs`（`--compare` / `--session`，基于 `POST /events/query`）  
 
 ---
 

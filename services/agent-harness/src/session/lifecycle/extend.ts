@@ -42,7 +42,9 @@ export async function extendQueue(
   if (!shouldExtend(deps, state, opts)) return;
 
   state.extendPending = true;
-  await pushQueueRefresh(deps, state.id, "pending");
+  // Best-effort: extendQueue is void'ed from now_playing, so a proxy hiccup here
+  // must not escape as an unhandled rejection (the extend itself still runs).
+  await pushQueueRefresh(deps, state.id, "pending").catch(() => {});
   try {
     const context = await buildExtendContext(deps, state);
     const plan = await requestExtendPlan(deps, state, context);

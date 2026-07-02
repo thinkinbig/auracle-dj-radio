@@ -16,6 +16,24 @@ CREATE TABLE IF NOT EXISTS session_events (
 CREATE INDEX IF NOT EXISTS idx_events_session ON session_events(session_id);
 `;
 
+/** One persisted event, payload parsed back from JSON (raw string kept on parse failure). */
+export interface SessionEventRow {
+  id: number;
+  session_id: string;
+  user_id: string;
+  ts: number;
+  event_type: string;
+  payload: unknown;
+}
+
+function safeParse(json: string): unknown {
+  try {
+    return JSON.parse(json);
+  } catch {
+    return { raw: json };
+  }
+}
+
 export class EventsDb {
   private readonly db: Database.Database;
 
@@ -31,6 +49,44 @@ export class EventsDb {
     this.db
       .prepare(`INSERT INTO session_events (session_id, user_id, ts, event_type, payload_json) VALUES (?, ?, ?, ?, ?)`)
       .run(sessionId, userId, Date.now(), eventType, JSON.stringify(payload ?? {}));
+  }
+
+  /**
+   * Read events for offline eval scripts (#66): filter by any combination of
+   * session, user, and event type; ordered by insertion (id). The caller must
+   * supply at least one filter — this is an analytics read, not a full dump.
+   */
+  queryEvents(filter: { sessionId?: string; userId?: string; eventType?: string; limit?: number }): SessionEventRow[] {
+    const where: string[] = [];
+    const params: (string | number)[] = [];
+    if (filter.sessionId) {
+      where.push("session_id = ?");
+      params.push(filter.sessionId);
+    }
+    if (filter.userId) {
+      where.push("user_id = ?");
+      params.push(filter.userId);
+    }
+    if (filter.eventType) {
+      where.push("event_type = ?");
+      params.push(filter.eventType);
+    }
+    if (where.length === 0) throw new Error("queryEvents requires at least one filter");
+    const limit = filter.limit && filter.limit > 0 ? Math.min(filter.limit, 2000) : 500;
+    const rows = this.db
+      .prepare(
+        `SELECT id, session_id, user_id, ts, event_type, payload_json
+         FROM session_events WHERE ${where.join(" AND ")} ORDER BY id LIMIT ?`,
+      )
+      .all(...params, limit) as { id: number; session_id: string; user_id: string; ts: number; event_type: string; payload_json: string }[];
+    return rows.map((r) => ({
+      id: r.id,
+      session_id: r.session_id,
+      user_id: r.user_id,
+      ts: r.ts,
+      event_type: r.event_type,
+      payload: safeParse(r.payload_json),
+    }));
   }
 
   /** Count events for a session (used by tests / analytics sanity). */
