@@ -100,7 +100,10 @@ function parseVoicingReply(raw: unknown, tracks: TrackSeed[]): Record<string, Vo
     if (!track) continue;
     const artistPersona = str(r.artistPersona);
     const albumConcept = str(r.albumConcept);
-    if (!artistPersona && !albumConcept) continue;
+    // Both fields are required in the schema; a reply with only one populated is a
+    // partial/malformed row, not a real (half-empty) voicing — treat it as skipped
+    // like a fully-blank row, rather than surfacing an incomplete introduction.
+    if (!artistPersona || !albumConcept) continue;
     out[track.uri] = { artistPersona, albumConcept, lore: "" };
   }
   return out;
@@ -127,14 +130,25 @@ function voicingPrompt(tracks: TrackSeed[]): string {
   // phrase from these blurbs on air. Match the catalog's authored house style —
   // present-tense, concrete sensory imagery, no biography — so a seeded track reads
   // the same as a catalog one when introduced.
+  //
+  // HITL pass (#78): live-tested this prompt against real seeds and compared the
+  // output to actual catalog artistPersona/albumConcept text. The original exemplars
+  // below produced technically-correct but generic "evocative mood" copy (e.g. "A
+  // synth-obsessed phantom stalking neon-drenched boulevards"), while the catalog's
+  // real house voice leans specific and a little witty — a concrete, sometimes funny
+  // detail, not just atmosphere (e.g. "the name is the signal chain", "the turnstile
+  // beeps in harmony"). Swapped the exemplars for ones demonstrating that specificity;
+  // still original lines (not copied from the catalog) per the existing house-voice
+  // policy — they set register without being copied.
   return [
     "You write short liner-note blurbs a radio DJ borrows a phrase from on air.",
     "Write in English. Use present tense and concrete, sensory imagery — evocative mood, not factual claims.",
+    "Be specific and a little witty — a concrete detail or unexpected image, not just atmosphere.",
     "Never invent biography, awards, chart history, or band members.",
     "For each track, write:",
     "- artistPersona: one vivid sentence (≤15 words) capturing the artist's style or vibe.",
     "- albumConcept: one vivid sentence (≤15 words) capturing the album's mood or theme.",
-    'Style to match: artistPersona like "A night-owl producer who scores empty cities."; albumConcept like "Field recordings of 3am streets, reworked into ambient.".',
+    'Style to match: artistPersona like "A synth hoarder who names every track after a gas station he\'s slept in."; albumConcept like "A breakup record disguised as a highway map — every chorus another exit missed.".',
     "Return exactly one object per track, using the index shown.",
     "",
     ...tracks.map((t, i) => `${i}. "${t.title}" — ${t.artist} (${t.albumTitle})`),

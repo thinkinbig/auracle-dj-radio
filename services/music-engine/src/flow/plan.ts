@@ -457,7 +457,10 @@ export interface ExtendInput {
  * Rolling extend (E1): deterministically append `appendSlots` fresh tracks so the
  * station stays on air past the initial arc. Retrieval excludes everything already
  * played/queued; ordering chains from the last queued energy via chooseNext. No Flow
- * LLM — extend is a fast background continuation, not a re-plan.
+ * LLM — extend is a fast background continuation, not a re-plan. Note: if `seeds`
+ * includes a track with no catalog match and no cached resolution yet, `resolveSeeds`
+ * (§4-5) still makes a live Gemini call here — that path is memoized and best-effort,
+ * but is not itself LLM-free.
  */
 export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<PlanResult> {
   const effectiveEnergyWeights = mergeEnergyWeights(input.energyWeights, energyWeightsFromMemories(input.memories ?? ""));
