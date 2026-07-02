@@ -35,7 +35,8 @@ export function registerPlanningRoutes(app: FastifyInstance, deps: PlanDeps): vo
 
   // Step 2 planning: order candidates into an energy-arc tracklist.
   // mode: "provisional" (instant, LLM-free) | "full" (cached) | "replan" (mid-session)
-  //       | "extend" (append fresh tracks, LLM-free rolling continuation).
+  //       | "extend" (append fresh tracks, rolling continuation — no Flow LLM, but
+  //       unresolved seeded tracks still trigger a memoized seed-resolution call).
   app.post("/plan_tracklist", async (req, reply) => {
     const b = (req.body ?? {}) as {
       mode?: "provisional" | "full" | "replan" | "extend";
