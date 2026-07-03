@@ -9,6 +9,7 @@ export function useSpotifyTasteQuery(enabled = true) {
     enabled,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
+    refetchOnMount: 'always',
     retry: 1,
   });
 }

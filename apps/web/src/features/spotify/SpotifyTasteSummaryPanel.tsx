@@ -1,4 +1,6 @@
-import type { SpotifyTasteProfile } from './spotifyTaste';
+import { useState } from 'react';
+import { IconArrowRight } from '@/shared/ui/icons';
+import { buildSpotifyTasteRoast, type SpotifyTasteProfile } from './spotifyTaste';
 import { useSpotifyTasteQuery } from './useSpotifyTasteQuery';
 import styles from './SpotifyTasteSummaryPanel.module.css';
 
@@ -102,17 +104,25 @@ function TasteDashboard({ profile }: { profile: SpotifyTasteProfile }) {
         <div className={styles.cardTitle}>
           <span>Top genre</span>
         </div>
-        <h2>{topGenre?.name ?? 'Learning'}</h2>
-        <strong>{topGenre ? `${genrePercent}%` : '0%'}</strong>
+        <h2>{topGenre?.name ?? 'Still mapping'}</h2>
+        <strong>{topGenre ? `${genrePercent}%` : '--'}</strong>
         <GenreLines />
         <div className={styles.genreLegend}>
-          {profile.topGenres.slice(0, 4).map((genre) => (
-            <span key={genre.name}>
-              <i aria-hidden />
-              {genre.name}
-              <small>{Math.round((genre.count / Math.max(1, genreTotal)) * 100)}%</small>
-            </span>
-          ))}
+          {profile.topGenres.length > 0
+            ? profile.topGenres.slice(0, 4).map((genre) => (
+              <span key={genre.name}>
+                <i aria-hidden />
+                {genre.name}
+                <small>{Math.round((genre.count / Math.max(1, genreTotal)) * 100)}%</small>
+              </span>
+            ))
+            : (
+              <span>
+                <i aria-hidden />
+                Waiting for artist genres
+                <small />
+              </span>
+            )}
         </div>
       </section>
 
@@ -167,7 +177,77 @@ function TasteDashboard({ profile }: { profile: SpotifyTasteProfile }) {
           )) : <p className={styles.muted}>Top tracks will appear after Spotify has enough listening history.</p>}
         </div>
       </section>
+
+      <RoastCard profile={profile} />
     </div>
+  );
+}
+
+function RoastCard({ profile }: { profile: SpotifyTasteProfile }) {
+  const [revealed, setRevealed] = useState(false);
+  const roast = buildSpotifyTasteRoast(profile);
+
+  return (
+    <section className={styles.roastCard} aria-label="Taste roast">
+      <div className={styles.roastHeader}>
+        <div>
+          <div className={styles.cardTitle}>
+            <span>Taste roast</span>
+            <small>{revealed ? 'Revealed' : 'Opt-in'}</small>
+          </div>
+          <h2>{revealed ? roast.verdict : 'Your taste can take a joke.'}</h2>
+          <p>
+            {revealed
+              ? roast.summary
+              : 'A sharper read from your genres, repeats, artists, and saved-track habits.'}
+          </p>
+        </div>
+        <div className={styles.roastMeter} aria-label={revealed ? `Roast score ${roast.scoreLabel}` : 'Roast score hidden'}>
+          <strong>{revealed ? roast.scoreLabel : '--%'}</strong>
+          <span>heat check</span>
+        </div>
+      </div>
+
+      {revealed ? (
+        <>
+          <div className={styles.roastEvidence} aria-label="Roast evidence">
+            {roast.evidence.map((item) => (
+              <span key={item.label}>
+                <small>{item.label}</small>
+                <strong>{item.value}</strong>
+                <em>{item.detail}</em>
+              </span>
+            ))}
+          </div>
+          <div className={styles.roastBurns} aria-label="Roast lines">
+            {roast.burns.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+          <div className={styles.roastTags} aria-label="Roast tags">
+            {roast.tags.map((tag) => (
+              <span key={tag}>{tag}</span>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className={styles.roastPreview} aria-hidden>
+          <span />
+          <span />
+          <span />
+        </div>
+      )}
+
+      <button
+        className={styles.roastButton}
+        type="button"
+        onClick={() => setRevealed((current) => !current)}
+        aria-expanded={revealed}
+      >
+        {revealed ? 'Hide roast' : 'Roast my taste'}
+        <IconArrowRight size={18} />
+      </button>
+    </section>
   );
 }
 

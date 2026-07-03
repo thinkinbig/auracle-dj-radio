@@ -3,6 +3,34 @@ import { clearSpotifyToken, getSpotifyConfig, getValidSpotifyAccessToken, hasSpo
 const API_BASE = 'https://api.spotify.com/v1';
 const MAX_SAVED_TRACKS = 100;
 
+const KNOWN_ARTIST_GENRES: Record<string, string[]> = {
+  'billie eilish': ['alt pop'],
+  'charli xcx': ['hyperpop', 'electropop'],
+  'cocteau twins': ['dream pop', 'shoegaze'],
+  'dua lipa': ['dance pop'],
+  grimes: ['art pop', 'electropop'],
+  'lana del rey': ['alt pop', 'dream pop'],
+  lorde: ['art pop', 'alt pop'],
+  'tame impala': ['psych pop'],
+  'taylor swift': ['pop'],
+  'the weeknd': ['r&b', 'pop'],
+};
+
+const GENRE_KEYWORDS: Array<{ genre: string; terms: string[] }> = [
+  { genre: 'hip hop', terms: ['hip hop', 'rap', 'trap', 'drill'] },
+  { genre: 'r&b', terms: ['r&b', 'rnb', 'soul', 'neo soul'] },
+  { genre: 'indie rock', terms: ['indie rock', 'garage rock', 'post punk'] },
+  { genre: 'indie pop', terms: ['indie pop', 'bedroom pop'] },
+  { genre: 'dream pop', terms: ['dream pop', 'shoegaze', 'ethereal', 'heaven or las vegas'] },
+  { genre: 'art pop', terms: ['art pop', 'avant pop', 'grimes'] },
+  { genre: 'electropop', terms: ['electropop', 'synth pop', 'synthpop', 'electronic'] },
+  { genre: 'dance pop', terms: ['dance pop', 'club', 'dance'] },
+  { genre: 'house', terms: ['house', 'deep house', 'tech house'] },
+  { genre: 'ambient', terms: ['ambient', 'drone', 'new age'] },
+  { genre: 'folk', terms: ['folk', 'acoustic', 'singer songwriter'] },
+  { genre: 'pop', terms: ['pop'] },
+];
+
 export type SpotifyTasteStatus = 'missing_config' | 'signed_out' | 'ready';
 export type SpotifyTasteRange = 'short_term' | 'medium_term' | 'long_term';
 
@@ -42,6 +70,16 @@ export interface SpotifyTasteProfile {
   metrics: SpotifyTasteMetric[];
   hostSeed: string;
   summary: string;
+}
+
+export interface SpotifyTasteRoast {
+  verdict: string;
+  score: number;
+  scoreLabel: string;
+  summary: string;
+  evidence: SpotifyTasteMetric[];
+  burns: string[];
+  tags: string[];
 }
 
 interface SpotifyImage {
@@ -88,6 +126,10 @@ interface SpotifyRecentlyPlayedResponse {
   items: Array<{ track: SpotifyTrack | null; played_at?: string }>;
 }
 
+interface SpotifyArtistsResponse {
+  artists: SpotifyArtist[];
+}
+
 export function canReadSpotifyTaste(): SpotifyTasteStatus {
   if (!getSpotifyConfig()) return 'missing_config';
   if (!hasSpotifyToken()) return 'signed_out';
@@ -112,17 +154,31 @@ export async function getSpotifyTasteProfile(): Promise<SpotifyTasteProfile> {
   const recentTracks = recent.items.flatMap((item) => (item.track ? [item.track] : []));
   if (!hasSpotifyToken()) return emptyTasteProfile('signed_out');
 
-  const spotifyTopArtists = mergeArtists(artistsShort.items, artistsMedium.items, artistsLong.items);
+  const trackArtistDetails = await fetchArtistsForTracks(token, [
+    ...tracksMedium.items,
+    ...savedTracks,
+    ...recentTracks,
+  ]).catch(() => new Map<string, SpotifyArtist>());
+  const spotifyTopArtists = hydrateArtistsWithDetails(
+    mergeArtists(artistsShort.items, artistsMedium.items, artistsLong.items),
+    trackArtistDetails,
+  );
+  const fallbackArtists = artistsFromTracks([...recentTracks, ...savedTracks], trackArtistDetails);
   const tracks = firstNonEmpty(
     tracksMedium.items,
     uniqueTracks(savedTracks),
     uniqueTracks(recentTracks),
   ).map(toTasteTrack).filter((track): track is SpotifyTasteTrack => Boolean(track));
-  const artists = spotifyTopArtists.length > 0
+  const artists = hasArtistSignals(spotifyTopArtists)
     ? spotifyTopArtists
-    : artistsFromTracks([...recentTracks, ...savedTracks]);
-  const topGenres = rankCounts(countGenres(artists));
+    : fallbackArtists.length > 0
+      ? fallbackArtists
+      : spotifyTopArtists;
   const recentArtists = rankCounts(countTrackArtists(firstNonEmpty(recentTracks, savedTracks))).slice(0, 6);
+  const topGenres = firstNonEmpty(
+    rankCounts(countGenres(artists)),
+    inferGenreCounts({ artists, tracks, recentArtists }),
+  );
   const metrics = buildMetrics({ artists, tracks, savedTracks, topGenres, recentArtists });
   const hostSeed = buildHostSeed({ topGenres, artists, tracks, recentArtists });
   const summary = buildSummary({ topGenres, artists, tracks, recentArtists, metrics });
@@ -156,6 +212,65 @@ export function buildSpotifyTasteMemory(profile: SpotifyTasteProfile | undefined
     metrics ? `Taste signals: ${metrics}.` : '',
     profile.hostSeed ? `AI host seed: ${profile.hostSeed}.` : '',
   ].filter(Boolean).join(' ').slice(0, 900);
+}
+
+export function buildSpotifyTasteRoast(profile: SpotifyTasteProfile): SpotifyTasteRoast {
+  const topGenre = profile.topGenres[0]?.name;
+  const genreSignal = topGenre ?? 'mixed taste signals';
+  const topArtist = profile.topArtists[0]?.name ?? 'one mysterious artist';
+  const topTrack = profile.topTracks[0];
+  const recentArtist = profile.recentArtists[0]?.name;
+  const niche = metricPercent(profile, 'Niche score');
+  const genreFocus = metricPercent(profile, 'Genre focus') ?? 0;
+  const recentRepeat = metricPercent(profile, 'Recent repeat') ?? 0;
+  const libraryDepth = profile.savedTrackCount;
+  const roastScore = clamp(
+    34
+      + genreFocus * 0.24
+      + recentRepeat * 0.62
+      + (niche === null ? 8 : Math.abs(niche - 50) * 0.34)
+      + (libraryDepth < 24 ? 12 : libraryDepth > 90 ? 7 : 0),
+    22,
+    96,
+  );
+  const verdict = pickVerdict({ roastScore, niche, genreFocus, recentRepeat, topGenre });
+  const evidence = profile.metrics.filter(isRoastEvidenceMetric);
+  const burns = unique([
+    genreFocus >= 52 && topGenre
+      ? `You said "range" and then moved into ${topGenre} with a year-long lease.`
+      : `Your taste signals are scattered enough to look intentional, which is suspiciously convenient.`,
+    niche !== null && niche >= 68
+      ? `Your deep cuts have deep cuts, and half of them sound like they were found under a record shop receipt.`
+      : niche !== null && niche <= 34
+        ? `Your algorithm is not predicting you anymore; it is clocking in for an easy shift.`
+        : `You sit right between obscure and obvious, the diplomatic immunity of music taste.`,
+    recentRepeat >= 18 && recentArtist
+      ? `${recentArtist} has heard from you more than some of your group chats.`
+      : `Your recent plays are behaved enough to look curated, which is exactly what a repeat listener would claim.`,
+    topTrack
+      ? `"${topTrack.name}" by ${topTrack.artist} is doing a lot of emotional admin work here.`
+      : `${topArtist} is carrying this profile like it is a two-item group project.`,
+    libraryDepth < 24
+      ? `Your liked songs library is giving minimalist installation, mostly because there is barely anything installed.`
+      : libraryDepth > 90
+        ? `You save songs like you are preparing evidence for a very stylish trial.`
+        : `The library has enough shape to judge, unfortunately for everyone involved.`,
+  ]).slice(0, 5);
+  const tags = unique([
+    genreSignal,
+    recentRepeat >= 18 ? 'repeat offender' : 'controlled chaos',
+    niche !== null && niche >= 68 ? 'deep-cut defense' : niche !== null && niche <= 34 ? 'algorithm friendly' : 'taste diplomat',
+  ]);
+
+  return {
+    verdict,
+    score: roastScore,
+    scoreLabel: `${roastScore}% heat`,
+    summary: `Auracle found ${genreSignal}, ${recentRepeat}% recent-repeat energy, and ${topArtist} orbiting near the center.`,
+    evidence,
+    burns,
+    tags,
+  };
 }
 
 function emptyTasteProfile(status: SpotifyTasteStatus): SpotifyTasteProfile {
@@ -207,6 +322,13 @@ async function fetchSavedTracks(token: string): Promise<SpotifySavedTracksRespon
   return { total, items };
 }
 
+async function fetchArtistsForTracks(token: string, tracks: SpotifyTrack[]): Promise<Map<string, SpotifyArtist>> {
+  const ids = uniqueArtistIds(tracks).slice(0, 50);
+  if (ids.length === 0) return new Map();
+  const response = await fetchSpotify<SpotifyArtistsResponse>(token, `${API_BASE}/artists?ids=${ids.join(',')}`);
+  return new Map(response.artists.filter(Boolean).map((artist) => [artist.id, artist]));
+}
+
 function mergeArtists(...groups: SpotifyArtist[][]): SpotifyTasteArtist[] {
   const byId = new Map<string, SpotifyTasteArtist & { score: number }>();
   groups.forEach((group, groupIndex) => {
@@ -222,24 +344,47 @@ function mergeArtists(...groups: SpotifyArtist[][]): SpotifyTasteArtist[] {
   return [...byId.values()].sort((a, b) => b.score - a.score).map(({ score: _score, ...artist }) => artist);
 }
 
-function artistsFromTracks(tracks: SpotifyTrack[]): SpotifyTasteArtist[] {
+function hydrateArtistsWithDetails(
+  artists: SpotifyTasteArtist[],
+  details: Map<string, SpotifyArtist>,
+): SpotifyTasteArtist[] {
+  return artists.map((artist) => {
+    const detail = details.get(artist.id);
+    if (!detail) return artist;
+    const hydrated = toTasteArtist(detail);
+    return {
+      ...artist,
+      genres: artist.genres.length > 0 ? artist.genres : hydrated.genres,
+      popularity: artist.popularity ?? hydrated.popularity,
+      imageUrl: artist.imageUrl || hydrated.imageUrl,
+    };
+  });
+}
+
+function hasArtistSignals(artists: SpotifyTasteArtist[]): boolean {
+  return artists.some((artist) => artist.genres.length > 0 || artist.popularity !== null);
+}
+
+function artistsFromTracks(tracks: SpotifyTrack[], details: Map<string, SpotifyArtist> = new Map()): SpotifyTasteArtist[] {
   const byName = new Map<string, SpotifyTasteArtist & { count: number }>();
   for (const track of tracks) {
     for (const artist of track.artists) {
       const name = artist.name.trim();
       if (!name) continue;
       const key = (artist.id || name).toLowerCase();
+      const detail = artist.id ? details.get(artist.id) : undefined;
       const current = byName.get(key);
       if (current) {
         current.count += 1;
         continue;
       }
+      const hydrated = detail ? toTasteArtist(detail) : undefined;
       byName.set(key, {
-        id: artist.id || key,
-        name,
-        genres: [],
-        popularity: null,
-        imageUrl: pickImage(track.album.images),
+        id: hydrated?.id || artist.id || key,
+        name: hydrated?.name || name,
+        genres: hydrated?.genres ?? [],
+        popularity: hydrated?.popularity ?? null,
+        imageUrl: hydrated?.imageUrl || pickImage(track.album.images),
         count: 1,
       });
     }
@@ -308,6 +453,19 @@ function uniqueTracks(tracks: SpotifyTrack[]): SpotifyTrack[] {
   return unique;
 }
 
+function uniqueArtistIds(tracks: SpotifyTrack[]): string[] {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const track of tracks) {
+    for (const artist of track.artists) {
+      if (!artist.id || seen.has(artist.id)) continue;
+      seen.add(artist.id);
+      ids.push(artist.id);
+    }
+  }
+  return ids;
+}
+
 function firstNonEmpty<T>(...groups: T[][]): T[] {
   return groups.find((group) => group.length > 0) ?? [];
 }
@@ -316,6 +474,38 @@ function rankCounts(counts: Map<string, number>): Array<{ name: string; count: n
   return [...counts.entries()]
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
+function inferGenreCounts(input: {
+  artists: SpotifyTasteArtist[];
+  tracks: SpotifyTasteTrack[];
+  recentArtists: Array<{ name: string; count: number }>;
+}): Array<{ name: string; count: number }> {
+  const counts = new Map<string, number>();
+  const weightedArtistNames = [
+    ...input.artists.map((artist) => ({ name: artist.name, count: 2 })),
+    ...input.recentArtists.map((artist) => ({ name: artist.name, count: Math.max(1, Math.round(artist.count / 8)) })),
+  ];
+
+  for (const artist of weightedArtistNames) {
+    for (const genre of KNOWN_ARTIST_GENRES[artist.name.toLowerCase()] ?? []) {
+      counts.set(genre, (counts.get(genre) ?? 0) + artist.count);
+    }
+  }
+
+  const text = [
+    ...input.artists.map((artist) => artist.name),
+    ...input.recentArtists.map((artist) => artist.name),
+    ...input.tracks.flatMap((track) => [track.name, track.artist, track.album]),
+  ].join(' ').toLowerCase();
+
+  for (const item of GENRE_KEYWORDS) {
+    if (item.terms.some((term) => text.includes(term))) {
+      counts.set(item.genre, (counts.get(item.genre) ?? 0) + 1);
+    }
+  }
+
+  return rankCounts(counts);
 }
 
 function buildMetrics(input: {
@@ -371,6 +561,47 @@ function describeNiche(score: number): string {
   if (score >= 70) return 'Deep-cut leaning';
   if (score >= 45) return 'Balanced between familiar and niche';
   return 'Mainstream-leaning';
+}
+
+function metricPercent(profile: SpotifyTasteProfile, label: string): number | null {
+  const value = profile.metrics.find((metric) => metric.label === label)?.value;
+  if (!value?.endsWith('%')) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isRoastEvidenceMetric(metric: SpotifyTasteMetric): boolean {
+  if (!['Niche score', 'Genre focus', 'Recent repeat', 'Library depth'].includes(metric.label)) return false;
+  if (metric.label === 'Niche score' && metric.value === 'Learning') return false;
+  if (metric.label === 'Genre focus' && metric.value === '0%') return false;
+  return true;
+}
+
+function pickVerdict(input: {
+  roastScore: number;
+  niche: number | null;
+  genreFocus: number;
+  recentRepeat: number;
+  topGenre?: string;
+}): string {
+  if (input.recentRepeat >= 28) return 'Certified Repeat Offender';
+  if (input.genreFocus >= 62 && input.topGenre) return `${titleCase(input.topGenre)} Monogamist`;
+  if (input.niche !== null && input.niche >= 72) return 'Deep-Cut Defense Attorney';
+  if (input.niche !== null && input.niche <= 30) return "The Algorithm's Favorite Child";
+  if (input.roastScore >= 72) return 'Tastefully Chaotic';
+  return 'Soft Roast, Medium Evidence';
+}
+
+function titleCase(value: string): string {
+  return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.round(Math.max(min, Math.min(max, value)));
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
 }
 
 function buildHostSeed(input: {
