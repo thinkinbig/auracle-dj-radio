@@ -8,6 +8,7 @@ import {
   getValidSpotifyAccessToken,
   hasSpotifyToken,
 } from './spotifyAuth';
+import { refreshSpotifyTasteQuery } from '@/shared/query/queryClient';
 
 const ENABLED_STORAGE_KEY = 'auracle.spotify.playback.enabled';
 const SDK_SRC = 'https://sdk.scdn.co/spotify-player.js';
@@ -146,6 +147,7 @@ export async function handleSpotifyRedirect(): Promise<void> {
     const completed = await completeSpotifyRedirectIfPresent();
     if (completed) {
       setEnabled(true);
+      refreshSpotifyTasteQuery();
       patchState({ authStatus: 'signed_in', error: null });
     }
   } catch (err) {
@@ -174,6 +176,7 @@ export async function connectSpotifyPlayback(): Promise<void> {
     }
     await ensurePlayer();
     setEnabled(true);
+    refreshSpotifyTasteQuery();
   } catch (err) {
     patchState({ playerStatus: 'error', error: describeError(err, 'Spotify player failed') });
   }
@@ -182,6 +185,7 @@ export async function connectSpotifyPlayback(): Promise<void> {
 export function disconnectSpotifyPlayback(): void {
   void pauseSpotifyPlayback();
   setEnabled(false);
+  refreshSpotifyTasteQuery();
   patchState({ currentUri: null, error: null });
 }
 
@@ -191,6 +195,7 @@ export function signOutSpotify(): void {
   player = null;
   playerPromise = null;
   setEnabled(false);
+  refreshSpotifyTasteQuery();
   patchState({
     authStatus: getSpotifyConfig() ? 'signed_out' : 'missing_config',
     playerStatus: 'idle',

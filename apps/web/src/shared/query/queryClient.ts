@@ -14,3 +14,7 @@ export function clearUserQueries(): void {
   queryClient.removeQueries({ queryKey: queryKeys.taste });
   queryClient.removeQueries({ queryKey: queryKeys.spotifyTaste });
 }
+
+export function refreshSpotifyTasteQuery(): void {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.spotifyTaste });
+}
