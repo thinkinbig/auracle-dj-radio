@@ -86,7 +86,7 @@ async function main() {
   const email = `${runId}@example.invalid`;
   const registered = await postJson(memoryUrl, "/auth/register", {
     email,
-    password: "secret123",
+    password: "Secret123",
     name: "Memory Smoke",
   });
   const userId = registered.user.id;

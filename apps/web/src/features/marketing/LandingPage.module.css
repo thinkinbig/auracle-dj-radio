@@ -522,13 +522,51 @@
   font: inherit;
 }
 
+.passwordField {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.passwordField input {
+  flex: 1;
+  min-width: 0;
+}
+
+.passwordToggle {
+  min-width: 88px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 0 14px;
+  color: rgba(248, 250, 252, 0.82);
+  font-size: 0.8rem;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.passwordToggle:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.passwordHint {
+  color: rgba(248, 250, 252, 0.56);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .loginCard input:focus-visible,
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .ghostButton:focus-visible,
 .brand:focus-visible,
 .formRow button:focus-visible,
-.authSwitch button:focus-visible {
+.authSwitch button:focus-visible,
+.passwordToggle:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.38);
 }

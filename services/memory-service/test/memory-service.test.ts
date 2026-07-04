@@ -85,7 +85,7 @@ afterAll(async () => {
 
 /** Register a fresh user and return its id + bearer token. */
 async function registerUser(email: string): Promise<{ id: string; token: string }> {
-  const res = await app.inject({ method: "POST", url: "/auth/register", payload: { email, password: "secret123" } });
+  const res = await app.inject({ method: "POST", url: "/auth/register", payload: { email, password: "Secret123" } });
   const body = res.json<{ user: { id: string }; token: string }>();
   return { id: body.user.id, token: body.token };
 }
@@ -95,7 +95,7 @@ describe("memory-service /auth", () => {
     const created = await app.inject({
       method: "POST",
       url: "/auth/register",
-      payload: { email: "Listener@Example.com", password: "secret123", name: "Listener" },
+      payload: { email: "Listener@Example.com", password: "Secret123", name: "Listener" },
     });
     expect(created.statusCode).toBe(200);
     const body = created.json<{ user: { email: string; name: string }; token: string }>();
@@ -106,9 +106,16 @@ describe("memory-service /auth", () => {
     const duplicate = await app.inject({
       method: "POST",
       url: "/auth/register",
-      payload: { email: "listener@example.com", password: "secret123" },
+      payload: { email: "listener@example.com", password: "Secret123" },
     });
     expect(duplicate.statusCode).toBe(409);
+
+    const weakPassword = await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: { email: "weak@example.com", password: "secret123" },
+    });
+    expect(weakPassword.statusCode).toBe(400);
 
     const me = await app.inject({
       method: "GET",
@@ -137,7 +144,7 @@ describe("memory-service /auth", () => {
     await app.inject({
       method: "POST",
       url: "/auth/register",
-      payload: { email: "login@example.com", password: "secret123" },
+      payload: { email: "login@example.com", password: "Secret123" },
     });
 
     const bad = await app.inject({
@@ -150,7 +157,7 @@ describe("memory-service /auth", () => {
     const ok = await app.inject({
       method: "POST",
       url: "/auth/login",
-      payload: { email: "login@example.com", password: "secret123" },
+      payload: { email: "login@example.com", password: "Secret123" },
     });
     expect(ok.statusCode).toBe(200);
     expect(ok.json<{ token: string }>().token).toBeTruthy();

@@ -1,5 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import { parseBearerToken, type AuthCredentials, type RegisterCredentials } from "@auracle/shared";
+import {
+  isStrongRegisterPassword,
+  parseBearerToken,
+  type AuthCredentials,
+  type RegisterCredentials,
+} from "@auracle/shared";
 import type { AuthStore } from "../auth-store.js";
 
 function parseCredentials(raw: unknown): AuthCredentials | undefined {
@@ -10,10 +15,16 @@ function parseCredentials(raw: unknown): AuthCredentials | undefined {
   return { email, password };
 }
 
+function parseRegisterCredentials(raw: unknown): AuthCredentials | undefined {
+  const credentials = parseCredentials(raw);
+  if (!credentials || !isStrongRegisterPassword(credentials.password)) return undefined;
+  return credentials;
+}
+
 export function registerAuthRoutes(app: FastifyInstance, auth: AuthStore): void {
   app.post("/auth/register", async (req, reply) => {
-    const credentials = parseCredentials(req.body);
-    if (!credentials) return reply.code(400).send({ error: "valid email and password are required" });
+    const credentials = parseRegisterCredentials(req.body);
+    if (!credentials) return reply.code(400).send({ error: "valid email and strong password are required" });
     const { name } = (req.body ?? {}) as Partial<RegisterCredentials>;
     const user = await auth.createUser({ ...credentials, name });
     if (!user) return reply.code(409).send({ error: "email already registered" });

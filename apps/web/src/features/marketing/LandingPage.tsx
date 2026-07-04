@@ -1,6 +1,11 @@
 import type { CSSProperties, FormEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import type { AuthUser } from '@auracle/shared';
+import { Eye, EyeOff } from 'lucide-react';
+import {
+  REGISTER_PASSWORD_HINT,
+  REGISTER_PASSWORD_PATTERN,
+  type AuthUser,
+} from '@auracle/shared';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { DJ_NAME } from '@/shared/lib/constants';
@@ -32,6 +37,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
   const [authNotice, setAuthNotice] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBrandTransitioning, setIsBrandTransitioning] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -123,6 +129,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
     setAuthMode(mode);
     setAuthError(undefined);
     setAuthNotice(undefined);
+    setShowPassword(false);
   }
 
   function runBrandTransition(onComplete: () => void) {
@@ -192,6 +199,12 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
 
     setAuthError(undefined);
     setAuthNotice(undefined);
+
+    if (authMode === 'register' && !REGISTER_PASSWORD_PATTERN.test(password)) {
+      setAuthError(REGISTER_PASSWORD_HINT);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response =
@@ -435,14 +448,34 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
               </label>
               <label>
                 Password
-                <input
-                  type="password"
-                  name="password"
-                  placeholder="Password"
-                  autoComplete={authMode === 'register' ? 'new-password' : 'current-password'}
-                  required
-                  minLength={6}
-                />
+                <div className={styles.passwordField}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    placeholder="Password"
+                    autoComplete={authMode === 'register' ? 'new-password' : 'current-password'}
+                    required
+                    minLength={authMode === 'register' ? 8 : 6}
+                    maxLength={authMode === 'register' ? 32 : undefined}
+                    pattern={authMode === 'register' ? REGISTER_PASSWORD_PATTERN.source : undefined}
+                    aria-describedby={authMode === 'register' ? 'password-hint' : undefined}
+                  />
+                  <button
+                    className={styles.passwordToggle}
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-pressed={showPassword}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    <span>{showPassword ? 'Hide' : 'Show'}</span>
+                  </button>
+                </div>
+                {authMode === 'register' ? (
+                  <p id="password-hint" className={styles.passwordHint}>
+                    {REGISTER_PASSWORD_HINT}
+                  </p>
+                ) : null}
               </label>
               {authError ? <p className={styles.errorText} role="alert">{authError}</p> : null}
               {authNotice ? <p className={styles.noticeText}>{authNotice}</p> : null}
