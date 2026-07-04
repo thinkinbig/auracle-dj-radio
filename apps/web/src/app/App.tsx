@@ -20,6 +20,7 @@ import { OnboardingPage } from '@/features/radio/ui/OnboardingPage';
 import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import { SoundScreen } from '@/features/sound/SoundScreen';
 import { handleSpotifyRedirect } from '@/features/spotify/spotifyPlayback';
+import { handleGlobalRadioShortcut } from './globalShortcuts';
 import { paths, PRODUCT_NAV } from './paths';
 import navStyles from './AppNav.module.css';
 import chrome from './ProductChrome.module.css';
@@ -32,15 +33,7 @@ function AppContent() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
-      if (e.code === 'Space') {
-        e.preventDefault();
-        if (state.phase === 'idle') return;
-        handleTogglePause();
-      } else if (e.code === 'ArrowRight' || e.code === 'KeyN') {
-        e.preventDefault();
-        handleSkipTrack();
-      }
+      handleGlobalRadioShortcut(e, state.phase, handleTogglePause, handleSkipTrack);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
