@@ -58,7 +58,7 @@ to start the **Bridge**. `offer.Handler` is the thin HTTP adapter.
 `AllowDial` / `RecordDial` on the offer path, and `RecordStreamFault` for early
 stream failures (within `modelcb.EarlyFaultWindow`) before the **Bridge** has
 sent audio. Dial and stream failures are tracked as separate streaks; a
-successful dial resets both. Loopback and a nil manager skip all guard logic.
+successful dial resets both. A nil manager skips all guard logic.
 
 ## Replay source wiring
 

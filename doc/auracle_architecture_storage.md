@@ -1,182 +1,91 @@
-# Auracle — 架构 & 存储设计记录
+# Auracle — Architecture & Storage
 
-> 状态：已拍板（2026-06）  
-> **Demo 策略：先单 TS 后端跑通，生产表现后续迭代。**
-
----
-
-## 产品形态：混合场 + 实时 Live DJ
-
-- 一场 session 约 **8 首**，有 Warm-up → Peak → Wind-down **能量弧线**
-- **曲间**用户可语音打断（改 mood、skip、pause、闲聊）；**播歌中**不打断编排（用户说话则 duck 音乐）
-- 打断后 **只重排 remaining tracks**，已播曲目不变
-- DJ 口播由 **Gemini Live**（STS）实时生成，**不是**离线 TTS 管道
+> Status: **updated 2026-07-04**.
+> Replaces the old mem0/Qdrant storage architecture.
 
 ---
 
-## Demo 架构：TypeScript monolith
+## Runtime Shape
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  apps/web (React, Desktop Chrome Phase 1)                    │
-│  · WS ↔ Fastify（麦克风 16k PCM ↑ · DJ 24k PCM ↓ · JSON）     │
-│  · REST ↔ sessions / tracks                                  │
-│  · Web Audio：曲库 mp3 + musicGain / djGain（电台 crossfade） │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────┐
-│  apps/api (Fastify + TypeScript) :3000                       │
-│  · Gemini Live WS 中继（@google/genai）                       │
-│  · Session 状态机（内存）                                     │
-│  · Flow 重排 → Gemini Flash JSON                             │
-│  · mem0 · SQLite · session_events                            │
-└─────────────────────────────────────────────────────────────┘
-```
+Auracle is a multi-service local stack:
 
-### 为什么 Demo 不用 Go + Node 双后端
+```text
+apps/web
+  React UI
+  local audio + Spotify playback adapter
+  Spotify OAuth token stays client-side
 
-| 双后端成本 | 单 Fastify |
-|------------|------------|
-| 两进程、跨语言调试 | 一个 `pnpm dev` |
-| proxy ↔ api REST 同步 session | intent / 重排进程内调用 |
-| 两套部署 | api + 静态 web 即可 |
+agent-harness
+  live session lifecycle
+  session state and queue mutation
+  DJ tool handling
+  proxy registration
 
-Go 版 [rt_llm_proxy](https://github.com/thinkinbig/rt_llm_proxy) 的价值在 **WebRTC/Opus 生产级媒体面**；Auracle Demo 音乐在浏览器 Web Audio，DJ 走 WS PCM 足够。
+music-engine
+  deterministic planning and retrieval
+  local catalog + optional Spotify session seeds
 
----
+rt_llm_proxy
+  live audio / model bridge
 
-## Demo vs 生产（后续优化，不阻塞 Demo）
-
-| 维度 | Demo（现在） | 生产（以后可选） |
-|------|--------------|------------------|
-| 后端 | 单 Fastify TS | 可拆媒体面 / 加 TURN |
-| 浏览器 ↔ 服务端 | WebSocket PCM | WebRTC（可参考 rt_llm_proxy） |
-| 部署 | 单容器 / Railway | 水平扩展、Redis、Kafka log |
-| 断线续播 | 不保证 | session resumption |
-| iOS Live 双工 | 不支持 | 原生或优化 PWA |
-
-**原则：Demo 不为「将来可能」引入第二套运行时。**
-
----
-
-## Monorepo 结构
-
-```
-auracle-dj-radio/
-├── apps/
-│   ├── web/          # React · WS client · Web Audio
-│   └── api/          # Fastify · Live · Flow · mem0 · SQLite
-├── packages/
-│   └── shared/       # Tracklist、Phase、Intent、WS 消息类型
-├── doc/
-└── pnpm-workspace.yaml
-```
-
-- **不使用 LangChain**；`@google/genai` + structured JSON  
-- 部署：web 静态资源 + api（需 **WebSocket** 支持，如 Railway/Fly/自托管 VPS）
-
----
-
-## Gemini 模型分工
-
-| 用途 | API | 模型（Demo 默认） |
-|------|-----|-------------------|
-| 曲间实时 DJ | Gemini **Live** | **`gemini-3.1-flash-live-preview`** |
-| Flow 重排 JSON | `generateContent` + schema | `gemini-3.1-flash-lite` |
-| 曲库检索（Step 1） | 无 LLM | SQLite 元数据 + TS 结构化打分 |
-
-Live 与 Flow 同进程、同 SDK，共享 `GEMINI_API_KEY`。  
-Live 模型 env：`GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview`（见 `auracle_gemini_integration.md` § 3.1 约束）。
-
----
-
-## 存储：SQLite + mem0
-
-| 数据 | 存储 | 说明 |
-|------|------|------|
-| 曲库元数据 | SQLite `tracks` | mood/scene/energy/genre tags（无向量列） |
-| 打断 / 重排 / 播放事件 | SQLite `session_events` | 评估复现 |
-| Session plan、播放指针 | **Fastify 内存** | Demo 不持久化 |
-| 用户偏好 | **mem0 OSS**（进程内）+ **Qdrant** | `userId` + `metadata.run_id` |
-| Live 音频 | 不存 | 实时流 |
-
-**不需要 PostgreSQL。** mem0 向量走 Qdrant（`pnpm docker:dev` 或 `pnpm docker:prod`）；history 走 SQLite 文件。
-
-```sql
--- tracks: id, title, artist, energy, tempo, genre, mood, scene, file_path, intro_offset_ms NULL, …
--- session_events: session_id, ts, event_type, payload_json
--- auth_users / auth_sessions: 见 memory-service auth-store（评估 per-user）
+memory-service (temporary name)
+  auth
+  session_events
+  eval / analytics queries
 ```
 
 ---
 
-## 用户与个性化边界
+## Storage
 
-| 场景 | `user_id` |
-|------|-----------|
-| 登录用户 | `auth_users.id` |
-| 匿名 demo | `auracle_anonymous` |
-| 用户研究 | **每人独立账号**（禁止 anonymous） |
+| Data | Storage | Product role |
+|------|---------|--------------|
+| Catalog manifest / track metadata | repo data loaded by music-engine | Planning and display |
+| Live session state | `agent-harness` memory | Current session only |
+| Auth | current auth SQLite | User identity |
+| Events | `session_events` SQLite | Eval / analytics |
+| Spotify OAuth token | browser storage | Spotify API access |
+| Spotify raw taste | not stored server-side | Read transiently by browser |
+| Long-term Auracle memory | retired | None |
+| Qdrant user memory | retired | None |
 
-mem0 `userId` 与 `skipRateByEnergy` 聚合均跟上述 id（⏳ P0 实施）。详见 `auracle_memory_decision.md`、`auracle_personalization_plan.md`。
-
-**实现状态**：auth 已有；session 创建与 mem0 绑定为 P0。
-
----
-
-## 结构化检索（Step 1）
-
-- **MVP（当前）**：`music-engine` 内 TS 确定性打分 — mood → energy envelope + scene/genre fit + taste/skip 权重
-- 500 首 < 50ms；1000 首 < 500ms（**当前**不调用 embed API、曲库不连 Qdrant）
-- seed 只写元数据标签：`pnpm --filter @auracle/music-engine seed`
-
-**演进选项（非 MVP）**：**text embedding** — 离线对每首 tag 串做 `gemini-embedding-001` `embedContent`，运行时 embed query，在 energy envelope 内余弦 rerank。与 mem0 **同模型、同模态**（text↔text），不走 cross-modal audio。可 hybrid：结构化打分硬筛 + text embed 细排。
-
-- 设计依据：`docs/adr/0001-deterministic-structured-selection.md`（取代 ADR-0002 **audio** 向量建库；text embed 仍保留为可选路径）
-
-> **与 mem0 的边界**：Issue #31 移除的是 **cross-modal / audio** 曲库 embed 基础设施。`memory-service` 的 **mem0 + Qdrant + `gemini-embedding-001`** 仍是跨 session 用户记忆的核心。曲库日后若加 text embed，可复用同一 embed 模型（索引可仍放 SQLite，不必为曲库单独起 Qdrant）。
+No product path should require mem0 or Qdrant.
 
 ---
 
-## mem0（OSS 自部署）
+## Personalization
 
-```typescript
-import { Memory } from "mem0ai/oss";
+Cross-session:
 
-const memory = new Memory({
-  embedder: { provider: "google", config: { apiKey: GEMINI_API_KEY, model: "gemini-embedding-001" } }, // native 3072
-  llm: { provider: "google", config: { apiKey: GEMINI_API_KEY, model: "gemini-3.1-flash-lite" } },
-  vectorStore: { provider: "qdrant", config: { url: QDRANT_URL, collectionName: "auracle_memories", dimension: 3072 } },
-  historyDbPath: AURACLE_MEM0_HISTORY_DB,
-});
-// userId: per-user 或 auracle_anonymous; runId: session_id
-```
+- Provided by Spotify taste summary.
+- Generated by the browser at session start.
+- Not stored as raw profile data by Auracle.
 
-见 `auracle_memory_decision.md` 完整配置与 `docker-compose.yml`。
+Current session:
+
+- Owned by `agent-harness`.
+- Includes current queue, playhead, feedback overlay, and cached seeds.
+- May nudge/replan the current station.
 
 ---
 
-## 曲间 Intent（P0 / P1）
+## Evaluation / Analytics
 
-| P0 | skip · mood 重排 · pause · 闲聊 |
-| P1 | explicit pick · full replan |
+Events remain persistent:
 
-Gemini Live **function calling** → 同进程 `flow.replan()`。
+- `session_created`
+- `track_started`
+- `playlist_feedback`
+- `replan`
+- `skip_latency`
+- related error and control events
 
----
-
-## Phase 1 平台
-
-| ✅ | ❌ Phase 2 |
-|----|------------|
-| Desktop Chrome / Edge | iOS Safari 双工 Live |
-| Web Audio crossfade | 原生 app |
+Events are not fed back into future-session product ranking.
 
 ---
 
-## 相关文档
+## Related Docs
 
-- **Gemini 嵌入（Group 24 场景）：`auracle_gemini_integration.md`**
-- 协议：`auracle_api_protocol.md`  
-- Flow：`auracle_flow_prompt_design.md`  
-- 音频：`auracle_pwa_audio_notes.md`
+- `auracle_memory_decision.md`
+- `auracle_personalization_plan.md`
+- `auracle_api_protocol.md`

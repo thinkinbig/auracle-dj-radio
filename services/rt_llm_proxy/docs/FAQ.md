@@ -4,92 +4,56 @@ Frequently asked questions and answers.
 
 ## What is rt-llm-proxy?
 
-A **real-time LLM proxy** written in Go. Browsers connect via WebRTC, the proxy bridges to a streaming LLM (Gemini, Doubao, or self-hosted Qwen/LLMs), and streams back voice responses in real time.
+A **real-time voice proxy** written in Go. Browsers connect via WebRTC, the proxy
+bridges to **Gemini Live**, and streams back voice responses in real time.
 
 ```
 🌐 Browser (WebRTC voice)
     ↓
 🖥️  Proxy (this project)
     ↓
-🤖 LLM (Gemini / Doubao / Cascade)
+🤖 Gemini Live
     ↓
 🔊 Voice response
 ```
 
----
-
-## Which LLMs does it support?
-
-| Provider | Type | Setup | Cost |
-|---|---|---|---|
-| **Gemini** | Cloud API | API key | Per API call |
-| **Doubao** | Cloud API | App ID + token | Per API call |
-| **Cascade** | Self-hosted | GPU + Docker | Hardware only |
-| **Loopback** | Mock | None | Free (testing) |
-
-**Pick Gemini** if you want: simplicity, quality, managed by Google.
-**Pick Doubao** if you're in China or need native Chinese.
-**Pick Cascade** if you want: full control, custom models, no cloud costs.
+In the Auracle monorepo, agent-harness registers sessions and forwards Lane-1
+tool calls. See [Integration Guide](INTEGRATION.md).
 
 ---
 
-## What is Cascade?
+## Which LLM does it support?
 
-A self-hosted **ASR → LLM → TTS** pipeline:
+Only **Gemini Live** (`?model=gemini` or omit the query param).
 
-- **ASR** (speech-to-text): RealtimeSTT (Silero VAD + Whisper)
-- **LLM** (language model): vLLM running Qwen or other open models
-- **TTS** (text-to-speech): XTTS streaming synthesizer
-
-**Why?**
-- Complete control over the pipeline
-- No cloud API bills (just hardware)
-- Can inject custom outputs (e.g., play real music)
-- Lowest latency (all on LAN)
-
-**Downsides:**
-- Requires NVIDIA GPU (L20 or better, 24GB VRAM)
-- Takes ~30min to deploy (models + containers)
-- Slower responses (LLMs are slow without optimization)
+Requires a `GEMINI_API_KEY` (or `GOOGLE_API_KEY`).
 
 ---
 
 ## Can I run it on CPU?
 
-**Yes, but not Cascade:**
-- ✅ Gemini / Doubao — works on any machine (no GPU needed)
-- ❌ Cascade — requires GPU; LLM inference on CPU is not practical
-
-For development, use **Loopback** (no internet, fake responses, instant).
+**Yes.** Gemini Live is a cloud API — no GPU needed on the proxy host.
 
 ---
 
 ## What's the latency?
 
-End-to-end **200–400ms** typical:
+End-to-end **200–400ms** typical for Gemini Live:
 
 | Component | Latency |
 |---|---|
 | WebRTC setup | ~100ms |
-| ASR (Whisper) | ~100–200ms |
-| LLM first token (Qwen) | ~200–500ms |
-| TTS synthesis (XTTS) | ~100–200ms |
+| Gemini first audio | ~100–300ms |
 | Network roundtrips | ~10–50ms |
-
-**Cascade is fastest** (local LAN + self-hosted = no cloud RTT).
 
 ---
 
 ## How many concurrent users?
 
-**Single 16-core box:**
-- Gemini / Doubao: ~600–1000 sessions
-- Cascade: ~50–100 sessions (limited by GPU VRAM)
-
-See benchmarks: `docs/bench/README.md`
+**Single 16-core box:** ~600–1000 sessions (limited by Opus encode CPU).
 
 **To scale beyond:**
-- Vertical: bigger machine (more CPU / GPU)
+- Vertical: bigger machine (more CPU)
 - Horizontal: multiple proxies + TURN/SFU frontend (LiveKit / Pipecat)
 
 This proxy is **single-host only** by design — shared-nothing media routing is hard.
@@ -108,6 +72,13 @@ go run ./cmd/proxy -addr :8080
 
 See [Quick Start](QUICK_START.md).
 
+**Auracle full stack:**
+
+```bash
+./scripts/dev-stack.sh
+# web → http://localhost:5173
+```
+
 **With Docker:**
 
 ```bash
@@ -121,10 +92,12 @@ docker compose up --build
 ## How do I use it in production?
 
 1. **Front with a reverse proxy** (Nginx) — TLS termination, load balancing
-2. **Enable Redis** — rate limiting, shared state across replicas
-3. **Enable Kafka** — transcript archival, audit log
-4. **Monitor** — CPU, latency, error rates
-5. **Add TURN/SFU** (LiveKit / Pipecat) — NAT traversal, horizontal scaling
+2. **Enable auth** — `-auth-url` pointing to memory-service
+3. **Set register secret** — `PROXY_REGISTER_SECRET` on proxy + harness
+4. **Enable Redis** — rate limiting
+5. **Enable Kafka** — transcript archival, audit log
+6. **Monitor** — CPU, latency, error rates
+7. **Add TURN/SFU** (LiveKit / Pipecat) — NAT traversal, horizontal scaling
 
 See [Deployment Guide](DEPLOYMENT.md#production-checklist).
 
@@ -149,38 +122,30 @@ This allows max 10 **new sessions** per IP per minute. Existing sessions are unl
 
 ## Can I customize the LLM prompt?
 
-**Cascade only** (self-hosted):
+**Yes — via push registration** (Auracle pattern):
 
-```bash
-go run ./cmd/proxy \
-  -cascade-system "You are a helpful dance instructor."
+```
+POST /session/{id}/register
+Authorization: Bearer <PROXY_REGISTER_SECRET>
+
+{
+  "token": "...",
+  "systemInstruction": "You are a helpful dance instructor.",
+  "tools": [...],
+  "openingCue": "..."
+}
 ```
 
-Gemini / Doubao prompts are set by the cloud provider.
+The orchestrator sets `systemInstruction` before the browser connects. See
+[Integration Guide](INTEGRATION.md).
 
 ---
 
-## Can I inject my own audio (e.g., music)?
+## Why do I get 403 on connect?
 
-**Cascade only** — use the **output-mix seam**:
-
-```go
-cascade.New(ctx, cascade.Config{
-    OnLLMToken: func(token, accumulated string) (string, bool) {
-        // Detect if user asked for a song
-        if songID := detectSongIntent(accumulated + token); songID != "" {
-            go playTrack(songID)  // Start external playback
-            return "", true       // Drop token from TTS
-        }
-        return "", false  // Pass through normally
-    },
-})
-
-// Later, switch the audio source
-c.SetAudioSource(NewMP3Source("my-track.mp3"))
-```
-
-Great for a **real-time DJ** use case.
+The browser must send `X-Session-Token` matching the `token` from registration
+on the **first** connect to a pre-registered session. Reconnects with
+`X-Last-Seq` may omit the token.
 
 ---
 
@@ -279,7 +244,7 @@ Checklist:
 
 ## I'm in China. How do I use this?
 
-**Go proxy acceleration (required):**
+**Go proxy acceleration (for building):**
 
 ```bash
 go env -w GOPROXY=https://goproxy.cn,direct
@@ -291,18 +256,8 @@ Or in Docker:
 docker compose -f docker-compose.yml -f docker-compose.cn.yml up --build
 ```
 
-**Provider choices:**
-- ✅ **Doubao** (豆包) — native Chinese API, no VPN needed
-- ⚠️ **Gemini** — may need VPN (Google API reachability)
-
-**Model pre-caching:**
-
-```bash
-export QWEN_MODEL_PATH=/local/model
-docker compose -f docker-compose.yml -f docker-compose.cascade.yml up --build
-```
-
-Avoids HuggingFace downloads at runtime.
+**Gemini API:** requires reachability to Google APIs. If blocked, deploy the
+proxy outside mainland China or use a VPN.
 
 ---
 
@@ -352,16 +307,11 @@ See [Deployment Guide — Monitoring](DEPLOYMENT.md#monitoring--operations).
 **Yes!** The core is in `internal/model` and `internal/rtc`:
 
 ```go
-import "rt-llm-proxy/internal/model/cascade"
+import "rt-llm-proxy/internal/model/gemini"
 
-c, err := cascade.New(ctx, cascade.Config{
-    Whisper: asr.NewWhisper(whisperURL),
-    LLM:     llm.New(llmURL, "Qwen3.5-9B"),
-    TTS:     tts.NewXTTSStream(ttsURL, ...),
-    OnLLMToken: func(token, accumulated string) (string, bool) {
-        // Custom logic here
-        return "", false
-    },
+m, err := gemini.New(ctx, gemini.Config{
+    APIKey: os.Getenv("GEMINI_API_KEY"),
+    // ...
 })
 ```
 
@@ -384,27 +334,14 @@ But the main proxy (`cmd/proxy`) is the typical entry point.
 
 ---
 
-## License?
-
-Check `LICENSE` file in the repo. Usually MIT or Apache 2.0.
-
----
-
-## Contributing?
-
-Pull requests welcome! See `CONTRIBUTING.md` (if it exists).
-
----
-
 ## Where's the rest of the documentation?
 
 | Doc | Purpose |
 |---|---|
 | [Quick Start](QUICK_START.md) | 5-min setup |
+| [Integration Guide](INTEGRATION.md) | Auracle wiring |
 | [Deployment Guide](DEPLOYMENT.md) | Production deploy |
 | [Architecture](ARCHITECTURE.md) | Design deep-dive |
-| [Benchmarks](bench/README.md) | Performance data |
-| [Chinese Guide](中文指南.md) | 中文版本 |
 | [README](../README.md) | Feature overview |
 
 ---
@@ -415,4 +352,3 @@ Pull requests welcome! See `CONTRIBUTING.md` (if it exists).
 - 💬 Check GitHub Discussions
 - 🐛 File an issue with details
 - 📚 Review `CONTEXT.md` for domain terms
-

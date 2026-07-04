@@ -122,7 +122,8 @@ POST pool → harness                    ▲                              │
 
 10. **Regenerate re-ranks a server-cached pool.** The Spotify candidate source is
     the user's liked-track library, static within a session. The harness caches
-    the gathered pool in session state (alongside `energyWeights` / `mem0Context`);
+    the gathered pool in session state (alongside the session's
+    `personalizationContext`);
     regenerate/extend re-rank that cache + local catalog against the new target,
     with **no client round-trip**. Re-gathering would re-fetch identical data and
     tax a latency-sensitive action.

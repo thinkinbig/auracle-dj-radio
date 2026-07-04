@@ -19,9 +19,11 @@ Track retrieval embeds the **first 180 seconds** of each mp3 with
 Phase 1 (rich text via `gemini-embedding-001`) shipped for catalog expansion;
 Phase 2 (audio-native) is now the default catalog embed path.
 
-**Album cover** embeddings are deferred (UI-only for now). **mem0** user-preference
-vectors stay on `gemini-embedding-001` — catalog and memory indexes are separate
-spaces; they need not share a model.
+**Album cover** embeddings are deferred (UI-only for now).
+
+> 2026-07-04 update: the old mem0 user-preference vector path has been retired
+> from product personalization. Catalog embedding decisions remain separate from
+> user taste; see `doc/auracle_memory_decision.md`.
 
 ## Considered options
 

@@ -1,25 +1,24 @@
 # Auracle DJ Radio
 
-AI 电台 DJ：实时语音对话 + 能量曲线编排 + 用户记忆。Demo 阶段为单用户 Web 应用。
+AI 电台 DJ：实时语音对话 + 能量曲线编排 + Spotify 品味个性化。Demo 阶段为单用户 Web 应用。
 
-## 架构概览（Demo — 单 TypeScript 后端）
+## 架构概览（当前多服务 Demo）
 
 ```
 apps/web (React)
-  · WS binary PCM ↔ Live DJ
-  · REST ↔ sessions / tracks
-  · Web Audio（曲库 mp3 + fade）
+  · Spotify OAuth / taste summary / playback adapter
+  · REST ↔ agent-harness
+  · Web Audio（本地曲库 mp3 + DJ voice）
        │
        ▼
-apps/api (Fastify + TypeScript)  :3000
-  · Gemini Live WS 中继
-  · Flow 重排 · mem0 · SQLite
+agent-harness · music-engine · rt_llm_proxy · memory-service
+  · live session / queue / replan
+  · deterministic planning
+  · Live DJ media bridge
+  · auth + session_events
 ```
 
-**一个进程、一种语言** — Live 与编排同仓，无 Go 双后端。  
-Gemini 协议可参考 [thinkinbig/rt_llm_proxy](https://github.com/thinkinbig/rt_llm_proxy)，但 Demo **不依赖**该仓库。
-
-详细设计见 [`doc/`](doc/)。曲库检索 MVP 为确定性结构化打分（[`docs/adr/0001-deterministic-structured-selection.md`](docs/adr/0001-deterministic-structured-selection.md)）；日后可演进 **text embedding**（`gemini-embedding-001`，同模态 tag↔query，与 mem0 共用 embed 模型）。**跨 session 用户记忆仍走 mem0**（`memory-service` + Qdrant；见 [`doc/auracle_memory_decision.md`](doc/auracle_memory_decision.md)）。
+详细设计见 [`doc/`](doc/)。曲库检索 MVP 为确定性结构化打分（[`docs/adr/0001-deterministic-structured-selection.md`](docs/adr/0001-deterministic-structured-selection.md)）。跨 session taste 由 Spotify 提供；Auracle 只维护当前 live session 与 eval/events。旧 mem0/Qdrant 记忆方案已退休，见 [`doc/auracle_memory_decision.md`](doc/auracle_memory_decision.md)。
 
 ## 本地开发
 
@@ -50,7 +49,7 @@ pnpm docker:prod                   # 构建并启动全栈（读 .env）
 pnpm docker:down                   # 停止容器，保留 volumes
 ```
 
-Compose：`docker-compose.prod.yml`（答辩/部署，全栈含 **Qdrant for mem0**，仅暴露 web）。
+Compose：`docker-compose.prod.yml`（答辩/部署，仅暴露 web；旧 Qdrant/mem0 依赖正在从产品路径移除）。
 
 Phase 1 Demo：**Desktop Chrome**。见 `doc/auracle_pwa_audio_notes.md`。
 
@@ -62,7 +61,7 @@ Phase 1 Demo：**Desktop Chrome**。见 `doc/auracle_pwa_audio_notes.md`。
 | [auracle_gemini_integration.md](doc/auracle_gemini_integration.md) | **Gemini 深度嵌入**（对照 Group 24 四支柱） |
 | [auracle_api_protocol.md](doc/auracle_api_protocol.md) | REST + Live WS 协议、实现清单 |
 | [auracle_flow_prompt_design.md](doc/auracle_flow_prompt_design.md) | 检索 + Flow 重排 + Live DJ |
-| [auracle_memory_decision.md](doc/auracle_memory_decision.md) | mem0 OSS 自部署决策（已拍板） |
+| [auracle_memory_decision.md](doc/auracle_memory_decision.md) | 旧 mem0/Qdrant 记忆方案退休决策 |
 | [auracle_evaluation_design.md](doc/auracle_evaluation_design.md) | 用户实验与 objective 指标 |
 | [auracle_pwa_audio_notes.md](doc/auracle_pwa_audio_notes.md) | Web Audio fade、PCM WS、平台限制 |
 | [auracle_ui_design.md](doc/auracle_ui_design.md) | Web UI 风格、Design Tokens、组件与数据绑定 |

@@ -16,7 +16,7 @@
 | **重排无感** | `mood_change` → 全量 replan remaining，用户听不出差别 | 曲库小、replan 弧线锁 wind-down、硬约束压缩换歌空间 |
 | **反馈不可见** | DJ 说「在调下一批」，queue UI 几乎不变 | 无 before/after diff |
 
-`replan` 作为引擎能力保留，但**不应再是 mid-session 的默认路径**。个性化主战场留在 **开场 `createPlan`（Sound L1/L2/L3）**；空中只做 **局部、即时、可见** 的调整。
+`replan` 作为引擎能力保留，但**不应再是 mid-session 的默认路径**。跨 session 个性化来自 **Spotify taste**；空中只做 **局部、即时、可见** 的当前 session 调整。
 
 ---
 
@@ -48,7 +48,7 @@
 |------|------|
 | 快速 skip（<60s） | 确定性 swap `remaining[0]`（不调 Flow） |
 | Queue dislike | 未来：swap 下一首 |
-| `record_preference` | mem0 写入；**跨 session** 影响下次 plan；可选 nudge 下一首 |
+| `playlist_feedback(like/dislike)` | 当前 session 内 nudge 下一首；不写长期 memory |
 
 ### 2.4 可见性
 
@@ -64,7 +64,7 @@
 ## 3. 与现有架构的关系
 
 ```
-Sound (L1/L2/L3) ──读取──▶ createPlan (mode: full)     ← 个性化主战场
+Spotify taste ───────读取──▶ createPlan (mode: full)   ← 跨 session taste 来源
                               │
 Station on-air ──────────────┼── extend (append)
                              ├── nudge / steer (partial replan)

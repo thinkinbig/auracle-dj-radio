@@ -32,6 +32,19 @@ go run ./cmd/proxy -addr :8080
 curl http://localhost:8080/stats
 ```
 
+### Auracle Full Stack
+
+From the monorepo root:
+
+```bash
+./scripts/dev-stack.sh
+# web → http://localhost:5173
+# proxy → http://localhost:8090
+```
+
+The dev script passes `-harness-url`, `-auth-url`, and optional
+`PROXY_REGISTER_SECRET` automatically.
+
 ### Debug Mode
 
 ```bash
@@ -97,42 +110,22 @@ docker compose -f docker-compose.yml \
                up --build
 ```
 
-### Cascade (Self-Hosted ASR/LLM/TTS)
+---
 
-**Prerequisites:**
-- NVIDIA GPU (recommend L20 24GB)
-- Public IP (for WebRTC)
-- ~100GB disk (for models)
+## Auracle Production (monorepo)
 
-**Deploy:**
+See root `docker-compose.prod.yml`. Key proxy settings:
 
-```bash
-export PUBLIC_IP=your.public.ip
-
-# Optional: pre-download model
-export QWEN_MODEL_PATH=/path/to/Qwen3.5-9B
-
-docker compose -f docker-compose.yml \
-               -f docker-compose.cascade.yml \
-               up --build
-```
-
-**Access:**
-```
-http://<PUBLIC_IP>:8080/demo/?model=cascade
-```
+| Env / flag | Purpose |
+|---|---|
+| `GEMINI_API_KEY` | Gemini Live API key |
+| `PROXY_AUTH_URL` / `-auth-url` | memory-service `GET /auth/me` |
+| `PROXY_REGISTER_SECRET` / `-register-secret` | Gates register/inject |
+| `-harness-url` | agent-harness Lane-1 tool forwarding |
 
 **Open ports:**
 - TCP 8080 (HTTP proxy)
 - UDP 10000-60000 (WebRTC media)
-
-**Sidecar containers:**
-- `realtimestt` — ASR (port 9000)
-- `vllm` — LLM (port 8000)
-- `xtts` — TTS (port 8020)
-- `turndetect` — Turn detection (port 5002, optional)
-
-All sidecars stay on internal Docker network; only proxy port 8080 exposed.
 
 ---
 
@@ -151,29 +144,10 @@ Or use the CN overlay:
 docker compose -f docker-compose.yml -f docker-compose.cn.yml up --build
 ```
 
-### Doubao (豆包) Provider
+### Gemini API Reachability
 
-Volcengine's native realtime API — no VPN needed, hosted in China.
-
-```bash
-export DOUBAO_APP_ID=your_app_id
-export DOUBAO_ACCESS_TOKEN=your_token
-
-go run ./cmd/proxy
-# http://localhost:8080/demo/?model=doubao
-```
-
-### Model Pre-caching
-
-Avoid HuggingFace downloads at runtime:
-
-```bash
-# Pre-download Qwen locally
-git clone https://huggingface.co/Qwen/Qwen3.5-9B /path/to/model
-
-export QWEN_MODEL_PATH=/path/to/model
-docker compose -f docker-compose.yml -f docker-compose.cascade.yml up --build
-```
+Gemini requires reachability to Google APIs. If blocked, use a VPN or deploy
+the proxy outside mainland China. There is no alternate provider in this build.
 
 ---
 
@@ -182,27 +156,16 @@ docker compose -f docker-compose.yml -f docker-compose.cascade.yml up --build
 ### Essential Flags
 
 ```
--addr           :8080              Listen address
--model          gemini             Model: gemini | doubao | cascade | loopback
--redis          ""                 Redis address (enables rate limit)
--rl-max         10                 Sessions per IP per window
--rl-window      1m                 Rate limit window
--sidechannel    off                Transcript output: off | stdout | kafka
--kafka          localhost:9092     Kafka brokers (csv)
--admin          ""                 Admin listener for /stats and pprof
-```
-
-### Cascade-Specific Flags
-
-```
--cascade-whisper          ws://localhost:9000/... ASR WebSocket URL
--cascade-llm              http://localhost:8000   LLM base URL
--cascade-llm-model        Qwen3.5-9B              Model name
--cascade-tts              http://localhost:8020   TTS URL
--cascade-tts-speaker      ""                      XTTS speaker
--cascade-tts-lang         en                      Language (en, zh-cn, etc)
--cascade-turndetect       ""                      Turn detection URL (optional)
--cascade-system           <prompt>                System prompt for LLM
+-addr              :8080              Listen address
+-harness-url       ""                 agent-harness base URL (Lane-1 tools)
+-auth-url          ""                 auth service base URL (GET /auth/me)
+-register-secret   ""                 shared secret for register/inject
+-redis             ""                 Redis address (enables rate limit)
+-rl-max            10                 Sessions per IP per window
+-rl-window         1m                 Rate limit window
+-sidechannel       off                Transcript output: off | stdout | kafka
+-kafka             localhost:9092     Kafka brokers (csv)
+-admin             ""                 Admin listener for /stats and pprof
 ```
 
 ### Opus Tuning
@@ -271,7 +234,7 @@ docker compose logs -f rt-llm-proxy
 # Search for errors
 docker compose logs rt-llm-proxy | grep -i error
 
-# Specific provider
+# Gemini-specific
 docker compose logs rt-llm-proxy | grep gemini
 ```
 
@@ -307,6 +270,12 @@ docker compose exec kafka du -sh /var/lib/kafka/data/
    docker compose logs rt-llm-proxy | tail -20
    ```
 
+### 403 on Connect (Auracle)
+
+Browser `X-Session-Token` must match the token from
+`POST /session/{id}/register`. Registration is one-time consumed after a
+successful offer — re-register before a fresh connect.
+
 ### High Latency / Frame Drops
 
 1. Check SLO metric:
@@ -323,22 +292,6 @@ docker compose exec kafka du -sh /var/lib/kafka/data/
    ```bash
    go run ./cmd/proxy -opus-complexity 5
    ```
-
-### Cascade Sidecars Not Responding
-
-```bash
-# Check all containers running
-docker compose ps
-
-# Test connectivity
-docker compose exec rt-llm-proxy \
-  curl http://realtimestt:9000/health
-
-# Check sidecar logs
-docker compose logs realtimestt -n 50
-docker compose logs vllm -n 50
-docker compose logs xtts -n 50
-```
 
 ### Memory Leak
 
@@ -365,7 +318,6 @@ docker compose logs xtts -n 50
 
 **Single-host ceiling ~600–1000 concurrent sessions:**
 - Limited by Opus encode CPU
-- Check baseline: `docs/bench/README.md`
 - Scale up: use `-adaptive sessions` to shed load gracefully
 
 **For horizontal scale (Kubernetes, multi-host):**
@@ -379,6 +331,8 @@ docker compose logs xtts -n 50
 
 - [ ] **Secrets**: API keys in secure vault, not `.env`
 - [ ] **TLS**: Reverse proxy terminates HTTPS
+- [ ] **Auth**: `-auth-url` points to memory-service; DevVerifier disabled
+- [ ] **Register secret**: `PROXY_REGISTER_SECRET` set on proxy + harness
 - [ ] **Rate limiting**: Redis configured, `-rl-max` set
 - [ ] **Transcripts**: Kafka enabled for audit trail
 - [ ] **Monitoring**: Admin endpoint secured, metrics scraped
@@ -386,7 +340,6 @@ docker compose logs xtts -n 50
 - [ ] **Alerts**: Set on frame latency, error rates, goroutine leaks
 - [ ] **Backups**: Kafka retention configured
 - [ ] **Failover**: Multi-node with TURN/SFU for media routing
-- [ ] **Security**: Auth tokens validated at reverse proxy
 - [ ] **Capacity**: Load tested; scaling strategy documented
 
 ---
@@ -413,13 +366,6 @@ export GOGC=200
 go run ./cmd/proxy
 ```
 
-### Network Optimization
-
-For cascade on GPU host:
-- **RTT to ASR/LLM/TTS sidecars**: ~1–5ms (LAN)
-- **RTT to browser**: ~10–50ms (depends on internet)
-- Keep sidecars co-located to minimize cascade RTT
-
 ---
 
 ## Example: Complete Production Stack
@@ -445,9 +391,6 @@ prometheus scrape_interval: 10s
 
 # 5. Logs to centralized system
 docker compose logs -f | ship-to-loki.sh
-
-# 6. Cascade model auto-update (optional)
-# Cron job to pull latest Qwen weekly
 ```
 
 ---
@@ -456,10 +399,9 @@ docker compose logs -f | ship-to-loki.sh
 
 | Term | Meaning |
 |---|---|
-| **Bridge** | WebRTC endpoint, connects browser to model |
-| **Model** | Provider adapter (Gemini, Doubao, Cascade) |
-| **Cascade** | Self-hosted ASR→LLM→TTS pipeline |
-| **Sidecar** | External service (ASR, LLM, TTS) for cascade |
+| **Bridge** | WebRTC endpoint, connects browser to Gemini |
+| **Model** | Provider adapter (Gemini Live) |
+| **Registration** | Orchestrator-pushed session contract before browser connect |
 | **Replay** | Transcript restoration on reconnect |
 | **SLO** | Service level objective (e.g., <5% frames ≥30ms late) |
 
@@ -468,8 +410,6 @@ docker compose logs -f | ship-to-loki.sh
 ## Related Documentation
 
 - [Quick Start](QUICK_START.md) — 5-minute setup
+- [Integration Guide](INTEGRATION.md) — Auracle wiring
 - [Architecture](ARCHITECTURE.md) — Deep design rationale
-- [Benchmarks](bench/README.md) — Performance data
 - [FAQ](FAQ.md) — Common questions
-- [Chinese Guide](中文指南.md) — 中文版本
-

@@ -56,25 +56,24 @@ This prevents starvation (30-track catalog) while guaranteeing low-mood sessions
 **Current (MVP)**: deterministic structured scorer — no runtime embed API on the catalog path.
 
 ```typescript
-score(track, intent, taste, mem0) = 
+score(track, intent, taste) =
   - k * (track.energy - MOOD_ENERGY_CENTER[intent.mood])²  // energy penalty
   + W_scene  * sceneFit(track.scene, intent.scene)          // 0 or 1
   + W_genre  * genreFit(track.genre, tasteGenres)           // 0 or 1  
   + TASTE_WEIGHT * tasteRerank(track, taste)                // semantic: genre/artist/album/track (only within energy envelope)
-  - SKIP_PENALTY * mem0EnergySkip(track.energy, mem0)       // energy preference (tie-break only)
 ```
 
 All terms are deterministic integers or bounded floats. No cross-modal audio embedding, no catalog Qdrant.
 
 > **Implementation note**: the live ranker (`retrieveCandidates`) realises the energy
 > envelope as **bucket stratification** — it takes top-K per arc-energy bucket ranked by
-> the energy-independent `fit` (scene + genre + taste − skip) — rather than as an additive
+> the energy-independent `fit` (scene + genre + session taste) — rather than as an additive
 > `−k·(energy−center)²` penalty, which would collapse the pool to one energy level and kill
 > arc variety. The closed-form `score()` above (with the energy penalty) lives in
 > `scoreRetrievalCandidate`, which shares the same `fit` core and is the unit-tested
 > reference scorer.
 
-**Future option (not MVP)**: **text-to-text** retrieval — offline `embedContent` on each track's tag string (e.g. `"mood: calm scene: study energy: 2 genre: lo-fi"`), runtime embed on the query, cosine Top-K **within the mood energy envelope**. Same model as mem0 (`gemini-embedding-001`, native 3072). Can hybrid with structured scoring (hard filter + embed rerank).
+**Future option (not MVP)**: **text-to-text** retrieval — offline `embedContent` on each track's tag string (e.g. `"mood: calm scene: study energy: 2 genre: lo-fi"`), runtime embed on the query, cosine Top-K **within the mood energy envelope**. This is a catalog-only option and does not reintroduce user-memory Qdrant.
 
 ### 3. Ordering: Arc Amplitude = f(mood)
 
@@ -94,10 +93,10 @@ function arcAmplitude(mood: string, k = 2): { min: number; max: number } {
 
 ### 4. Taste Reranking: Priority Order
 
-**Invariant**: mood energy envelope > taste reranking > mem0 skip penalty.
+**Invariant**: mood energy envelope > session/Spotify-derived taste reranking.
 
-- **Structural taste** (genre/artist/album/track prefer/avoid): Additive rerank, only among tracks within energy envelope. Does not break envelope.
-- **mem0 energy preference** ("I like high energy"): Only tie-breaker / micro-adjustment within envelope. Never pulls a calm-session track up to euphoric energy.
+- **Session taste** (current-session like/dislike overlay): Additive rerank, only among tracks within energy envelope. Does not break envelope.
+- **Spotify taste summary/seeds**: Enters at session start through `personalizationContext` and optional `TrackSeed[]`, not through mem0.
 
 `track.mood` field: demoted to display-only. Only `track.energy` enters scoring.
 
@@ -130,7 +129,7 @@ Validation becomes **unit-test assertions** and **safety-net checks** (not repai
 - **Quality guaranteed**: Quality ∝ algorithm correctness, not LLM randomness. "calm → energy < 3" is a testable invariant.
 - **No starvation**: Soft Gaussian prevents catalog underflow; can expand catalog safely.
 - **Fast**: Retrieval is ~O(catalog) scoring + sort; no embedding calls, no Qdrant latency on the **catalog path**.
-- **Simpler catalog ops**: music-engine no longer depends on Qdrant or embed APIs. **mem0** (memory-service) still uses Qdrant + `gemini-embedding-001` for cross-session user memory — unchanged.
+- **Simpler catalog ops**: music-engine no longer depends on Qdrant or embed APIs. User-memory Qdrant is retired from product personalization.
 - **Cacheable**: Deterministic ordering + fixed session intent = deterministic tracklist. Cache invalidation is trivial (taste or memories changed? → cache miss). The in-process plan cache is **LRU-bounded** (keys include per-user memories/taste, so it would otherwise grow unbounded).
 
 ### ⚠ Tradeoffs
@@ -147,7 +146,7 @@ Validation becomes **unit-test assertions** and **safety-net checks** (not repai
 5. **Deterministic copywriting (async refine)**: title/subtitle/reason come from templates; a background "full" pass refines copy and re-sequences pending slots off the critical path (Gemini copywriting dropped — see §5).
 6. **Delete** (cross-modal / audio catalog embed path only):
    - `GeminiEmbedder`, `HashEmbedder`, `embedder.ts`, `audio-clip.ts`, `fallback.ts` embedding fallback.
-   - Catalog-side Qdrant wiring (mem0 Qdrant in memory-service **stays**).
+   - Catalog-side Qdrant wiring.
    - `repair.ts` (validation loop).
    - `track.embedding` SQLite column (re-add later if/when text embed index ships).
 7. **Update tests and callers**: tests assert the production paths directly (`createPlan` / `retrieveCandidates` / `scoreRetrievalCandidate`); the interim `selectMoodEnergySequence` shim was deleted.
@@ -156,6 +155,6 @@ Validation becomes **unit-test assertions** and **safety-net checks** (not repai
 ## Notes
 
 - **Catalog expansion**: Structured scoring scales to thousands of tracks (no embedding bottleneck). Refine weights and tolerance bands (`k`) as catalog grows.
-- **Future: text embedding (same modality)**: Re-introduce `gemini-embedding-001` for catalog **text** vectors only — tag string at seed time, query string at runtime, cosine rerank inside the energy envelope. Shares embed model with mem0; catalog index can stay in SQLite (`embedding_json`) without a second Qdrant. Supersedes cross-modal audio embed (ADR-0002 Phase 2), not ADR-0002 Phase 1 text path.
+- **Future: text embedding (same modality)**: Re-introduce `gemini-embedding-001` for catalog **text** vectors only — tag string at seed time, query string at runtime, cosine rerank inside the energy envelope. Catalog index can stay in SQLite (`embedding_json`) without Qdrant. Supersedes cross-modal audio embed (ADR-0002 Phase 2), not ADR-0002 Phase 1 text path.
 - **Future: Rich tagging**: Instrument tags / mood-color / production-year → structured scoring and/or richer text embed strings.
 - **Taste weighting**: See `taste-weighting.ts` already in codebase; this ADR clarifies its role (semantic only, within energy envelope).

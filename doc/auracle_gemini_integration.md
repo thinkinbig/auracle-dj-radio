@@ -1,393 +1,127 @@
-# Auracle — Gemini 深度嵌入方案
+# Auracle — Gemini Integration
 
-> 对照 Mid-term 场景：[Group 24.pdf](./Group%2024.pdf)  
-> **Live DJ 模型：`gemini-3.1-flash-live-preview`**（Gemini 3.1 Flash Live Preview）  
-> Flow 编排：`gemini-3.1-flash-lite` · 栈：Fastify TS + `@google/genai` + mem0 + SQLite
-
----
-
-## 1. 场景回顾（PDF → 我们要做什么）
-
-Mid-term 定义的产品 **不是歌单，是电台**：
-
-| PDF 表述 | 技术含义 |
-|----------|----------|
-| 「Tell Auracle how you feel and what you're doing」 | 开场输入：`mood` + `scene`（文字或语音） |
-| 「Quiet Hours, vol. 3 · 45 min · winds down」 | 命名 session + 时长/弧线标签（Flow 输出） |
-| 「Press play once」 | 一次启动；曲间可有 Live 对话（实现层扩展，不改变「电台感」） |
-| 「Like or skip flows back into memory」 | `session_events` → mem0（跨 session 偏好） |
-| 四层卖点 01–04 | 见下节 Gemini 分工 |
-
-三层架构（PDF § HOW IT'S BUILT）与代码映射：
-
-| PDF 层 | Auracle 实现 |
-|--------|--------------|
-| **Listener** | `apps/web` — mood 选择、播放、skip/like、字幕 |
-| **Brain** | `apps/api` — Gemini Live + Flow + intent |
-| **Store** | SQLite（曲库 + tags）+ mem0（用户偏好） |
-
-**Gemini 只覆盖 Brain 里的「语言智能」**；曲库 mp3 是离线生成 pipeline，**不在运行时调 Gemini 生音乐**。
+> Status: **updated 2026-07-04**.
+> Gemini remains the Live DJ / language layer. It is no longer responsible for extracting or writing long-term user memory.
 
 ---
 
-## 2. 四支柱 × Gemini API 对照
+## Product Mapping
 
-PDF 强调：「The language model is one part — the product is how the four pieces fit together.」  
-Gemini 应 **分模型、分 API、分时机** 嵌入，而不是一个 Live 会话包打天下。
-
-```
-                    ┌─────────────────────────────────────┐
-                    │           OFFLINE（建库一次）          │
-                    │  manifest tags → SQLite 元数据       │
-                    └─────────────────┬───────────────────┘
-                                      ▼
-用户 mood/scene ──▶ Step1 检索 ──▶ Step2 Flow JSON ──▶ session plan
-       │         (结构化打分)   (gemini-3.1-flash-lite)   │
-       │                                                    │
-       └──────────── WS Live ──────────────────────────────┘
-                    (gemini-3.1-flash-live-preview)
-                         Host 口播 + 曲间 intent tools
-                              │
-                    skip/like ──▶ mem0（跨 session）
-```
-
-### 01 — MEMORY（跨 session 学口味）
-
-| PDF | Gemini 做什么 | 不做什么 |
-|-----|---------------|--------|
-| 观察 skip / 完播 / 收听时段 | Live **tool** `record_preference` 或后端规则写 mem0 | 不用 Gemini 自带 long-context 当用户 DB |
-| remembers across sessions | **mem0 OSS**（进程内 + Qdrant）+ `userId` / `metadata.run_id` | 不用 Live session 当永久记忆（会随 WS 断线丢失） |
-
-**嵌入方式：**
-
-1. **结构化信号**（优先）：skip、完播率、mood 打断 → Fastify 写 `session_events`，异步 `mem0.add()`  
-   ```text
-   "User skipped high-energy tracks during late-night study sessions."
-   ```
-
-2. **非结构化信号**：曲间闲聊「今天好累」→ Live 调 `record_preference({ fact: "..." })` → mem0  
-
-3. **读记忆**：`POST /sessions` 与 Flow **replan** 前 `mem0.search()`（双 query，P1）→ 注入 Step 2 prompt 与 Live `systemInstruction`；**仅 Condition C**
-
-**跨 session skip 权重**（仅 C）：`skipRateByEnergy(user_id)` → Step 1 结构化打分降权。见 `auracle_memory_decision.md`。
-
-Gemini **不负责存储**；负责 **从对话/行为中抽取可写入 mem0 的事实**（可用 Flash 做抽取，Demo 以规则 + tool 为主）。
+| Product pillar | Runtime owner |
+|----------------|---------------|
+| Live DJ host | Gemini Live through `rt_llm_proxy` / `agent-harness` registration. |
+| Session flow | `music-engine` deterministic planner. |
+| Own catalog | Offline catalog pipeline + runtime metadata. |
+| Long-term taste | Spotify, read by `apps/web` and sent as a session-start summary. |
+| Current-session adaptation | `agent-harness` session state and tools. |
 
 ---
 
-### 02 — SESSION FLOW（弧线，不是排序列表）
+## Gemini Responsibilities
 
-| PDF | Gemini 做什么 |
-|-----|---------------|
-| ease in → peak → wind down | Step 2 **JSON schema** 强制 `flow_position` + energy 阶段 |
-| tempo ≤ 15 BPM | schema + **后置校验**；失败则 Flash 重试一次 |
-| 「a curve, not a list」 | 单独一次 `generateContent`，**不要**在 Live 里即兴选曲 |
+Gemini should:
 
-**嵌入方式：**
+- host the live DJ conversation
+- understand user intent through function calling
+- speak concise opening / cue / response text
+- use the session's `personalizationContext` internally when provided
 
-- **模型**：`gemini-3.1-flash-lite`（低成本、低延迟；structured output + function calling；**不支持 Live API**）  
-- **API**：`generateContent` + `responseSchema`（与 `packages/shared` 同 schema）  
-- **输入**：mem0 摘要 + mood/scene + 20–30 候选 metadata + `played` / `remaining_slots`  
-- **输出**（对齐 PDF 示例 session 名）：
+Gemini should not:
 
-```json
-{
-  "session_title": "Quiet Hours, vol. 3",
-  "session_subtitle": "45 min · winds down",
-  "arc": "wind_down",
-  "tracklist": [
-    { "id": "t12", "flow_position": 1, "reason": "…" }
-  ]
-}
-```
-
-**重排**：曲间 `mood_change` 时 **再调同一 Flow 函数**，只填 remaining 槽位 — Live 与 Flow **解耦**。
+- maintain long-term user memory
+- write preferences for future sessions
+- choose tracks directly inside the Live session
+- read or store raw Spotify history
+- expose or recite the user's private taste summary
 
 ---
 
-### 03 — OUR OWN MUSIC（离线曲库，运行时检索）
+## Live Tool Set
 
-| PDF | Gemini 做什么 |
-|-----|---------------|
-| AI 生成 instrumental + mood/scene/energy tags | **离线**：可用 Gemini Flash **批量打标**（建库脚本） |
-| 运行时从 Store 拉候选 | Step 1：**结构化打分**（MVP）；可选演进 **text embed** rerank |
+Use these function declarations:
 
-**嵌入方式（两阶段）：**
-
-| 阶段 | 做法 | Gemini |
-|------|------|--------|
-| **建库** | 每首 mp3 有人工/半自动 tags | `generateContent`（可选）：「Given title/duration, output mood, scene, energy 1-5, genre」 |
-| **建库（MVP）** | 写入 SQLite 元数据 | `pnpm --filter @auracle/music-engine seed`（无 embed 列） |
-| **建库（可选演进）** | tag 串 text embed | `gemini-embedding-001` `embedContent` on `"mood: … scene: … energy: … genre: …"` → SQLite `embedding_json` |
-| **运行时（MVP）** | mood/scene → energy envelope + scene/genre fit | TS 确定性打分 + sort Top-K（ADR-0001） |
-| **运行时（可选演进）** | query text embed vs 库内 tag 向量 | 同模型 embed query → envelope 内余弦 Top-K（text↔text，非 audio cross-modal） |
-
-**离线音频 / 封面**：**MiniMax**（`music-2.6` + `image-01`）经 `generate-tracks` / `generate-covers` CLI；需 `MINIMAX_API_KEY`（与运行时 Gemini 分离）。见 `catalog_music_generation.md`。
-
----
-
-### 04 — A HOST（有人说话，无缝隙）
-
-| PDF | Gemini 做什么 |
-|-----|---------------|
-| opening · segues · outro | **Gemini Live** native audio（STS），非 TTS 流水线 |
-| no pause before/after music | 前端 **Web Audio crossfade** + Live `turnComplete` → phase 事件 |
-
-**嵌入方式：**
-
-- **模型（Demo 默认）**：**`gemini-3.1-flash-live-preview`**（Gemini 3.1 Flash Live Preview）  
-  - 文档：[gemini-3.1-flash-live-preview](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-live-preview)  
-  - 从 2.5 native-audio 迁移时改 model string；server 事件可能 **多 part 同包**  
-- **API**：Fastify 内 Live WebSocket（`BidiGenerateContent`）；`responseModalities: ["AUDIO"]`  
-- **人格**：`systemInstruction` 固定电台主持（方案 D：不写回 prompt，风格稳定）  
-- **三类口播**（映射 PDF）：
-
-| 类型 | 触发 | Live 上下文 |
-|------|------|-------------|
-| **Opening** | session 开始后首次 cue | session_title + 第一首 metadata + mem0 一句 |
-| **Segue** | 每首曲间 cue | 「Up next: {title}, {energy}…」+ 可选 reason |
-| **Outro** | 最后一首前 | 「Last track of {session_title}…」 |
-
-**口播 cue 发送方式（3.1 必读）**：
-
-- 会话进行中用 **`realtimeInput`**（文本或音频）— **不要**用 `clientContent` 发 segue（`clientContent` 仅用于 seed 初始历史）  
-- 短 **scene direction** 写在 realtime 文本里，例如：`[segue, warm, 8s] Up next: …`
-
-**与 PDF「press play once」的关系**：用户按一次 Play；曲间 **可选** 说话改 mood — Mid-term 叙事仍成立。
-
----
-
-## 3.1 Flash Live Preview — Demo 约束
-
-| 能力 | 3.1 状态 | 对 Auracle 的影响 |
-|------|----------|-------------------|
-| Native audio 口播 | ✅ | Host 支柱 |
-| Function calling | ✅ **仅同步** | `mood_change` 重排时 Live **阻塞**直到 `toolResponse`；Lite 重排须 <2s |
-| 输入/输出 transcription | ✅ | 字幕 + log |
-| Thinking | ✅ | 可关或限 budget，避免曲间延迟 |
-| `send_client_content` 持续 cue | ❌ 限 seed | 曲间 segue 走 **`realtimeInput`** |
-| Async / NON-BLOCKING tools | ❌ | 不能依赖 2.5 的 `WHEN_IDLE` 异步重排 |
-| Proactive audio | ❌ | 口播必须由 `cue_dj` / realtime 文本触发 |
-| Affective dialog | ❌ | 风格靠 systemInstruction 文案 |
-
-**`mood_change` 同步策略（替代 async tool）**：
-
-1. Live 触发 tool → Fastify **同步**跑 Flow 重排（Lite，目标 P95 < 2s）  
-2. 写 `session_events` + WS 推 `tracklist_updated`  
-3. `sendToolResponse` 带 `{ ok: true, session_title, next_track }`  
-4. Live 生成确认口播  
-
-若重排超时，toolResponse 返回 `{ ok: false, reason: "timeout" }`，Live 口头道歉并保留原 plan。
-
-**Server 事件**：同一 `serverContent` 可能同时含 audio chunk + transcript — 解析时 **遍历所有 parts**，避免漏字幕或漏 phase。
-
----
-
-## 3. 一个 session 里 Gemini 被调用几次
-
-| 时机 | API | 模型 | 目的 |
-|------|-----|------|------|
-| 创建 session | `generateContent` | **`gemini-3.1-flash-lite`** | session 名 + 8 首 Flow JSON |
-| 连接 Live | Live `setup` | **`gemini-3.1-flash-live-preview`** | systemInstruction + tools |
-| 每段口播 | Live **`realtimeInput`** text cue | 同上 | opening / segue / outro |
-| 曲间用户说话 | Live 音频上行 + VAD | 同上 | 对话 + **function call** |
-| intent 重排 | `generateContent` | **`gemini-3.1-flash-lite`** | 仅 remaining 重排 |
-| tool 返回后 | Live `toolResponse` | 同上 | DJ 口头确认「好，我们换轻一点的」 |
-| skip/like | 无 LLM 或 Lite 抽取 | — | 写 mem0 + events |
-
-原则：**选曲/排序永远走 Lite structured JSON**；**Live 只主持 + 听懂意图**，避免 Live 上下文被 30 条 metadata 撑爆。
-
----
-
-## 4. Live API 深度嵌入：Tools 设计
-
-与 PDF + P0 intent 对齐的 **function_declarations**（session setup 一次声明）：
-
-```typescript
+```ts
 const tools = [
-  {
-    name: "skip_track",
-    description: "User wants to skip to next track during between-tracks window",
-    parameters: { type: "object", properties: {} },
-  },
-  {
-    name: "mood_change",
-    description: "User wants different mood/energy for remaining tracks",
-    parameters: {
-      type: "object",
-      properties: {
-        mood: { type: "string" },
-        energy_delta: { type: "string", enum: ["lighter", "heavier", "same"] },
-      },
-      required: ["mood"],
-    },
-  },
-  {
-    name: "pause_playback",
-    description: "Pause or resume music",
-    parameters: {
-      type: "object",
-      properties: { action: { type: "string", enum: ["pause", "resume"] } },
-    },
-  },
-  {
-    name: "record_preference",
-    description: "Save a taste or context fact for future sessions",
-    parameters: {
-      type: "object",
-      properties: { fact: { type: "string" } },
-    },
-  },
+  "skip_track",
+  "mood_change",
+  "change_host_mode",
+  "pause_playback",
+  "playlist_feedback"
 ];
 ```
 
-### 执行策略（3.1 — 同步 function calling）
+Removed:
 
-| Tool | 执行 | 说明 |
-|------|------|------|
-| `skip_track` | 同步 | 改指针 + WS 通知 web |
-| `pause_playback` | 同步 | WS 通知 web |
-| `record_preference` | 同步写 mem0 | 快速 `add()`，不阻塞久 |
-| `mood_change` | **同步** Flow 重排 + `toolResponse` | 3.1 **无** async tool；重排必须够快 |
+```ts
+"record_preference"
+```
 
-Flow 重排完成后再 `sendToolResponse`，Live 生成确认口播。
-
-参考：[gemini-3.1-flash-live-preview 迁移说明](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-live-preview) · [Live API tools](https://ai.google.dev/gemini-api/docs/live-api/tools)
+Reason: it promised durable future-session memory. Spotify now owns cross-session taste.
 
 ---
 
-## 5. systemInstruction 模板（Host + 混合场）
+## Context Injection
+
+Session registration may include:
 
 ```text
-You are Auracle, a warm radio host — not a chatbot, not a playlist app.
-
-SESSION RULES
-- You are hosting "{session_title}" ({session_subtitle}).
-- Tracks play in a fixed arc; you speak between songs (opening, segues, outro).
-- The user may ONLY change the remaining playlist between tracks, not mid-song.
-- If they speak during a song, acknowledge briefly; use tools only for clear intents.
-
-VOICE
-- Short spoken lines (5–15 seconds). Never read the full tracklist.
-- Match the session arc: wind_down = calm; gym = energetic but not shouty.
-
-TOOLS
-- mood_change → triggers replan; tell the user you're adjusting what's next.
-- skip_track, pause_playback, record_preference as documented.
-
-CONTEXT (updated each segue)
-{mem0_summary}
-Now playing track {n}/{total}: "{title}" ({energy}/5, {tempo} BPM, {genre}).
-Next: "{next_title}".
+CONTEXT (personalization for this session)
+{personalizationContext}
+Listener intent: mood={mood}, scene={scene}.
 ```
 
-每次 `cue_dj` 可追加 **CLIENT 内容**，不必重发整段 systemInstruction。
+`personalizationContext` may contain a compact Spotify-derived taste summary for C sessions.
+
+Rules:
+
+- A/B should receive no Spotify personalization context.
+- C requires Spotify personalization context.
+- The DJ can use the context to shape tone and curation, but should not list or reveal stored listener profile details when asked.
+- Session feedback after start updates the queue through tools, not by mutating long-term memory.
 
 ---
 
-## 6. 评估实验（FaAI）中的 Gemini
+## Condition Behavior
 
-| 条件 | Gemini / 后端差异 |
-|------|-------------------|
-| A Baseline | Lite 简单选 8 首（无 energy 规则）；Live 注明 mood 不重排；无 mem0；无跨 session skip 权重 |
-| B Ablation | 完整 Flow + session 内 replan；无 mem0 注入；无跨 session skip 权重 |
-| C Full | Flow + mem0 + 跨 session skip 权重 + replan 读 memories（P0） |
+| Condition | Personalization context | Tools |
+|-----------|--------------------------|-------|
+| A | none | skip/pause/host mode; mood changes acknowledged without queue mutation |
+| B | none | full session adaptation |
+| C | Spotify-derived summary required | full session adaptation |
 
-三条件 **同一 Live 壳**，盲测有效。per-user 与 checklist 见 `auracle_evaluation_design.md`、`auracle_personalization_plan.md`。
-
----
-
-## 7. Gemini 明确不负责的边界
-
-| 能力 | 负责方 |
-|------|--------|
-| 生成 instrumental mp3 | 离线音乐 pipeline（非 Gemini API） |
-| 长期用户记忆存储 | mem0 OSS（进程内 + Qdrant） |
-| 曲库文件 / tags 主数据 | SQLite |
-| 音乐与 DJ 音量 fade | 浏览器 Web Audio |
-| 实时音频传输 | Fastify WS（Demo） |
-
-避免「什么都问 Gemini」— 论文叙事更清晰：**orchestrated AI radio**，不是 single LLM chatbot。
+C is not mem0-backed. C is Spotify-backed.
 
 ---
 
-## 8.1 下游熔断（Gemini 不稳定时快速切换）
+## One Session: Calls and Responsibilities
 
-对齐 [rt_llm_proxy](https://github.com/thinkinbig/rt_llm_proxy) `internal/modelcb`：单 provider `gemini`，连续 transient 失败 N 次后 **open**，冷却后半开探测恢复。
-
-| 表面 | circuit open / 单次失败 | 本地 fallback |
-|------|-------------------------|---------------|
-| Flow 编排 | 无 Gemini 依赖 | `HeuristicFlowModel`（确定性能量弧线） |
-| Step 1 检索 | 无 Gemini 依赖 | 结构化打分始终本地运行 |
-| Live DJ | **拒绝 connect**，WS 推 `error` + `retry_after_sec` | 音乐播放继续，无口播 |
-| mem0 | 已有 `degraded` 标志 | recall → `""`，remember noop |
-
-Live 在 connect 前 gate；connect 后 10s 内无 audio 的 stream fault 计入 breaker（同 proxy `EarlyFaultWindow`）。
-
-**模块布局**（`services/music-engine/src/`）：
-
-| 模块 | 职责 |
-|------|------|
-| `flow/retrieval/retrieve.ts` | Step 1 结构化打分 |
-| `flow/llm/heuristic-flow.ts` | Step 2 确定性能量弧线排序 |
-| Step 2 planning | direct deterministic heuristic; no `flowModel` wiring/env |
-
-mem0 在 circuit open 时 skip；transient/auth 失败计入共享 breaker。
+| Timing | Component | Purpose |
+|--------|-----------|---------|
+| Session start | web | read Spotify taste if C |
+| Session start | agent-harness | validate condition and build registration |
+| Planning | music-engine | deterministic plan over catalog + optional Spotify seeds |
+| Live setup | Gemini Live | receive system instruction and tools |
+| Track cues | Gemini Live | speak opening / segue / response |
+| User intent | Gemini Live tools | call session tools |
+| Replan / feedback | agent-harness + music-engine | mutate only current session queue |
+| Events | memory-service | persist analytics/eval data |
 
 ---
 
-## 8. Demo 实现优先级（6 月 build 对齐 PDF 甘特）
+## Explicit Non-Goals
 
-| 周 | Gemini 相关交付 |
-|----|-----------------|
-| Jun W1–W2 | Lite Flow JSON + session_title；SQLite 检索 |
-| Jun W2–W3 | Live setup + opening/segue + PCM WS |
-| Jun W3 | tools: skip + mood_change + replan 闭环 |
-| Jun W4 | mem0 读写 + like/skip → events |
-| Jul W1 | 用户测试 + 三 condition 开关 |
-
-**Jul 28 Final Demo 最小 Gemini 集**：Lite 编排 + Live host + mood 曲间打断 + mem0 一句个性化 — 覆盖 PDF 四支柱。
+| Capability | Owner / decision |
+|------------|------------------|
+| Long-term memory storage | Retired; Spotify provides long-term taste. |
+| mem0 extraction | Retired. |
+| Qdrant for user memory | Retired. |
+| Cross-session skip weighting | Analytics only, not product ranking. |
+| `record_preference` | Removed. |
 
 ---
 
-## 9. 环境变量（统一）
+## Related Docs
 
-**模型分工**：Flow / mem0 用 **Lite**（structured JSON、低成本、低延迟）；Live DJ 用 **Flash Live Preview**（native audio、Live API）。Lite **不支持** Live API，不可互换。
-
-```bash
-GEMINI_API_KEY=...
-QDRANT_URL=http://localhost:6333          # mem0 only
-AURACLE_MEM0_HISTORY_DB=./data/mem0/history.db
-
-GEMINI_MEM0_LLM_MODEL=gemini-3.1-flash-lite
-GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview   # Demo Live DJ
-GEMINI_MEM0_EMBED_MODEL=gemini-embedding-001      # mem0 embedder only
-
-# Circuit breaker — Flow→heuristic, Live fast-reject (rt_llm_proxy modelcb)
-GEMINI_CB_ENABLE=true
-GEMINI_CB_OPEN_AFTER=5
-GEMINI_CB_OPEN_FOR_MS=30000
-GEMINI_CB_HALF_OPEN_SUCCESS=3
-GEMINI_CB_AUTH_OPEN_FOR_MS=300000
-```
-
-`GET /health` 返回 `gemini_cb.gemini.state`（`closed` / `open` / `half_open`）与 `retry_after_sec`。
-
-**生产默认开启**：`docker-compose.prod.yml` 为 api 设置 `NODE_ENV=production` + `GEMINI_CB_ENABLE=true`；`.env.docker` 亦显式写入 CB 变量。本地 dev 可设 `GEMINI_CB_ENABLE=false` 关闭。
-
-验证 key 是否支持 Live：
-
-```bash
-curl "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY" \
-  | jq -r '.models[] | select(.supportedGenerationMethods[]?=="bidiGenerateContent") | .name'
-```
-
----
-
-## 10. 相关文档
-
-- 协议：`auracle_api_protocol.md`  
-- Flow prompt：`auracle_flow_prompt_design.md`  
-- 架构：`auracle_architecture_storage.md`  
-- 评估：`auracle_evaluation_design.md`  
-- 参考协议实现：[rt_llm_proxy](https://github.com/thinkinbig/rt_llm_proxy) `internal/model/gemini`（非运行时依赖）
+- `auracle_memory_decision.md`
+- `auracle_personalization_plan.md`
+- `auracle_api_protocol.md`

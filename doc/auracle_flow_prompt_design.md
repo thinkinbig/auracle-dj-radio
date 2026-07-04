@@ -1,134 +1,88 @@
-# Auracle — Flow 编排 & Live DJ 设计记录
+# Auracle — Flow & Live DJ Design
 
-> 状态：已拍板（2026-06）
-
----
-
-## 核心决策
-
-1. **Step 1 检索 + Step 2 Flow JSON** 保留，但 Step 2 变为 **可重复调用的重排函数**（非一次性离线生成）
-2. **Step 3 不再是离线 TTS**；曲间 DJ 口播由 **Gemini Live** 实时生成（Fastify WS 中继）
-3. **不用一个大 prompt** 同时做检索排序 + 口播 + 记忆
+> Status: **updated 2026-07-04** for Spotify taste and session-only adaptation.
 
 ---
 
-## Session 状态机（混合场）
+## Core Design
 
-- 初始：`POST /sessions` → Step 1 + Step 2 → 完整 8 首 `tracklist`
-- 播放：web 按 plan 播歌；曲间进入 **between_tracks** 窗口
-- 打断（仅曲间，P0 intent）：Fastify 重排 **remaining** 槽位，已播不变
-- DJ：Fastify 在曲间触发 Live（`cue_dj` 或自动）；`dj_turn_end` → web crossfade 进下一首
+Auracle keeps the live radio session. Spotify provides cross-session taste.
 
-```
-playing ──track end──▶ between_tracks ──Live DJ──▶ playing
-                            │
-                     user intent (曲间)
-                            │
-                            ▼
-                     replan remaining (Step 2)
-```
+Flow has two jobs:
+
+1. Build a coherent queue from mood / scene / catalog / optional Spotify seeds.
+2. Replan the current session when the listener asks for changes.
+
+Flow does not read mem0, durable structured taste, or cross-session skip weights.
 
 ---
 
-## Step 1 — 检索（不用 LLM）
+## Step 1 — Retrieval
 
-- 输入：`mood` + `scene`（+ 可选 `energyWeights` / structured taste）
-- 实现：SQLite `tracks` 元数据 + TS 结构化打分（energy penalty + scene/genre fit + taste/skip 权重；见 ADR-0001）
-- 输出：20–30 首候选（id, energy, tempo, genre, mood, scene）
-- 重排时：排除 `played_track_ids`，在 remaining 槽位数内重新召回
+Inputs:
 
----
+- mood
+- scene
+- current session exclusions
+- optional `personalizationContext` from Spotify taste summary
+- optional Spotify `TrackSeed[]` for Premium users
+- optional session-scoped feedback overlay
 
-## Step 2 — Flow 编排（确定性能量弧线）
-
-**调用方**：`agent-harness` → `music-engine` HTTP  
-**模型**：deterministic heuristic（`chooseNext` + mood 能量弧线；ADR-0001），无 Gemini ordering  
-**触发**：创建 session；以及 intent `mood_change` / `explicit_pick` / `full_replan`
-
-### 能量曲线约束
-
-能量 scale：**1–5**（整数，1 最轻，5 最强）。
-
-| 阶段 | 曲目位置（全场 8 首） | 能量范围 | 说明 |
-|------|----------------------|----------|------|
-| Warm-up | 1–2 | 1 → 2 | 轻柔引入 |
-| Build | 3–4 | 2 → 3 | 逐渐递进 |
-| Peak | 5–6 | 3 → 5 | 最高强度 |
-| Wind-down | 7–8 | 5 → 2 | 平滑收尾 |
-
-**重排弧线（remaining 槽位）**：从 `last_played_energy` 平滑过渡到 Wind-down（2），不重跑完整弧线。
-
-### 硬性规则
-
-常量单一来源：`packages/shared/src/arc.ts`（`MAX_TEMPO_JUMP_BPM`、`MAX_ENERGY_JUMP`）+ `flow-rules.ts`（`isAdjacentStepLegal`、`adjacentStepPenalty`）。`chooseNext` 在选曲时施加邻接惩罚；`validate.ts` 仅作 safety-net 断言。
-
-- 相邻曲 tempo 差 ≤ 15 BPM  
-- 能量等级每次跳幅 ≤ 1 级  
-- 连续两首不重复 genre  
-
-### Plan 编排流水线（`flow/plan.ts`）
-
-1. deterministic heuristic planning 一次（无 LLM / 无 violation retry）  
-2. `validateTracklist` — safety-net 断言，返回 `violations`（可能非空，若候选池无解）  
-3. 无 `repair.ts` / 无 `repairHint` / 无 Gemini 违规重试（P2.3）
-
-### 设计原则
-
-1. **确定性选曲**：质量由 `chooseNext` + mood 弧线保证，不依赖 LLM 排序  
-2. **`reason` 字段**：heuristic 生成，便于评估审查  
-3. **输入含已播列表**：保证重排不重复已播曲目  
-
-每次重排写入 `session_events`：`event_type: replan`，payload 含 diff。
+The live scorer remains deterministic and metadata-based. The catalog path does not require Gemini, Qdrant, or runtime embeddings.
 
 ---
 
-## Step 3 — Live DJ（Gemini Live，非 TTS）
+## Step 2 — Ordering
 
-| 项 | 说明 |
-|----|------|
-| 运行位置 | `apps/api` → Gemini Live WS（`@google/genai`） |
-| 模型 | **`gemini-3.1-flash-live-preview`** |
-| 内容 | 曲间介绍、转场、共情回应（闲聊） |
-| 风格 | **固定 systemInstruction**（电台主持人格）+ mem0 事实 + 当前 track 上下文 |
-| 结构化意图 | **function calling**：`skip_track`, `mood_change`, `pause_playback`, `record_preference`；闲聊由 Live 自然处理，无需 tool |
-| 音频 | Live 输出 24k PCM → WS → web `djGain`；**不**经离线 TTS API |
+`music-engine` orders candidates against the mood energy arc using deterministic rules.
 
-### systemInstruction 要点（示意）
+The planner may mix:
 
-- 你是 Auracle 电台 DJ，简短、有温度  
-- 用户只能在 **曲与曲之间** 改歌单；播歌中若用户说话，先简短回应，引导曲间再改  
-- 收到 tool 结果后口头确认变化  
-- 不要念完整个 tracklist  
+- local catalog tracks
+- Spotify seeds sent by the browser for this session
 
-### 曲间触发
-
-- 曲终前 ~4s：web 可收 `phase` 或本地定时，music fade out  
-- Fastify：曲间经 **`realtimeInput` 文本 cue** 注入 context（track N/8、mem0、next track）；见 3.1 Live API  
+Spotify seeds are session inputs, not durable stored taste.
 
 ---
 
-## Condition 差异（评估）
+## Live DJ
 
-| 条件 | Step 2 Flow | mem0 | 跨 session skip 权重 | 打断重排 |
-|------|-------------|------|----------------------|----------|
-| A Baseline | ❌ 简单选曲 | ❌ | ❌ | skip/pause only，**不**重排 |
-| B Ablation | ✅ | ❌ | ❌ | ✅ |
-| C Full | ✅ | ✅ | ✅ | ✅ |
+Gemini Live hosts the session and calls tools. It does not store taste.
 
-A/B/C 共用同一 Live UI 壳（见 `auracle_evaluation_design.md`、`auracle_personalization_plan.md`）。
+Tool set:
 
----
+- `skip_track`
+- `mood_change`
+- `change_host_mode`
+- `pause_playback`
+- `playlist_feedback`
 
-## 待实现
+Removed:
 
-- [ ] JSON schema 精确定义（`packages/shared`）  
-- [ ] Baseline 选曲 prompt（无 Flow 规则）  
-- [ ] Live systemInstruction 终稿 + tool 定义  
-- [ ] Phase 2：`tracks.intro_offset_ms` 与 fade 对齐  
+- `record_preference`
 
 ---
 
-## 相关文档
+## Condition Differences
 
-- 架构：`auracle_architecture_storage.md`  
-- API / WS 协议：`auracle_api_protocol.md`  
+| Condition | Spotify taste | Spotify seeds | Replan / feedback |
+|-----------|---------------|---------------|-------------------|
+| A | No | No | No queue mutation after start |
+| B | No | No | Yes, current session only |
+| C | Required | Optional, Premium only | Yes, current session only |
+
+---
+
+## Context Naming
+
+Use `personalizationContext` for session-start context.
+
+During migration, `mem0Context` may exist in code as a legacy name, but it must no longer mean mem0 recall.
+
+---
+
+## Related Docs
+
+- `auracle_personalization_plan.md`
+- `auracle_api_protocol.md`
+- `docs/adr/0005-mixed-local-spotify-queue.md`

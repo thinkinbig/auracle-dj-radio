@@ -7,7 +7,7 @@
 - **`music-2.6`** — vocal or instrumental songs from prompt (+ optional lyrics)
 - **`image-01`** — album cover backgrounds + artist press portraits
 - Same **`MINIMAX_API_KEY`** for `generate-tracks` and `generate-covers`
-- Runtime Brain (Live DJ / Flow / mem0) still uses **Gemini** — separate concern
+- Runtime Brain (Live DJ / session planning) still uses **Gemini** — separate concern
 
 Docs: [MiniMax Music](https://platform.minimax.io/docs/guides/music-generation) · [Image](https://platform.minimax.io/docs/guides/image-generation)
 

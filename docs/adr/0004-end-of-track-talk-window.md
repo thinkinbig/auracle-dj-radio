@@ -25,8 +25,8 @@ silence timer.
 3. DJ `dj_turn_end` → **window opens**: phase → `listening`; mic forwarding ON;
    silence timer `T_open` (5s); UI shows "Listening… / Continue ▶".
 4. **Loop until silence**: a user transcript cancels the silence timer; the DJ
-   replies (optional tool: `mood_change`→replan / `record_preference` / pause /
-   host_mode); on the reply's `dj_turn_end` the window reopens with a follow-up
+   replies (optional tool: `mood_change`→replan / `playlist_feedback` /
+   pause / host_mode); on the reply's `dj_turn_end` the window reopens with a follow-up
    timer `T_follow` (3s).
 5. **Terminate** on: silence fires, hard cap (30s OR 3 user turns, whichever
    first), or the user taps Continue → advance to `remaining[0]` (replan-aware);
