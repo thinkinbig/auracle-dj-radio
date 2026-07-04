@@ -83,8 +83,8 @@ describe('playbackReducer', () => {
       type: 'start',
       session: DEMO_SESSION,
     });
-    const next = playbackReducer(base, { type: 'set_host_mode', hostMode: 'hype' });
-    expect(next.hostMode).toBe('hype');
+    const next = playbackReducer(base, { type: 'set_host_mode', hostMode: 'roast' });
+    expect(next.hostMode).toBe('roast');
   });
 
   it('opens the listening window when a DJ turn ends during a break (ADR-0004)', () => {

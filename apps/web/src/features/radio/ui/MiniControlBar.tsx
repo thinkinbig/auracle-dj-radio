@@ -28,6 +28,7 @@ const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
   { value: 'curator', label: 'Guide' },
   { value: 'set_dj', label: 'Quiet' },
   { value: 'hype', label: 'Energy' },
+  { value: 'roast', label: 'Roast' },
 ];
 
 export function MiniControlBar() {

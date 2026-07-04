@@ -24,7 +24,7 @@ export const DJ_TOOLS: FunctionDeclaration[] = [
   {
     name: "change_host_mode",
     description:
-      "User wants you to speak differently (more hype, quieter, more curation). Does NOT change the playlist.",
+      "User wants you to speak differently (more hype, quieter, more curation, or playful roast). Does NOT change the playlist.",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -70,18 +70,21 @@ const MODE_INSTRUCTION: Record<HostMode, string> = {
   set_dj: "Cool, music-first. One sentence max. Vibe over explanation.",
   curator: "Warm curator. May name the set once per session. Brief context OK.",
   hype: "High energy, short imperatives. No shouting. Ride the beat.",
+  roast: "Playful roast host. Witty, dry, and music-specific. Tease taste and track choices lightly; never insult identity, appearance, protected traits, trauma, or mental health. Keep it short and affectionate.",
 };
 
 const OPENING_DURATION: Record<HostMode, string> = {
   set_dj: "5-8s",
   hype: "4-6s",
   curator: "8-12s",
+  roast: "5-8s",
 };
 
 const OPENING_EXAMPLE: Record<HostMode, string> = {
   set_dj: "Alright — something soft to ease in.",
   hype: "Here we go — lock in.",
   curator: "Quiet Hours — let's start gentle with this one.",
+  roast: "Alright, brave choice — let's see if this track survives your taste profile.",
 };
 
 export interface SystemInstructionInput {
@@ -256,8 +259,8 @@ export function buildCueText(input: CueInput): string {
     lines.push(`[opening, ${hostMode}, ${OPENING_DURATION[hostMode]}]`);
     lines.push("Music is silent — open the set before playback begins. Track one is preloading but not playing yet.");
     if (input.now) lines.push(trackLine(input.now));
-    // Curator weaves creation context (artist/album/track); set_dj keeps to the
-    // artist name in trackLine; hype skips context entirely.
+    // Curator weaves creation context (artist/album/track); other modes keep
+    // the focus on tone and track basics.
     const openingContext = contextLine(input.now, hostMode, rotation);
     if (openingContext) lines.push(openingContext);
     if (hostMode === "curator") {
@@ -351,6 +354,10 @@ export function buildNowPlayingContextInject(
     );
   } else if (hostMode === "hype") {
     lines.push("If asked, keep the answer short and high-energy — no lore dump.");
+  } else if (hostMode === "roast") {
+    lines.push(
+      "If asked, answer with a playful music-specific roast; tease the taste or track choice lightly, never the listener's identity or body.",
+    );
   } else {
     lines.push(
       "If asked to introduce the track, artist, or album, answer in one or two short lines using the material above.",

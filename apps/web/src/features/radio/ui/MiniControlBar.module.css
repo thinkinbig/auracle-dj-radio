@@ -2,7 +2,7 @@
   flex-shrink: 0;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(150px, 232px) minmax(180px, 1fr) auto minmax(246px, auto);
+  grid-template-columns: minmax(150px, 232px) minmax(180px, 1fr) auto minmax(286px, auto);
   align-items: center;
   gap: 20px;
   min-height: 88px;
@@ -154,7 +154,7 @@
 
 .hostMode {
   height: 32px;
-  padding: 0 13px;
+  padding: 0 12px;
   border-radius: 999px;
   color: rgba(248, 250, 252, 0.54);
   font-size: 11px;

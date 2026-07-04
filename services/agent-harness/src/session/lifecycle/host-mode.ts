@@ -13,6 +13,13 @@ export interface HostModeChangeResult {
   note?: string;
 }
 
+const HOST_MODE_SWITCH_INSTRUCTION: Record<HostMode, string> = {
+  curator: "Warm curator. Brief context is okay.",
+  set_dj: "Cool, music-first, one sentence max.",
+  hype: "High energy, short imperatives, no shouting.",
+  roast: "Playful roast host: witty and music-specific, never cruel or personal.",
+};
+
 /** Shared host-mode mutation for UI HTTP and DJ tool paths. */
 export async function changeHostMode(
   deps: OrchestrationDeps,
@@ -34,7 +41,7 @@ export async function changeHostMode(
 
   if (source === "ui") {
     await deps.proxy.inject(state.id, {
-      inject_text: `[host mode → ${nextMode}] Adopt this speaking style from your next line; don't announce the switch. Playlist unchanged.`,
+      inject_text: `[host mode -> ${nextMode}] ${HOST_MODE_SWITCH_INSTRUCTION[nextMode]} Adopt this speaking style from your next line; don't announce the switch. Playlist unchanged.`,
     });
   }
 
@@ -43,6 +50,6 @@ export async function changeHostMode(
     host_mode: nextMode,
     previous,
     changed: true,
-    note: source === "dj_tool" ? "Adopt the new speaking style immediately; playlist unchanged." : undefined,
+    note: source === "dj_tool" ? `${HOST_MODE_SWITCH_INSTRUCTION[nextMode]} Playlist unchanged.` : undefined,
   };
 }

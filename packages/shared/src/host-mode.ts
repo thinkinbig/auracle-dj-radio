@@ -1,7 +1,7 @@
 /** Live DJ voice archetype — swappable independently of playlist replan. */
-export type HostMode = "set_dj" | "curator" | "hype";
+export type HostMode = "set_dj" | "curator" | "hype" | "roast";
 
-export const HOST_MODES: readonly HostMode[] = ["set_dj", "curator", "hype"];
+export const HOST_MODES: readonly HostMode[] = ["set_dj", "curator", "hype", "roast"];
 
 /** Default when no scene-specific mode applies (UI label: Guide). */
 export const DEFAULT_HOST_MODE: HostMode = "curator";
