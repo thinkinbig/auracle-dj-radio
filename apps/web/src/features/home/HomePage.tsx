@@ -85,7 +85,7 @@ export function HomePage({
         <div className={styles.homeCopy}>
           <h1 id="home-title">Welcome back, {firstName}.</h1>
           <p className={styles.homeSignal}>Your music, your moment.</p>
-          <p className={styles.homeLede}>Start a station from your mood, memory, and taste.</p>
+          <p className={styles.homeLede}>Start a station from your mood, Spotify taste, and this moment.</p>
           <div className={styles.homeActions}>
             <button className={chrome.primaryButton} type="button" onClick={onStartNew}>
               <IconPlay size={18} />

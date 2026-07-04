@@ -3,8 +3,8 @@ import type { HostMode } from "./host-mode.js";
 
 /**
  * Live session protocol. Inbound frames (ServerMessage) cross the browser↔proxy
- * WebRTC data channel (decoded by web/rtcProtocol); client→server control now goes
- * over HTTP to memory-service, so there is no ClientMessage type.
+ * WebRTC data channel (decoded by web/rtcProtocol); client→server control goes
+ * over HTTP to agent-harness, so there is no ClientMessage type.
  */
 export type Phase = "dj_turn_start" | "dj_turn_end" | "user_barge_in";
 

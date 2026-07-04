@@ -4,7 +4,7 @@ import { postCue } from './sessionApi';
 import type { PlaybackAction } from '../session/playbackReducer';
 import type { PlaybackState } from '@/features/radio/session/types';
 
-/** End-of-track cue kinds the browser can request (memory-service builds the text). */
+/** End-of-track cue kinds the browser can request from the session orchestrator. */
 type CueKind = 'break' | 'outro';
 
 /**
@@ -24,13 +24,13 @@ export interface RadioCommandDeps {
 
 /**
  * The single owner of outbound DJ-turn commands. Each verb sequences the data
- * plane (AudioBus duck/skip), the orchestrator (memory-service HTTP cue), and the
+ * plane (AudioBus duck/skip), the session orchestrator HTTP cue, and the
  * control plane (reducer) in the one order that keeps them consistent — so a
  * caller says what it wants (Cue, Skip track, Skip voice-over, talk-over) without
  * re-deriving the order at every site. Inbound phase frames are NOT handled here.
  */
 export interface RadioCommands {
-  /** Ask memory-service to push an end-of-track DJ cue (it targets the mirrored playhead). */
+  /** Ask the session orchestrator to push an end-of-track DJ cue. */
   cueTrack(kind: CueKind): void;
   /** Skip track: cut any in-flight DJ turn and advance the Playhead. Returns whether a skip occurred. */
   skipTrack(): boolean;
@@ -72,7 +72,7 @@ export function createRadioCommands(deps: RadioCommandDeps): RadioCommands {
       if (s.currentTrackIndex === 0) deps.releaseOpening();
       // Skipping mid voice-over: duck the DJ locally. now_playing (from
       // useTrackPlayback's track-change effect) mirrors the new pointer to
-      // memory-service; the new track gets its own end-of-track break cue later.
+      // the session orchestrator; the new track gets its own end-of-track break cue later.
       if (s.phase === 'speaking') cutDjTurn();
 
       deps.dispatch({ type: 'advance' });

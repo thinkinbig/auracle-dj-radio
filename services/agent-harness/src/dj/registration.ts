@@ -3,7 +3,7 @@ import type { SessionState } from "../session/state.js";
 import { buildCueText, buildSystemInstruction, DJ_TOOLS, type CueTrack } from "./prompt.js";
 
 /**
- * The pre-baked registration contract memory-service hands the proxy at session
+ * The pre-baked registration contract agent-harness hands the proxy at session
  * start (refactor-three-services §session-lifecycle). Every string is fully
  * assembled here — the proxy never composes prompts. The proxy injects
  * systemInstruction + tools at Live setup and auto-plays openingCue on connect.

@@ -97,37 +97,6 @@ export class EventsDb {
     return row.c;
   }
 
-  /**
-   * Compute energy-level skip weights from the most recent `recentSessions` sessions.
-   * Returns a map of energy (1–5) → penalty weight (0–0.7): 0 = never skipped,
-   * 0.7 = heavily skipped. Each additional skip adds 0.15, capped at 0.7.
-   * Used by music-engine to soft-downrank tracks at energies the user often skips.
-   */
-  skipRateByEnergy(userId: string, recentSessions: number): Partial<Record<number, number>> {
-    const rows = this.db
-      .prepare(
-        `WITH recent AS (
-           SELECT session_id FROM session_events
-           WHERE user_id = ?
-           GROUP BY session_id ORDER BY MIN(id) DESC LIMIT ?
-         )
-         SELECT CAST(json_extract(e.payload_json, '$.energy') AS INTEGER) AS energy,
-                COUNT(*) AS skip_count
-         FROM session_events e
-         JOIN recent r ON e.session_id = r.session_id
-         WHERE e.event_type = 'skip_latency'
-           AND json_extract(e.payload_json, '$.energy') IS NOT NULL
-         GROUP BY energy`,
-      )
-      .all(userId, recentSessions) as { energy: number; skip_count: number }[];
-
-    const weights: Partial<Record<number, number>> = {};
-    for (const { energy, skip_count } of rows) {
-      weights[energy] = Math.min(0.7, skip_count * 0.15);
-    }
-    return weights;
-  }
-
   close(): void {
     this.db.close();
   }

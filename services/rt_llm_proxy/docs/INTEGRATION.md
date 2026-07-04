@@ -16,7 +16,7 @@ Composition root: `cmd/proxy/root.go` → `runProxy`.
 | 2 | **Orchestrator auth** | `PROXY_REGISTER_SECRET` on proxy + harness — gates `POST /session/{id}/{register,inject}` |
 | 3 | **Session hijack** | Browser sends `X-Session-Token` on first connect; must match registration |
 | 4 | **Lane-1 tools** | `-harness-url http://agent-harness:3030` — server-side tool forwarding for registered sessions |
-| 5 | **Personalization** | Push registration (`systemInstruction`, `tools`, `openingCue`) — not `MemoryProvider` / `X-Listener-Brief` |
+| 5 | **Personalization** | Push registration (`systemInstruction`, `tools`, `openingCue`) |
 
 Local dev (`./scripts/dev-stack.sh`) sets `-harness-url` and `-auth-url`
 automatically. `PROXY_REGISTER_SECRET` is optional in dev (endpoints stay open
@@ -114,12 +114,11 @@ an error.
 
 ---
 
-## 5. Optional: MemoryProvider
+## 5. Optional: Dev Listener Brief
 
-For orchestrators that **don't** push registration, `offer.MemoryProvider`
-fetches a per-user listener brief at offer time (`internal/offer/memory.go`).
-Not wired in Auracle — personalization is entirely in the pushed
-`systemInstruction`.
+For local experiments without push registration, `X-Listener-Brief` can provide
+a base64 listener brief. Registered Auracle sessions ignore that header;
+personalization is entirely in the pushed `systemInstruction`.
 
 ---
 

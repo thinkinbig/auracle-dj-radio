@@ -68,7 +68,7 @@ Condition rules:
 
 If `condition: "C"` has no Spotify taste summary, return `400` instead of silently degrading.
 
-Response should use `personalization_context` as the forward-looking field name. During migration, `mem0_context` may remain as a compatibility alias but must mean the same session-start personalization context, not mem0 recall.
+Response uses `personalization_context` for session-start personalization context. `mem0_context` is removed.
 
 ```json
 {

@@ -14,7 +14,7 @@ import (
 	"github.com/thinkinbig/rt-llm-proxy/internal/rtc"
 )
 
-// HTTPToolBackend forwards model tool calls to the memory-service orchestrator
+// HTTPToolBackend forwards model tool calls to the session orchestrator
 // over HTTP (POST /sessions/{id}/tool) and returns the {gemini_result,
 // ui_events} envelope as an rtc.ToolOutcome. It implements rtc.ToolBackend.
 type HTTPToolBackend struct {
@@ -22,8 +22,8 @@ type HTTPToolBackend struct {
 	client  *http.Client
 }
 
-// NewHTTPToolBackend builds a backend posting to baseURL (the memory-service
-// base, e.g. http://localhost:3020). A trailing slash is tolerated.
+// NewHTTPToolBackend builds a backend posting to the session orchestrator base
+// URL (e.g. http://localhost:3030). A trailing slash is tolerated.
 func NewHTTPToolBackend(baseURL string) *HTTPToolBackend {
 	return &HTTPToolBackend{
 		baseURL: strings.TrimRight(baseURL, "/"),

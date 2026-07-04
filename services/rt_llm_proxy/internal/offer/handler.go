@@ -105,33 +105,31 @@ func (h *Handler) clientIP(r *http.Request) string {
 
 // HandlerFields groups dependencies for NewHandler (cmd/proxy wiring).
 type HandlerFields struct {
-	Limiter    *ratelimit.Limiter
-	Auth       *auth.Authenticator
+	Limiter     *ratelimit.Limiter
+	Auth        *auth.Authenticator
 	Publisher   sidechannel.Publisher
 	ReplayIndex Replayer
-	Memory      MemoryProvider
 	Registry    *Registry
 	ToolBackend rtc.ToolBackend
 	Guard       *modelcb.Manager
 	Hub         MediaHub
 	Models      ModelFactory
 	Replay      ReplayConfig
-	TrustProxy bool
+	TrustProxy  bool
 }
 
 // Build constructs a Handler from HandlerFields.
 func (f HandlerFields) Build() *Handler {
 	return NewHandler(Intake{
-		Limiter:   f.Limiter,
-		Auth:      f.Auth,
+		Limiter:     f.Limiter,
+		Auth:        f.Auth,
 		Publisher:   f.Publisher,
 		ReplayIndex: f.ReplayIndex,
-		Memory:      f.Memory,
 		Registry:    f.Registry,
 		ToolBackend: f.ToolBackend,
 		Guard:       f.Guard,
-		Hub:       f.Hub,
-		Models:    f.Models,
-		Replay:    f.Replay,
+		Hub:         f.Hub,
+		Models:      f.Models,
+		Replay:      f.Replay,
 	}, f.TrustProxy)
 }

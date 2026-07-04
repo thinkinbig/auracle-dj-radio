@@ -23,7 +23,7 @@ export function SupersededOverlay() {
           </Dialog.Title>
           <Dialog.Description asChild>
             <p id="superseded-body" className={styles.body}>
-              You started a new session somewhere else, so this one stopped. Your taste and memory carry over — pick
+              You started a new session somewhere else, so this one stopped. Your Spotify taste carries over — pick
               up a fresh set here whenever you like.
             </p>
           </Dialog.Description>

@@ -151,7 +151,6 @@ function sessionCreateResponse(deps: CreateSessionDeps, state: SessionState, tok
     current_track_index: state.currentTrackIndex,
     tracklist: state.tracklist,
     personalization_context: state.personalizationContext,
-    mem0_context: state.personalizationContext,
     proxy_url: deps.proxyPublicUrl,
     token,
   };

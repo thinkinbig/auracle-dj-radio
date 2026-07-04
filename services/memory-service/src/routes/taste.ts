@@ -80,11 +80,4 @@ export function registerTasteRoutes(app: FastifyInstance, deps: TasteRouteDeps):
     const derived = feedbackPreferences(body.track_id, feedback, catalog);
     return { preferences: derived, persisted: false, retired: body.persist === true && body.user_id !== ANONYMOUS_USER_ID };
   });
-
-  // Retired product endpoint: Spotify taste now enters at session start.
-  app.post("/taste/weights", async (req, reply) => {
-    const { user_id } = (req.body ?? {}) as { user_id?: string };
-    if (!user_id) return reply.code(400).send({ error: "user_id is required" });
-    return { preferences: [], retired: true };
-  });
 }

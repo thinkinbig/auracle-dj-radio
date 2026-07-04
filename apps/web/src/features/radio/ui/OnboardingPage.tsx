@@ -43,7 +43,7 @@ export function OnboardingPage() {
             onStart={(intent: SessionIntent) => void handleStart(intent)}
             disabled={curating}
             tasteSummary="your Taste DNA"
-            memorySummary="today's listening memory"
+            momentSummary="today's session"
           />
         </section>
       </main>

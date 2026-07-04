@@ -19,8 +19,6 @@ export interface SessionSnapshot {
   tracklist: PlannedTrack[];
   remaining: PlannedTrack[];
   personalization_context: string;
-  /** Deprecated compatibility alias for personalization_context. */
-  mem0_context: string;
 }
 
 /** The owning user of a live session, or undefined if unknown. Used for the route ownership guard. */
@@ -46,7 +44,6 @@ export function sessionSnapshot(deps: Pick<SessionQueryDeps, "store">, id: strin
     tracklist: [...view.tracklist],
     remaining: [...view.remaining],
     personalization_context: view.personalizationContext,
-    mem0_context: view.personalizationContext,
   };
 }
 

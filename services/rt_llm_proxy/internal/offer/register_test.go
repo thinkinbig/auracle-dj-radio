@@ -1,6 +1,7 @@
 package offer
 
 import (
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -97,12 +98,13 @@ func TestIntakeAdoptsRegisteredSession(t *testing.T) {
 	}
 
 	res := in.ServeOffer(IntakeRequest{
-		Ctx:             nil,
-		ClientIP:        "1.2.3.4",
-		Model:           "gemini",
-		OfferSDP:        []byte("sdp"),
-		SessionIDHeader:    "sess-42",
-		SessionTokenHeader: "tok-42",
+		Ctx:                 nil,
+		ClientIP:            "1.2.3.4",
+		Model:               "gemini",
+		OfferSDP:            []byte("sdp"),
+		SessionIDHeader:     "sess-42",
+		SessionTokenHeader:  "tok-42",
+		ListenerBriefHeader: base64.StdEncoding.EncodeToString([]byte("forged brief")),
 	})
 	if res.Status != 200 {
 		t.Fatalf("status = %d body=%q", res.Status, res.Body)
@@ -116,6 +118,9 @@ func TestIntakeAdoptsRegisteredSession(t *testing.T) {
 	}
 	if len(p.Tools) != 1 || p.Tools[0].Name != "skip_track" {
 		t.Fatalf("params tools = %+v", p.Tools)
+	}
+	if p.SystemSuffix != "" {
+		t.Fatalf("registered sessions must ignore listener brief header, got %q", p.SystemSuffix)
 	}
 	// A registered session forwards tools server-side (Lane 1).
 	if hub.lastInfo.ToolBackend == nil {
@@ -172,7 +177,7 @@ func TestIntakeUnregisteredSessionKeepsToolsBrowserSide(t *testing.T) {
 		Limiter:     ratelimit.New("", 0, time.Minute),
 		Guard:       modelcb.New(modelcb.Config{}, nil),
 		Registry:    NewRegistry(time.Hour), // empty: this offer matches nothing
-		ToolBackend: stubToolBackend{},       // configured, but must not apply
+		ToolBackend: stubToolBackend{},      // configured, but must not apply
 		Models:      &fakeFactory{m: &fakeModel{}},
 		Hub:         hub,
 	}

@@ -30,11 +30,8 @@ type Intake struct {
 	Publisher sidechannel.Publisher
 	// ReplayIndex queries the replay-index service for cross-node reconnect restore.
 	ReplayIndex Replayer
-	// Memory fetches the per-user listener brief injected at session start; nil
-	// falls back to the dev X-Listener-Brief header.
-	Memory MemoryProvider
 	// Registry holds pre-baked session contracts pushed by the orchestrator
-	// (memory-service) before connect; nil disables push registration.
+	// before connect; nil disables push registration.
 	Registry *Registry
 	// ToolBackend runs model tool calls server-side (Lane 1). It is wired onto a
 	// session only when that session was pre-registered, since the backend is
@@ -43,8 +40,8 @@ type Intake struct {
 	Guard       *modelcb.Manager
 	Hub         MediaHub
 	Models      ModelFactory
-	Replay   ReplayConfig
-	Observer ReplayObserver
+	Replay      ReplayConfig
+	Observer    ReplayObserver
 }
 
 // IntakeRequest is the HTTP-agnostic offer input.
@@ -122,7 +119,7 @@ func (in *Intake) ServeOffer(req IntakeRequest) IntakeResult {
 	newSessionID := identity.SessionID(uuid.NewString())
 
 	// Push registration: when the orchestrator pre-registered this session id, adopt
-	// it (so tool calls route back to the right memory-service session) and carry the
+	// it (so tool calls route back to the right session orchestrator) and carry the
 	// pre-baked contract into the model setup. A registered id has no replay history,
 	// so ResolveReplay below treats it as a fresh session.
 	var registration *Registration
@@ -175,15 +172,18 @@ func (in *Intake) ServeOffer(req IntakeRequest) IntakeResult {
 		}
 	}
 
-	params := model.SessionParams{SystemSuffix: resolveBrief(ctx, in.Memory, req.UserID, req.ListenerBriefHeader)}
+	params := model.SessionParams{}
 	if registration != nil {
 		params.SystemInstruction = registration.SystemInstruction
 		params.Tools = registration.Tools
 		params.OpeningCue = registration.OpeningCue
 		log.Printf("offer: applying registration (tools=%d, cue=%dB) session=%s provider=%s",
 			len(params.Tools), len(params.OpeningCue), newSessionID, provider)
-	} else if params.SystemSuffix != "" {
-		log.Printf("offer: applying listener brief (%d bytes) provider=%s", len(params.SystemSuffix), provider)
+	} else {
+		params.SystemSuffix = decodeListenerBrief(req.ListenerBriefHeader)
+		if params.SystemSuffix != "" {
+			log.Printf("offer: applying listener brief (%d bytes) provider=%s", len(params.SystemSuffix), provider)
+		}
 	}
 	m, err := in.Models.New(modelCtx, provider, restoredTurns(replay.InitialHistory), params)
 	in.Guard.RecordDial(provider, err, now)

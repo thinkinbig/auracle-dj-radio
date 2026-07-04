@@ -8,7 +8,7 @@ loadEnv({ path: resolve(here, "../../../.env") });
 
 export interface Config {
   port: number;
-  /** Base URL of memory-service, which owns memory recall/remember + analytics events. */
+  /** Base URL of the compatibility service that owns auth, analytics events, and session feedback derivation. */
   memoryServiceUrl: string;
   /** Base URL of the music-engine HTTP service (catalog retrieval + planning). */
   musicEngineUrl: string;

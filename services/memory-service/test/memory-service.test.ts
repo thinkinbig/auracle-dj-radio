@@ -131,32 +131,28 @@ describe("memory-service /auth", () => {
   });
 });
 
-describe("memory-service internal memory/events API", () => {
-  it("exposes retired memory endpoints plus recordEvent and skipRateByEnergy for compatibility", async () => {
+describe("memory-service internal events API", () => {
+  it("does not expose retired memory endpoints, but still records events", async () => {
     const recall = await app.inject({
       method: "POST",
       url: "/memory/recall",
       payload: { query: "calm studying", user_id: ANONYMOUS_USER_ID },
     });
-    expect(recall.statusCode).toBe(200);
-    expect(recall.json<{ memories: string; retired: boolean }>())
-      .toMatchObject({ memories: "", retired: true });
+    expect(recall.statusCode).toBe(404);
 
     const intentRecall = await app.inject({
       method: "POST",
       url: "/memory/recall-intent",
       payload: { mood: "calm", scene: "studying", user_id: ANONYMOUS_USER_ID },
     });
-    expect(intentRecall.statusCode).toBe(200);
-    expect(intentRecall.json<{ memories: string; retired: boolean }>())
-      .toMatchObject({ memories: "", retired: true });
+    expect(intentRecall.statusCode).toBe(404);
 
     const remembered = await app.inject({
       method: "POST",
       url: "/memory/remember",
       payload: { fact: "likes sparse piano", session_id: "internal-s1", user_id: ANONYMOUS_USER_ID },
     });
-    expect(remembered.statusCode).toBe(410);
+    expect(remembered.statusCode).toBe(404);
 
     const recorded = await app.inject({
       method: "POST",
@@ -170,26 +166,18 @@ describe("memory-service internal memory/events API", () => {
     });
     expect(recorded.statusCode).toBe(200);
     expect(events.countEvents("internal-s1")).toBe(1);
-
-    const weights = await app.inject({
-      method: "POST",
-      url: "/events/skip-rate-by-energy",
-      payload: { user_id: ANONYMOUS_USER_ID, recent_sessions: 10 },
-    });
-    expect(weights.statusCode).toBe(200);
-    expect(weights.json<{ weights: Record<string, number> }>().weights[3]).toBeGreaterThan(0);
   });
 
-  it("retired memory endpoints do not write while skip weights stay isolated per user (P0-2/P0-3)", async () => {
+  it("keeps event queries isolated per user without derived skip weights (P0-2/P0-3)", async () => {
     const remembered = await app.inject({
       method: "POST",
       url: "/memory/remember",
       payload: { fact: "loves dub techno", session_id: "iso-s1", user_id: "user-a" },
     });
-    expect(remembered.statusCode).toBe(410);
+    expect(remembered.statusCode).toBe(404);
 
     const recall = await app.inject({ method: "POST", url: "/memory/recall", payload: { query: "q", user_id: "user-b" } });
-    expect(recall.json<{ memories: string; retired: boolean }>()).toMatchObject({ memories: "", retired: true });
+    expect(recall.statusCode).toBe(404);
 
     // User A skips energy-2 tracks; user B skips energy-5 tracks.
     await app.inject({
@@ -203,15 +191,11 @@ describe("memory-service internal memory/events API", () => {
       payload: { session_id: "iso-b", user_id: "user-b", event_type: "skip_latency", payload: { energy: 5 } },
     });
 
-    const a = await app.inject({ method: "POST", url: "/events/skip-rate-by-energy", payload: { user_id: "user-a", recent_sessions: 10 } });
-    const aWeights = a.json<{ weights: Record<string, number> }>().weights;
-    expect(aWeights[2]).toBeGreaterThan(0);
-    expect(aWeights[5]).toBeUndefined();
+    const a = await app.inject({ method: "POST", url: "/events/query", payload: { user_id: "user-a", event_type: "skip_latency" } });
+    expect(a.json<{ events: { payload: { energy: number } }[] }>().events.map((event) => event.payload.energy)).toEqual([2]);
 
-    const b = await app.inject({ method: "POST", url: "/events/skip-rate-by-energy", payload: { user_id: "user-b", recent_sessions: 10 } });
-    const bWeights = b.json<{ weights: Record<string, number> }>().weights;
-    expect(bWeights[5]).toBeGreaterThan(0);
-    expect(bWeights[2]).toBeUndefined();
+    const b = await app.inject({ method: "POST", url: "/events/query", payload: { user_id: "user-b", event_type: "skip_latency" } });
+    expect(b.json<{ events: { payload: { energy: number } }[] }>().events.map((event) => event.payload.energy)).toEqual([5]);
   });
 
   it("reads events back for offline eval scripts via /events/query (#66)", async () => {
@@ -259,19 +243,19 @@ describe("memory-service internal memory/events API", () => {
 
   it("rejects malformed internal API calls", async () => {
     const recall = await app.inject({ method: "POST", url: "/memory/recall", payload: {} });
-    expect(recall.statusCode).toBe(400);
+    expect(recall.statusCode).toBe(404);
 
     const recallIntent = await app.inject({ method: "POST", url: "/memory/recall-intent", payload: { user_id: "u" } });
-    expect(recallIntent.statusCode).toBe(400);
+    expect(recallIntent.statusCode).toBe(404);
 
     const remember = await app.inject({ method: "POST", url: "/memory/remember", payload: { fact: "x" } });
-    expect(remember.statusCode).toBe(400);
+    expect(remember.statusCode).toBe(404);
 
     const event = await app.inject({ method: "POST", url: "/events", payload: { session_id: "s1" } });
     expect(event.statusCode).toBe(400);
 
     const skipRate = await app.inject({ method: "POST", url: "/events/skip-rate-by-energy", payload: {} });
-    expect(skipRate.statusCode).toBe(400);
+    expect(skipRate.statusCode).toBe(404);
   });
 });
 
@@ -406,8 +390,8 @@ describe("memory-service /users/me/taste (S2)", () => {
     expect(bView.json<TasteProfileResponse>().preferences).toHaveLength(0);
   });
 
-  it("marks /taste/weights as retired", async () => {
-    const { id, token } = await registerUser("taste-weights@example.com");
+  it("does not expose retired /taste/weights", async () => {
+    const { token } = await registerUser("taste-weights@example.com");
     await app.inject({
       method: "PUT",
       url: "/users/me/taste",
@@ -420,13 +404,11 @@ describe("memory-service /users/me/taste (S2)", () => {
       },
     });
 
-    const res = await app.inject({ method: "POST", url: "/taste/weights", payload: { user_id: id } });
-    expect(res.statusCode).toBe(200);
-    expect(res.json<{ preferences: unknown[]; retired: boolean }>())
-      .toEqual({ preferences: [], retired: true });
+    const res = await app.inject({ method: "POST", url: "/taste/weights", payload: { user_id: "taste-weights" } });
+    expect(res.statusCode).toBe(404);
 
     const missing = await app.inject({ method: "POST", url: "/taste/weights", payload: {} });
-    expect(missing.statusCode).toBe(400);
+    expect(missing.statusCode).toBe(404);
   });
 
   it("re-resolves slug-based prefs to new ids after a catalog rebuild (orphans track ids)", async () => {
@@ -531,8 +513,6 @@ describe("memory-service /users/me/taste (S2)", () => {
     expect(anonymous.json<{ persisted: boolean; preferences: unknown[] }>().persisted).toBe(false);
     // Derived prefs still come back for the in-session queue nudge (#68).
     expect(anonymous.json<{ preferences: unknown[] }>().preferences).toHaveLength(2);
-    const anonWeights = await app.inject({ method: "POST", url: "/taste/weights", payload: { user_id: ANONYMOUS_USER_ID } });
-    expect(anonWeights.json<{ preferences: unknown[] }>().preferences).toHaveLength(0);
 
     // Conditions A/B send persist: false — derived only, nothing stored.
     const { id, token } = await registerUser("feedback-nopersist@example.com");

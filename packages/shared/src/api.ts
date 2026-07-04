@@ -13,8 +13,6 @@ export interface CreateSessionResponse {
   host_mode: HostMode;
   tracklist: PlannedTrack[];
   personalization_context: string;
-  /** Deprecated compatibility alias for personalization_context. */
-  mem0_context: string;
   /** Proxy base URL the browser POSTs its WebRTC SDP offer to. */
   proxy_url: string;
   /** Per-session token, sent as X-Session-Token on the offer. */
@@ -31,8 +29,6 @@ export interface SessionStateResponse {
   tracklist: PlannedTrack[];
   remaining: PlannedTrack[];
   personalization_context: string;
-  /** Deprecated compatibility alias for personalization_context. */
-  mem0_context: string;
 }
 
 /** Regenerate payload nested in POST /sessions/:id/playlist-feedback when feedback is regenerate. */

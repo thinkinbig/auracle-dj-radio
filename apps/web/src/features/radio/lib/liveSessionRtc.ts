@@ -2,7 +2,7 @@ import type { ServerMessage } from '@auracle/shared';
 import { decodeServerFrame } from './rtcProtocol';
 
 export interface LiveRtcOptions {
-  /** Proxy base URL (memory-service POST /sessions → proxy_url). */
+  /** Proxy base URL returned by POST /sessions as proxy_url. */
   proxyUrl: string;
   /** Orchestrator-minted session id; the proxy adopts it via X-Session-ID. */
   sessionId: string;
@@ -84,7 +84,7 @@ export function createBufferedTextSender(dc: TextDataChannel): (text: string) =>
 
 /**
  * Establish the live DJ session directly with the proxy over WebRTC. The
- * memory-service is never in the media path: it has already pushed the session
+ * The session orchestrator is never in the media path: it has already pushed the session
  * registration, so the proxy adopts `sessionId` from X-Session-ID and assembles
  * the Gemini contract (refactor-three-services: push context, direct media).
  */

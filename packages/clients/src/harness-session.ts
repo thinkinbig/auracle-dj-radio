@@ -113,7 +113,7 @@ export class HarnessSessionClient {
     }
   }
 
-  /** Mirror the playhead to memory-service so replan/cues target the right track. */
+  /** Mirror the playhead to agent-harness so replan/cues target the right track. */
   postNowPlaying(sessionId: string, trackId: string): void {
     void fetch(this.url(`/sessions/${sessionId}/now_playing`), {
       method: "POST",
@@ -131,7 +131,7 @@ export class HarnessSessionClient {
     }).catch(() => {});
   }
 
-  /** Ask memory-service to push an end-of-track DJ cue (Lane 3). */
+  /** Ask agent-harness to push an end-of-track DJ cue (Lane 3). */
   postCue(sessionId: string, kind: "break" | "outro"): void {
     void fetch(this.url(`/sessions/${sessionId}/cue`), {
       method: "POST",

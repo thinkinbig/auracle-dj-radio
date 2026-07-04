@@ -77,7 +77,7 @@ Removed:
 
 Use `personalizationContext` for session-start context.
 
-During migration, `mem0Context` may exist in code as a legacy name, but it must no longer mean mem0 recall.
+Do not use `mem0Context`; the compatibility alias has been removed.
 
 ---
 

@@ -40,7 +40,7 @@ type ToolSpec struct {
 // as a dialogue turn, so it cannot loop back into the transcript.
 //
 // SystemInstruction / Tools / OpeningCue are the pre-baked registration contract
-// pushed by the orchestrator (memory-service) before connect: when present they
+// pushed by the session orchestrator before connect: when present they
 // REPLACE the provider's base prompt and global tools for this session — the
 // proxy assembles nothing. OpeningCue is spoken as the first turn on connect.
 type SessionParams struct {

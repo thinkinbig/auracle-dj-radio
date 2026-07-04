@@ -41,7 +41,6 @@ const (
 	// reconnect within this window loses its in-memory resume state. Without it
 	// the archives map would grow unbounded on a long-lived host.
 	archiveTTL = 5 * time.Minute
-
 )
 
 // Hub holds the shared WebRTC API and the registry of active sessions, keyed by
@@ -299,8 +298,8 @@ type ToolOutcome struct {
 	UIEvents     []json.RawMessage
 }
 
-// ToolBackend executes a model tool call against the orchestrator
-// (memory-service) over the network. It is the Lane-1 server-side alternative
+// ToolBackend executes a model tool call against the session orchestrator over
+// the network. It is the Lane-1 server-side alternative
 // to relaying tool calls to the browser; the proxy never inspects the payloads.
 type ToolBackend interface {
 	RunTool(ctx context.Context, sessionID identity.SessionID, call model.ToolCall) (ToolOutcome, error)

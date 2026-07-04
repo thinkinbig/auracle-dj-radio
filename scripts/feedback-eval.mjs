@@ -8,8 +8,7 @@
  *   --session <id>        Feedback timeline (#66) + per-feedback #68 metrics
  *                         (changed_ids, Δenergy_mean of next 2 slots, artist_repeat)
  *                         + regenerate checks + played_track_ids reconstruction.
- *   --user <id>           The user's sessions (session_created) + current taste
- *                         rows, flagging `source: "session"` prefs (#69).
+ *   --user <id>           The user's sessions (session_created) + feedback events.
  *   --compare <idA> <idB> Played-tracklist Jaccard + energy histograms (C vs B).
  *
  * HITL runs: see doc/auracle_feedback_eval_runbook.md. Requires a running
@@ -205,19 +204,21 @@ async function sessionReport(sessionId) {
 
 async function userReport(userId) {
   const created = await queryEvents({ user_id: userId, event_type: "session_created", limit: 200 });
+  const feedback = await queryEvents({ user_id: userId, event_type: "playlist_feedback", limit: 200 });
   const sessions = created.map((e) => ({
     session_id: e.session_id,
     started: new Date(e.ts).toISOString(),
     condition: e.payload?.condition ?? null,
     intent: e.payload?.intent ?? null,
   }));
-  const { preferences } = await postJson(memoryUrl, "/taste/weights", { user_id: userId });
   return {
     user_id: userId,
     sessions,
-    taste: preferences,
-    // #69: rows written by voice like/dislike carry source "session".
-    session_sourced_taste: preferences.filter((p) => p.source === "session"),
+    feedback_events: feedback.map((e) => ({
+      session_id: e.session_id,
+      at: new Date(e.ts).toISOString(),
+      payload: e.payload,
+    })),
   };
 }
 
@@ -282,9 +283,9 @@ function summarizeSession(r) {
 function summarizeUser(r) {
   const lines = [`user ${r.user_id}: ${r.sessions.length} session(s)`];
   for (const s of r.sessions) lines.push(`  ${s.started} ${s.session_id} condition=${s.condition ?? "?"}`);
-  lines.push(`  taste rows: ${r.taste.length} total, ${r.session_sourced_taste.length} session-sourced (#69)`);
-  for (const p of r.session_sourced_taste) {
-    lines.push(`    ${p.polarity} ${p.entityType}:${p.entityId} strength=${p.strength ?? "-"} status=${p.status ?? "-"}`);
+  lines.push(`  feedback events: ${r.feedback_events.length}`);
+  for (const event of r.feedback_events) {
+    lines.push(`    ${event.at} ${event.session_id}: ${JSON.stringify(event.payload)}`);
   }
   return lines.join("\n");
 }

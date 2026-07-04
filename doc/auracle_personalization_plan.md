@@ -150,14 +150,14 @@ Target direction:
 
 ## 7. Migration Plan
 
-1. Rename product semantics from `mem0Context` to `personalizationContext`.
-2. Stop product calls to `recallForIntent()`, `remember()`, `tasteWeights()`, and `skipRateByEnergy()`.
-3. Remove `record_preference` from tool declarations, prompts, tool runner, tests, and docs.
-4. Keep `playlist_feedback` session nudge, but stop durable persistence.
-5. Make C require Spotify taste summary.
-6. Ensure A/B ignore Spotify summary and seeds.
-7. Keep `/events` and `/events/query` for evaluation.
-8. Mark `/memory/*`, `/users/me/taste`, and `/taste/weights` as retired or compatibility-only.
+1. Rename product semantics from `mem0Context` to `personalizationContext`. Done.
+2. Stop product calls to `recallForIntent()`, `remember()`, `tasteWeights()`, and `skipRateByEnergy()`. Done.
+3. Remove `record_preference` from tool declarations, prompts, tool runner, tests, and docs. Done.
+4. Keep `playlist_feedback` session nudge, but stop durable persistence. Done.
+5. Make C require Spotify taste summary. Done.
+6. Ensure A/B ignore Spotify summary and seeds. Done.
+7. Keep `/events` and `/events/query` for evaluation. Done.
+8. Remove `/memory/*`, `/taste/weights`, Qdrant, and the mem0 effectiveness smoke path. Done. `/users/me/taste` remains only as legacy profile UI compatibility.
 
 ---
 

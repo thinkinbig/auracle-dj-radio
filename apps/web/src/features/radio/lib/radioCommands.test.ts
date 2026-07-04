@@ -85,7 +85,7 @@ describe('radioCommands.skipTrack', () => {
 });
 
 describe('radioCommands.cueTrack', () => {
-  it('asks memory-service to push the cue for the active session', () => {
+  it('asks the session orchestrator to push the cue for the active session', () => {
     const { commands } = harness({ sessionId: 's1' });
     commands.cueTrack('break');
     expect(postCue).toHaveBeenCalledWith('s1', 'break');

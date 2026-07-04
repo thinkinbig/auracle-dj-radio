@@ -135,7 +135,7 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
     armForTrack(state.currentTrackIndex);
 
     postSessionEvent(state.sessionId, 'track_started', { track_id: state.trackId });
-    // The browser owns the Playhead; mirror it to memory-service over HTTP so
+    // The browser owns the Playhead; mirror it to the session orchestrator over HTTP so
     // cues/replan target the right track (CONTEXT: Playhead). The event above is
     // analytics only and no longer moves the server pointer.
     postNowPlaying(state.sessionId, state.trackId);

@@ -37,11 +37,4 @@ export function registerEventRoutes(app: FastifyInstance, events: EventsDb): voi
       }),
     };
   });
-
-  app.post("/events/skip-rate-by-energy", async (req, reply) => {
-    const { user_id, recent_sessions } = (req.body ?? {}) as { user_id?: string; recent_sessions?: number };
-    if (!user_id) return reply.code(400).send({ error: "user_id is required" });
-    const limit = typeof recent_sessions === "number" && recent_sessions > 0 ? recent_sessions : 10;
-    return { weights: events.skipRateByEnergy(user_id, limit) };
-  });
 }

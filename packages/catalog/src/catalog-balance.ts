@@ -286,7 +286,7 @@ export function checkCatalogBalance(manifest: CatalogManifest, options: BalanceO
       checks.push({
         id: `energy:${e}`,
         level: "warn",
-        message: `energy ${e}: ${count}/${scaleAt(8)} tracks (mem0 skip fallback)`,
+        message: `energy ${e}: ${count}/${scaleAt(8)} tracks (session feedback fallback)`,
       });
     }
   }

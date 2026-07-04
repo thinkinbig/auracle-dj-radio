@@ -4,7 +4,6 @@ import type { CatalogIndex } from "./catalog-index.js";
 import type { EventsDb } from "./events-db.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerEventRoutes } from "./routes/events.js";
-import { registerMemoryRoutes } from "./routes/memory.js";
 import { registerTasteRoutes } from "./routes/taste.js";
 import type { TasteStore } from "./taste/taste-store.js";
 
@@ -16,14 +15,13 @@ export interface MemoryServiceDeps {
   catalog: CatalogIndex;
 }
 
-/** Compatibility service for auth, analytics events, and retired memory/taste endpoints. */
+/** Compatibility service for auth, analytics events, and legacy taste profile endpoints. */
 export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
   const { events, auth, taste, catalog } = deps;
   const app = Fastify({ logger: true });
 
   app.get("/health", async () => ({ ok: true, memory: { enabled: false, degraded: false, retired: true } }));
 
-  registerMemoryRoutes(app);
   registerEventRoutes(app, events);
   registerAuthRoutes(app, auth);
   registerTasteRoutes(app, { auth, taste, catalog });

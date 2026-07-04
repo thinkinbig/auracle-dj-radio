@@ -7,7 +7,7 @@ import (
 	"github.com/thinkinbig/rt-llm-proxy/internal/model"
 )
 
-// Registration is the pre-baked session contract the orchestrator (memory-service)
+// Registration is the pre-baked session contract the session orchestrator
 // pushes before the browser connects: the full system instruction, the session's
 // tools, and the opening cue. The proxy stores it keyed by session id and feeds it
 // into the model setup at offer time — it assembles no prompts itself

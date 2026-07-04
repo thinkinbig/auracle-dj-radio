@@ -851,9 +851,8 @@ describe("agent-harness", () => {
     const { app, memory, music } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "B" } });
-    expect(created.json<{ personalization_context: string; mem0_context: string }>()).toMatchObject({
+    expect(created.json<{ personalization_context: string }>()).toMatchObject({
       personalization_context: "",
-      mem0_context: "",
     });
     expect(music.planCalls[0]?.memories).toBe("");
     expect(music.planCalls[0]?.energyWeights).toBeUndefined();
@@ -870,9 +869,8 @@ describe("agent-harness", () => {
       url: "/sessions",
       payload: { mood: "calm", scene: "studying", condition: "C", spotify_taste_summary: spotifySummary },
     });
-    const { personalization_context, mem0_context } = created.json<{ personalization_context: string; mem0_context: string }>();
+    const { personalization_context } = created.json<{ personalization_context: string }>();
     expect(personalization_context).toBe("Spotify-derived Auracle taste summary: Top genres: dream pop, ambient.");
-    expect(mem0_context).toBe(personalization_context);
     expect(music.planCalls[0]?.memories).toBe(personalization_context);
     await app.close();
   });

@@ -1,24 +1,9 @@
-# Prod / demo: music-engine + memory-service + agent-harness + rt-llm-proxy + web (+ qdrant for mem0).
+# Prod / demo: music-engine + memory-service + agent-harness + rt-llm-proxy + web.
 # web (nginx) serves the SPA *and* the static catalog/audio/images (api+web merge).
 # Only web (host :8080) and the host-networked proxy are reachable from outside.
 # Requires repo-root .env (see .env.example). Circuit breaker defaults ON via NODE_ENV=production.
 
 services:
-  qdrant:
-    build:
-      context: ./ops/qdrant
-      dockerfile: Dockerfile
-    image: auracle-qdrant:local
-    restart: unless-stopped
-    volumes:
-      - qdrant_data:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:6333/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
   music-engine:
     build:
       context: .
@@ -46,15 +31,10 @@ services:
     environment:
       MEMORY_SERVICE_PORT: "3020"
       MEMORY_EVENTS_DB_PATH: /data/auracle-events.sqlite
-      AURACLE_MEM0_HISTORY_DB: /data/mem0/history.db
-      QDRANT_URL: http://qdrant:6333
     ports:
       - "127.0.0.1:3020:3020"
     volumes:
       - memory_service_data:/data
-    depends_on:
-      qdrant:
-        condition: service_healthy
 
   agent-harness:
     build:
@@ -124,5 +104,4 @@ services:
         condition: service_started
 
 volumes:
-  qdrant_data:
   memory_service_data:

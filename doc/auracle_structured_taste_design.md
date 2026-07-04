@@ -11,8 +11,7 @@ Auracle will not maintain a durable structured taste profile as a product rankin
 
 Retired:
 
-- `/users/me/taste`
-- `/taste/weights`
+- `/taste/weights` (removed)
 - durable `taste_profile`
 - durable `taste_prefs`
 - onboarding/editing of Auracle-owned genre/artist/album/track preferences
@@ -21,6 +20,7 @@ Retired:
 
 Still useful:
 
+- `/users/me/taste` as legacy profile UI compatibility only
 - catalog taxonomy and stable slugs for internal metadata quality
 - deterministic local catalog retrieval
 - session-scoped feedback overlay while a station is live
@@ -74,11 +74,11 @@ These fields are useful for deterministic retrieval, UI display, and future offl
 
 Implementation should:
 
-1. Remove product callers of `/taste/weights`.
+1. Remove product callers and endpoint support for `/taste/weights`. Done.
 2. Stop persisting session feedback to `TasteStore`.
 3. Keep session-scoped taste merge logic in `agent-harness`.
 4. Keep catalog slug fields.
-5. Mark taste endpoints as compatibility-only before deletion.
+5. Keep `/users/me/taste` compatibility-only until the legacy profile UI is retired.
 
 ---
 

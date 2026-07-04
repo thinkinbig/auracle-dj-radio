@@ -15,8 +15,8 @@ export interface ToolCall {
 
 /**
  * Lane-1 envelope: `gemini_result` goes back to Gemini as the tool response;
- * `ui_events` are pushed to the browser over the data channel. memory-service
- * is the only Gemini-facing business path (refactor-three-services).
+ * `ui_events` are pushed to the browser over the data channel. agent-harness
+ * is the only Gemini-facing business path.
  */
 export interface ToolEnvelope {
   gemini_result: Record<string, unknown>;

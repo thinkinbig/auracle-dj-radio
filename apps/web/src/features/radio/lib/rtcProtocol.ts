@@ -11,7 +11,7 @@ import type { ServerMessage } from '@auracle/shared';
  *
  * Outbound now_playing/host-mode/events do NOT go over this channel: the proxy
  * feeds any non-tool-result text straight to the model as user speech, so those
- * are posted directly to memory-service over HTTP (refactor-three-services).
+ * are posted directly to the session orchestrator over HTTP.
  */
 export function decodeServerFrame(raw: string): ServerMessage | null {
   let parsed: unknown;

@@ -47,7 +47,7 @@ func TestDecodeListenerBriefCaps(t *testing.T) {
 	}
 }
 
-// The base64 brief header must reach the factory as SessionParams.SystemSuffix.
+// Without push registration, the dev base64 brief header reaches the factory as SessionParams.SystemSuffix.
 func TestIntakeForwardsListenerBrief(t *testing.T) {
 	factory := &fakeFactory{m: &fakeModel{}}
 	in := Intake{

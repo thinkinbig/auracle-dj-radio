@@ -32,7 +32,7 @@ export const DEMO_SESSION: CreateSessionResponse = {
     demoLocal('t06', 7, 'Late-night drift'),
     demoLocal('t08', 8, 'Soft landing'),
   ],
-  mem0_context: '',
+  personalization_context: '',
   proxy_url: '',
   token: '',
 };

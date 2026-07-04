@@ -7,7 +7,7 @@ interface IntentOnboardingProps {
   onStart: (intent: SessionIntent) => void;
   disabled?: boolean;
   tasteSummary?: string;
-  memorySummary?: string;
+  momentSummary?: string;
 }
 
 type IntentPreset = {
@@ -115,7 +115,7 @@ export function IntentOnboarding({
   onStart,
   disabled,
   tasteSummary = 'your Taste DNA',
-  memorySummary = 'your listening memory',
+  momentSummary = 'this moment',
 }: IntentOnboardingProps) {
   const [prompt, setPrompt] = useState('');
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
@@ -217,7 +217,7 @@ export function IntentOnboarding({
 
         <p className={styles.contextHint}>
           <span className={styles.hintSpark} aria-hidden />
-          Auracle will blend {tasteSummary}, {memorySummary}, and this moment to create your station.
+          Auracle will blend {tasteSummary}, your intent, and {momentSummary} to create your station.
         </p>
       </section>
 

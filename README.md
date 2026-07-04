@@ -49,7 +49,7 @@ pnpm docker:prod                   # 构建并启动全栈（读 .env）
 pnpm docker:down                   # 停止容器，保留 volumes
 ```
 
-Compose：`docker-compose.prod.yml`（答辩/部署，仅暴露 web；旧 Qdrant/mem0 依赖正在从产品路径移除）。
+Compose：`docker-compose.prod.yml`（答辩/部署，仅暴露 web；不再启动旧 Qdrant/mem0 依赖）。
 
 Phase 1 Demo：**Desktop Chrome**。见 `doc/auracle_pwa_audio_notes.md`。
 
