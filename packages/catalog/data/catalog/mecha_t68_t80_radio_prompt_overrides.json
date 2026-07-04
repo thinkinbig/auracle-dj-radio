@@ -1,0 +1,71 @@
+{
+  "notes": "Prompt overrides for t68-t80. Goal: soften the Mecha block into everyday cinematic electronic radio while preserving a futuristic anime-inspired identity. Apply each prompt to the matching track's sonicBrief before regeneration.",
+  "global_direction": "Reduce battle intensity, anime-opening shouting, epic choir, harsh guitar walls, boss-fight orchestration, and extreme dynamics. Favor cinematic electronic, warm synths, controlled percussion, radio-friendly loudness, stable tempo, and daily listening comfort.",
+  "tracks": [
+    {
+      "id": "t68",
+      "feedback": "Something wrong from the middle; BPM turned fast like crazy. Lock tempo strictly at 88 BPM; remove sudden tempo automation, unexpected speed-ups, or erratic rhythm shifts in the mid-section.",
+      "prompt": "Calm cinematic electronic study instrumental, 88 BPM locked from start to finish. Soft blueprint synth pad, gentle pulse, subtle strings, minimal percussion, stable metronomic groove, no tempo automation, no sudden speed-ups, no erratic mid-section rhythm shifts, no choir hits, low-distraction radio mix."
+    },
+    {
+      "id": "t69",
+      "feedback": "Mecha block feels too intense for everyday radio.",
+      "prompt": "Energetic but radio-friendly cinematic electronic gym instrumental. Futuristic launch atmosphere with controlled drums, warm synth bass, light orchestral accents, steady athletic pulse, no boss-fight intensity, no epic choir, no harsh brass blasts, no overwhelming drops."
+    },
+    {
+      "id": "t70",
+      "feedback": "Yes, but not that mecha; maybe better called Electronic.",
+      "prompt": "Warm electronic chill instrumental with subtle cinematic sci-fi color. Amber synth chords, soft electronic drums, gentle melodic motif, smooth radio-friendly mix, not battle music, no giant-mech orchestration, no taiko dominance, no choir, no aggressive trailer sound."
+    },
+    {
+      "id": "t71",
+      "feedback": "Mecha block feels too intense for everyday radio.",
+      "prompt": "Uplifting cinematic electronic commute instrumental. Smooth forward momentum, soft synth arpeggio, light percussion, restrained strings, clean transit energy, no battle buildup, no dramatic choir, no sharp orchestral stabs, comfortable everyday radio dynamics."
+    },
+    {
+      "id": "t72",
+      "feedback": "Mecha block feels too intense for everyday radio.",
+      "prompt": "Focused cinematic electronic instrumental for work. Stable mid-energy pulse, muted synth bass, precise but soft drums, subtle futuristic textures, no relentless taiko, no brass stabs, no vocal chants, no final-battle drive, steady concentration-friendly mix."
+    },
+    {
+      "id": "t73",
+      "feedback": "Vocal mecha tracks sound too noisy for radio.",
+      "prompt": "Radio-friendly cinematic electronic vocal party track. Smooth melodic vocal, lower in the mix, no shouting, no chant-heavy chorus, no anime-opening belting, no epic choir stack. Warm synth lead, controlled drums, soft orchestral color, uplifting but not battle-like."
+    },
+    {
+      "id": "t74",
+      "feedback": "Vocal mecha tracks sound too noisy for radio.",
+      "prompt": "Energetic but smooth cinematic electronic gym vocal track. Keep vocal melodic and controlled, no shouting, no siege choir, no battle cries, no aggressive anime OP hook. Tight electronic drums, warm bass, subtle cinematic accents, motivating but radio-friendly."
+    },
+    {
+      "id": "t75",
+      "feedback": "Mecha block feels too intense for everyday radio.",
+      "prompt": "Euphoric cinematic electronic party instrumental. Danceable synth groove, polished electronic drop, restrained orchestral shimmer, warm bass, no trailer-hit brass, no epic choir, no combat tension, no overwhelming EDM-orchestra explosion."
+    },
+    {
+      "id": "t76",
+      "feedback": "Yes, but not that mecha; maybe better called Electronic.",
+      "prompt": "Uplifting electronic commute instrumental with light cinematic atmosphere. Red-shift warm pads, smooth synth lead, moderate electronic drums, steady horizon-like momentum, not mecha battle music, no taiko dominance, no choir, no aggressive orchestral hits."
+    },
+    {
+      "id": "t77",
+      "feedback": "Mecha block feels too intense for everyday radio.",
+      "prompt": "High-energy cinematic electronic gym instrumental, intense but controlled. Fast electronic drums, pulsing synth bass, bright futuristic lead, clean athletic drive, no final-battle orchestration, no aggressive brass wall, no choir, no harsh trailer percussion."
+    },
+    {
+      "id": "t78",
+      "feedback": "Sounds like nothing, too quiet and orchestral. Complete regeneration required; increase gain and instrumentation presence; soft strings and ambient pads should be clearly audible.",
+      "prompt": "Calm cinematic electronic chill instrumental with clear presence and full audible arrangement. Soft strings and ambient pads clearly audible, warm synth bass, gentle electronic pulse, balanced gain, no empty muted mix, no awkward silence, no overly distant orchestra, smooth radio-ready fade."
+    },
+    {
+      "id": "t79",
+      "feedback": "Vocal mecha/anime-rock feels too loud for everyday radio.",
+      "prompt": "Energetic cinematic electronic vocal gym track with softened anime-rock influence. Smooth melodic vocal, no shouting, no aggressive anime OP chorus, no harsh guitar wall. Use clean electric guitar texture, synth pulse, controlled rock drums, radio-friendly mix."
+    },
+    {
+      "id": "t80",
+      "feedback": "Previously made more aggressive; now should fit everyday radio better.",
+      "prompt": "Focused cinematic electronic instrumental for work. Wireframe synth textures, soft guitar accents, controlled electronic drums, subtle orchestral color, steady forward motion, no aggression, no hard rock wall, no boss-fight intensity, comfortable focus-radio mix."
+    }
+  ]
+}
