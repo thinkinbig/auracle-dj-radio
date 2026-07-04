@@ -212,7 +212,6 @@ async function main(): Promise<void> {
   if (stateDirty) saveGenerationState(state);
 
   console.log("\nNext: pnpm --filter @auracle/catalog export-catalog");
-  console.log("      pnpm --filter @auracle/music-engine seed");
 }
 
 /** Normalize artist photo to square JPEG. */

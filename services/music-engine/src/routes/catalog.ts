@@ -1,9 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import type { GenreCount } from "@auracle/shared";
-import type { CatalogDb } from "../catalog-db.js";
+import type { Catalog } from "../catalog-store.js";
 import { computeCatalogRevision, loadGenreTaxonomy } from "../catalog/manifest.js";
 
-export function registerCatalogRoutes(app: FastifyInstance, db: CatalogDb): void {
+export function registerCatalogRoutes(app: FastifyInstance, db: Catalog): void {
   // Taxonomy slugs + per-genre track counts for the taste-onboarding UI (S3).
   app.get("/catalog/genres", async () => {
     const taxonomy = loadGenreTaxonomy();

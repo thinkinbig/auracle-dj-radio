@@ -44,7 +44,7 @@ packages/catalog/data/tracks/t01.mp3 … t30.mp3
 | t29 | Polaroid Hush | Taylor Drift | 1989 Drift | synthwave | 2 |
 | t30 | Drift Crown | Taylor Drift | 1989 Drift | synthwave | 4 |
 
-Edit flow: `manifest.json` → `pnpm --filter @auracle/catalog export-catalog` → `pnpm --filter @auracle/music-engine seed`.
+Edit flow: `manifest.json` → `pnpm --filter @auracle/catalog export-catalog` (browser `tracks.json`). music-engine loads the manifest into memory at boot — no seed step.
 
 ## Generation archive (original prompts)
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TastePreference } from "@auracle/shared";
-import type { TrackRow } from "../src/catalog-db.js";
+import type { TrackRow } from "../src/catalog-store.js";
 import { retrieveCandidates, scoreRetrievalCandidate } from "../src/flow/retrieval/retrieve.js";
 import { buildTasteScorer } from "../src/flow/weighting/taste-weighting.js";
 

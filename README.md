@@ -40,7 +40,7 @@ pnpm install
 pnpm dev                      # → http://localhost:5173
 ```
 
-曲库 seed：`pnpm --filter @auracle/music-engine seed`（SQLite 元数据标签，无 embedding 建库步骤）。
+曲库无需 seed：music-engine 启动时直接把 `packages/catalog/data` 的 manifest 加载进内存(曲库为空则拒绝启动)。编辑曲库后只需重新导出浏览器用的 `tracks.json`：`pnpm --filter @auracle/catalog export-catalog`。
 
 ### Docker 全栈（答辩 / 单机部署）
 

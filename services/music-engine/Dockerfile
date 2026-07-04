@@ -28,7 +28,7 @@ WORKDIR /app
 
 COPY --from=builder /bundle .
 
-# Catalog source assets (manifest + audio/cover/photo) for seed-on-boot
+# Catalog source assets (manifest + audio/cover/photo) — loaded into memory at boot
 COPY packages/catalog/data/tracks ./data/tracks/
 COPY packages/catalog/data/catalog ./data/catalog/
 COPY packages/catalog/data/covers ./data/covers/

@@ -1,6 +1,6 @@
 import type { Energy, FlowResult, PlannedTrack, SessionIntent, TastePreference, TrackCandidate, TrackSeed, Voicing } from "@auracle/shared";
 import { FULL_SESSION_LENGTH, energyTargetsForMood } from "@auracle/shared";
-import type { TrackRow } from "../catalog-db.js";
+import type { TrackRow } from "../catalog-store.js";
 import { HeuristicFlowModel } from "./llm/heuristic-flow.js";
 import type { FlowInput, FlowPlan, FlowSlot } from "./llm/flow-model.js";
 import { createSessionTitle } from "./session-title.js";

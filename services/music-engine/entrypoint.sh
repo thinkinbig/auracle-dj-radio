@@ -3,13 +3,9 @@ set -e
 
 cd /app
 
-DB="${MUSIC_ENGINE_DB_PATH:-/data/auracle-catalog.sqlite}"
-mkdir -p "$(dirname "$DB")"
-
-if [ ! -f "$DB" ]; then
-  echo "[music-engine] seeding catalog into $DB..."
-  MUSIC_ENGINE_DB_PATH="$DB" node dist/seed.js
-fi
-
+# The catalog is loaded into memory from the manifest (baked into the image at
+# /app/data) on boot — no SQLite to seed. index.js refuses to start if the
+# catalog is empty, so a broken image fails loudly instead of serving empty
+# tracklists.
 echo "[music-engine] starting..."
 exec node dist/index.js

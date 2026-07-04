@@ -178,9 +178,6 @@ importers:
       '@google/genai':
         specifier: ^2.8.0
         version: 2.8.0
-      better-sqlite3:
-        specifier: ^11.6.0
-        version: 11.10.0
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -188,9 +185,6 @@ importers:
         specifier: ^5.1.0
         version: 5.8.5
     devDependencies:
-      '@types/better-sqlite3':
-        specifier: ^7.6.11
-        version: 7.6.13
       '@types/node':
         specifier: ^22.9.0
         version: 22.19.19

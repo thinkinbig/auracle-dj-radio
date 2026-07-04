@@ -17,14 +17,11 @@ loadEnv({ path: resolve(here, "../../../.env") });
 
 export interface Config {
   port: number;
-  /** Music-engine owns its own catalog SQLite (structured track metadata — no session_events). */
-  dbPath: string;
   /** Catalog data directory (manifest.json + audio/cover/photo assets) — @auracle/catalog. */
   catalogDataDir: string;
 }
 
 export const config: Config = {
   port: Number(process.env.MUSIC_ENGINE_PORT ?? 3010),
-  dbPath: process.env.MUSIC_ENGINE_DB_PATH ?? resolve(here, "../auracle-catalog.sqlite"),
   catalogDataDir: resolveConfiguredPath(process.env.CATALOG_DATA_DIR, resolve(repoRoot, "packages/catalog/data")),
 };

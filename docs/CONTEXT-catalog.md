@@ -63,8 +63,8 @@ _Avoid_: synopsis, description, prompt.
 | Artists | **5** pun stage names (Lana Del Delay, Jay-Zzz, Justin Tiger, Kayan East, Taylor Drift) |
 | Albums | **6** |
 | Structured taste | `genre_taxonomy.json` + per-entity `slug` / `genreSlug` in manifest |
-| Static export | `pnpm --filter @auracle/catalog export-catalog` → `tracks.json`, `track/tXX.json`, `genres.json` |
-| Runtime DB | `pnpm --filter @auracle/music-engine seed` → SQLite (`tracks` table, structured metadata tags) |
+| Static export | `pnpm --filter @auracle/catalog export-catalog` → `tracks.json`, `track/tXX.json`, `genres.json` (served to the browser) |
+| Runtime load | music-engine loads the manifest into memory at boot (no SQLite; refuses to start on an empty catalog) |
 
 `docs/generated_music_catalog.md` records **original MiniMax generation prompts** for the same `tXX.mp3` files; runtime titles/artists/lore follow the manifest (pun-artist universe), not that doc.
 

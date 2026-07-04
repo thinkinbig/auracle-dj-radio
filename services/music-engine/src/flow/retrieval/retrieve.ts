@@ -1,6 +1,6 @@
 import type { TastePreference, TrackCandidate } from "@auracle/shared";
 import { FULL_SESSION_LENGTH, createMoodEnergyProfile, energyTargetsForMood, toCandidate } from "@auracle/shared";
-import type { TrackRow } from "../../catalog-db.js";
+import type { TrackRow } from "../../catalog-store.js";
 import { buildTasteScorer, type TasteScorer } from "../weighting/taste-weighting.js";
 
 export interface RetrieveInput {
