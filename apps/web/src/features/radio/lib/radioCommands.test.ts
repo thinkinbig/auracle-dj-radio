@@ -21,7 +21,6 @@ function harness(state: Partial<PlaybackState>) {
     sessionId: 's1',
     currentTrackIndex: 1,
     remainingTrackIds: ['t2', 't3'],
-    isTalking: false,
     ...state,
   } as PlaybackState;
 
@@ -121,41 +120,6 @@ describe('radioCommands.skipVoiceOver', () => {
     const playing = harness({ phase: 'playing' });
     playing.commands.skipVoiceOver();
     expect(playing.log).toEqual([]);
-  });
-});
-
-describe('radioCommands.talk', () => {
-  it('silences the DJ and marks talking on start; music is the duck policy\'s job', () => {
-    const { commands, log } = harness({ phase: 'playing', isTalking: false });
-    commands.startTalk();
-    expect(log).toEqual([
-      { ch: 'bus', call: 'skipDj' },
-      { ch: 'dispatch', action: { type: 'start_talk' } },
-    ]);
-
-    // endTalk lifts the DJ suppression (paired with the gesture) and clears the
-    // talking flag; the policy restores the music level.
-    const ending = harness({ isTalking: true });
-    ending.commands.endTalk();
-    expect(ending.log).toEqual([
-      { ch: 'bus', call: 'resumeDj' },
-      { ch: 'dispatch', action: { type: 'stop_talk' } },
-    ]);
-  });
-
-  it('takes the floor while paused so the user can talk the DJ back on', () => {
-    const paused = harness({ phase: 'paused' });
-    paused.commands.startTalk();
-    expect(paused.log).toEqual([
-      { ch: 'bus', call: 'skipDj' },
-      { ch: 'dispatch', action: { type: 'start_talk' } },
-    ]);
-  });
-
-  it('ignores startTalk when already talking', () => {
-    const talking = harness({ phase: 'playing', isTalking: true });
-    talking.commands.startTalk();
-    expect(talking.log).toEqual([]);
   });
 });
 

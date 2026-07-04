@@ -28,8 +28,6 @@ export interface RadioSession {
   handleChangeHostMode: (hostMode: HostMode) => void;
   handlePlaylistFeedback: (feedback: PlaylistFeedback) => void;
   handleRetryExtend: () => void;
-  handleTalkStart: () => void;
-  handleTalkEnd: () => void;
   handleSendText: (text: string) => void;
 }
 
@@ -53,7 +51,6 @@ export function useRadioSession(onAuthExpired?: () => void): RadioSession {
       sessionId: state.sessionId,
       trackId: state.trackId,
       remainingTrackIds: state.remainingTrackIds,
-      isTalking: state.isTalking,
       sessionTracklist: state.sessionTracklist,
     },
     opening,
@@ -68,7 +65,6 @@ export function useRadioSession(onAuthExpired?: () => void): RadioSession {
     sessionId: state.sessionId,
     token: state.token,
     phase: state.phase,
-    isTalking: state.isTalking,
     opening,
     setMicAnalyser,
   });
@@ -91,8 +87,6 @@ export function useRadioSession(onAuthExpired?: () => void): RadioSession {
     handleChangeHostMode: handlers.handleChangeHostMode,
     handlePlaylistFeedback: handlers.handlePlaylistFeedback,
     handleRetryExtend: handlers.handleRetryExtend,
-    handleTalkStart: handlers.handleTalkStart,
-    handleTalkEnd: handlers.handleTalkEnd,
     handleSendText: handlers.handleSendText,
   };
 }

@@ -97,8 +97,8 @@ export function StageHeader() {
       <div className={styles.stageWave}>
         <StageWaveform
           phase={state.phase}
-          analyser={state.isTalking ? micAnalyser : analyser}
-          talking={state.isTalking}
+          analyser={state.phase === 'listening' ? micAnalyser : analyser}
+          talking={state.phase === 'listening'}
         />
       </div>
     </header>

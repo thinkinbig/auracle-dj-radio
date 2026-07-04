@@ -4,20 +4,13 @@ import { useGSAP } from '@gsap/react';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useCatalogLoaded, useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { useLayoutMode } from '@/shared/hooks/useMediaQuery';
-import { formatTime } from '@/shared/lib/formatTime';
 import {
-  canSkipTrack,
   isCurating,
   isIdle,
-  isPaused,
   isSessionComplete,
-  playbackProgressPct,
-  selectQueueRefresh,
 } from '@/features/radio/session/playbackSelectors';
-import { IconPause, IconPlay, IconSkipNext } from '@/shared/ui/icons';
 import { LoreToggle } from '@/shared/ui/LoreToggle';
 import { IntentOnboarding } from './IntentOnboarding';
-import { SessionCompletePanel } from './SessionCompletePanel';
 import { SessionSummary } from './SessionSummary';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { cn } from '@/shared/lib/cn';
@@ -31,9 +24,8 @@ export function ContentSheet() {
   const sheetRef = useRef<HTMLElement>(null);
   const loreRef = useRef<HTMLParagraphElement>(null);
   const state = useRadioState();
-  const { handleStart, handleTogglePause, handleSkipTrack, handleContinue, handleRetryExtend, handleReturnToSetup } = useRadioActions();
+  const { handleStart } = useRadioActions();
   const { isWide } = useLayoutMode();
-  const paused = isPaused(state.phase);
   const idle = isIdle(state.phase);
   const complete = isSessionComplete(state.phase);
   const curating = isCurating(state.phase);
@@ -41,11 +33,6 @@ export function ContentSheet() {
   const track = useTrackMeta(state.trackId);
   const showSkeleton = curating || (idle && !catalogLoaded);
   const showOnboarding = idle;
-  const skipDisabled = !canSkipTrack(state);
-  const refresh = selectQueueRefresh(state);
-  const extendPending = complete && refresh.pending;
-  const extendFailed = complete && refresh.failed;
-  const pct = playbackProgressPct(state);
   const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
   const flowLabel = state.sessionSubtitle
     .split('·')
@@ -208,64 +195,6 @@ export function ContentSheet() {
                 </p>
               </div>
             </div>
-          </>
-        )}
-      </div>
-
-      <div className={styles.controls}>
-        {complete ? (
-          <SessionCompletePanel
-            surface="controls"
-            extendPending={extendPending}
-            extendFailed={extendFailed}
-            onRetry={handleRetryExtend}
-            onNewSession={handleReturnToSetup}
-            className={styles.completePanel}
-            primaryButtonClassName={styles.continueBtn}
-            secondaryButtonClassName={styles.completeSecondaryBtn}
-          />
-        ) : (
-          <>
-        <button
-          type="button"
-          className={styles.controlBtn}
-          onClick={idle ? undefined : handleTogglePause}
-          disabled={curating || idle}
-          aria-label={idle ? 'Start from onboarding below' : paused ? 'Resume' : 'Pause'}
-        >
-          {idle || paused ? <IconPlay size={18} /> : <IconPause size={18} />}
-        </button>
-
-        {state.inBreak ? (
-          <button
-            type="button"
-            className={styles.continueBtn}
-            onClick={handleContinue}
-            aria-label="Continue to next track"
-          >
-            Continue
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={styles.skipBtn}
-            onClick={handleSkipTrack}
-            disabled={skipDisabled}
-            aria-label="Next track"
-          >
-            <IconSkipNext size={18} />
-          </button>
-        )}
-
-        <div className={styles.progress}>
-          <div className={styles.progressTrack}>
-            <div className={styles.progressFill} style={{ width: `${pct}%` }} />
-          </div>
-          <div className={styles.progressTimes}>
-            <span>{formatTime(state.progressSec)}</span>
-            <span>{formatTime(state.durationSec)}</span>
-          </div>
-        </div>
           </>
         )}
       </div>

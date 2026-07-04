@@ -22,8 +22,6 @@ export interface RadioHandlers {
   handleChangeHostMode: (hostMode: HostMode) => void;
   handlePlaylistFeedback: (feedback: PlaylistFeedback) => void;
   handleRetryExtend: () => void;
-  handleTalkStart: () => void;
-  handleTalkEnd: () => void;
   handleSendText: (text: string) => void;
 }
 
@@ -118,14 +116,6 @@ export function useRadioHandlers({
     commands.skipVoiceOver();
   }, [commands]);
 
-  const handleTalkStart = useCallback(() => {
-    commands.startTalk();
-  }, [commands]);
-
-  const handleTalkEnd = useCallback(() => {
-    commands.endTalk();
-  }, [commands]);
-
   const handleSendText = useCallback((text: string) => {
     commands.sendText(text);
   }, [commands]);
@@ -183,8 +173,6 @@ export function useRadioHandlers({
     handleChangeHostMode,
     handlePlaylistFeedback,
     handleRetryExtend,
-    handleTalkStart,
-    handleTalkEnd,
     handleSendText,
   };
 }

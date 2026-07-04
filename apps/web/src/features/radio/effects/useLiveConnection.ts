@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import type { Phase } from '@auracle/shared';
 import { connectLiveSessionRtc } from '../lib/liveSessionRtc';
 import { getStoredToken } from '@/features/marketing/authApi';
@@ -18,28 +18,29 @@ interface LiveConnectionInput {
   sessionId: string | null;
   token: string | null;
   phase: UiPhase;
-  isTalking: boolean;
   opening: Pick<OpeningGateControls, 'releaseOpening'>;
   setMicAnalyser: (analyser: AnalyserNode | null) => void;
 }
 
 /**
- * Open mic while music plays (hands-free talk via Gemini VAD) and during the
- * end-of-track listening window. Also keep it open while paused so the user can
- * resume hands-free ("play"/"continue") — pause stops the music but not the DJ's
- * ears. Mute it while the DJ speaks on speakers — an open mic would feed the
- * DJ's own voice back and self-interrupt; deliberate barge-in over the DJ stays
- * on hold-to-talk (isTalking).
- *
- * djSpeaking gates anti-echo independently of phase: while paused the phase
- * freezes (server_phase is dropped), so it can't carry the DJ's resume
- * acknowledgment — without this the mic would stay open through the DJ's own
- * voice. isTalking still wins so a deliberate barge-in over the DJ holds.
+ * Frontend mic policy is transport gating, not VAD. Keep the track enabled for
+ * every live session phase where the backend/provider VAD should be able to hear
+ * the listener, including opening and DJ speech. Browser AEC is requested in
+ * getUserMedia; if speaker bleed causes false barge-ins, fix echo handling there
+ * or in the proxy, not by muting the uplink.
  */
-function micShouldBeOpen(phase: UiPhase, isTalking: boolean, djSpeaking: boolean): boolean {
-  if (isTalking) return true;
-  if (djSpeaking) return false;
-  return phase === 'playing' || phase === 'listening' || phase === 'paused';
+export function micShouldBeOpen(phase: UiPhase): boolean {
+  return (
+    phase === 'opening' ||
+    phase === 'playing' ||
+    phase === 'speaking' ||
+    phase === 'listening' ||
+    phase === 'paused'
+  );
+}
+
+export function shouldReleaseOpeningForPhase(phase: Phase, trackIndex: number): boolean {
+  return trackIndex === 0 && (phase === 'dj_turn_end' || phase === 'user_barge_in');
 }
 
 /** WebRTC live session to the proxy: DJ stream, transcripts, phase sync, intents, mic. */
@@ -52,15 +53,10 @@ export function useLiveConnection({
   sessionId,
   token,
   phase,
-  isTalking,
   opening,
   setMicAnalyser,
 }: LiveConnectionInput): void {
   const { releaseOpening } = opening;
-  // Whether a DJ turn is on the speakers right now, tracked from the turn
-  // boundaries so the mic gate can mute even while paused (where `phase` freezes
-  // and never reaches 'speaking').
-  const djSpeakingRef = useRef(false);
 
   // The single inbound-phase reaction site: data-plane side effects only. What a
   // phase MEANS for UI state (mapServerPhase, break → listening, Playhead fence)
@@ -72,12 +68,9 @@ export function useLiveConnection({
       const s = store.stateRef.current;
       const localIndex = s.currentTrackIndex;
       if (phase === 'dj_turn_start' && bus) bus.resumeDj();
-      if (phase === 'dj_turn_end' && localIndex === 0) releaseOpening();
-      if (phase === 'dj_turn_start' || phase === 'dj_turn_end') {
-        djSpeakingRef.current = phase === 'dj_turn_start';
-        // While paused the phase won't change, so the reactive gate effect won't
-        // re-fire — apply the anti-echo mute here at the turn boundary instead.
-        live.liveRef.current?.setMicEnabled(micShouldBeOpen(s.phase, s.isTalking, djSpeakingRef.current));
+      if (shouldReleaseOpeningForPhase(phase, localIndex)) releaseOpening();
+      if (phase === 'dj_turn_start' || phase === 'dj_turn_end' || phase === 'user_barge_in') {
+        live.liveRef.current?.setMicEnabled(micShouldBeOpen(s.phase));
       }
       store.dispatchRef.current({ type: 'server_phase', phase, trackIndex: localIndex });
     },
@@ -91,10 +84,6 @@ export function useLiveConnection({
 
     let cancelled = false;
     let mic: MicAnalyser | null = null;
-    // Fresh connection: no DJ turn is on the speakers yet. Reset so a turn cut
-    // short by a prior disconnect can't leave the mic stuck muted.
-    djSpeakingRef.current = false;
-
     void connectLiveSessionRtc(
       { proxyUrl, sessionId, token: token ?? undefined, authToken: getStoredToken() ?? undefined },
       {
@@ -172,7 +161,7 @@ export function useLiveConnection({
         // Apply the current phase's mic gate now — the gating effect below ran
         // before the handle existed (async connect) and won't re-fire on its own.
         const s = store.stateRef.current;
-        handle.setMicEnabled(micShouldBeOpen(s.phase, s.isTalking, djSpeakingRef.current));
+        handle.setMicEnabled(micShouldBeOpen(s.phase));
       })
       .catch((err) => {
         console.error('[live] connect failed', err);
@@ -188,10 +177,8 @@ export function useLiveConnection({
     };
   }, [store, audio, live, commands, proxyUrl, sessionId, token, onLivePhase, releaseOpening, setMicAnalyser]);
 
-  // Phase-gated mic mute (anti-echo) — the WebRTC port of the relay-era PCM gate.
-  // DJ-turn boundaries apply the gate in onLivePhase (djSpeakingRef); this covers
-  // phase/isTalking changes that happen between turns.
+  // Phase-gated transport mute. Speech detection itself lives in the proxy/provider.
   useEffect(() => {
-    live.liveRef.current?.setMicEnabled(micShouldBeOpen(phase, isTalking, djSpeakingRef.current));
-  }, [live, phase, isTalking]);
+    live.liveRef.current?.setMicEnabled(micShouldBeOpen(phase));
+  }, [live, phase]);
 }

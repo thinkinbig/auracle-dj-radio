@@ -57,10 +57,9 @@ describe('playbackReducer', () => {
       { type: 'server_phase', phase: 'dj_turn_start' },
     );
     expect(playing.superseded).toBe(false);
-    const superseded = playbackReducer({ ...playing, isTalking: true }, { type: 'session_superseded' });
+    const superseded = playbackReducer(playing, { type: 'session_superseded' });
     expect(superseded.superseded).toBe(true);
     expect(superseded.phase).toBe('paused');
-    expect(superseded.isTalking).toBe(false);
   });
 
   it('merges streaming transcript lines', () => {

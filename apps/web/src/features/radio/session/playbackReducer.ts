@@ -16,8 +16,6 @@ export type PlaybackAction =
   | { type: 'advance' }
   | { type: 'skip_voice_over' }
   | { type: 'enter_break' }
-  | { type: 'start_talk' }
-  | { type: 'stop_talk' }
   | { type: 'transcript'; role: 'user' | 'model'; text: string }
   | { type: 'server_phase'; phase: Phase; trackIndex?: number }
   | {
@@ -64,7 +62,6 @@ export function createInitialPlaybackState(): PlaybackState {
     proxyUrl: null,
     token: null,
     inBreak: false,
-    isTalking: false,
     userUtteranceCount: 0,
     playlistFeedback: null,
     queueRefreshStatus: 'idle',
@@ -116,17 +113,15 @@ function advanceTrack(state: PlaybackState): PlaybackState {
         phase: 'complete',
         progressSec: state.durationSec,
         inBreak: false,
-        isTalking: false,
       };
     }
-    return { ...state, phase: 'idle', progressSec: state.durationSec, inBreak: false, isTalking: false };
+    return { ...state, phase: 'idle', progressSec: state.durationSec, inBreak: false };
   }
   const nextRef = state.sessionTracklist[state.currentTrackIndex + 1];
   const meta = trackMetaFromRef(nextRef, nextId);
   return {
     ...state,
     inBreak: false,
-    isTalking: false,
     phase: 'playing',
     trackId: nextId,
     trackTitle: meta.title,
@@ -273,7 +268,6 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
         proxyUrl: action.session.proxy_url,
         token: action.session.token,
         inBreak: false,
-        isTalking: false,
         userUtteranceCount: 0,
         playlistFeedback: null,
         queueRefreshStatus: 'idle',
@@ -305,11 +299,6 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
     }
     case 'enter_break':
       return state.inBreak ? state : { ...state, inBreak: true };
-    case 'start_talk':
-      if (state.phase === 'idle' || state.phase === 'curating') return state;
-      return { ...state, isTalking: true };
-    case 'stop_talk':
-      return { ...state, isTalking: false };
     case 'server_phase': {
       if (state.phase === 'paused') return state;
       // A phase frame stamped with an older Playhead is a stale DJ turn (e.g. the
@@ -376,7 +365,7 @@ export function playbackReducer(state: PlaybackState, action: PlaybackAction): P
       // The user started a set on another device — stop playback here and flag
       // the "playing elsewhere" UX (issue #55). Pause rather than reset so the
       // overlay can show what was playing and offer a clean restart.
-      return { ...state, phase: 'paused', isTalking: false, superseded: true };
+      return { ...state, phase: 'paused', superseded: true };
     case 'tick':
       if (!SESSION_CLOCK_PHASES.includes(state.phase)) return state;
       return expireQueueDiff({ ...state, sessionElapsedSec: state.sessionElapsedSec + 1 }, state.sessionElapsedSec + 1);

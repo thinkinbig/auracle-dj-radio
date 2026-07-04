@@ -19,7 +19,7 @@ interface TrackPlaybackInput {
   commands: RadioCommands;
   state: Pick<
     PlaybackState,
-    'phase' | 'currentTrackIndex' | 'sessionId' | 'trackId' | 'remainingTrackIds' | 'isTalking' | 'sessionTracklist'
+    'phase' | 'currentTrackIndex' | 'sessionId' | 'trackId' | 'remainingTrackIds' | 'sessionTracklist'
   >;
   opening: OpeningGateControls;
 }
@@ -122,11 +122,8 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
       phase: s.phase,
       currentTrackIndex: s.currentTrackIndex,
       openingReleased,
-      isTalking: s.isTalking,
     };
-    // Snap the music away fast when the listener grabs the floor; otherwise the
-    // default talk-over fade.
-    player.setMusicVolume(musicVolume(policy), s.isTalking ? 0.12 : undefined);
+    player.setMusicVolume(musicVolume(policy));
     if (s.phase === 'paused') player.pause();
     else if (shouldPlayMusic(policy)) player.resume();
   }, [store, openingReleased]);
@@ -176,7 +173,7 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
 
   useEffect(() => {
     applyPlaybackPolicy();
-  }, [state.phase, state.currentTrackIndex, state.isTalking, openingReleased, applyPlaybackPolicy]);
+  }, [state.phase, state.currentTrackIndex, openingReleased, applyPlaybackPolicy]);
 
   useEffect(() => {
     const prev = prevPhaseRef.current;
