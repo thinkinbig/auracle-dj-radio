@@ -1,6 +1,6 @@
 // Command proxy is a real-time LLM proxy: browsers connect over WebRTC, the
-// proxy terminates the peer connection and bridges audio to a streaming LLM
-// provider's WebSocket API. Pick a provider with ?model=gemini|doubao.
+// proxy terminates the peer connection and bridges audio to Gemini Live.
+// Pick a provider with ?model=gemini (default).
 package main
 
 import (
@@ -13,6 +13,23 @@ import (
 func main() {
 	loadDotenv(".env")
 	cfg, setFlags, configPath := parseFlags()
+	if cfg.RegisterSecret == "" {
+		if s := os.Getenv("PROXY_REGISTER_SECRET"); s != "" {
+			cfg.RegisterSecret = s
+		}
+	}
+	if cfg.HarnessURL == "" {
+		if s := os.Getenv("PROXY_HARNESS_URL"); s != "" {
+			cfg.HarnessURL = s
+		}
+	}
+	if cfg.AuthURL == "" {
+		if s := os.Getenv("PROXY_AUTH_URL"); s != "" {
+			cfg.AuthURL = s
+		} else if s := os.Getenv("MEMORY_SERVICE_URL"); s != "" {
+			cfg.AuthURL = s
+		}
+	}
 	if err := applyConfigFile(configPath, &cfg, setFlags); err != nil {
 		log.Fatalf("config: %v", err)
 	}

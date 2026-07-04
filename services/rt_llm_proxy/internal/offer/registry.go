@@ -60,3 +60,13 @@ func (r *Registry) Lookup(id string) (Registration, bool) {
 	}
 	return e.reg, true
 }
+
+// Delete removes a registration after the first successful offer consumes it.
+func (r *Registry) Delete(id string) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	delete(r.m, id)
+	r.mu.Unlock()
+}

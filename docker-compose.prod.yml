@@ -48,6 +48,8 @@ services:
       MEMORY_EVENTS_DB_PATH: /data/auracle-events.sqlite
       AURACLE_MEM0_HISTORY_DB: /data/mem0/history.db
       QDRANT_URL: http://qdrant:6333
+    ports:
+      - "127.0.0.1:3020:3020"
     volumes:
       - memory_service_data:/data
     depends_on:
@@ -96,7 +98,9 @@ services:
     # lets it use the host's real interfaces (single-host / LAN demo).
     network_mode: host
     env_file: .env
-    command: ["-addr", ":8090", "-memory-service", "http://localhost:3030"]
+    environment:
+      PROXY_AUTH_URL: http://localhost:3020
+    command: ["-addr", ":8090", "-harness-url", "http://localhost:3030", "-auth-url", "http://localhost:3020"]
     depends_on:
       agent-harness:
         condition: service_healthy

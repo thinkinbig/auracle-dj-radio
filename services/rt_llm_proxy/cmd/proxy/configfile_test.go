@@ -19,14 +19,6 @@ func TestApplyConfigFileProviderFields(t *testing.T) {
 	path := writeTemp(t, `
 gemini:
   system_prompt: "你是DJ"
-doubao:
-  bot_name: "DJ小包"
-  system_role: "你是一个DJ"
-  voice: "zh_female_vv_jupiter_bigtts"
-  asr:
-    twopass: true
-    end_smooth_ms: 800
-    hotwords: ["火山引擎"]
 `)
 	cfg := runConfig{}
 	if err := applyConfigFile(path, &cfg, map[string]bool{}); err != nil {
@@ -34,12 +26,6 @@ doubao:
 	}
 	if cfg.GeminiSystemPrompt != "你是DJ" {
 		t.Fatalf("gemini system prompt = %q", cfg.GeminiSystemPrompt)
-	}
-	if cfg.DoubaoBotName != "DJ小包" || cfg.DoubaoVoice != "zh_female_vv_jupiter_bigtts" {
-		t.Fatalf("doubao persona/voice wrong: %+v", cfg)
-	}
-	if !cfg.DoubaoASRTwopass || cfg.DoubaoASREndSmoothMs != 800 || len(cfg.DoubaoHotwords) != 1 {
-		t.Fatalf("doubao asr wrong: %+v", cfg)
 	}
 }
 
@@ -70,26 +56,6 @@ gemini:
 	}
 	if tool.Parameters["type"] != "object" {
 		t.Fatalf("tool parameters not parsed: %+v", tool.Parameters)
-	}
-}
-
-func TestApplyConfigFileFlagWins(t *testing.T) {
-	path := writeTemp(t, `
-cascade:
-  system_prompt: "from file"
-  tts_lang: "zh-cn"
-`)
-	cfg := runConfig{CascadeSystem: "from flag", CascadeTTSLang: "en"}
-	// cascade-system was set on the CLI, cascade-tts-lang was not.
-	set := map[string]bool{"cascade-system": true}
-	if err := applyConfigFile(path, &cfg, set); err != nil {
-		t.Fatal(err)
-	}
-	if cfg.CascadeSystem != "from flag" {
-		t.Fatalf("set flag must win, got %q", cfg.CascadeSystem)
-	}
-	if cfg.CascadeTTSLang != "zh-cn" {
-		t.Fatalf("unset flag should take file value, got %q", cfg.CascadeTTSLang)
 	}
 }
 

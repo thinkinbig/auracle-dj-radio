@@ -7,7 +7,7 @@ const app = buildServer({
   store: new SessionStore(),
   memory: new HttpMemoryServiceClient(config.memoryServiceUrl),
   music: new HttpMusicEngineClient(config.musicEngineUrl),
-  proxy: new HttpProxyClient(config.proxyUrl),
+  proxy: new HttpProxyClient(config.proxyUrl, config.proxyRegisterSecret || undefined),
   proxyPublicUrl: config.proxyPublicUrl,
 });
 

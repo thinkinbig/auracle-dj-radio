@@ -14,10 +14,8 @@ export interface ProxyRegistration {
 }
 
 /**
- * memory-service's view of the media proxy (rt_llm_proxy). Injected so session
- * creation is testable without a running proxy. memory-service pushes the
- * pre-baked registration before the browser connects (refactor-three-services:
- * push context, direct media), and later injects async business updates (Lane 3).
+ * Agent-harness view of the media proxy (rt_llm_proxy). Injected so session
+ * creation is testable without a running proxy.
  */
 export interface ProxyClient {
   register(sessionId: string, token: string, reg: ProxyRegistration): Promise<void>;
@@ -26,12 +24,24 @@ export interface ProxyClient {
 
 /** HTTP-backed client: POST {proxyUrl}/session/{id}/{register,inject}. */
 export class HttpProxyClient implements ProxyClient {
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    /** Shared secret for register/inject when the proxy sets PROXY_REGISTER_SECRET. */
+    private readonly registerSecret?: string,
+  ) {}
+
+  private internalHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (this.registerSecret) {
+      headers.authorization = `Bearer ${this.registerSecret}`;
+    }
+    return headers;
+  }
 
   async register(sessionId: string, token: string, reg: ProxyRegistration): Promise<void> {
     const res = await fetch(`${this.baseUrl}/session/${encodeURIComponent(sessionId)}/register`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: this.internalHeaders(),
       body: JSON.stringify({
         token,
         systemInstruction: reg.systemInstruction,
@@ -45,7 +55,7 @@ export class HttpProxyClient implements ProxyClient {
   async inject(sessionId: string, payload: InjectPayload): Promise<void> {
     const res = await fetch(`${this.baseUrl}/session/${encodeURIComponent(sessionId)}/inject`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: this.internalHeaders(),
       body: JSON.stringify({
         inject_text: payload.inject_text ?? "",
         ui_events: payload.ui_events ?? [],

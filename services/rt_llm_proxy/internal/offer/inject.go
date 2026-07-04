@@ -24,9 +24,14 @@ type injectRequest struct {
 // (e.g. a replan) lands after the originating tool call already returned.
 type InjectHandler struct {
 	Injector SessionInjector
+	Auth     InternalAuth
 }
 
 func (h *InjectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !h.Auth.allow(r) {
+		h.Auth.reject(w)
+		return
+	}
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing session id", http.StatusBadRequest)

@@ -8,20 +8,16 @@ import (
 )
 
 // ModelFactory constructs a provider Model for an offer request. history carries
-// the reconnect-restored conversation; adapters that seed context at session
-// construction (e.g. doubao's dialog_context) consume it, while adapters that
-// restore post-hoc via model.ContextRestorer ignore it (nil for fresh sessions).
+// the reconnect-restored conversation; gemini consumes it via ContextRestorer.
 type ModelFactory interface {
 	New(ctx context.Context, provider string, history []model.RestoredTurn, params model.SessionParams) (model.Model, error)
 }
 
-// ParseProvider normalizes ?model= query values.
+// ParseProvider normalizes ?model= query values. Only gemini is supported.
 func ParseProvider(raw string) (string, error) {
 	switch raw {
 	case "gemini", "":
 		return "gemini", nil
-	case "doubao", "loopback", "cascade":
-		return raw, nil
 	default:
 		return "", fmt.Errorf("unknown model %q", raw)
 	}

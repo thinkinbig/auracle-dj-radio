@@ -60,6 +60,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		OfferSDP:            body,
 		UserID:              h.Auth.UserID(r),
 		SessionIDHeader:     r.Header.Get("X-Session-ID"),
+		SessionTokenHeader:  r.Header.Get("X-Session-Token"),
 		LastSeqHeader:       r.Header.Get("X-Last-Seq"),
 		ReplayVersionHeader: r.Header.Get("X-Replay-Version"),
 		ListenerBriefHeader: r.Header.Get("X-Listener-Brief"),

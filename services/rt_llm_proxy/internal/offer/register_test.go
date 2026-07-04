@@ -80,6 +80,7 @@ func TestRegisterHandlerRejectsBadJSON(t *testing.T) {
 func TestIntakeAdoptsRegisteredSession(t *testing.T) {
 	reg := NewRegistry(time.Hour)
 	reg.Register("sess-42", Registration{
+		Token:             "tok-42",
 		SystemInstruction: "you are Auracle",
 		OpeningCue:        "ease in",
 		Tools:             []model.ToolSpec{{Name: "skip_track"}},
@@ -100,7 +101,8 @@ func TestIntakeAdoptsRegisteredSession(t *testing.T) {
 		ClientIP:        "1.2.3.4",
 		Model:           "gemini",
 		OfferSDP:        []byte("sdp"),
-		SessionIDHeader: "sess-42", // orchestrator-minted id, no X-Last-Seq (not a reconnect)
+		SessionIDHeader:    "sess-42",
+		SessionTokenHeader: "tok-42",
 	})
 	if res.Status != 200 {
 		t.Fatalf("status = %d body=%q", res.Status, res.Body)
@@ -118,6 +120,49 @@ func TestIntakeAdoptsRegisteredSession(t *testing.T) {
 	// A registered session forwards tools server-side (Lane 1).
 	if hub.lastInfo.ToolBackend == nil {
 		t.Fatal("registered session must carry the tool backend")
+	}
+}
+
+func TestIntakeRejectsBadSessionToken(t *testing.T) {
+	reg := NewRegistry(time.Hour)
+	reg.Register("sess-42", Registration{Token: "tok-42", SystemInstruction: "dj"})
+	in := Intake{
+		Limiter:  ratelimit.New("", 0, time.Minute),
+		Guard:    modelcb.New(modelcb.Config{}, nil),
+		Registry: reg,
+		Models:   &fakeFactory{m: &fakeModel{}},
+		Hub:      &fakeHub{},
+	}
+	res := in.ServeOffer(IntakeRequest{
+		ClientIP:           "1.2.3.4",
+		Model:              "gemini",
+		OfferSDP:           []byte("sdp"),
+		SessionIDHeader:    "sess-42",
+		SessionTokenHeader: "wrong",
+	})
+	if res.Status != 403 {
+		t.Fatalf("status = %d, want 403", res.Status)
+	}
+}
+
+func TestRegisterHandlerRequiresSecret(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle("POST /session/{id}/register", &RegisterHandler{
+		Registry: NewRegistry(time.Hour),
+		Auth:     InternalAuth{Secret: "sekrit"},
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/session/abc/register", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", res.StatusCode)
 	}
 }
 

@@ -1,14 +1,27 @@
 package rtc
 
 import (
+	"io"
 	"testing"
 
 	"github.com/pion/webrtc/v4"
 
 	"github.com/thinkinbig/rt-llm-proxy/internal/identity"
-	"github.com/thinkinbig/rt-llm-proxy/internal/model/loopback"
+	"github.com/thinkinbig/rt-llm-proxy/internal/model"
 	"github.com/thinkinbig/rt-llm-proxy/internal/transcript"
 )
+
+type silentModel struct{}
+
+func (silentModel) SendAudio([]int16) error        { return nil }
+func (silentModel) SendText(string) error          { return nil }
+func (silentModel) Recv() ([]int16, error)         { return nil, io.EOF }
+func (silentModel) RecvInterrupted() (bool, error) { return false, nil }
+func (silentModel) SupportsInterruption() bool     { return false }
+func (silentModel) HandleInterrupted() error       { return nil }
+func (silentModel) Close() error                   { return nil }
+
+var _ model.Model = silentModel{}
 
 func TestSessionScopeAbortUncommitted(t *testing.T) {
 	h, err := NewHub("")
@@ -19,7 +32,7 @@ func TestSessionScopeAbortUncommitted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := loopback.New()
+	m := silentModel{}
 	sess := &session{id: identity.SessionID("s1")}
 	scope := newSessionScope(h, pc, m, sess)
 
@@ -43,7 +56,7 @@ func TestSessionScopeCommitThenClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := loopback.New()
+	m := silentModel{}
 	sess := &session{
 		id:  identity.SessionID("s2"),
 		rec: transcript.NewRecorder(0, nil, 8, transcript.SessionMeta{SessionID: "s2"}, nil),

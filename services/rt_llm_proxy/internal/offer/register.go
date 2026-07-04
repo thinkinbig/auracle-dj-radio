@@ -24,9 +24,14 @@ type registerRequest struct {
 // POST /session/{id}/register so the matching SDP offer can consume it.
 type RegisterHandler struct {
 	Registry *Registry
+	Auth     InternalAuth
 }
 
 func (h *RegisterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !h.Auth.allow(r) {
+		h.Auth.reject(w)
+		return
+	}
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing session id", http.StatusBadRequest)

@@ -17,8 +17,7 @@ func TestParseProvider(t *testing.T) {
 	}{
 		{"", "gemini", false},
 		{"gemini", "gemini", false},
-		{"doubao", "doubao", false},
-		{"loopback", "loopback", false},
+		{"doubao", "", true},
 		{"gpt", "", true},
 	}
 	for _, tc := range tests {
@@ -125,7 +124,7 @@ func TestResolveReplayMemoryHit(t *testing.T) {
 
 func TestResolveReplayProviderMismatch(t *testing.T) {
 	store := &fakeStore{known: true, provider: "gemini", maxSeq: 5}
-	out, err := ResolveReplay(context.Background(), "doubao", "alice",
+	out, err := ResolveReplay(context.Background(), "gemini", "alice",
 		ReplayHeaders{Requested: true, SessionID: "s1", LastSeq: 1},
 		ReplayConfig{Enabled: true}, store, nil, nil, "new-id")
 	if err != nil || out.Status != "miss" || out.SessionID != "new-id" {

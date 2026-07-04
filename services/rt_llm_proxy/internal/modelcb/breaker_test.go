@@ -55,8 +55,8 @@ func TestDialSuccessResetsFailures(t *testing.T) {
 func TestAuthFailureOpensImmediately(t *testing.T) {
 	m := New(Config{OpenAfter: 5, OpenFor: time.Second, HalfOpenSuccess: 1, AuthOpenFor: 5 * time.Minute}, nil)
 	now := time.Unix(2000, 0)
-	m.RecordDial("doubao", errors.New("upstream 401 unauthorized"), now)
-	d := m.AllowDial("doubao", now)
+	m.RecordDial("gemini", errors.New("upstream 401 unauthorized"), now)
+	d := m.AllowDial("gemini", now)
 	if d.Allowed || d.Reason != "auth" {
 		t.Fatalf("want immediate auth open, got %+v", d)
 	}
@@ -65,16 +65,14 @@ func TestAuthFailureOpensImmediately(t *testing.T) {
 	}
 }
 
-func TestLoopbackSkipsGuard(t *testing.T) {
-	m := New(Config{OpenAfter: 1, OpenFor: time.Hour, HalfOpenSuccess: 1, AuthOpenFor: time.Hour}, nil)
+func TestNilManagerSkipsGuard(t *testing.T) {
+	var m *Manager
 	now := time.Unix(3000, 0)
-	m.RecordDial("loopback", errors.New("timeout"), now)
-	if !m.AllowDial("loopback", now).Allowed {
-		t.Fatal("loopback dial should not be gated")
+	if !m.AllowDial("gemini", now).Allowed {
+		t.Fatal("nil manager should allow dial")
 	}
-	report := m.StreamFaultBinder("loopback")
-	if report != nil {
-		t.Fatal("loopback should not install stream fault reporter")
+	if m.StreamFaultBinder("gemini") != nil {
+		t.Fatal("nil manager should not install stream fault reporter")
 	}
 }
 

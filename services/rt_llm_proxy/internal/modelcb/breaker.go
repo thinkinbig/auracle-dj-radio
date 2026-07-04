@@ -73,11 +73,10 @@ func New(defaults Config, overrides map[string]Config) *Manager {
 }
 
 func (m *Manager) skipped(provider string) bool {
-	return m == nil || provider == "loopback"
+	return m == nil
 }
 
-// AllowDial gates a new provider dial on the offer path. Loopback and a nil
-// manager are always allowed.
+// AllowDial gates a new provider dial on the offer path. A nil manager is always allowed.
 func (m *Manager) AllowDial(provider string, now time.Time) Decision {
 	if m.skipped(provider) {
 		return Decision{Allowed: true, State: StateClosed}
@@ -107,7 +106,7 @@ func (m *Manager) RecordStreamFault(provider string, sessionStart time.Time, pro
 }
 
 // StreamFaultBinder returns a factory the Bridge calls once session start time
-// is known. Returns nil when reporting is disabled (nil manager or loopback).
+// is known. Returns nil when reporting is disabled (nil manager).
 func (m *Manager) StreamFaultBinder(provider string) func(sessionStart time.Time) func(producedAudio bool, err error) {
 	if m.skipped(provider) {
 		return nil

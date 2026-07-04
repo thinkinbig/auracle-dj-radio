@@ -8,7 +8,7 @@
 #   web (Vite dev server)               :5173  ← serves the static catalog itself
 #
 # The catalog/audio is served by Vite from packages/catalog/data (the api service
-# was retired). The Go proxy is started with -memory-service pointed at agent-harness
+# The Go proxy is started with -harness-url pointed at agent-harness
 # so push-registration + Lane-1 tools work, and on :8090 so it does NOT clash with a proxy on :8080.
 # Vite is pointed at that port. Ctrl-C tears the whole group down.
 #
@@ -55,7 +55,7 @@ run harness env AGENT_HARNESS_PORT="$AGENT_PORT" \
   MUSIC_ENGINE_URL="http://localhost:$MUSIC_PORT" \
   PROXY_URL="http://localhost:$PROXY_PORT" \
   pnpm --filter @auracle/agent-harness dev
-run proxy  bash -c "cd services/rt_llm_proxy && exec go run ./cmd/proxy -addr ':$PROXY_PORT' -memory-service 'http://localhost:$AGENT_PORT'"
+run proxy  bash -c "cd services/rt_llm_proxy && exec go run ./cmd/proxy -addr ':$PROXY_PORT' -harness-url 'http://localhost:$AGENT_PORT' -auth-url 'http://localhost:$MEMORY_PORT'"
 run web    env AGENT_HARNESS_PROXY_TARGET="http://localhost:$AGENT_PORT" \
   PROXY_PROXY_TARGET="http://localhost:$PROXY_PORT" \
   pnpm --filter @auracle/web dev

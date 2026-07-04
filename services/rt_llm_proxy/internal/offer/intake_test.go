@@ -197,7 +197,7 @@ func TestIntakeReconnectThreadsHistoryToFactory(t *testing.T) {
 	res := in.ServeOffer(IntakeRequest{
 		Ctx:             context.Background(),
 		ClientIP:        "1.2.3.4",
-		Model:           "doubao",
+		Model:           "gemini",
 		OfferSDP:        []byte("sdp"),
 		UserID:          "alice", // non-anonymous: reconnect requires an owner
 		SessionIDHeader: "s1",
@@ -206,8 +206,7 @@ func TestIntakeReconnectThreadsHistoryToFactory(t *testing.T) {
 	if res.Status != 200 || res.Headers["X-Replay-Status"] != "memory_hit" {
 		t.Fatalf("got %+v", res)
 	}
-	// The freshly-dialed model is constructed WITH the restored history so an
-	// adapter like doubao can seed dialog_context at session start.
+	// The freshly-dialed model is constructed WITH the restored history.
 	want := []model.RestoredTurn{{Role: "user", Text: "hi"}, {Role: "model", Text: "hello"}}
 	if len(factory.lastHistory) != len(want) {
 		t.Fatalf("factory history = %+v, want %+v", factory.lastHistory, want)

@@ -25,9 +25,17 @@ type runConfig struct {
 	ReplayTimeout time.Duration
 	ReplayLimit   int
 
-	// MemoryServiceURL is the orchestrator base URL for server-side (Lane 1) tool
+	// HarnessURL is the agent-harness base URL for server-side (Lane 1) tool
 	// forwarding. Empty keeps model tool calls on the browser-side path.
-	MemoryServiceURL string
+	HarnessURL string
+
+	// RegisterSecret gates POST /session/{id}/{register,inject}. Empty = dev
+	// (no check); production must set PROXY_REGISTER_SECRET or -register-secret.
+	RegisterSecret string
+
+	// AuthURL is memory-service (or any auth API exposing GET /auth/me). Empty
+	// falls back to DevVerifier for local demos.
+	AuthURL string
 
 	ModelCBEnable bool
 	ModelCB       modelCBConfigArgs
@@ -35,28 +43,10 @@ type runConfig struct {
 	OpusComplexity int
 	AdaptiveMode   string
 
-	// Cascade stage endpoints (used when ?model=cascade).
-	CascadeWhisperURL    string
-	CascadeLLMURL        string
-	CascadeLLMModel      string
-	CascadeTTSURL        string
-	CascadeTTSSpeaker    string
-	CascadeTTSLang       string
-	CascadeTurnDetectURL string
-	CascadeSystem        string
-
 	// Provider behavior (config-file only; no CLI flags). Empty fields leave the
 	// provider's own defaults in place.
-	GeminiSystemPrompt   string
-	GeminiTools          []gemini.FunctionDeclaration
-	DoubaoModelVersion   string
-	DoubaoBotName        string
-	DoubaoSystemRole     string
-	DoubaoSpeakingStyle  string
-	DoubaoVoice          string
-	DoubaoASRTwopass     bool
-	DoubaoASREndSmoothMs int
-	DoubaoHotwords       []string
+	GeminiSystemPrompt string
+	GeminiTools        []gemini.FunctionDeclaration
 }
 
 // parseFlags defines and parses CLI flags. It returns the assembled runConfig,
@@ -75,7 +65,9 @@ func parseFlags() (runConfig, map[string]bool, string) {
 	replayURL := flag.String("replay-url", "", "replay-index service base URL (enables cross-node reconnect replay when set)")
 	replayTimeout := flag.Duration("replay-timeout", 300*time.Millisecond, "replay timeout budget when -replay-url is set")
 	replayLimit := flag.Int("replay-limit", 100, "max replay transcript lines on reconnect")
-	memoryServiceURL := flag.String("memory-service", "", "memory-service base URL for server-side (Lane 1) tool forwarding (empty = browser-side tools)")
+	harnessURL := flag.String("harness-url", "", "agent-harness base URL for server-side (Lane 1) tool forwarding (empty = browser-side tools)")
+	registerSecret := flag.String("register-secret", "", "shared secret for POST /session/{id}/{register,inject} (empty = dev, no check)")
+	authURL := flag.String("auth-url", "", "auth service base URL for Bearer validation via GET /auth/me (empty = DevVerifier)")
 	modelCBEnable := flag.Bool("model-cb", true, "enable model connect circuit breaker")
 	modelCBOpenAfter := flag.Int("model-cb-open-after", 5, "consecutive failures before opening model circuit")
 	modelCBOpenFor := flag.Duration("model-cb-open-for", 30*time.Second, "open-state duration for transient model failures")
@@ -85,21 +77,9 @@ func parseFlags() (runConfig, map[string]bool, string) {
 	modelCBOpenForGemini := flag.Duration("model-cb-open-for-gemini", 0, "override model-cb-open-for for gemini (0 = default)")
 	modelCBHalfOpenSuccessGemini := flag.Int("model-cb-half-open-success-gemini", 0, "override model-cb-half-open-success for gemini (0 = default)")
 	modelCBAuthOpenForGemini := flag.Duration("model-cb-auth-open-for-gemini", 0, "override model-cb-auth-open-for for gemini (0 = default)")
-	modelCBOpenAfterDoubao := flag.Int("model-cb-open-after-doubao", 0, "override model-cb-open-after for doubao (0 = default)")
-	modelCBOpenForDoubao := flag.Duration("model-cb-open-for-doubao", 0, "override model-cb-open-for for doubao (0 = default)")
-	modelCBHalfOpenSuccessDoubao := flag.Int("model-cb-half-open-success-doubao", 0, "override model-cb-half-open-success for doubao (0 = default)")
-	modelCBAuthOpenForDoubao := flag.Duration("model-cb-auth-open-for-doubao", 0, "override model-cb-auth-open-for for doubao (0 = default)")
 	adminAddr := flag.String("admin", "", "admin listen address for /stats + /debug/pprof (empty = off)")
 	opusComplexity := flag.Int("opus-complexity", -1, "Opus encoder complexity 0-10 (-1 = libopus default; lower = less CPU)")
 	adaptiveMode := flag.String("adaptive", "off", "adaptive Opus complexity under load: off|sessions|drift")
-	cascadeWhisperURL := flag.String("cascade-whisper", "ws://localhost:9000/v1/audio/transcriptions/streaming", "faster-whisper-server WebSocket URL for cascade ASR")
-	cascadeLLMURL := flag.String("cascade-llm", "http://localhost:8000", "vLLM base URL for cascade LLM")
-	cascadeLLMModel := flag.String("cascade-llm-model", "Qwen3.5-9B", "model name served by vLLM")
-	cascadeTTSURL := flag.String("cascade-tts", "http://localhost:8020", "xtts-streaming-server base URL for cascade TTS")
-	cascadeTTSSpeaker := flag.String("cascade-tts-speaker", "", "XTTS studio speaker name (empty = first available)")
-	cascadeTTSLang := flag.String("cascade-tts-lang", "en", "XTTS language code (e.g. en, zh-cn)")
-	cascadeTurnDetectURL := flag.String("cascade-turndetect", "", "turn-detect sidecar URL (empty = fire LLM immediately after ASR final)")
-	cascadeSystem := flag.String("cascade-system", "You are a helpful voice assistant.", "system prompt for cascade LLM")
 	flag.Parse()
 
 	cfg := runConfig{
@@ -112,10 +92,12 @@ func parseFlags() (runConfig, map[string]bool, string) {
 		SidechannelMode: *scMode,
 		KafkaBrokers:    *kafkaBrokers,
 		KafkaTopic:      *kafkaTopic,
-		ReplayURL:        *replayURL,
-		ReplayTimeout:    *replayTimeout,
-		ReplayLimit:      *replayLimit,
-		MemoryServiceURL: *memoryServiceURL,
+		ReplayURL:       *replayURL,
+		ReplayTimeout:   *replayTimeout,
+		ReplayLimit:     *replayLimit,
+		HarnessURL:      *harnessURL,
+		RegisterSecret:  *registerSecret,
+		AuthURL:         *authURL,
 		ModelCBEnable:   *modelCBEnable,
 		ModelCB: modelCBConfigArgs{
 			OpenAfter:       *modelCBOpenAfter,
@@ -128,23 +110,9 @@ func parseFlags() (runConfig, map[string]bool, string) {
 				HalfOpenSuccess: *modelCBHalfOpenSuccessGemini,
 				AuthOpenFor:     *modelCBAuthOpenForGemini,
 			},
-			Doubao: modelcb.Config{
-				OpenAfter:       *modelCBOpenAfterDoubao,
-				OpenFor:         *modelCBOpenForDoubao,
-				HalfOpenSuccess: *modelCBHalfOpenSuccessDoubao,
-				AuthOpenFor:     *modelCBAuthOpenForDoubao,
-			},
 		},
-		OpusComplexity:    *opusComplexity,
-		AdaptiveMode:      *adaptiveMode,
-		CascadeWhisperURL:    *cascadeWhisperURL,
-		CascadeLLMURL:        *cascadeLLMURL,
-		CascadeLLMModel:      *cascadeLLMModel,
-		CascadeTTSURL:        *cascadeTTSURL,
-		CascadeTTSSpeaker:    *cascadeTTSSpeaker,
-		CascadeTTSLang:       *cascadeTTSLang,
-		CascadeTurnDetectURL: *cascadeTurnDetectURL,
-		CascadeSystem:        *cascadeSystem,
+		OpusComplexity: *opusComplexity,
+		AdaptiveMode:   *adaptiveMode,
 	}
 
 	set := map[string]bool{}

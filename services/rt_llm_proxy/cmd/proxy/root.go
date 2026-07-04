@@ -18,7 +18,6 @@ import (
 	"github.com/thinkinbig/rt-llm-proxy/internal/audio"
 	"github.com/thinkinbig/rt-llm-proxy/internal/auth"
 	"github.com/thinkinbig/rt-llm-proxy/internal/metrics"
-	"github.com/thinkinbig/rt-llm-proxy/internal/model/doubao"
 	"github.com/thinkinbig/rt-llm-proxy/internal/model/gemini"
 	"github.com/thinkinbig/rt-llm-proxy/internal/modelcb"
 	"github.com/thinkinbig/rt-llm-proxy/internal/offer"
@@ -28,10 +27,10 @@ import (
 )
 
 func runProxy(cfg runConfig) error {
-	audio.SetEncoderComplexity(cfg.OpusComplexity) // -1 leaves the default
+	audio.SetEncoderComplexity(cfg.OpusComplexity)
 
 	limiter := ratelimit.New(cfg.RedisAddr, cfg.RLMax, cfg.RLWindow)
-	authn := auth.New(auth.DevVerifier{})
+	authn := newAuthenticator(cfg.AuthURL)
 	publisher := newPublisher(cfg.SidechannelMode, cfg.KafkaBrokers, cfg.KafkaTopic)
 	var replayIndex offer.Replayer
 	if cfg.ReplayURL != "" {
@@ -52,52 +51,32 @@ func runProxy(cfg runConfig) error {
 		go serveAdmin(cfg.AdminAddr, hub, publisher, breakers)
 	}
 
-	// Pre-baked session contracts pushed by the orchestrator (memory-service) live
-	// here until the matching offer arrives.
 	registry := offer.NewRegistry(10 * time.Minute)
+	internalAuth := offer.InternalAuth{Secret: cfg.RegisterSecret}
+	if cfg.RegisterSecret == "" {
+		log.Printf("warn: register/inject endpoints are unauthenticated (set PROXY_REGISTER_SECRET or -register-secret for production)")
+	}
 
-	// Server-side (Lane 1) tool forwarding: configured only when the orchestrator
-	// URL is set, otherwise model tool calls stay on the browser-side path.
 	var toolBackend rtc.ToolBackend
-	if cfg.MemoryServiceURL != "" {
-		toolBackend = offer.NewHTTPToolBackend(cfg.MemoryServiceURL)
-		log.Printf("server-side tool forwarding -> %s", cfg.MemoryServiceURL)
+	if cfg.HarnessURL != "" {
+		toolBackend = offer.NewHTTPToolBackend(cfg.HarnessURL)
+		log.Printf("server-side tool forwarding -> %s", cfg.HarnessURL)
 	}
 
 	offerHandler := offer.HandlerFields{
-		Limiter:    limiter,
-		Auth:       authn,
+		Limiter:     limiter,
+		Auth:        authn,
 		Publisher:   publisher,
 		ReplayIndex: replayIndex,
 		Registry:    registry,
 		ToolBackend: toolBackend,
 		Guard:       breakers,
-		Hub:        hub,
+		Hub:         hub,
 		Models: offer.ProdModelFactory{
-			Cascade: offer.CascadeConfig{
-				WhisperURL:    cfg.CascadeWhisperURL,
-				LLMURL:        cfg.CascadeLLMURL,
-				LLMModel:      cfg.CascadeLLMModel,
-				TTSURL:        cfg.CascadeTTSURL,
-				TTSSpeaker:    cfg.CascadeTTSSpeaker,
-				TTSLang:       cfg.CascadeTTSLang,
-				TurnDetectURL: cfg.CascadeTurnDetectURL,
-				System:        cfg.CascadeSystem,
-			},
 			Gemini: gemini.Config{
 				SystemPrompt: cfg.GeminiSystemPrompt,
-				VAD:          gemini.EnvVAD(), // VAD stays env-controlled (VAD_ENABLED)
+				VAD:          gemini.EnvVAD(),
 				Tools:        cfg.GeminiTools,
-			},
-			Doubao: doubao.Config{
-				ModelVersion:   cfg.DoubaoModelVersion,
-				BotName:        cfg.DoubaoBotName,
-				SystemRole:     cfg.DoubaoSystemRole,
-				SpeakingStyle:  cfg.DoubaoSpeakingStyle,
-				Voice:          cfg.DoubaoVoice,
-				ASRTwopass:     cfg.DoubaoASRTwopass,
-				ASREndSmoothMs: cfg.DoubaoASREndSmoothMs,
-				Hotwords:       cfg.DoubaoHotwords,
 			},
 		},
 		TrustProxy: cfg.TrustProxy,
@@ -109,8 +88,8 @@ func runProxy(cfg runConfig) error {
 	}.Build()
 
 	mux := http.NewServeMux()
-	mux.Handle("POST /session/{id}/register", &offer.RegisterHandler{Registry: registry})
-	mux.Handle("POST /session/{id}/inject", &offer.InjectHandler{Injector: hub})
+	mux.Handle("POST /session/{id}/register", &offer.RegisterHandler{Registry: registry, Auth: internalAuth})
+	mux.Handle("POST /session/{id}/inject", &offer.InjectHandler{Injector: hub, Auth: internalAuth})
 	mux.Handle("/demo/", http.StripPrefix("/demo/", http.FileServer(http.Dir("demo"))))
 	mux.Handle("/", offerHandler)
 	srv := &http.Server{Addr: cfg.Addr, Handler: mux}
@@ -129,14 +108,9 @@ func runProxy(cfg runConfig) error {
 func gracefulShutdown(ctx context.Context, srv *http.Server, hub *rtc.Hub, publisher sidechannel.Publisher) {
 	<-ctx.Done()
 	log.Println("shutting down")
-	// Stop accepting new offers and let in-flight handlers finish first, so
-	// no new session is added while CloseAll waits for the live ones to drain.
 	sdCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(sdCtx)
-	// Tear down live sessions and wait for their goroutines to exit before
-	// closing the publisher — otherwise a late transcript Publish could race
-	// the publisher shutdown.
 	hub.CloseAll()
 	if publisher != nil {
 		_ = publisher.Close()
@@ -219,7 +193,6 @@ type modelCBConfigArgs struct {
 	HalfOpenSuccess int
 	AuthOpenFor     time.Duration
 	Gemini          modelcb.Config
-	Doubao          modelcb.Config
 }
 
 func newModelBreakers(enabled bool, args modelCBConfigArgs) *modelcb.Manager {
@@ -234,6 +207,14 @@ func newModelBreakers(enabled bool, args modelCBConfigArgs) *modelcb.Manager {
 	}
 	return modelcb.New(base, map[string]modelcb.Config{
 		"gemini": args.Gemini,
-		"doubao": args.Doubao,
 	})
+}
+
+func newAuthenticator(authURL string) *auth.Authenticator {
+	if authURL == "" {
+		log.Printf("warn: auth-url unset — DevVerifier active (Bearer treated as user id; set -auth-url or PROXY_AUTH_URL for production)")
+		return auth.New(auth.DevVerifier{})
+	}
+	log.Printf("user auth -> %s/auth/me", strings.TrimRight(authURL, "/"))
+	return auth.New(auth.NewHTTPVerifier(authURL, 300*time.Millisecond))
 }

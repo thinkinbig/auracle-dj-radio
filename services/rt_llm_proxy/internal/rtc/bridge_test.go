@@ -65,7 +65,7 @@ func TestResumeOwnershipAndExpiry(t *testing.T) {
 		h := newTestHub()
 		arch := fresh()
 		h.archives.put("s1", arch.provider, arch.userID, arch.history, arch.maxSeq)
-		if _, _, _, ok := h.Resume("s1", "alice", "doubao", 1); ok {
+		if _, _, _, ok := h.Resume("s1", "alice", "other", 1); ok {
 			t.Fatal("provider mismatch must be rejected")
 		}
 	})

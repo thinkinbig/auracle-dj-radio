@@ -55,6 +55,7 @@ type IntakeRequest struct {
 	OfferSDP            []byte
 	UserID              identity.UserID
 	SessionIDHeader     string
+	SessionTokenHeader  string
 	LastSeqHeader       string
 	ReplayVersionHeader string
 	// ListenerBriefHeader is the base64 (std) per-session system suffix injected
@@ -127,6 +128,9 @@ func (in *Intake) ServeOffer(req IntakeRequest) IntakeResult {
 	var registration *Registration
 	if in.Registry != nil && req.SessionIDHeader != "" {
 		if reg, ok := in.Registry.Lookup(req.SessionIDHeader); ok {
+			if err := validateSessionToken(req, reg); err != nil {
+				return IntakeResult{Status: 403, Body: err.Error()}
+			}
 			registration = &reg
 			newSessionID = identity.SessionID(req.SessionIDHeader)
 		}
@@ -231,6 +235,10 @@ func (in *Intake) ServeOffer(req IntakeRequest) IntakeResult {
 		return IntakeResult{Status: 500, Body: err.Error()}
 	}
 
+	if registration != nil && in.Registry != nil {
+		in.Registry.Delete(req.SessionIDHeader)
+	}
+
 	return IntakeResult{
 		Status: 200,
 		Headers: map[string]string{
@@ -244,7 +252,7 @@ func (in *Intake) ServeOffer(req IntakeRequest) IntakeResult {
 }
 
 // restoredTurns maps reconnect-restored transcript lines to the provider-agnostic
-// turns a ModelFactory threads into construction (doubao's dialog_context).
+// turns passed into model construction.
 func restoredTurns(lines []transcript.Line) []model.RestoredTurn {
 	if len(lines) == 0 {
 		return nil
@@ -254,6 +262,20 @@ func restoredTurns(lines []transcript.Line) []model.RestoredTurn {
 		turns = append(turns, model.RestoredTurn{Role: l.Role, Text: l.Text})
 	}
 	return turns
+}
+
+// validateSessionToken guards pre-registered sessions against hijack. A fresh
+// connect must present the orchestrator-minted token; reconnect with X-Last-Seq
+// may omit it once replay ownership is established.
+func validateSessionToken(req IntakeRequest, reg Registration) error {
+	isReconnect := req.LastSeqHeader != "" && req.LastSeqHeader != "0"
+	if isReconnect && req.SessionTokenHeader == "" {
+		return nil
+	}
+	if req.SessionTokenHeader != reg.Token {
+		return errors.New("invalid session token")
+	}
+	return nil
 }
 
 func streamFaultBinder(guard *modelcb.Manager, provider string) func(time.Time) func(bool, error) {

@@ -14,6 +14,8 @@ export interface Config {
   musicEngineUrl: string;
   /** Base URL of the media proxy (rt_llm_proxy) agent-harness registers sessions with. */
   proxyUrl: string;
+  /** Shared secret for proxy register/inject (PROXY_REGISTER_SECRET). */
+  proxyRegisterSecret: string;
   /** Browser-facing proxy URL/path for the WebRTC SDP offer. */
   proxyPublicUrl: string;
 }
@@ -23,5 +25,6 @@ export const config: Config = {
   memoryServiceUrl: process.env.MEMORY_SERVICE_URL ?? "http://localhost:3020",
   musicEngineUrl: process.env.MUSIC_ENGINE_URL ?? "http://localhost:3010",
   proxyUrl: process.env.PROXY_URL ?? "http://localhost:8080",
+  proxyRegisterSecret: process.env.PROXY_REGISTER_SECRET ?? "",
   proxyPublicUrl: process.env.PROXY_PUBLIC_URL ?? "/proxy",
 };
