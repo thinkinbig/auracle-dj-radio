@@ -6,7 +6,7 @@ import type { TastePreference, TasteEntityType } from "@auracle/shared";
  * Priority order for retrieval is fixed:
  * 1. Mood energy envelope decides which energies are viable for the session.
  * 2. Structured taste reranks only within that envelope.
- * 3. mem0 energy skip weights are a tie-break / micro-adjustment only.
+ * 3. Analytics-only skip weights are not product personalization input.
  *
  * This scorer implements step 2 only. It turns prefer/avoid preferences into a
  * bounded additive signal, matched via stable catalog slugs already present on
@@ -16,8 +16,8 @@ import type { TastePreference, TasteEntityType } from "@auracle/shared";
  * Examples:
  * - `calm` + preferred artist still picks that artist's calm-adjacent tracks
  *   before the same artist's high-energy tracks.
- * - mem0 skip-energy penalties may break ties between similarly valid calm
- *   tracks, but they never pull a calm session toward euphoric energy.
+ * - Cross-session taste comes from Spotify at session start; this scorer only
+ *   handles explicit session-scoped prefer/avoid weights.
  */
 
 const DEFAULT_STRENGTH = 2;

@@ -20,8 +20,8 @@ export interface CatalogIndex {
   resolve(entityType: TasteEntityType, entityId: string): string | undefined;
   /**
    * Human-readable display name for an `entityId` (genre label, artist name,
-   * album/track title) for mem0 summaries. Falls back to the raw `entityId`
-   * when the entity is unknown / orphaned.
+   * album/track title). Falls back to the raw `entityId` when the entity is
+   * unknown / orphaned.
    */
   label(entityType: TasteEntityType, entityId: string): string;
   /**
@@ -46,7 +46,7 @@ export function buildCatalogIndex(
   const artistBySlug = new Map(manifest.artists.map((a) => [a.slug ?? slugify(a.name), a.id]));
   const albumBySlug = new Map(manifest.albums.map((a) => [a.slug ?? slugify(a.title), a.id]));
 
-  // entityId → display name, for human-readable mem0 summaries.
+  // entityId → display name, for human-readable taste/profile summaries.
   const genreLabels = new Map(taxonomy.genres.map((g) => [g.slug, g.label]));
   const artistNames = new Map(manifest.artists.map((a) => [a.slug ?? slugify(a.name), a.name]));
   const albumTitles = new Map(manifest.albums.map((a) => [a.slug ?? slugify(a.title), a.title]));

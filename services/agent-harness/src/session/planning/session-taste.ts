@@ -5,8 +5,8 @@ import type { SessionState } from "../state.js";
  * Ephemeral, session-scoped taste from like/dislike feedback (#68).
  *
  * These prefs live only on `SessionState` and feed the replan/extend rank so
- * feedback is felt in-session under conditions B and C; the durable copy (C
- * only) is memory-service's job, threaded back on the next session's create.
+ * feedback is felt in-session under conditions B and C. Spotify owns
+ * cross-session taste; this module does not persist preferences.
  */
 
 const prefKey = (p: TastePreference): string => `${p.entityType}\0${p.entityId}`;
@@ -20,9 +20,9 @@ export function mergeSessionTaste(state: SessionState, incoming: TastePreference
 }
 
 /**
- * Overlay this session's feedback prefs on the stored (cross-session) set for
- * plan weighting; the fresher in-session reaction wins per entity. Returns
- * undefined when there is no signal at all, matching the optional plan field.
+ * Overlay this session's feedback prefs on an optional base set for plan
+ * weighting; the fresher in-session reaction wins per entity. Returns undefined
+ * when there is no signal at all, matching the optional plan field.
  */
 export function overlaySessionTaste(
   stored: TastePreference[] | undefined,

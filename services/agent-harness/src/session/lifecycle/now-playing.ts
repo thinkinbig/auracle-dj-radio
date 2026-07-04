@@ -6,7 +6,7 @@ import type { OrchestrationDeps } from "../deps.js";
 import { swapNextOnQuickSkip } from "./skip-swap.js";
 import type { SessionState } from "../state.js";
 
-const QUICK_SKIP_MEMORY_THRESHOLD = 2;
+const QUICK_SKIP_SWAP_THRESHOLD = 2;
 const QUICK_SKIP_MAX_LISTEN_MS = 60_000;
 
 interface NowPlayingLog {
@@ -21,7 +21,7 @@ interface PlayheadUpdate {
 
 /**
  * Apply a browser playhead update and run the orchestration that hangs off it:
- * skip latency telemetry, quick-skip learning/swap, now-playing context, intro
+ * skip latency telemetry, quick-skip swap, now-playing context, intro
  * cues, and rolling extend. The browser remains the playhead writer; this only
  * mirrors its report into harness state.
  */
@@ -90,7 +90,6 @@ async function recordSkipTransition(
 
   const repeatedQuickSkipEnergy = trackRepeatedQuickSkip(state, listenedMs, energy);
   if (repeatedQuickSkipEnergy != null) {
-    rememberRepeatedQuickSkip(deps, state, repeatedQuickSkipEnergy);
     void swapNextOnQuickSkip(deps, state, repeatedQuickSkipEnergy);
   }
   log?.info({ sessionId: state.id, ms }, "skip round-trip latency");
@@ -131,17 +130,5 @@ function trackRepeatedQuickSkip(state: SessionState, listenedMs: number | null, 
 
   const previous = state.quickSkipRun;
   state.quickSkipRun = previous?.energy === energy ? { energy, count: previous.count + 1 } : { energy, count: 1 };
-  return state.quickSkipRun.count >= QUICK_SKIP_MEMORY_THRESHOLD ? energy : null;
-}
-
-function rememberRepeatedQuickSkip(deps: OrchestrationDeps, state: SessionState, energy: number): void {
-  if (state.condition !== "C" || state.rememberedQuickSkipEnergies.has(energy)) return;
-  state.rememberedQuickSkipEnergies.add(energy);
-  void deps.memory
-    .remember(
-      `User repeatedly skipped energy ${energy}/5 tracks quickly during a "${state.intent.mood}" ${state.intent.scene} session; prefer a different energy level for this context.`,
-      state.id,
-      state.userId,
-    )
-    .catch(() => {});
+  return state.quickSkipRun.count >= QUICK_SKIP_SWAP_THRESHOLD ? energy : null;
 }

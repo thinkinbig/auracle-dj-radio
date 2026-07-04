@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Condition, PlannedTrack, SessionIntent, TastePreference, TrackSeed } from "@auracle/shared";
+import type { Condition, PlannedTrack, SessionIntent, TrackSeed } from "@auracle/shared";
 import { ANONYMOUS_USER_ID } from "@auracle/shared";
 import { buildRegistration } from "../../dj/registration.js";
 import type { PlanResponse } from "@auracle/clients";
@@ -14,9 +14,7 @@ interface SessionLifecycleLog {
 }
 
 interface SessionPersonalization {
-  mem0Context: string;
-  energyWeights?: Partial<Record<number, number>>;
-  taste?: TastePreference[];
+  personalizationContext: string;
 }
 
 interface SessionCreateContext extends SessionPersonalization {
@@ -88,14 +86,10 @@ async function prepareSessionCreateContext(
 ): Promise<SessionCreateContext> {
   const intent = parseSessionIntent(input);
   if (!intent) throw new Error("mood and scene are required");
-  const condition: Condition = input.condition ?? "C";
+  const condition: Condition = input.condition ?? (sanitizeSpotifyTasteSummary(input.spotify_taste_summary) ? "C" : "B");
   const authenticated = userId !== ANONYMOUS_USER_ID;
   const supersededId = authenticated ? deps.store.activeSessionForUser(userId) : undefined;
-  const personalization = mergeSpotifyTasteSummary(
-    await initialPersonalization(deps, condition, userId, intent),
-    condition,
-    input.spotify_taste_summary,
-  );
+  const personalization = initialPersonalization(condition, input.spotify_taste_summary);
   const tieBreakSeed = randomUUID();
   const seeds = input.seeds?.length ? input.seeds : undefined;
 
@@ -115,9 +109,7 @@ async function buildProvisionalPlan(deps: CreateSessionDeps, context: SessionCre
   return deps.music.planTracklist({
     intent: context.intent,
     mode: "provisional",
-    memories: context.mem0Context,
-    energyWeights: context.energyWeights,
-    taste: context.taste,
+    memories: context.personalizationContext,
     tieBreakSeed: context.tieBreakSeed,
     seeds: context.seeds,
   });
@@ -129,15 +121,13 @@ function persistProvisionalSession(deps: CreateSessionDeps, context: SessionCrea
     userId: context.userId,
     intent: context.intent,
     condition: context.condition,
-    energyWeights: context.energyWeights,
-    taste: context.taste,
     tieBreakSeed: context.tieBreakSeed,
     title: plan.result.session_title,
     subtitle: plan.result.session_subtitle,
     arc: plan.result.arc,
     tracklist: plan.result.tracklist,
     candidatesById,
-    mem0Context: context.mem0Context,
+    personalizationContext: context.personalizationContext,
     seeds: context.seeds,
   });
 }
@@ -160,40 +150,18 @@ function sessionCreateResponse(deps: CreateSessionDeps, state: SessionState, tok
     host_mode: state.hostMode,
     current_track_index: state.currentTrackIndex,
     tracklist: state.tracklist,
-    mem0_context: state.mem0Context,
+    personalization_context: state.personalizationContext,
+    mem0_context: state.personalizationContext,
     proxy_url: deps.proxyPublicUrl,
     token,
   };
 }
 
-async function initialPersonalization(
-  deps: CreateSessionDeps,
-  condition: Condition,
-  userId: string,
-  intent: SessionIntent,
-): Promise<SessionPersonalization> {
-  // Personalization is best-effort and condition-C-only; must not block session create.
-  if (condition !== "C") return { mem0Context: "" };
-  const [mem0Context, energyWeights, taste] = await Promise.all([
-    deps.memory.recallForIntent(userId, intent.mood, intent.scene).catch(() => ""),
-    deps.memory.skipRateByEnergy(userId, 10).catch(() => undefined),
-    deps.memory.tasteWeights(userId).catch(() => undefined),
-  ]);
-  return { mem0Context, energyWeights, taste };
-}
-
-function mergeSpotifyTasteSummary(
-  personalization: SessionPersonalization,
-  condition: Condition,
-  rawSummary: string | undefined,
-): SessionPersonalization {
-  if (condition !== "C") return personalization;
+function initialPersonalization(condition: Condition, rawSummary: string | undefined): SessionPersonalization {
+  if (condition !== "C") return { personalizationContext: "" };
   const spotifySummary = sanitizeSpotifyTasteSummary(rawSummary);
-  if (!spotifySummary) return personalization;
-  return {
-    ...personalization,
-    mem0Context: [personalization.mem0Context, spotifySummary].filter(Boolean).join("\n\n"),
-  };
+  if (!spotifySummary) throw new Error("condition C requires spotify_taste_summary");
+  return { personalizationContext: spotifySummary };
 }
 
 function sanitizeSpotifyTasteSummary(rawSummary: string | undefined): string {
@@ -238,9 +206,7 @@ async function buildFullRefinePlan(deps: CreateSessionDeps, state: SessionState)
   return deps.music.planTracklist({
     intent: state.intent,
     mode: "full",
-    memories: state.mem0Context,
-    energyWeights: state.energyWeights,
-    taste: state.taste,
+    memories: state.personalizationContext,
     tieBreakSeed: state.tieBreakSeed,
     seeds: state.seeds,
   });

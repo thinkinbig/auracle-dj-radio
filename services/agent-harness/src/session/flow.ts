@@ -60,7 +60,6 @@ export const SESSION_FLOW = {
     "requestReplan",
     "applyReplanResult",
     "recordReplan",
-    "rememberPersonalizedMoodShift",
     "pushQueueUpdate",
   ],
   playlistFeedback: ["runPlaylistFeedback", "applyFeedbackEffects", "mergeSessionTaste", "regenerateRemaining", "regenerateAndPush"],

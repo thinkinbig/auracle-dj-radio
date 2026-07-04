@@ -21,7 +21,7 @@ export interface FlowPlan {
 
 export interface FlowInput {
   intent: SessionIntent;
-  /** mem0 summary; "" until the memory slice lands. */
+  /** Session-start personalization context; "" for non-personalized runs. */
   memories: string;
   played: TrackCandidate[];
   /** Energy of the last already-played track; null on initial plan. */

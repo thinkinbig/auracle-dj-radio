@@ -95,7 +95,7 @@ describe("retrieveCandidates (structured scorer)", () => {
     expect(low).toBeGreaterThan(highPreferred);
   });
 
-  it("treats mem0 skip penalties as a tie-break, not a mood override", () => {
+  it("treats explicit energy penalties as a tie-break, not a mood override", () => {
     const preferArtist = buildTasteScorer([
       pref({ entityType: "artist", entityId: "fav-artist", polarity: "prefer", strength: 3 }),
     ]);

@@ -1,17 +1,18 @@
 import type { FastifyInstance } from "fastify";
-import type { MemoryClient } from "../memory/client.js";
 
-export function registerMemoryRoutes(app: FastifyInstance, memory: MemoryClient): void {
+const RETIRED = "Auracle-owned long-term memory is retired; Spotify owns cross-session taste.";
+
+export function registerMemoryRoutes(app: FastifyInstance): void {
   app.post("/memory/recall", async (req, reply) => {
     const { query, user_id } = (req.body ?? {}) as { query?: string; user_id?: string };
     if (!query || !user_id) return reply.code(400).send({ error: "query and user_id are required" });
-    return { memories: await memory.recall(query, user_id) };
+    return { memories: "", retired: true, message: RETIRED };
   });
 
   app.post("/memory/recall-intent", async (req, reply) => {
     const { user_id, mood, scene } = (req.body ?? {}) as { user_id?: string; mood?: string; scene?: string };
     if (!user_id || !mood || !scene) return reply.code(400).send({ error: "user_id, mood, and scene are required" });
-    return { memories: await memory.recallForIntent(user_id, mood, scene) };
+    return { memories: "", retired: true, message: RETIRED };
   });
 
   app.post("/memory/remember", async (req, reply) => {
@@ -19,7 +20,6 @@ export function registerMemoryRoutes(app: FastifyInstance, memory: MemoryClient)
     if (!fact || !session_id || !user_id) {
       return reply.code(400).send({ error: "fact, session_id, and user_id are required" });
     }
-    await memory.remember(fact, session_id, user_id);
-    return { ok: true };
+    return reply.code(410).send({ ok: false, retired: true, message: RETIRED });
   });
 }

@@ -23,7 +23,7 @@ export interface ToolEnvelope {
   ui_events: ServerMessage[];
 }
 
-/** Dispatch a Gemini Live function call to session side-effects (intents, replan, memory writes). */
+/** Dispatch a Gemini Live function call to session side-effects (intents, replan, events). */
 export async function runTool(
   deps: OrchestrationDeps,
   state: SessionState,
@@ -39,16 +39,6 @@ export async function runTool(
       return {
         gemini_result: { ok: true, action },
         ui_events: [{ type: "intent", intent: { type: "pause_playback", action } }],
-      };
-    }
-    case "record_preference": {
-      const fact = String(args.fact ?? "");
-      await deps.memory.recordEvent(state.id, state.userId, "record_preference", { fact });
-      // mem0 write is cold IO — never block the tool response on it (hot/cold).
-      if (state.condition === "C") void deps.memory.remember(fact, state.id, state.userId);
-      return {
-        gemini_result: { ok: true },
-        ui_events: [{ type: "intent", intent: { type: "record_preference", fact } }],
       };
     }
     case "change_host_mode": {

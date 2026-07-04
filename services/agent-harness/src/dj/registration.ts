@@ -21,7 +21,7 @@ export function buildRegistration(state: SessionState, openingTrack: CueTrack | 
       title: state.title,
       subtitle: state.subtitle,
       total: state.tracklist.length,
-      mem0Context: state.mem0Context,
+      personalizationContext: state.personalizationContext,
       condition: state.condition,
       hostMode: state.hostMode,
       mood: state.intent.mood,

@@ -4,7 +4,6 @@ import type { TrackRow } from "../catalog-store.js";
 import { HeuristicFlowModel } from "./llm/heuristic-flow.js";
 import type { FlowInput, FlowPlan, FlowSlot } from "./llm/flow-model.js";
 import { createSessionTitle } from "./session-title.js";
-import { energyWeightsFromMemories, mergeEnergyWeights } from "./weighting/memory-energy.js";
 import { retrieveCandidates } from "./retrieval/retrieve.js";
 import { tasteCacheKey } from "./weighting/taste-weighting.js";
 import { validateTracklist, type Violation } from "./validation/validate.js";
@@ -172,10 +171,8 @@ export interface PlanResult {
 
 /**
  * Cache of clean initial plans keyed on the inputs that determine them.
- * Condition isn't part of the key — it only changes `memories` (C passes mem0
- * recall, A/B pass ""), so the memories string already captures it. Including
- * memories means a new recorded preference (which changes recall) busts the
- * cache, preserving Condition C fidelity.
+ * Condition isn't part of the key — it only changes the session-start
+ * personalization context, so the `memories` string already captures it.
  */
 const PLAN_CACHE_MAX = 256;
 const planCache = new Map<string, PlanResult>();
@@ -271,7 +268,6 @@ export async function createProvisionalPlan(
   tieBreakSeed?: string,
   seeds?: TrackSeed[],
 ): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate> }> {
-  const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
   const tracks = deps.tracks();
   const seed = await buildSeedContext(seeds, intent.scene, tracks);
   const candidates = [
@@ -280,7 +276,7 @@ export async function createProvisionalPlan(
       scene: intent.scene,
       limit: 24,
       slots: FULL_SESSION_LENGTH,
-      energyWeights: effectiveEnergyWeights,
+      energyWeights,
       taste,
       tieBreakSeed,
     }),
@@ -330,7 +326,6 @@ export async function createPlan(
   tieBreakSeed?: string,
   seeds?: TrackSeed[],
 ): Promise<PlanResult> {
-  const effectiveEnergyWeights = mergeEnergyWeights(energyWeights, energyWeightsFromMemories(memories));
   const tracks = deps.tracks();
   const seed = await buildSeedContext(seeds, intent.scene, tracks, deps.resolveSeeds);
   const candidates = [
@@ -339,7 +334,7 @@ export async function createPlan(
       scene: intent.scene,
       limit: 24,
       slots: FULL_SESSION_LENGTH,
-      energyWeights: effectiveEnergyWeights,
+      energyWeights,
       taste,
       tieBreakSeed,
     }),
@@ -368,7 +363,7 @@ export interface ReplanInput {
   lastPlayedEnergy: number | null;
   remainingSlots: number;
   energyWeights?: Partial<Record<number, number>>;
-  /** Cross-session preference recall (condition C); "" for A/B. */
+  /** Session-start personalization context; "" for A/B. */
   memories?: string;
   /** Structured taste prefer/avoid (condition C); undefined for A/B. */
   taste?: TastePreference[];
@@ -386,7 +381,6 @@ export interface ReplanInput {
 
 /** Mid-session replan: re-fill only the remaining slots, excluding played tracks. */
 export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanResult> {
-  const effectiveEnergyWeights = mergeEnergyWeights(input.energyWeights, energyWeightsFromMemories(input.memories ?? ""));
   const tracks = deps.tracks();
   const retrieve = (excludeIds: Set<string>): TrackCandidate[] =>
     retrieveCandidates(tracks, {
@@ -396,7 +390,7 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
       limit: Math.max(24, input.remainingSlots * 3),
       slots: input.remainingSlots,
       lastPlayedEnergy: input.lastPlayedEnergy,
-      energyWeights: effectiveEnergyWeights,
+      energyWeights: input.energyWeights,
       taste: input.taste,
       tieBreakSeed: input.tieBreakSeed,
     });
@@ -444,7 +438,7 @@ export interface ExtendInput {
   /** Energy of the last queued track, to chain the continuation smoothly. */
   lastPlayedEnergy: number | null;
   energyWeights?: Partial<Record<number, number>>;
-  /** Cross-session preference recall (condition C); "" for A/B. */
+  /** Session-start personalization context; "" for A/B. */
   memories?: string;
   /** Structured taste prefer/avoid (condition C); undefined for A/B. */
   taste?: TastePreference[];
@@ -463,7 +457,6 @@ export interface ExtendInput {
  * but is not itself LLM-free.
  */
 export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<PlanResult> {
-  const effectiveEnergyWeights = mergeEnergyWeights(input.energyWeights, energyWeightsFromMemories(input.memories ?? ""));
   const tracks = deps.tracks();
   const exclude = new Set(input.playedIds);
   // Append from the same mixed pool (#77): cached seeded library (minus already-
@@ -478,7 +471,7 @@ export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<Pl
       limit: Math.max(24, input.appendSlots * 3),
       slots: input.appendSlots,
       lastPlayedEnergy: input.lastPlayedEnergy,
-      energyWeights: effectiveEnergyWeights,
+      energyWeights: input.energyWeights,
       taste: input.taste,
       tieBreakSeed: input.tieBreakSeed,
     }),

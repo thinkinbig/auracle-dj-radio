@@ -26,7 +26,6 @@ export type Intent =
   | { type: "mood_change"; mood: string; energy_delta: "lighter" | "heavier" | "same" }
   | { type: "host_mode_changed"; host_mode: HostMode }
   | { type: "pause_playback"; action: "pause" | "resume" }
-  | { type: "record_preference"; fact: string }
   | { type: "playlist_feedback"; feedback: PlaylistFeedback };
 
 /** Server → client frames (decoded from the WebRTC data channel; DJ audio is the media track). */

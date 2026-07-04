@@ -3,7 +3,6 @@ import type { PlanResponse } from "@auracle/clients";
 import { pushQueueRefresh, pushQueueUpdate } from "../delivery/queue-update.js";
 import type { OrchestrationDeps } from "../deps.js";
 import { changedIdsFromRemaining } from "../planning/replan.js";
-import { overlaySessionTaste } from "../planning/session-taste.js";
 import type { SessionState } from "../state.js";
 
 /** Append a fresh batch once the queue runs this low (slots after current). */
@@ -78,11 +77,7 @@ async function buildExtendContext(deps: OrchestrationDeps, state: SessionState):
     playedIds: state.tracklist.map((r) => r.id),
     lastPlayedEnergy: tailEnergy(state),
     personalized,
-    // In-session like/dislike prefs (#68) overlay the stored set in B and C alike.
-    taste: overlaySessionTaste(
-      personalized ? await deps.memory.tasteWeights(state.userId).catch(() => undefined) : undefined,
-      state.sessionTaste,
-    ),
+    taste: state.sessionTaste.length > 0 ? state.sessionTaste : undefined,
   };
 }
 
@@ -99,8 +94,7 @@ async function requestExtendPlan(
   return deps.music.planTracklist({
     intent: state.intent,
     mode: "extend",
-    memories: context.personalized ? state.mem0Context : "",
-    energyWeights: context.personalized ? state.energyWeights : undefined,
+    memories: context.personalized ? state.personalizationContext : "",
     taste: context.taste,
     extend: {
       playedIds: context.playedIds,

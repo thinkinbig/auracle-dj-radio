@@ -6,7 +6,6 @@ import { ANONYMOUS_USER_ID, type CatalogManifest, type TasteProfileResponse } fr
 import { AuthStore } from "../src/auth-store.js";
 import { buildCatalogIndex, type CatalogIndex } from "../src/catalog-index.js";
 import { EventsDb } from "../src/events-db.js";
-import type { MemoryClient } from "../src/memory/client.js";
 import { TasteStore } from "../src/taste/taste-store.js";
 import { buildServer } from "../src/server.js";
 
@@ -28,40 +27,9 @@ function testCatalog(artistId?: string, revision = "test-rev-001"): CatalogIndex
   );
 }
 
-class RecordingMemory implements MemoryClient {
-  readonly enabled = true;
-  readonly degraded = false;
-  facts: { fact: string; sessionId: string; userId: string }[] = [];
-  recalls: { query: string; userId: string }[] = [];
-  async recall(query: string, userId: string): Promise<string> {
-    this.recalls.push({ query, userId });
-    return this.memoriesFor(query);
-  }
-  async recallForIntent(userId: string, mood: string, scene: string): Promise<string> {
-    const queries = [`music preferences for a ${mood} ${scene} session`, `music preferences for ${scene} sessions`];
-    const facts = queries.flatMap((query) => {
-      this.recalls.push({ query, userId });
-      return this.memoriesFor(query).split("\n").map((line) => line.replace(/^- /, "")).filter(Boolean);
-    });
-    return [...new Set(facts)].map((fact) => `- ${fact}`).join("\n");
-  }
-  private memoriesFor(query: string): string {
-    if (query.includes("calm studying")) return "- prefers lighter energy\n- likes sparse piano";
-    if (query.includes("studying sessions")) return "- likes sparse piano\n- dislikes harsh drums";
-    return "";
-  }
-  async remember(fact: string, sessionId: string, userId: string): Promise<void> {
-    this.facts.push({ fact, sessionId, userId });
-  }
-  async forget(sessionId: string, userId: string): Promise<void> {
-    this.facts = this.facts.filter((f) => !(f.sessionId === sessionId && f.userId === userId));
-  }
-}
-
 let app: ReturnType<typeof buildServer>;
 let events: EventsDb;
 let auth: AuthStore;
-let memory: RecordingMemory;
 let taste: TasteStore;
 
 beforeAll(async () => {
@@ -71,8 +39,7 @@ beforeAll(async () => {
   events = new EventsDb(dbPath);
   auth = new AuthStore(authDbPath);
   taste = new TasteStore(tasteDbPath);
-  memory = new RecordingMemory();
-  app = buildServer({ events, memory, auth, taste, catalog: testCatalog() });
+  app = buildServer({ events, auth, taste, catalog: testCatalog() });
   await app.ready();
 });
 
@@ -165,37 +132,31 @@ describe("memory-service /auth", () => {
 });
 
 describe("memory-service internal memory/events API", () => {
-  it("exposes recall, remember, recordEvent, and skipRateByEnergy for agent-harness", async () => {
+  it("exposes retired memory endpoints plus recordEvent and skipRateByEnergy for compatibility", async () => {
     const recall = await app.inject({
       method: "POST",
       url: "/memory/recall",
       payload: { query: "calm studying", user_id: ANONYMOUS_USER_ID },
     });
     expect(recall.statusCode).toBe(200);
-    expect(recall.json<{ memories: string }>().memories).toBe("- prefers lighter energy\n- likes sparse piano");
+    expect(recall.json<{ memories: string; retired: boolean }>())
+      .toMatchObject({ memories: "", retired: true });
 
-    const beforeFacts = memory.facts.length;
     const intentRecall = await app.inject({
       method: "POST",
       url: "/memory/recall-intent",
       payload: { mood: "calm", scene: "studying", user_id: ANONYMOUS_USER_ID },
     });
     expect(intentRecall.statusCode).toBe(200);
-    expect(intentRecall.json<{ memories: string }>().memories).toBe(
-      "- prefers lighter energy\n- likes sparse piano\n- dislikes harsh drums",
-    );
-    expect(memory.recalls.slice(-2)).toEqual([
-      { query: "music preferences for a calm studying session", userId: ANONYMOUS_USER_ID },
-      { query: "music preferences for studying sessions", userId: ANONYMOUS_USER_ID },
-    ]);
+    expect(intentRecall.json<{ memories: string; retired: boolean }>())
+      .toMatchObject({ memories: "", retired: true });
 
     const remembered = await app.inject({
       method: "POST",
       url: "/memory/remember",
       payload: { fact: "likes sparse piano", session_id: "internal-s1", user_id: ANONYMOUS_USER_ID },
     });
-    expect(remembered.statusCode).toBe(200);
-    expect(memory.facts.length).toBe(beforeFacts + 1);
+    expect(remembered.statusCode).toBe(410);
 
     const recorded = await app.inject({
       method: "POST",
@@ -219,16 +180,16 @@ describe("memory-service internal memory/events API", () => {
     expect(weights.json<{ weights: Record<string, number> }>().weights[3]).toBeGreaterThan(0);
   });
 
-  it("threads user_id through recall/remember and isolates skip weights per user (P0-2/P0-3)", async () => {
-    await app.inject({
+  it("retired memory endpoints do not write while skip weights stay isolated per user (P0-2/P0-3)", async () => {
+    const remembered = await app.inject({
       method: "POST",
       url: "/memory/remember",
       payload: { fact: "loves dub techno", session_id: "iso-s1", user_id: "user-a" },
     });
-    expect(memory.facts.at(-1)).toEqual({ fact: "loves dub techno", sessionId: "iso-s1", userId: "user-a" });
+    expect(remembered.statusCode).toBe(410);
 
-    await app.inject({ method: "POST", url: "/memory/recall", payload: { query: "q", user_id: "user-b" } });
-    expect(memory.recalls.at(-1)).toEqual({ query: "q", userId: "user-b" });
+    const recall = await app.inject({ method: "POST", url: "/memory/recall", payload: { query: "q", user_id: "user-b" } });
+    expect(recall.json<{ memories: string; retired: boolean }>()).toMatchObject({ memories: "", retired: true });
 
     // User A skips energy-2 tracks; user B skips energy-5 tracks.
     await app.inject({
@@ -322,10 +283,9 @@ describe("memory-service /users/me/taste (S2)", () => {
     expect(put.statusCode).toBe(401);
   });
 
-  it("saves and reloads a profile, resolving slugs and dual-writing a mem0 summary", async () => {
-    const { id, token } = await registerUser("taste-save@example.com");
+  it("saves and reloads a profile, resolving slugs", async () => {
+    const { token } = await registerUser("taste-save@example.com");
     const headers = { authorization: `Bearer ${token}` };
-    const before = memory.facts.length;
 
     const put = await app.inject({
       method: "PUT",
@@ -347,14 +307,6 @@ describe("memory-service /users/me/taste (S2)", () => {
     const artist = saved.preferences.find((p) => p.entityType === "artist");
     expect(artist?.resolvedId).toBe("a-lana-delay");
     expect(artist?.status).toBe("active");
-
-    // mem0 dual-write fired for this user with a human-readable summary.
-    expect(memory.facts.length).toBe(before + 1);
-    const fact = memory.facts.at(-1)!;
-    expect(fact.userId).toBe(id);
-    expect(fact.fact).toContain("Lo-Fi"); // catalog label, not the raw slug
-    expect(fact.fact).toContain("Lana Delay"); // artist display name, not the slug
-    expect(fact.fact).toContain("more jazzy today");
 
     // Reload returns the same profile.
     const get = await app.inject({ method: "GET", url: "/users/me/taste", headers });
@@ -412,10 +364,9 @@ describe("memory-service /users/me/taste (S2)", () => {
     expect(get.json<TasteProfileResponse>().preferences).toHaveLength(0);
   });
 
-  it("replaces (not accumulates) the mem0 summary when a profile is re-saved", async () => {
-    const { id, token } = await registerUser("taste-replace@example.com");
+  it("re-saves taste profiles by replacing the stored profile", async () => {
+    const { token } = await registerUser("taste-replace@example.com");
     const headers = { authorization: `Bearer ${token}` };
-    const tasteFacts = () => memory.facts.filter((f) => f.userId === id);
 
     await app.inject({
       method: "PUT",
@@ -423,20 +374,17 @@ describe("memory-service /users/me/taste (S2)", () => {
       headers,
       payload: { preferences: [{ entityType: "genre", entityId: "house", polarity: "prefer", source: "onboarding" }] },
     });
-    expect(tasteFacts()).toHaveLength(1);
+    let profile = await app.inject({ method: "GET", url: "/users/me/taste", headers });
+    expect(profile.json<TasteProfileResponse>().preferences).toMatchObject([{ polarity: "prefer" }]);
 
-    // Re-save with the opposite polarity: the stale "prefers house" fact must
-    // not survive alongside the new one.
     await app.inject({
       method: "PUT",
       url: "/users/me/taste",
       headers,
       payload: { preferences: [{ entityType: "genre", entityId: "house", polarity: "avoid", source: "session" }] },
     });
-    const facts = tasteFacts();
-    expect(facts).toHaveLength(1);
-    expect(facts[0].fact).toContain("Avoids");
-    expect(facts[0].fact).not.toContain("Prefers");
+    profile = await app.inject({ method: "GET", url: "/users/me/taste", headers });
+    expect(profile.json<TasteProfileResponse>().preferences).toMatchObject([{ polarity: "avoid" }]);
   });
 
   it("isolates one user's profile from another", async () => {
@@ -458,7 +406,7 @@ describe("memory-service /users/me/taste (S2)", () => {
     expect(bView.json<TasteProfileResponse>().preferences).toHaveLength(0);
   });
 
-  it("exposes a user's active prefs for plan weighting via /taste/weights (S4)", async () => {
+  it("marks /taste/weights as retired", async () => {
     const { id, token } = await registerUser("taste-weights@example.com");
     await app.inject({
       method: "PUT",
@@ -474,10 +422,8 @@ describe("memory-service /users/me/taste (S2)", () => {
 
     const res = await app.inject({ method: "POST", url: "/taste/weights", payload: { user_id: id } });
     expect(res.statusCode).toBe(200);
-    const { preferences } = res.json<{ preferences: { entityType: string; entityId: string; polarity: string; status?: string }[] }>();
-    expect(preferences).toHaveLength(2);
-    expect(preferences.every((p) => p.status === "active")).toBe(true);
-    expect(preferences.find((p) => p.entityType === "genre")).toMatchObject({ entityId: "house", polarity: "avoid" });
+    expect(res.json<{ preferences: unknown[]; retired: boolean }>())
+      .toEqual({ preferences: [], retired: true });
 
     const missing = await app.inject({ method: "POST", url: "/taste/weights", payload: {} });
     expect(missing.statusCode).toBe(400);
@@ -505,7 +451,7 @@ describe("memory-service /users/me/taste (S2)", () => {
       { genres: [{ slug: "lo-fi", label: "Lo-Fi" }], mapping: {} },
       "test-rev-002",
     );
-    const app2 = buildServer({ events, memory, auth, taste, catalog: reloaded });
+    const app2 = buildServer({ events, auth, taste, catalog: reloaded });
     await app2.ready();
     try {
       const get = await app2.inject({ method: "GET", url: "/users/me/taste", headers });
@@ -521,9 +467,8 @@ describe("memory-service /users/me/taste (S2)", () => {
     }
   });
 
-  it("derives and persists session-sourced prefs (+ mem0 mirror) from a dislike (#69)", async () => {
+  it("derives session-sourced prefs from a dislike without persisting (#69)", async () => {
     const { id, token } = await registerUser("feedback-dislike@example.com");
-    const factsBefore = memory.facts.length;
 
     const res = await app.inject({
       method: "POST",
@@ -531,32 +476,22 @@ describe("memory-service /users/me/taste (S2)", () => {
       payload: { user_id: id, session_id: "s-fb-1", track_id: "t01", feedback: "dislike", persist: true },
     });
     expect(res.statusCode).toBe(200);
-    const body = res.json<{ preferences: unknown[]; persisted: boolean }>();
-    expect(body.persisted).toBe(true);
+    const body = res.json<{ preferences: unknown[]; persisted: boolean; retired?: boolean }>();
+    expect(body.persisted).toBe(false);
+    expect(body.retired).toBe(true);
     // Track pref (finest grain, strength 2) + artist rollup (strength 1) per #69.
     expect(body.preferences).toEqual([
       { entityType: "track", entityId: "t01", polarity: "avoid", strength: 2, source: "session" },
       { entityType: "artist", entityId: "lana-del-delay", polarity: "avoid", strength: 1, source: "session" },
     ]);
 
-    // Durable rows readable on the next session via GET /users/me/taste and /taste/weights.
+    // No durable rows are created; the derived prefs are for this session only.
     const profile = await app.inject({ method: "GET", url: "/users/me/taste", headers: { authorization: `Bearer ${token}` } });
     const prefs = profile.json<TasteProfileResponse>().preferences;
-    expect(prefs.find((p) => p.entityType === "track")).toMatchObject({ entityId: "t01", polarity: "avoid", source: "session", status: "active" });
-    expect(prefs.find((p) => p.entityType === "artist")).toMatchObject({ entityId: "lana-del-delay", polarity: "avoid", source: "session", status: "active" });
-
-    // mem0 mirror is human-readable, session-attributed, and names catalog labels.
-    expect(memory.facts).toHaveLength(factsBefore + 1);
-    const fact = memory.facts.at(-1)!;
-    expect(fact.userId).toBe(id);
-    expect(fact.sessionId).toBe("s-fb-1");
-    expect(fact.fact).toContain("disliked");
-    expect(fact.fact).toContain("Neon Rain");
-    expect(fact.fact).toContain("Lana Delay");
-    expect(fact.fact).toContain("Lo-Fi");
+    expect(prefs).toHaveLength(0);
   });
 
-  it("keeps one row per entity: repeats strengthen (capped), a flip resets polarity (#69)", async () => {
+  it("does not persist repeated session feedback (#69)", async () => {
     const { id, token } = await registerUser("feedback-repeat@example.com");
     const feedback = (fb: "like" | "dislike") =>
       app.inject({
@@ -573,22 +508,20 @@ describe("memory-service /users/me/taste (S2)", () => {
     await feedback("dislike");
     await feedback("dislike"); // duplicate in the same session → still one row, strengthened
     let { row, count } = await trackPref();
-    expect(count).toBe(1);
-    expect(row).toMatchObject({ polarity: "avoid", strength: 3 });
+    expect(count).toBe(0);
+    expect(row).toBeUndefined();
 
     await feedback("dislike"); // strength stays capped at 3
     ({ row } = await trackPref());
-    expect(row?.strength).toBe(3);
+    expect(row).toBeUndefined();
 
     await feedback("like"); // opposite reaction replaces the row at base strength
     ({ row, count } = await trackPref());
-    expect(count).toBe(1);
-    expect(row).toMatchObject({ polarity: "prefer", strength: 2 });
+    expect(count).toBe(0);
+    expect(row).toBeUndefined();
   });
 
   it("never persists feedback for the anonymous identity or when persist is off (#69)", async () => {
-    const factsBefore = memory.facts.length;
-
     const anonymous = await app.inject({
       method: "POST",
       url: "/taste/session-feedback",
@@ -611,8 +544,6 @@ describe("memory-service /users/me/taste (S2)", () => {
     expect(derivedOnly.json<{ persisted: boolean }>().persisted).toBe(false);
     const profile = await app.inject({ method: "GET", url: "/users/me/taste", headers: { authorization: `Bearer ${token}` } });
     expect(profile.json<TasteProfileResponse>().preferences).toHaveLength(0);
-
-    expect(memory.facts).toHaveLength(factsBefore); // no mem0 mirror either
   });
 
   it("returns no prefs for a track without catalog identity, and 400 on malformed calls", async () => {
@@ -622,7 +553,8 @@ describe("memory-service /users/me/taste (S2)", () => {
       payload: { user_id: "u-any", session_id: "s-fb-4", track_id: "spotify:track:xyz", feedback: "dislike", persist: true },
     });
     expect(spotify.statusCode).toBe(200);
-    expect(spotify.json<{ preferences: unknown[]; persisted: boolean }>()).toEqual({ preferences: [], persisted: false });
+    expect(spotify.json<{ preferences: unknown[]; persisted: boolean; retired?: boolean }>())
+      .toEqual({ preferences: [], persisted: false, retired: true });
 
     const missing = await app.inject({ method: "POST", url: "/taste/session-feedback", payload: { user_id: "u", track_id: "t01" } });
     expect(missing.statusCode).toBe(400);

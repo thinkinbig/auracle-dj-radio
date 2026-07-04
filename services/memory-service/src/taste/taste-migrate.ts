@@ -13,7 +13,7 @@ import { TasteStore } from "./taste-store.js";
  * - track preferences are keyed by `trackId`; a removed track becomes `orphaned`.
  *
  * Idempotent: with `prune`, orphaned rows are deleted, so a second run reports
- * zero orphans. mem0 facts are never touched (design §5).
+ * zero orphans. Cross-session taste is owned by Spotify, so no memory facts are touched.
  */
 export interface UserMigration {
   userId: string;

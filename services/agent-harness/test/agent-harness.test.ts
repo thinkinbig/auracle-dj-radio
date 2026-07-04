@@ -50,43 +50,18 @@ function seed(n: number): TrackSeed {
 }
 
 class FakeMemoryService implements MemoryServiceClient {
-  facts: { fact: string; userId: string }[] = [];
   events: { sessionId: string; userId: string; eventType: string; payload: unknown }[] = [];
-  skipCalls: { userId: string; recentSessions: number }[] = [];
-  recallIntentCalls: { userId: string; mood: string; scene: string }[] = [];
   /** Bearer token → user id; tokens absent here (and no token) resolve anonymous. */
   tokenToUser = new Map<string, string>();
-  recallValue = "";
-  skipWeights: Partial<Record<number, number>> = {};
-  tasteValue: TastePreference[] = [];
-  tasteCalls: string[] = [];
   /** What sessionTasteFeedback derives per call (memory-service's job in prod). */
   tasteFeedbackValue: TastePreference[] = [];
   tasteFeedbackCalls: SessionTasteFeedbackRequest[] = [];
-  async recall(): Promise<string> {
-    return this.recallValue;
-  }
-  async tasteWeights(userId: string): Promise<TastePreference[]> {
-    this.tasteCalls.push(userId);
-    return this.tasteValue;
-  }
   async sessionTasteFeedback(input: SessionTasteFeedbackRequest): Promise<TastePreference[]> {
     this.tasteFeedbackCalls.push(input);
     return this.tasteFeedbackValue;
   }
-  async recallForIntent(userId: string, mood: string, scene: string): Promise<string> {
-    this.recallIntentCalls.push({ userId, mood, scene });
-    return this.recallValue;
-  }
-  async remember(fact: string, _sessionId: string, userId: string): Promise<void> {
-    this.facts.push({ fact, userId });
-  }
   async recordEvent(sessionId: string, userId: string, eventType: string, payload: unknown): Promise<void> {
     this.events.push({ sessionId, userId, eventType, payload });
-  }
-  async skipRateByEnergy(userId: string, recentSessions: number): Promise<Partial<Record<number, number>>> {
-    this.skipCalls.push({ userId, recentSessions });
-    return this.skipWeights;
   }
   async resolveSessionUser(token?: string) {
     if (!token) return { kind: "anonymous" as const, userId: ANONYMOUS_USER_ID };
@@ -283,7 +258,7 @@ describe("agent-harness", () => {
       const created = await app.inject({
         method: "POST",
         url: "/sessions",
-        payload: { mood: "calm", scene: "studying", condition: "C", seeds },
+        payload: { mood: "calm", scene: "studying", condition: "C", seeds, spotify_taste_summary: "Spotify-derived Auracle taste summary: Top genres: ambient." },
       });
       const { session_id } = created.json<{ session_id: string }>();
       await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "full")).toBe(true));
@@ -323,7 +298,6 @@ describe("agent-harness", () => {
     expect(updated?.before_remaining_ids).toEqual(["b", "c", "f"]);
     const replanCall = music.planCalls.find((c) => c.mode === "replan");
     expect(replanCall?.replan?.remainingSlots).toBe(2);
-    expect(memory.facts.at(-1)?.fact).toContain("darker");
     await app.close();
   });
 
@@ -381,7 +355,7 @@ describe("agent-harness", () => {
     await app.close();
   });
 
-  it("dislike nudges the upcoming queue and persists session taste for a logged-in C user (#68/#69)", async () => {
+  it("dislike nudges the upcoming queue without persisting session taste (#68/#69)", async () => {
     const { app, memory, music, proxy } = buildTestApp();
     memory.tokenToUser.set("tok-1", "user-1");
     const derived: TastePreference[] = [
@@ -394,7 +368,7 @@ describe("agent-harness", () => {
       method: "POST",
       url: "/sessions",
       headers: { authorization: "Bearer tok-1" },
-      payload: { mood: "calm", scene: "studying", condition: "C" },
+      payload: { mood: "calm", scene: "studying", condition: "C", spotify_taste_summary: "Spotify-derived Auracle taste summary: Top genres: ambient." },
     });
     const { session_id } = created.json<{ session_id: string }>();
 
@@ -405,14 +379,14 @@ describe("agent-harness", () => {
     });
     expect(res.statusCode).toBe(200);
 
-    // Taste derivation goes through memory-service, persisted for the logged-in C user (#69).
+    // Taste derivation goes through memory-service for this-session ranking only.
     await vi.waitFor(() => expect(memory.tasteFeedbackCalls).toHaveLength(1));
     expect(memory.tasteFeedbackCalls[0]).toEqual({
       sessionId: session_id,
       userId: "user-1",
       trackId: "a",
       feedback: "dislike",
-      persist: true,
+      persist: false,
     });
 
     // The in-session effect (#68): a background nudge replan re-fills the next 1–2
@@ -429,8 +403,6 @@ describe("agent-harness", () => {
     expect(replanCall?.replan?.avoidIds).toEqual(["b", "c"]);
     expect(replanCall?.taste).toEqual(expect.arrayContaining(derived));
 
-    // The mem0 mirror is memory-service's write, not a second one from the harness.
-    expect(memory.facts.filter((f) => f.fact.includes("dislike"))).toHaveLength(0);
     await app.close();
   });
 
@@ -614,12 +586,16 @@ describe("agent-harness", () => {
     await app.close();
   });
 
-  it("writes high-signal mem0 only after repeated quick skips at the same energy in condition C", async () => {
+  it("does not write long-term memory after repeated quick skips at the same energy in condition C", async () => {
     const now = vi.spyOn(Date, "now");
     now.mockReturnValue(1_000);
     const { app, memory } = buildTestApp();
     await app.ready();
-    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "C" } });
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      payload: { mood: "calm", scene: "studying", condition: "C", spotify_taste_summary: "Spotify-derived Auracle taste summary: Top genres: ambient." },
+    });
     const { session_id } = created.json<{ session_id: string }>();
 
     now.mockReturnValue(1_100);
@@ -628,23 +604,16 @@ describe("agent-harness", () => {
     await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
     now.mockReturnValue(1_210);
     await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
-    expect(memory.facts).toEqual([]);
-
     now.mockReturnValue(1_300);
     await app.inject({ method: "POST", url: `/sessions/${session_id}/tool`, payload: { name: "skip_track" } });
     now.mockReturnValue(1_310);
     await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "c" } });
 
-    await vi.waitFor(() => expect(memory.facts).toHaveLength(1));
-    expect(memory.facts[0]).toEqual({
-      fact: 'User repeatedly skipped energy 3/5 tracks quickly during a "calm" studying session; prefer a different energy level for this context.',
-      userId: ANONYMOUS_USER_ID,
-    });
     now.mockRestore();
     await app.close();
   });
 
-  it("does not write quick-skip mem0 for condition B", async () => {
+  it("keeps quick-skip adaptation session-local for condition B", async () => {
     const now = vi.spyOn(Date, "now");
     now.mockReturnValue(2_000);
     const { app, memory } = buildTestApp();
@@ -672,7 +641,6 @@ describe("agent-harness", () => {
     now.mockReturnValue(2_310);
     await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "c" } });
 
-    expect(memory.facts).toEqual([]);
     now.mockRestore();
     await app.close();
   });
@@ -747,7 +715,6 @@ describe("agent-harness", () => {
     });
     const { session_id } = res.json<{ session_id: string }>();
     expect(memory.events.find((e) => e.sessionId === session_id)?.userId).toBe("user-1");
-    expect(memory.skipCalls).toEqual([{ userId: "user-1", recentSessions: 10 }]);
     await app.close();
   });
 
@@ -880,17 +847,14 @@ describe("agent-harness", () => {
     await app.close();
   });
 
-  it("condition B uses no skip weights or mem0 recall (P0-4)", async () => {
+  it("condition B does not send personalization context, taste, or energy weights (P0-4)", async () => {
     const { app, memory, music } = buildTestApp();
-    memory.recallValue = "prefers lighter energy";
-    memory.skipWeights = { 5: 0.3 };
     await app.ready();
-    memory.tasteValue = [{ entityType: "genre", entityId: "house", polarity: "avoid", source: "onboarding" }];
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "B" } });
-    expect(created.json<{ mem0_context: string }>().mem0_context).toBe("");
-    expect(memory.skipCalls).toEqual([]);
-    expect(memory.tasteCalls).toEqual([]);
-    expect(memory.recallIntentCalls).toEqual([]);
+    expect(created.json<{ personalization_context: string; mem0_context: string }>()).toMatchObject({
+      personalization_context: "",
+      mem0_context: "",
+    });
     expect(music.planCalls[0]?.memories).toBe("");
     expect(music.planCalls[0]?.energyWeights).toBeUndefined();
     expect(music.planCalls[0]?.taste).toBeUndefined();
@@ -899,7 +863,6 @@ describe("agent-harness", () => {
 
   it("condition C appends sanitized Spotify taste summary to planning memories", async () => {
     const { app, memory, music } = buildTestApp();
-    memory.recallValue = "prefers lighter energy";
     await app.ready();
     const spotifySummary = " Spotify-derived Auracle taste summary:\nTop genres: dream pop, ambient.  ";
     const created = await app.inject({
@@ -907,40 +870,23 @@ describe("agent-harness", () => {
       url: "/sessions",
       payload: { mood: "calm", scene: "studying", condition: "C", spotify_taste_summary: spotifySummary },
     });
-    const { mem0_context } = created.json<{ mem0_context: string }>();
-    expect(mem0_context).toBe("prefers lighter energy\n\nSpotify-derived Auracle taste summary: Top genres: dream pop, ambient.");
-    expect(music.planCalls[0]?.memories).toBe(mem0_context);
+    const { personalization_context, mem0_context } = created.json<{ personalization_context: string; mem0_context: string }>();
+    expect(personalization_context).toBe("Spotify-derived Auracle taste summary: Top genres: dream pop, ambient.");
+    expect(mem0_context).toBe(personalization_context);
+    expect(music.planCalls[0]?.memories).toBe(personalization_context);
     await app.close();
   });
 
-  it("condition C loads structured taste and passes it into plan + replan (S4)", async () => {
+  it("explicit condition C requires a Spotify taste summary", async () => {
     const { app, memory, music } = buildTestApp();
-    memory.recallValue = "prefers lighter energy";
-    memory.skipWeights = { 5: 0.3 };
-    const taste: TastePreference[] = [{ entityType: "genre", entityId: "house", polarity: "avoid", source: "onboarding", strength: 3 }];
-    memory.tasteValue = taste;
     await app.ready();
     const created = await app.inject({
       method: "POST",
       url: "/sessions",
       payload: { mood: "calm", scene: "studying", condition: "C" },
     });
-    const { session_id, mem0_context } = created.json<{ session_id: string; mem0_context: string }>();
-    expect(mem0_context).toBe("prefers lighter energy");
-    expect(memory.recallIntentCalls).toEqual([{ userId: ANONYMOUS_USER_ID, mood: "calm", scene: "studying" }]);
-    expect(music.planCalls[0]).toMatchObject({ memories: "prefers lighter energy", energyWeights: { 5: 0.3 }, taste });
-
-    await app.inject({
-      method: "POST",
-      url: `/sessions/${session_id}/tool`,
-      payload: { name: "mood_change", args: { mood: "darker", energy_delta: "heavier" } },
-    });
-    await vi.waitFor(() => expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true));
-    const replan = music.planCalls.find((c) => c.mode === "replan");
-    // taste is refreshed on each replan from memory-service, so changes mid-session are reflected.
-    expect(replan?.taste).toEqual(taste);
-    // verify that taste was re-fetched (tasteWeights called again for replan).
-    expect(memory.tasteCalls.length).toBeGreaterThan(1);
+    expect(created.statusCode).toBe(500);
+    expect(music.planCalls).toEqual([]);
     await app.close();
   });
 
@@ -954,7 +900,7 @@ describe("agent-harness", () => {
     const created = await app.inject({
       method: "POST",
       url: "/sessions",
-      payload: { mood: "calm", scene: "studying", condition: "C" },
+      payload: { mood: "calm", scene: "studying", condition: "C", spotify_taste_summary: "Spotify-derived Auracle taste summary: Top genres: ambient." },
     });
     const { session_id } = created.json<{ session_id: string }>();
 
@@ -1023,7 +969,7 @@ describe("agent-harness", () => {
     const created = await app.inject({
       method: "POST",
       url: "/sessions",
-      payload: { mood: "calm", scene: "studying", condition: "C" },
+      payload: { mood: "calm", scene: "studying", condition: "C", spotify_taste_summary: "Spotify-derived Auracle taste summary: Top genres: ambient." },
     });
     const { session_id } = created.json<{ session_id: string }>();
 
@@ -1137,7 +1083,7 @@ describe("applyReplan scopes (E2 mood_change nudge)", () => {
       arc: "build",
       tracklist,
       candidatesById,
-      mem0Context: "",
+      personalizationContext: "",
     });
   }
 

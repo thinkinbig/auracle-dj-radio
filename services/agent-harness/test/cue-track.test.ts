@@ -45,7 +45,7 @@ function stateWith(store: SessionStore, tracklist: PlannedTrack[]) {
     arc: "build",
     tracklist,
     candidatesById: new Map(),
-    mem0Context: "",
+    personalizationContext: "",
   });
 }
 

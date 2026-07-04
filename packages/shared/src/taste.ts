@@ -28,7 +28,7 @@ export interface TastePreference {
 /** Persisted taste profile for one user. */
 export interface TasteProfile {
   preferences: TastePreference[];
-  /** Optional free-text taste note (mem0 / DJ colour, not structured). */
+  /** Optional free-text taste note for profile UI copy; not used for session planning. */
   freeText?: string;
   /** `catalogRevision` captured when the profile was last saved. */
   catalogRevisionAtSave?: string;

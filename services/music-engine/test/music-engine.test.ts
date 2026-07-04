@@ -3,7 +3,6 @@ import type { FlowResult, GenreCount, TrackCandidate, TrackMeta } from "@auracle
 import { Catalog, type TrackRow } from "../src/catalog-store.js";
 import { HeuristicFlowModel } from "../src/flow/llm/heuristic-flow.js";
 import { createPlan, replan } from "../src/flow/plan.js";
-import { energyWeightsFromMemories, mergeEnergyWeights } from "../src/flow/weighting/memory-energy.js";
 import { buildServer, type MusicEngine } from "../src/server.js";
 
 let engine: MusicEngine;
@@ -231,7 +230,7 @@ describe("music-engine HTTP", () => {
     for (const ex of exclude) expect(trackIds).not.toContain(ex); // excludes played
   });
 
-  it("replan uses mem0 recall as deterministic retrieval weights (P0-5/P3.2)", async () => {
+  it("replan treats memories as planner context, not retrieval weights", async () => {
     const row = (id: string, energy: number, genre: string): TrackRow =>
       ({
         id,
@@ -259,19 +258,13 @@ describe("music-engine HTTP", () => {
     const deps = { tracks: () => [row("low", 4, "house"), row("high", 5, "techno"), row("mid", 4, "ambient")] };
     const base = { intent: { mood: "euphoric", scene: "party", duration_min: 25 }, playedIds: [], played: [], lastPlayedEnergy: null, remainingSlots: 2 };
 
-    const weighted = await replan(deps, { ...base, memories: "User skipped energy 5 tracks quickly" });
-    const unweighted = await replan(deps, base);
+    const withContext = await replan(deps, { ...base, memories: "Spotify-derived Auracle taste summary: Top genres: techno." });
+    const withoutContext = await replan(deps, base);
 
-    expect(weighted.result.tracklist.map((r) => r.id)).not.toEqual([]);
-    expect(unweighted.result.tracklist.map((r) => r.id)).not.toEqual([]);
-    // e5 is within the euphoric arc → skip weight demotes but does not exclude it from the pool
-    expect(weighted.candidatesById.has("high")).toBe(true);
-  });
-
-  it("derives bounded energy penalties from high-signal mem0 facts", () => {
-    expect(energyWeightsFromMemories("- User prefers lighter energy during studying sessions")).toEqual({ 4: 0.45, 5: 0.7 });
-    expect(energyWeightsFromMemories("User skipped energy 3 tracks quickly")).toEqual({ 3: 0.7 });
-    expect(mergeEnergyWeights({ 5: 0.2, 2: 0.4 }, { 5: 0.7, 4: 0.45 })).toEqual({ 2: 0.4, 4: 0.45, 5: 0.7 });
+    expect(withContext.result.tracklist.map((r) => r.id)).not.toEqual([]);
+    expect(withoutContext.result.tracklist.map((r) => r.id)).not.toEqual([]);
+    expect(withContext.candidatesById.has("high")).toBe(true);
+    expect(withContext.candidatesById).toEqual(withoutContext.candidatesById);
   });
 
   it("GET /tracks/:id returns metadata incl. genreSlug, 404 for unknown", async () => {

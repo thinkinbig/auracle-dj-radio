@@ -12,6 +12,8 @@ export interface CreateSessionResponse {
   session_subtitle: string;
   host_mode: HostMode;
   tracklist: PlannedTrack[];
+  personalization_context: string;
+  /** Deprecated compatibility alias for personalization_context. */
   mem0_context: string;
   /** Proxy base URL the browser POSTs its WebRTC SDP offer to. */
   proxy_url: string;
@@ -28,6 +30,8 @@ export interface SessionStateResponse {
   current_track_index: number;
   tracklist: PlannedTrack[];
   remaining: PlannedTrack[];
+  personalization_context: string;
+  /** Deprecated compatibility alias for personalization_context. */
   mem0_context: string;
 }
 

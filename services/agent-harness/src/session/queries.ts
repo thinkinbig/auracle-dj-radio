@@ -18,6 +18,8 @@ export interface SessionSnapshot {
   current_track_index: number;
   tracklist: PlannedTrack[];
   remaining: PlannedTrack[];
+  personalization_context: string;
+  /** Deprecated compatibility alias for personalization_context. */
   mem0_context: string;
 }
 
@@ -43,7 +45,8 @@ export function sessionSnapshot(deps: Pick<SessionQueryDeps, "store">, id: strin
     current_track_index: view.currentTrackIndex,
     tracklist: [...view.tracklist],
     remaining: [...view.remaining],
-    mem0_context: view.mem0Context,
+    personalization_context: view.personalizationContext,
+    mem0_context: view.personalizationContext,
   };
 }
 

@@ -1,4 +1,4 @@
-import { ANONYMOUS_USER_ID, type PlaylistFeedback, type PlaylistFeedbackSource, type RegenerateSessionResponse, type ServerMessage } from "@auracle/shared";
+import type { PlaylistFeedback, PlaylistFeedbackSource, RegenerateSessionResponse, ServerMessage } from "@auracle/shared";
 import type { OrchestrationDeps } from "../deps.js";
 import type { SessionState } from "../state.js";
 import { regenerateAndPush, regenerateRemaining, replanAndPush, toRegenerateSessionResponse } from "./replan.js";
@@ -35,7 +35,7 @@ export async function runPlaylistFeedback(
   const ui_events: ServerMessage[] = [{ type: "intent", intent: { type: "playlist_feedback", feedback } }];
 
   if (feedback !== "regenerate") {
-    // Close the loop (#68/#69) off the hot path: derive/persist taste, then
+    // Close the loop (#68/#69) off the hot path: derive session taste, then
     // nudge the upcoming slots. The DJ never waits on either (Lane 3).
     void applyFeedbackEffects(deps, state, feedback, trackId);
     return {
@@ -79,11 +79,10 @@ export async function runPlaylistFeedback(
  * Background like/dislike effects (Lane 3), closing the feedback loop the eval
  * series flagged as telemetry-only (#68/#69):
  *
- * 1. memory-service derives the track+artist prefs the reaction rolls up to,
- *    persisting them (+ mem0 mirror) only for a logged-in condition-C user.
- *    The derived prefs are merged into `state.sessionTaste` either way, so the
- *    signal shifts this session's queue in B and C alike. Deduped per
- *    (feedback, track) against DJ tool double-fires.
+ * 1. memory-service derives the track+artist prefs the reaction rolls up to.
+ *    The derived prefs are merged into `state.sessionTaste`, so the signal
+ *    shifts this session's queue in B and C alike. Deduped per (feedback,
+ *    track) against DJ tool double-fires.
  * 2. A nudge replan re-fills the next 1–2 slots under the current mood with
  *    the updated taste. A dislike re-rolls (fresh seed + avoid the replaced
  *    occupants) so the immediate next slots demonstrably change; a like keeps
@@ -108,7 +107,7 @@ async function applyFeedbackEffects(
           userId: state.userId,
           trackId,
           feedback,
-          persist: state.condition === "C" && state.userId !== ANONYMOUS_USER_ID,
+          persist: false,
         });
         mergeSessionTaste(state, prefs);
       } catch (err) {

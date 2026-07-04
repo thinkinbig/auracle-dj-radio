@@ -28,14 +28,10 @@ export interface SessionState {
   userId: string;
   intent: SessionIntent;
   condition: Condition;
-  /** Skip-energy penalty weights for this user (condition C only); reused by replan. */
-  energyWeights?: Partial<Record<number, number>>;
-  /** Structured taste prefer/avoid for this user (condition C only); reused by replan. */
-  taste?: TastePreference[];
   /**
    * Ephemeral prefs derived from this session's like/dislike feedback (#68).
    * Merged over the stored taste on every replan/extend so feedback shifts the
-   * queue in B and C alike; never persisted here (memory-service owns that, C only).
+   * queue in B and C alike; never persisted here.
    */
   sessionTaste: TastePreference[];
   /** `feedback:trackId` pairs already forwarded to taste derivation (dedupe DJ tool double-fires). */
@@ -53,7 +49,7 @@ export interface SessionState {
   playedTrackIds: string[];
   /** Energy of each planned track, by id — used to seed replan. */
   energyById: Map<string, number>;
-  mem0Context: string;
+  personalizationContext: string;
   /** True once the background LLM plan refine has replaced the provisional arc. */
   planRefined: boolean;
   /** Async-push subscribers (Lane 3), notified when the refine lands (replayed if late). */
@@ -64,10 +60,8 @@ export interface SessionState {
   skipOnlyUntilMs?: number;
   /** Timestamp (ms) when the current track started; set by now_playing. Used to measure listen time before a skip. */
   trackStartedAtMs?: number;
-  /** Current run of quick skips at the same energy, used for high-signal mem0 writes. */
+  /** Current run of quick skips at the same energy, used for session-only queue surgery. */
   quickSkipRun?: { energy: number; count: number };
-  /** Energies already written to mem0 for repeated quick skips in this session. */
-  rememberedQuickSkipEnergies: Set<number>;
   /** Debounce flag: true while a rolling extend (E1) is in flight, to avoid append storms. */
   extendPending?: boolean;
 }
@@ -83,7 +77,7 @@ export interface SessionStateView {
   currentTrackIndex: number;
   tracklist: ReadonlyArray<PlannedTrack>;
   remaining: ReadonlyArray<PlannedTrack>;
-  mem0Context: string;
+  personalizationContext: string;
   planRefined: boolean;
 }
 
@@ -99,7 +93,7 @@ export function sessionStateView(state: SessionState, remaining: ReadonlyArray<P
     currentTrackIndex: state.currentTrackIndex,
     tracklist: state.tracklist,
     remaining,
-    mem0Context: state.mem0Context,
+    personalizationContext: state.personalizationContext,
     planRefined: state.planRefined,
   };
 }
@@ -124,15 +118,13 @@ export class SessionStore {
     userId: string;
     intent: SessionIntent;
     condition: Condition;
-    energyWeights?: Partial<Record<number, number>>;
-    taste?: TastePreference[];
     tieBreakSeed: string;
     title: string;
     subtitle: string;
     arc: ArcStage;
     tracklist: PlannedTrack[];
     candidatesById: Map<string, TrackCandidate>;
-    mem0Context: string;
+    personalizationContext: string;
     seeds?: TrackSeed[];
   }): SessionState {
     const energyById = new Map<string, number>();
@@ -145,8 +137,6 @@ export class SessionStore {
       userId: params.userId,
       intent: params.intent,
       condition: params.condition,
-      energyWeights: params.energyWeights,
-      taste: params.taste,
       tieBreakSeed: params.tieBreakSeed,
       seeds: params.seeds,
       hostMode: inferHostModeFromScene(params.intent.scene),
@@ -157,10 +147,9 @@ export class SessionStore {
       currentTrackIndex: 0,
       playedTrackIds: [],
       energyById,
-      mem0Context: params.mem0Context,
+      personalizationContext: params.personalizationContext,
       planRefined: false,
       refineListeners: new Set(),
-      rememberedQuickSkipEnergies: new Set(),
       sessionTaste: [],
       tasteFeedbackSent: new Set(),
     };
