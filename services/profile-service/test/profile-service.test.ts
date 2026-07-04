@@ -2,11 +2,10 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { ANONYMOUS_USER_ID, type CatalogManifest, type TasteProfileResponse } from "@auracle/shared";
+import { ANONYMOUS_USER_ID, type CatalogManifest } from "@auracle/shared";
 import { AuthStore } from "../src/auth-store.js";
 import { buildCatalogIndex, type CatalogIndex } from "../src/catalog-index.js";
 import { EventsDb } from "../src/events-db.js";
-import { TasteStore } from "../src/taste/taste-store.js";
 import { buildServer } from "../src/server.js";
 
 /** Deterministic test catalog (independent of the seeded 16-track manifest). */
@@ -30,16 +29,13 @@ function testCatalog(artistId?: string, revision = "test-rev-001"): CatalogIndex
 let app: ReturnType<typeof buildServer>;
 let events: EventsDb;
 let auth: AuthStore;
-let taste: TasteStore;
 
 beforeAll(async () => {
-  const dbPath = join(mkdtempSync(join(tmpdir(), "memory-service-")), "events.sqlite");
-  const authDbPath = join(mkdtempSync(join(tmpdir(), "memory-service-auth-")), "auth.sqlite");
-  const tasteDbPath = join(mkdtempSync(join(tmpdir(), "memory-service-taste-")), "taste.sqlite");
+  const dbPath = join(mkdtempSync(join(tmpdir(), "profile-service-")), "events.sqlite");
+  const authDbPath = join(mkdtempSync(join(tmpdir(), "profile-service-auth-")), "auth.sqlite");
   events = new EventsDb(dbPath);
   auth = new AuthStore(authDbPath);
-  taste = new TasteStore(tasteDbPath);
-  app = buildServer({ events, auth, taste, catalog: testCatalog() });
+  app = buildServer({ events, auth, catalog: testCatalog() });
   await app.ready();
 });
 
@@ -47,7 +43,6 @@ afterAll(async () => {
   await app.close();
   events.close();
   auth.close();
-  taste.close();
 });
 
 /** Register a fresh user and return its id + bearer token. */
@@ -57,7 +52,7 @@ async function registerUser(email: string): Promise<{ id: string; token: string 
   return { id: body.user.id, token: body.token };
 }
 
-describe("memory-service /auth", () => {
+describe("profile-service /auth", () => {
   it("registers, restores the current user, rejects duplicate email, and logs out", async () => {
     const created = await app.inject({
       method: "POST",
@@ -131,7 +126,7 @@ describe("memory-service /auth", () => {
   });
 });
 
-describe("memory-service internal events API", () => {
+describe("profile-service internal events API", () => {
   it("does not expose retired memory endpoints, but still records events", async () => {
     const recall = await app.inject({
       method: "POST",
@@ -259,151 +254,15 @@ describe("memory-service internal events API", () => {
   });
 });
 
-describe("memory-service /users/me/taste (S2)", () => {
-  it("requires authentication for read and write", async () => {
+describe("profile-service session taste feedback", () => {
+  it("does not expose retired user taste profile endpoints", async () => {
     const get = await app.inject({ method: "GET", url: "/users/me/taste" });
-    expect(get.statusCode).toBe(401);
+    expect(get.statusCode).toBe(404);
     const put = await app.inject({ method: "PUT", url: "/users/me/taste", payload: { preferences: [] } });
-    expect(put.statusCode).toBe(401);
-  });
-
-  it("saves and reloads a profile, resolving slugs", async () => {
-    const { token } = await registerUser("taste-save@example.com");
-    const headers = { authorization: `Bearer ${token}` };
-
-    const put = await app.inject({
-      method: "PUT",
-      url: "/users/me/taste",
-      headers,
-      payload: {
-        preferences: [
-          { entityType: "genre", entityId: "lo-fi", polarity: "prefer", source: "onboarding", strength: 2 },
-          { entityType: "artist", entityId: "lana-del-delay", polarity: "prefer", source: "onboarding" },
-          { entityType: "track", entityId: "t01", polarity: "avoid", source: "session" },
-        ],
-        freeText: "more jazzy today",
-      },
-    });
-    expect(put.statusCode).toBe(200);
-    const saved = put.json<TasteProfileResponse>();
-    expect(saved.catalogRevisionAtSave).toBe("test-rev-001");
-    // artist slug resolves to the current catalog id.
-    const artist = saved.preferences.find((p) => p.entityType === "artist");
-    expect(artist?.resolvedId).toBe("a-lana-delay");
-    expect(artist?.status).toBe("active");
-
-    // Reload returns the same profile.
-    const get = await app.inject({ method: "GET", url: "/users/me/taste", headers });
-    expect(get.statusCode).toBe(200);
-    const reloaded = get.json<TasteProfileResponse>();
-    expect(reloaded.preferences).toHaveLength(3);
-    expect(reloaded.freeText).toBe("more jazzy today");
-    expect(reloaded.preferences.every((p) => p.status === "active")).toBe(true);
-  });
-
-  it("rejects unknown entities and malformed preferences with 400", async () => {
-    const { token } = await registerUser("taste-invalid@example.com");
-    const headers = { authorization: `Bearer ${token}` };
-
-    const unknown = await app.inject({
-      method: "PUT",
-      url: "/users/me/taste",
-      headers,
-      payload: {
-        preferences: [
-          { entityType: "genre", entityId: "lo-fi", polarity: "prefer", source: "onboarding" },
-          { entityType: "artist", entityId: "no-such-artist", polarity: "prefer", source: "onboarding" },
-        ],
-      },
-    });
-    expect(unknown.statusCode).toBe(400);
-    expect(unknown.json<{ invalid: { entityId: string }[] }>().invalid).toEqual([
-      { entityType: "artist", entityId: "no-such-artist" },
-    ]);
-
-    const malformed = await app.inject({
-      method: "PUT",
-      url: "/users/me/taste",
-      headers,
-      payload: { preferences: [{ entityType: "genre", entityId: "lo-fi", polarity: "love", source: "onboarding" }] },
-    });
-    expect(malformed.statusCode).toBe(400);
-
-    const duplicate = await app.inject({
-      method: "PUT",
-      url: "/users/me/taste",
-      headers,
-      payload: {
-        preferences: [
-          { entityType: "genre", entityId: "lo-fi", polarity: "prefer", source: "onboarding" },
-          { entityType: "genre", entityId: "lo-fi", polarity: "avoid", source: "session" },
-        ],
-      },
-    });
-    expect(duplicate.statusCode).toBe(400);
-    expect(duplicate.json<{ error: string }>().error).toContain("duplicates");
-
-    // Nothing persisted from the rejected writes.
-    const get = await app.inject({ method: "GET", url: "/users/me/taste", headers });
-    expect(get.json<TasteProfileResponse>().preferences).toHaveLength(0);
-  });
-
-  it("re-saves taste profiles by replacing the stored profile", async () => {
-    const { token } = await registerUser("taste-replace@example.com");
-    const headers = { authorization: `Bearer ${token}` };
-
-    await app.inject({
-      method: "PUT",
-      url: "/users/me/taste",
-      headers,
-      payload: { preferences: [{ entityType: "genre", entityId: "house", polarity: "prefer", source: "onboarding" }] },
-    });
-    let profile = await app.inject({ method: "GET", url: "/users/me/taste", headers });
-    expect(profile.json<TasteProfileResponse>().preferences).toMatchObject([{ polarity: "prefer" }]);
-
-    await app.inject({
-      method: "PUT",
-      url: "/users/me/taste",
-      headers,
-      payload: { preferences: [{ entityType: "genre", entityId: "house", polarity: "avoid", source: "session" }] },
-    });
-    profile = await app.inject({ method: "GET", url: "/users/me/taste", headers });
-    expect(profile.json<TasteProfileResponse>().preferences).toMatchObject([{ polarity: "avoid" }]);
-  });
-
-  it("isolates one user's profile from another", async () => {
-    const a = await registerUser("taste-a@example.com");
-    const b = await registerUser("taste-b@example.com");
-
-    await app.inject({
-      method: "PUT",
-      url: "/users/me/taste",
-      headers: { authorization: `Bearer ${a.token}` },
-      payload: { preferences: [{ entityType: "genre", entityId: "house", polarity: "prefer", source: "onboarding" }] },
-    });
-
-    const bView = await app.inject({
-      method: "GET",
-      url: "/users/me/taste",
-      headers: { authorization: `Bearer ${b.token}` },
-    });
-    expect(bView.json<TasteProfileResponse>().preferences).toHaveLength(0);
+    expect(put.statusCode).toBe(404);
   });
 
   it("does not expose retired /taste/weights", async () => {
-    const { token } = await registerUser("taste-weights@example.com");
-    await app.inject({
-      method: "PUT",
-      url: "/users/me/taste",
-      headers: { authorization: `Bearer ${token}` },
-      payload: {
-        preferences: [
-          { entityType: "genre", entityId: "house", polarity: "avoid", source: "onboarding", strength: 3 },
-          { entityType: "artist", entityId: "lana-del-delay", polarity: "prefer", source: "onboarding" },
-        ],
-      },
-    });
-
     const res = await app.inject({ method: "POST", url: "/taste/weights", payload: { user_id: "taste-weights" } });
     expect(res.statusCode).toBe(404);
 
@@ -411,130 +270,41 @@ describe("memory-service /users/me/taste (S2)", () => {
     expect(missing.statusCode).toBe(404);
   });
 
-  it("re-resolves slug-based prefs to new ids after a catalog rebuild (orphans track ids)", async () => {
-    const { token } = await registerUser("taste-reload@example.com");
-    const headers = { authorization: `Bearer ${token}` };
-
-    await app.inject({
-      method: "PUT",
-      url: "/users/me/taste",
-      headers,
-      payload: {
-        preferences: [
-          { entityType: "artist", entityId: "lana-del-delay", polarity: "prefer", source: "onboarding" },
-          { entityType: "track", entityId: "t02", polarity: "prefer", source: "onboarding" },
-        ],
-      },
-    });
-
-    // Rebuild the catalog: artist keeps its slug but gets a new id; track t02 is gone.
-    const reloaded = buildCatalogIndex(
-      { artists: [{ id: "a-lana-delay-v2", name: "Lana Delay", slug: "lana-del-delay" }], albums: [], tracks: [{ id: "t01" }] } as unknown as CatalogManifest,
-      { genres: [{ slug: "lo-fi", label: "Lo-Fi" }], mapping: {} },
-      "test-rev-002",
-    );
-    const app2 = buildServer({ events, auth, taste, catalog: reloaded });
-    await app2.ready();
-    try {
-      const get = await app2.inject({ method: "GET", url: "/users/me/taste", headers });
-      const profile = get.json<TasteProfileResponse>();
-      expect(profile.catalogRevision).toBe("test-rev-002");
-      const artist = profile.preferences.find((p) => p.entityType === "artist");
-      expect(artist?.status).toBe("active");
-      expect(artist?.resolvedId).toBe("a-lana-delay-v2"); // slug survived the id change
-      const track = profile.preferences.find((p) => p.entityType === "track");
-      expect(track?.status).toBe("orphaned"); // removed track id no longer resolves
-    } finally {
-      await app2.close();
-    }
-  });
-
-  it("derives session-sourced prefs from a dislike without persisting (#69)", async () => {
-    const { id, token } = await registerUser("feedback-dislike@example.com");
+  it("derives session-sourced prefs from a dislike (#69)", async () => {
+    const { id } = await registerUser("feedback-dislike@example.com");
 
     const res = await app.inject({
       method: "POST",
       url: "/taste/session-feedback",
-      payload: { user_id: id, session_id: "s-fb-1", track_id: "t01", feedback: "dislike", persist: true },
+      payload: { user_id: id, session_id: "s-fb-1", track_id: "t01", feedback: "dislike" },
     });
     expect(res.statusCode).toBe(200);
-    const body = res.json<{ preferences: unknown[]; persisted: boolean; retired?: boolean }>();
-    expect(body.persisted).toBe(false);
-    expect(body.retired).toBe(true);
+    const body = res.json<{ preferences: unknown[] }>();
     // Track pref (finest grain, strength 2) + artist rollup (strength 1) per #69.
     expect(body.preferences).toEqual([
       { entityType: "track", entityId: "t01", polarity: "avoid", strength: 2, source: "session" },
       { entityType: "artist", entityId: "lana-del-delay", polarity: "avoid", strength: 1, source: "session" },
     ]);
-
-    // No durable rows are created; the derived prefs are for this session only.
-    const profile = await app.inject({ method: "GET", url: "/users/me/taste", headers: { authorization: `Bearer ${token}` } });
-    const prefs = profile.json<TasteProfileResponse>().preferences;
-    expect(prefs).toHaveLength(0);
   });
 
-  it("does not persist repeated session feedback (#69)", async () => {
-    const { id, token } = await registerUser("feedback-repeat@example.com");
-    const feedback = (fb: "like" | "dislike") =>
-      app.inject({
-        method: "POST",
-        url: "/taste/session-feedback",
-        payload: { user_id: id, session_id: "s-fb-2", track_id: "t01", feedback: fb, persist: true },
-      });
-    const trackPref = async () => {
-      const profile = await app.inject({ method: "GET", url: "/users/me/taste", headers: { authorization: `Bearer ${token}` } });
-      const prefs = profile.json<TasteProfileResponse>().preferences;
-      return { row: prefs.find((p) => p.entityType === "track" && p.entityId === "t01"), count: prefs.filter((p) => p.entityType === "track" && p.entityId === "t01").length };
-    };
-
-    await feedback("dislike");
-    await feedback("dislike"); // duplicate in the same session → still one row, strengthened
-    let { row, count } = await trackPref();
-    expect(count).toBe(0);
-    expect(row).toBeUndefined();
-
-    await feedback("dislike"); // strength stays capped at 3
-    ({ row } = await trackPref());
-    expect(row).toBeUndefined();
-
-    await feedback("like"); // opposite reaction replaces the row at base strength
-    ({ row, count } = await trackPref());
-    expect(count).toBe(0);
-    expect(row).toBeUndefined();
-  });
-
-  it("never persists feedback for the anonymous identity or when persist is off (#69)", async () => {
+  it("derives prefs for any user id without persisting (#69)", async () => {
     const anonymous = await app.inject({
       method: "POST",
       url: "/taste/session-feedback",
-      payload: { user_id: ANONYMOUS_USER_ID, session_id: "s-fb-3", track_id: "t01", feedback: "dislike", persist: true },
+      payload: { user_id: "any-user", session_id: "s-fb-3", track_id: "t01", feedback: "dislike" },
     });
     expect(anonymous.statusCode).toBe(200);
-    expect(anonymous.json<{ persisted: boolean; preferences: unknown[] }>().persisted).toBe(false);
-    // Derived prefs still come back for the in-session queue nudge (#68).
     expect(anonymous.json<{ preferences: unknown[] }>().preferences).toHaveLength(2);
-
-    // Conditions A/B send persist: false — derived only, nothing stored.
-    const { id, token } = await registerUser("feedback-nopersist@example.com");
-    const derivedOnly = await app.inject({
-      method: "POST",
-      url: "/taste/session-feedback",
-      payload: { user_id: id, session_id: "s-fb-3", track_id: "t01", feedback: "like", persist: false },
-    });
-    expect(derivedOnly.json<{ persisted: boolean }>().persisted).toBe(false);
-    const profile = await app.inject({ method: "GET", url: "/users/me/taste", headers: { authorization: `Bearer ${token}` } });
-    expect(profile.json<TasteProfileResponse>().preferences).toHaveLength(0);
   });
 
   it("returns no prefs for a track without catalog identity, and 400 on malformed calls", async () => {
     const spotify = await app.inject({
       method: "POST",
       url: "/taste/session-feedback",
-      payload: { user_id: "u-any", session_id: "s-fb-4", track_id: "spotify:track:xyz", feedback: "dislike", persist: true },
+      payload: { user_id: "u-any", session_id: "s-fb-4", track_id: "spotify:track:xyz", feedback: "dislike" },
     });
     expect(spotify.statusCode).toBe(200);
-    expect(spotify.json<{ preferences: unknown[]; persisted: boolean; retired?: boolean }>())
-      .toEqual({ preferences: [], persisted: false, retired: true });
+    expect(spotify.json<{ preferences: unknown[] }>()).toEqual({ preferences: [] });
 
     const missing = await app.inject({ method: "POST", url: "/taste/session-feedback", payload: { user_id: "u", track_id: "t01" } });
     expect(missing.statusCode).toBe(400);

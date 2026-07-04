@@ -199,7 +199,7 @@ async function recordReplan(
   plan: PlanResponse,
   nextRemaining: PlannedTrack[],
 ): Promise<void> {
-  await deps.memory.recordEvent(state.id, state.userId, "replan", {
+  await deps.profile.recordEvent(state.id, state.userId, "replan", {
     mood: params.mood,
     energy_delta: params.energy_delta ?? "same",
     scope: context.scope,
@@ -257,7 +257,7 @@ export async function replanAndPush(
       beforeRemainingIds,
     });
   } catch (err) {
-    await deps.memory.recordEvent(state.id, state.userId, "replan_failed", {
+    await deps.profile.recordEvent(state.id, state.userId, "replan_failed", {
       error: err instanceof Error ? err.message : String(err),
     });
   }
@@ -278,7 +278,7 @@ export async function regenerateAndPush(
       await pushQueueRefresh(deps, state.id, "error");
       return;
     }
-    await deps.memory.recordEvent(state.id, state.userId, "playlist_regenerate_requested", {
+    await deps.profile.recordEvent(state.id, state.userId, "playlist_regenerate_requested", {
       current_track_id: state.tracklist[state.currentTrackIndex]?.id ?? null,
       before: outcome.before,
       after: outcome.remaining.map((track) => track.id),
@@ -293,7 +293,7 @@ export async function regenerateAndPush(
   } catch (err) {
     // Both cleanup calls are best-effort: this runs void'ed (fire-and-forget), so a
     // failure here (e.g. proxy down) must not escape as an unhandled rejection.
-    await deps.memory
+    await deps.profile
       .recordEvent(state.id, state.userId, "replan_failed", {
         error: err instanceof Error ? err.message : String(err),
       })

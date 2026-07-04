@@ -2,7 +2,7 @@ import type { Track, TrackMeta } from "@auracle/shared";
 import { resolveCatalogPath, toTrackMeta, tracksWithAssets } from "./catalog/manifest.js";
 
 // Catalog-only store: structured track metadata. Session analytics
-// (session_events) belong to memory-service, not here (refactor-three-services).
+// (session_events) belong to profile-service, not here (refactor-three-services).
 export type TrackRow = Track;
 
 /**

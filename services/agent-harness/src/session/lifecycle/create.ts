@@ -137,7 +137,7 @@ function activateSessionForUser(deps: CreateSessionDeps, context: SessionCreateC
 }
 
 async function recordSessionCreated(deps: CreateSessionDeps, state: SessionState): Promise<void> {
-  await deps.memory
+  await deps.profile
     .recordEvent(state.id, state.userId, "session_created", { intent: state.intent, condition: state.condition, tracklist: state.tracklist })
     .catch((err) => deps.log?.warn({ err: (err as Error).message, sessionId: state.id }, "record session_created failed"));
 }
@@ -260,7 +260,7 @@ async function pushRefineUpdate(deps: CreateSessionDeps, state: SessionState, ou
 async function supersedeSession(deps: CreateSessionDeps, oldId: string, userId: string): Promise<void> {
   const old = deps.store.invalidate(oldId, "session_superseded");
   if (!old) return;
-  await deps.memory
+  await deps.profile
     .recordEvent(oldId, userId, "session_superseded", { reason: "new_device" })
     .catch((err) => deps.log?.warn({ err: (err as Error).message, sessionId: oldId }, "record session_superseded failed"));
   await deps.proxy

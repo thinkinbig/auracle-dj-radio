@@ -24,7 +24,7 @@ function localSlot(id: string, flow_position: number, reason: string, energy: En
 
 export interface SessionState {
   id: string;
-  /** Memory/analytics identity: the authed user, or `auracle_anonymous` for demo. */
+  /** Profile/events identity: the authed user, or `auracle_anonymous` for demo. */
   userId: string;
   intent: SessionIntent;
   condition: Condition;
@@ -98,7 +98,7 @@ export function sessionStateView(state: SessionState, remaining: ReadonlyArray<P
   };
 }
 
-/** In-memory session state machine. Memory-service is the sole owner of session state. */
+/** In-memory session state machine. Agent-harness is the sole owner of live session state. */
 export class SessionStore {
   private readonly sessions = new Map<string, SessionState>();
   /**
@@ -226,7 +226,7 @@ export class SessionStore {
 
   /**
    * Web reports that `trackId` started playing (the browser is the sole playhead
-   * writer; memory-service mirrors it). Moves the pointer there and marks every
+   * writer; agent-harness mirrors it). Moves the pointer there and marks every
    * earlier slot played. Idempotent; false if unknown.
    */
   markStarted(state: SessionState, trackId: string): boolean {

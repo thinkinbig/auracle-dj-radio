@@ -1,10 +1,10 @@
-import type { MemoryServiceClient, MusicEngineClient, ProxyClient } from "@auracle/clients";
+import type { ProfileServiceClient, MusicEngineClient, ProxyClient } from "@auracle/clients";
 import type { SessionStore } from "./state.js";
 
 /** Shared adapters needed by session orchestration flows. */
 export interface OrchestrationDeps {
   store: SessionStore;
-  memory: MemoryServiceClient;
+  profile: ProfileServiceClient;
   music: MusicEngineClient;
   proxy: ProxyClient;
 }

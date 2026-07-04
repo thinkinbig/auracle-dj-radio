@@ -6,14 +6,14 @@ import {
   type SessionIntent,
   type TrackSeed,
 } from "@auracle/shared";
-import type { MemoryServiceClient } from "@auracle/clients";
+import type { ProfileServiceClient } from "@auracle/clients";
 import { parseSessionIntent } from "../session/lifecycle/create.js";
 import type { SessionRuntime } from "../session/runtime.js";
 import type { ToolCall } from "../session/tool-runner.js";
 
 interface SessionRouteMiddlewareDeps {
   harness: SessionRuntime;
-  memory: MemoryServiceClient;
+  profile: ProfileServiceClient;
 }
 
 interface OwnedSessionContext<Body> {
@@ -57,7 +57,7 @@ export function createSessionRouteMiddleware(deps: SessionRouteMiddlewareDeps): 
       if (!intent) return reply.code(400).send({ error: "mood and scene are required" });
 
       const token = parseBearerToken(req.headers.authorization);
-      const resolved = await deps.memory.resolveSessionUser(token);
+      const resolved = await deps.profile.resolveSessionUser(token);
       if (resolved.kind === "invalid_token") {
         return reply.code(401).send({ error: "invalid or expired token" });
       }
@@ -121,7 +121,7 @@ async function ensureOwner(deps: SessionRouteMiddlewareDeps, req: FastifyRequest
   if (owner === ANONYMOUS_USER_ID) return true;
 
   const token = parseBearerToken(req.headers.authorization);
-  const resolved = await deps.memory.resolveSessionUser(token);
+  const resolved = await deps.profile.resolveSessionUser(token);
   if (resolved.kind !== "authenticated" || resolved.userId !== owner) {
     reply.code(403).send({ error: "forbidden" });
     return false;

@@ -83,7 +83,7 @@ go run ./cmd/proxy -addr :8080
 | `GEMINI_API_KEY` / `GOOGLE_API_KEY` | Gemini Live credentials |
 | `GEMINI_MODEL` | optional; default `models/gemini-3.1-flash-live-preview` |
 | `PROXY_HARNESS_URL` | same as `-harness-url` |
-| `PROXY_AUTH_URL` / `MEMORY_SERVICE_URL` | same as `-auth-url` (Auracle: memory-service) |
+| `PROXY_AUTH_URL` / `PROFILE_SERVICE_URL` | same as `-auth-url` (Auracle: profile-service) |
 | `PROXY_REGISTER_SECRET` | same as `-register-secret` |
 | `VAD_ENABLED` | optional; gemini barge-in gate |
 

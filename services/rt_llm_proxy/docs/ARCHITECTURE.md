@@ -57,7 +57,7 @@ flowchart TB
   subgraph optional["Optional backends"]
     REDIS[("Redis")]
     KAFKA[("Kafka")]
-    MS[("memory-service<br/>/auth/me")]
+    MS[("profile-service<br/>/auth/me")]
     HARNESS[("agent-harness<br/>/sessions/.../tool")]
   end
 
@@ -136,7 +136,7 @@ Failover levels L1–L4: [README § Scaling](../README.md#scaling--failover),
 | **Session offer intake** | `internal/offer` | Rate limit, guard, registration, token check, replay, then `Hub.Serve`. |
 | **Registration** | `internal/offer` | `POST /session/{id}/register` + `Registry` TTL store. |
 | **Provider guard** | `internal/modelcb` | Per-provider circuit on offer path + early stream faults. |
-| **Auth** | `internal/auth` | `HTTPVerifier` → memory-service `/auth/me`; fail-open anonymous. |
+| **Auth** | `internal/auth` | `HTTPVerifier` → profile-service `/auth/me`; fail-open anonymous. |
 | **Model seam** | `internal/model` | `SendAudio` / `SendText` / `Recv` / `Close`. |
 | **Gemini adapter** | `internal/model/gemini` | Gemini Live WebSocket protocol. |
 | **Side-channel** | `internal/sidechannel` | Transcript events → Kafka/stdout. |

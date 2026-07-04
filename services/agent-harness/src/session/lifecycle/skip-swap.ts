@@ -110,7 +110,7 @@ async function recordQuickSkipSwap(
   after: string,
   replacement: TrackCandidate,
 ): Promise<void> {
-  await deps.memory.recordEvent(state.id, state.userId, "skip_queue_adjusted", {
+  await deps.profile.recordEvent(state.id, state.userId, "skip_queue_adjusted", {
     before,
     after,
     skipped_energy: context.skippedEnergy,

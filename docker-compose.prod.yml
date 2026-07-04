@@ -1,4 +1,4 @@
-# Prod / demo: music-engine + memory-service + agent-harness + rt-llm-proxy + web.
+# Prod / demo: music-engine + profile-service + agent-harness + rt-llm-proxy + web.
 # web (nginx) serves the SPA *and* the static catalog/audio/images (api+web merge).
 # Only web (host :8080) and the host-networked proxy are reachable from outside.
 # Requires repo-root .env (see .env.example). Circuit breaker defaults ON via NODE_ENV=production.
@@ -22,19 +22,19 @@ services:
       retries: 5
       start_period: 30s
 
-  memory-service:
+  profile-service:
     build:
       context: .
-      dockerfile: services/memory-service/Dockerfile
+      dockerfile: services/profile-service/Dockerfile
     restart: unless-stopped
     env_file: .env
     environment:
-      MEMORY_SERVICE_PORT: "3020"
-      MEMORY_EVENTS_DB_PATH: /data/auracle-events.sqlite
+      PROFILE_SERVICE_PORT: "3020"
+      PROFILE_EVENTS_DB_PATH: /data/auracle-events.sqlite
     ports:
       - "127.0.0.1:3020:3020"
     volumes:
-      - memory_service_data:/data
+      - profile_service_data:/data
 
   agent-harness:
     build:
@@ -44,7 +44,7 @@ services:
     env_file: .env
     environment:
       AGENT_HARNESS_PORT: "3030"
-      MEMORY_SERVICE_URL: http://memory-service:3020
+      PROFILE_SERVICE_URL: http://profile-service:3020
       MUSIC_ENGINE_URL: http://music-engine:3010
       # Proxy runs on the host network (WebRTC) — reach it via the host gateway.
       PROXY_URL: http://host.docker.internal:8090
@@ -54,7 +54,7 @@ services:
     ports:
       - "127.0.0.1:3030:3030"
     depends_on:
-      memory-service:
+      profile-service:
         condition: service_started
       music-engine:
         condition: service_healthy
@@ -98,10 +98,10 @@ services:
     depends_on:
       agent-harness:
         condition: service_started
-      memory-service:
+      profile-service:
         condition: service_started
       rt-llm-proxy:
         condition: service_started
 
 volumes:
-  memory_service_data:
+  profile_service_data:

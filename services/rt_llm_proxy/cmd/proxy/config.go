@@ -33,7 +33,7 @@ type runConfig struct {
 	// (no check); production must set PROXY_REGISTER_SECRET or -register-secret.
 	RegisterSecret string
 
-	// AuthURL is memory-service (or any auth API exposing GET /auth/me). Empty
+	// AuthURL is profile-service (or any auth API exposing GET /auth/me). Empty
 	// falls back to DevVerifier for local demos.
 	AuthURL string
 

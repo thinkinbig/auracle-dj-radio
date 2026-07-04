@@ -29,7 +29,7 @@ export interface PlanTracklistRequest {
 
 export interface PlanResponse {
   result: FlowResult;
-  /** Opaque to memory-service — recorded for analytics, never interpreted. */
+  /** Opaque to profile-service — recorded for analytics, never interpreted. */
   violations: unknown[];
   candidates: TrackCandidate[];
 }
@@ -42,11 +42,7 @@ export interface SearchCatalogRequest {
   tieBreakSeed?: string;
 }
 
-/**
- * Memory-service's view of the music-engine. Injected so the orchestration is
- * testable without a live music-engine (refactor-three-services: Go→memory-service
- * is the only Gemini-facing path; memory-service→music-engine is internal HTTP).
- */
+/** HTTP client facade for music-engine, injected so orchestration tests do not need a live service. */
 export interface MusicEngineClient {
   planTracklist(req: PlanTracklistRequest): Promise<PlanResponse>;
   searchCatalog(req: SearchCatalogRequest): Promise<{ candidates: TrackCandidate[] }>;

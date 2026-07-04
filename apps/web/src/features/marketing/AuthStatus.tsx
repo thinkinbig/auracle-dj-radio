@@ -2,8 +2,6 @@ import * as Popover from '@radix-ui/react-popover';
 import { useEffect, useState } from 'react';
 import { deriveSessionMeta, hasStartedSession } from '@/features/radio/session/sessionDisplay';
 import type { PlaybackState } from '@/features/radio/session/types';
-import { resolveProfileTasteWords, resolveTasteWords } from '@/features/sound/tasteDisplay';
-import { useTasteQuery } from '@/features/sound/useTasteQuery';
 import { isGuestUser } from '@/features/marketing/guest';
 import { useAuth } from '@/features/marketing/AuthProvider';
 import styles from './AuthStatus.module.css';
@@ -21,8 +19,6 @@ export function AuthStatus({ onLogout, onOpenListen, playback }: AuthStatusProps
   if (!user) return null;
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<AccountView>('overview');
-  const fetchProfile = open && !isGuestUser(user);
-  const tasteQuery = useTasteQuery(fetchProfile);
   const initials = user.name
     .split(/\s+/)
     .filter(Boolean)
@@ -36,8 +32,7 @@ export function AuthStatus({ onLogout, onOpenListen, playback }: AuthStatusProps
 
   const hasSession = hasStartedSession(playback);
   const { title: sessionTitle, meta: sessionMeta, action: sessionAction } = deriveSessionMeta(hasSession, playback);
-  const tasteWords = tasteQuery.data ? resolveTasteWords(tasteQuery.data.preferences) : [];
-  const resolvedTasteWords = resolveProfileTasteWords(user, tasteWords, tasteQuery);
+  const tasteWords = isGuestUser(user) ? ['Demo catalog', 'Guest mode', 'Fresh session'] : ['Spotify taste', 'Live session', 'No Auracle profile'];
   const accountStatus = isGuestUser(user) ? 'Demo station' : 'Signed in';
 
   return (
@@ -74,7 +69,7 @@ export function AuthStatus({ onLogout, onOpenListen, playback }: AuthStatusProps
                     Your Taste DNA
                   </p>
                   <div className={styles.tasteWords} aria-label="Taste DNA">
-                    {resolvedTasteWords.map((word) => (
+                    {tasteWords.map((word) => (
                       <span key={word}>{word}</span>
                     ))}
                   </div>

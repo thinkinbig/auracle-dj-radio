@@ -136,7 +136,7 @@ importers:
         specifier: ^2.1.5
         version: 2.1.9(@types/node@22.19.19)
 
-  services/memory-service:
+  services/profile-service:
     dependencies:
       '@auracle/catalog':
         specifier: workspace:*

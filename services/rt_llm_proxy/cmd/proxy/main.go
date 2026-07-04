@@ -26,7 +26,7 @@ func main() {
 	if cfg.AuthURL == "" {
 		if s := os.Getenv("PROXY_AUTH_URL"); s != "" {
 			cfg.AuthURL = s
-		} else if s := os.Getenv("MEMORY_SERVICE_URL"); s != "" {
+		} else if s := os.Getenv("PROFILE_SERVICE_URL"); s != "" {
 			cfg.AuthURL = s
 		}
 	}

@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import type { MemoryServiceClient } from "@auracle/clients";
+import type { ProfileServiceClient } from "@auracle/clients";
 import type { SessionRuntime } from "../session/runtime.js";
 import { createSessionRouteMiddleware } from "./session-route-middleware.js";
 
 interface SessionRouteDeps {
   harness: SessionRuntime;
-  memory: MemoryServiceClient;
+  profile: ProfileServiceClient;
 }
 
 export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDeps): void {

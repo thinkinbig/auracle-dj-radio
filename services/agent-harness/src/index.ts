@@ -1,11 +1,11 @@
 import { config } from "./config.js";
-import { HttpMemoryServiceClient, HttpMusicEngineClient, HttpProxyClient } from "@auracle/clients";
+import { HttpProfileServiceClient, HttpMusicEngineClient, HttpProxyClient } from "@auracle/clients";
 import { buildServer } from "./server.js";
 import { SessionStore } from "./session/state.js";
 
 const app = buildServer({
   store: new SessionStore(),
-  memory: new HttpMemoryServiceClient(config.memoryServiceUrl),
+  profile: new HttpProfileServiceClient(config.profileServiceUrl),
   music: new HttpMusicEngineClient(config.musicEngineUrl),
   proxy: new HttpProxyClient(config.proxyUrl, config.proxyRegisterSecret || undefined),
   proxyPublicUrl: config.proxyPublicUrl,

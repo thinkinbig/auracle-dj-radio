@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ANONYMOUS_USER_ID, type Condition, type Energy, type PlannedTrack, type TastePreference, type TrackCandidate, type TrackMeta, type TrackSeed } from "@auracle/shared";
 import type {
   InjectPayload,
-  MemoryServiceClient,
+  ProfileServiceClient,
   MusicEngineClient,
   PlanResponse,
   PlanTracklistRequest,
@@ -49,11 +49,11 @@ function seed(n: number): TrackSeed {
   };
 }
 
-class FakeMemoryService implements MemoryServiceClient {
+class FakeProfileService implements ProfileServiceClient {
   events: { sessionId: string; userId: string; eventType: string; payload: unknown }[] = [];
   /** Bearer token → user id; tokens absent here (and no token) resolve anonymous. */
   tokenToUser = new Map<string, string>();
-  /** What sessionTasteFeedback derives per call (memory-service's job in prod). */
+  /** What sessionTasteFeedback derives per call (profile-service's job in prod). */
   tasteFeedbackValue: TastePreference[] = [];
   tasteFeedbackCalls: SessionTasteFeedbackRequest[] = [];
   async sessionTasteFeedback(input: SessionTasteFeedbackRequest): Promise<TastePreference[]> {
@@ -158,22 +158,22 @@ function orchestrationInjects(proxy: FakeProxyClient) {
 }
 
 function buildTestApp() {
-  const memory = new FakeMemoryService();
+  const profile = new FakeProfileService();
   const music = new FakeMusicEngine();
   const proxy = new FakeProxyClient();
   const app = buildServer({
     store: new SessionStore(),
-    memory,
+    profile,
     music,
     proxy,
     proxyPublicUrl: "http://proxy.test",
   });
-  return { app, memory, music, proxy };
+  return { app, profile, music, proxy };
 }
 
 describe("agent-harness", () => {
   it("creates sessions, registers the proxy contract, and records lifecycle events", async () => {
-    const { app, memory, music, proxy } = buildTestApp();
+    const { app, profile, music, proxy } = buildTestApp();
     await app.ready();
     const res = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     expect(res.statusCode).toBe(200);
@@ -182,7 +182,7 @@ describe("agent-harness", () => {
     expect(body.proxy_url).toBe("http://proxy.test");
     expect(body.token).toBeTruthy();
     expect(music.planCalls[0]).toMatchObject({ mode: "provisional" });
-    expect(memory.countEvents(body.session_id)).toBe(1);
+    expect(profile.countEvents(body.session_id)).toBe(1);
     expect(proxy.calls.at(-1)?.reg.systemInstruction).toContain("Fake Set, vol. 1");
     await app.close();
   });
@@ -274,7 +274,7 @@ describe("agent-harness", () => {
   });
 
   it("runs mood_change replan in the background and pushes the new remaining list", async () => {
-    const { app, proxy, music, memory } = buildTestApp();
+    const { app, proxy, music, profile } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
@@ -302,7 +302,7 @@ describe("agent-harness", () => {
   });
 
   it("records playlist_feedback from the UI playlist-feedback route", async () => {
-    const { app, memory } = buildTestApp();
+    const { app, profile } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
@@ -313,7 +313,7 @@ describe("agent-harness", () => {
       payload: { feedback: "dislike" },
     });
     expect(res.statusCode).toBe(200);
-    expect(memory.events).toContainEqual(
+    expect(profile.events).toContainEqual(
       expect.objectContaining({
         eventType: "playlist_feedback",
         payload: expect.objectContaining({
@@ -328,7 +328,7 @@ describe("agent-harness", () => {
   });
 
   it("records playlist_feedback from a DJ tool call and surfaces it to the client", async () => {
-    const { app, memory } = buildTestApp();
+    const { app, profile } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
@@ -341,7 +341,7 @@ describe("agent-harness", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json<{ ui_events: { type: string; intent?: { type: string; feedback: string } }[] }>();
     expect(body.ui_events).toEqual([{ type: "intent", intent: { type: "playlist_feedback", feedback: "like" } }]);
-    expect(memory.events).toContainEqual(
+    expect(profile.events).toContainEqual(
       expect.objectContaining({
         eventType: "playlist_feedback",
         payload: expect.objectContaining({
@@ -356,13 +356,13 @@ describe("agent-harness", () => {
   });
 
   it("dislike nudges the upcoming queue without persisting session taste (#68/#69)", async () => {
-    const { app, memory, music, proxy } = buildTestApp();
-    memory.tokenToUser.set("tok-1", "user-1");
+    const { app, profile, music, proxy } = buildTestApp();
+    profile.tokenToUser.set("tok-1", "user-1");
     const derived: TastePreference[] = [
       { entityType: "track", entityId: "a", polarity: "avoid", strength: 2, source: "session" },
       { entityType: "artist", entityId: "artist-a", polarity: "avoid", strength: 1, source: "session" },
     ];
-    memory.tasteFeedbackValue = derived;
+    profile.tasteFeedbackValue = derived;
     await app.ready();
     const created = await app.inject({
       method: "POST",
@@ -379,14 +379,13 @@ describe("agent-harness", () => {
     });
     expect(res.statusCode).toBe(200);
 
-    // Taste derivation goes through memory-service for this-session ranking only.
-    await vi.waitFor(() => expect(memory.tasteFeedbackCalls).toHaveLength(1));
-    expect(memory.tasteFeedbackCalls[0]).toEqual({
+    // Taste derivation goes through profile-service for this-session ranking only.
+    await vi.waitFor(() => expect(profile.tasteFeedbackCalls).toHaveLength(1));
+    expect(profile.tasteFeedbackCalls[0]).toEqual({
       sessionId: session_id,
       userId: "user-1",
       trackId: "a",
       feedback: "dislike",
-      persist: false,
     });
 
     // The in-session effect (#68): a background nudge replan re-fills the next 1–2
@@ -407,12 +406,12 @@ describe("agent-harness", () => {
   });
 
   it("like nudges without persisting for an anonymous B session; duplicate feedback derives once (#68)", async () => {
-    const { app, memory, music, proxy } = buildTestApp();
+    const { app, profile, music, proxy } = buildTestApp();
     const derived: TastePreference[] = [
       { entityType: "track", entityId: "a", polarity: "prefer", strength: 2, source: "session" },
       { entityType: "artist", entityId: "artist-a", polarity: "prefer", strength: 1, source: "session" },
     ];
-    memory.tasteFeedbackValue = derived;
+    profile.tasteFeedbackValue = derived;
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
@@ -424,9 +423,9 @@ describe("agent-harness", () => {
     });
     await vi.waitFor(() => expect(orchestrationInjects(proxy).length).toBe(1));
 
-    // Derived for the in-session rank, but never persisted outside condition C (#69).
-    expect(memory.tasteFeedbackCalls).toHaveLength(1);
-    expect(memory.tasteFeedbackCalls[0]).toMatchObject({ feedback: "like", trackId: "a", persist: false });
+    // Derived for the in-session rank only (#69).
+    expect(profile.tasteFeedbackCalls).toHaveLength(1);
+    expect(profile.tasteFeedbackCalls[0]).toMatchObject({ feedback: "like", trackId: "a" });
     // A like keeps the deterministic seed (no re-roll) and leans via prefer weights.
     const replanCall = music.planCalls.find((c) => c.mode === "replan");
     expect(replanCall?.replan?.avoidIds).toBeUndefined();
@@ -439,12 +438,12 @@ describe("agent-harness", () => {
       payload: { name: "playlist_feedback", args: { feedback: "like" } },
     });
     await vi.waitFor(() => expect(orchestrationInjects(proxy).length).toBe(2));
-    expect(memory.tasteFeedbackCalls).toHaveLength(1);
+    expect(profile.tasteFeedbackCalls).toHaveLength(1);
     await app.close();
   });
 
   it("condition A: dislike derives taste telemetry but leaves the fixed playlist alone", async () => {
-    const { app, memory, music } = buildTestApp();
+    const { app, profile, music } = buildTestApp();
     await app.ready();
     const created = await app.inject({
       method: "POST",
@@ -459,14 +458,14 @@ describe("agent-harness", () => {
       payload: { name: "playlist_feedback", args: { feedback: "dislike" } },
     });
 
-    await vi.waitFor(() => expect(memory.tasteFeedbackCalls).toHaveLength(1));
+    await vi.waitFor(() => expect(profile.tasteFeedbackCalls).toHaveLength(1));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(music.planCalls.some((c) => c.mode === "replan")).toBe(false);
     await app.close();
   });
 
   it("regenerates the remaining queue from a DJ playlist_feedback tool call", async () => {
-    const { app, proxy, music, memory } = buildTestApp();
+    const { app, proxy, music, profile } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
@@ -489,13 +488,13 @@ describe("agent-harness", () => {
     expect(updated?.changed_ids).toEqual(["d", "e"]);
     expect(updated?.before_remaining_ids).toEqual(["b", "c", "f"]);
     expect(music.planCalls.some((c) => c.mode === "replan" && c.replan?.remainingSlots === 3)).toBe(true);
-    expect(memory.events.map((e) => e.eventType)).toContain("playlist_feedback");
-    expect(memory.events.map((e) => e.eventType)).toContain("playlist_regenerate_requested");
+    expect(profile.events.map((e) => e.eventType)).toContain("playlist_feedback");
+    expect(profile.events.map((e) => e.eventType)).toContain("playlist_regenerate_requested");
     await app.close();
   });
 
   it("regenerates the remaining queue on request", async () => {
-    const { app, proxy, music, memory } = buildTestApp();
+    const { app, proxy, music, profile } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
@@ -523,9 +522,9 @@ describe("agent-harness", () => {
     expect(body.regenerate.changed_ids).toEqual(["d", "e"]);
     expect(body.regenerate.before_remaining_ids).toEqual(["b", "c", "f"]);
     expect(music.planCalls.some((c) => c.mode === "replan")).toBe(true);
-    expect(memory.events.map((e) => e.eventType)).toContain("playlist_feedback");
-    expect(memory.events.map((e) => e.eventType)).toContain("playlist_regenerate_requested");
-    expect(memory.events).toContainEqual(
+    expect(profile.events.map((e) => e.eventType)).toContain("playlist_feedback");
+    expect(profile.events.map((e) => e.eventType)).toContain("playlist_regenerate_requested");
+    expect(profile.events).toContainEqual(
       expect.objectContaining({
         eventType: "playlist_feedback",
         payload: expect.objectContaining({ feedback: "regenerate", source: "ui" }),
@@ -537,8 +536,8 @@ describe("agent-harness", () => {
     await app.close();
   });
 
-  it("mirrors now_playing and records skip latency through memory-service", async () => {
-    const { app, memory, proxy } = buildTestApp();
+  it("mirrors now_playing and records skip latency through profile-service", async () => {
+    const { app, profile, proxy } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
@@ -547,7 +546,7 @@ describe("agent-harness", () => {
     const res = await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
     expect(res.statusCode).toBe(200);
     expect(res.json<{ current_track_index: number }>().current_track_index).toBe(1);
-    expect(memory.events.map((e) => e.eventType)).toContain("skip_latency");
+    expect(profile.events.map((e) => e.eventType)).toContain("skip_latency");
     await vi.waitFor(() =>
       expect(proxy.injectCalls).toContainEqual(
         expect.objectContaining({
@@ -560,7 +559,7 @@ describe("agent-harness", () => {
   });
 
   it("records UI skip track through the shared skip path and times latency on now_playing", async () => {
-    const { app, memory } = buildTestApp();
+    const { app, profile } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
@@ -576,20 +575,20 @@ describe("agent-harness", () => {
 
     const res = await app.inject({ method: "POST", url: `/sessions/${session_id}/now_playing`, payload: { track_id: "b" } });
     expect(res.statusCode).toBe(200);
-    expect(memory.events).toContainEqual(
+    expect(profile.events).toContainEqual(
       expect.objectContaining({
         eventType: "skip_track",
         payload: expect.objectContaining({ source: "ui", track_id: "a" }),
       }),
     );
-    expect(memory.events.map((e) => e.eventType)).toContain("skip_latency");
+    expect(profile.events.map((e) => e.eventType)).toContain("skip_latency");
     await app.close();
   });
 
-  it("does not write long-term memory after repeated quick skips at the same energy in condition C", async () => {
+  it("does not write long-term preferences after repeated quick skips at the same energy in condition C", async () => {
     const now = vi.spyOn(Date, "now");
     now.mockReturnValue(1_000);
-    const { app, memory } = buildTestApp();
+    const { app, profile } = buildTestApp();
     await app.ready();
     const created = await app.inject({
       method: "POST",
@@ -616,7 +615,7 @@ describe("agent-harness", () => {
   it("keeps quick-skip adaptation session-local for condition B", async () => {
     const now = vi.spyOn(Date, "now");
     now.mockReturnValue(2_000);
-    const { app, memory } = buildTestApp();
+    const { app, profile } = buildTestApp();
     await app.ready();
     const created = await app.inject({
       method: "POST",
@@ -695,17 +694,17 @@ describe("agent-harness", () => {
   });
 
   it("binds an unauthenticated session to the anonymous user (P0-1)", async () => {
-    const { app, memory } = buildTestApp();
+    const { app, profile } = buildTestApp();
     await app.ready();
     const res = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = res.json<{ session_id: string }>();
-    expect(memory.events.find((e) => e.sessionId === session_id)?.userId).toBe(ANONYMOUS_USER_ID);
+    expect(profile.events.find((e) => e.sessionId === session_id)?.userId).toBe(ANONYMOUS_USER_ID);
     await app.close();
   });
 
   it("resolves the Bearer token to the authed user and aggregates skips per user (P0-1/P0-3)", async () => {
-    const { app, memory } = buildTestApp();
-    memory.tokenToUser.set("tok-1", "user-1");
+    const { app, profile } = buildTestApp();
+    profile.tokenToUser.set("tok-1", "user-1");
     await app.ready();
     const res = await app.inject({
       method: "POST",
@@ -714,12 +713,12 @@ describe("agent-harness", () => {
       payload: { mood: "calm", scene: "studying" },
     });
     const { session_id } = res.json<{ session_id: string }>();
-    expect(memory.events.find((e) => e.sessionId === session_id)?.userId).toBe("user-1");
+    expect(profile.events.find((e) => e.sessionId === session_id)?.userId).toBe("user-1");
     await app.close();
   });
 
   it("rejects an invalid Bearer token with 401 (P0-7)", async () => {
-    const { app, memory } = buildTestApp();
+    const { app, profile } = buildTestApp();
     await app.ready();
     const res = await app.inject({
       method: "POST",
@@ -728,13 +727,13 @@ describe("agent-harness", () => {
       payload: { mood: "calm", scene: "studying" },
     });
     expect(res.statusCode).toBe(401);
-    expect(memory.events).toHaveLength(0);
+    expect(profile.events).toHaveLength(0);
     await app.close();
   });
 
   it("supersedes an authed user's prior session when they start on a new device (#55)", async () => {
-    const { app, memory, proxy } = buildTestApp();
-    memory.tokenToUser.set("tok-1", "user-1");
+    const { app, profile, proxy } = buildTestApp();
+    profile.tokenToUser.set("tok-1", "user-1");
     await app.ready();
 
     const first = await app.inject({
@@ -762,7 +761,7 @@ describe("agent-harness", () => {
         ),
       ).toBe(true),
     );
-    expect(memory.events.some((e) => e.sessionId === firstId && e.eventType === "session_superseded")).toBe(true);
+    expect(profile.events.some((e) => e.sessionId === firstId && e.eventType === "session_superseded")).toBe(true);
 
     // The old session id is now gone: its APIs answer 410, not 404.
     const gone = await app.inject({
@@ -806,9 +805,9 @@ describe("agent-harness", () => {
   });
 
   it("rejects cross-user access to another user's session with 403 (#55)", async () => {
-    const { app, memory } = buildTestApp();
-    memory.tokenToUser.set("tok-1", "user-1");
-    memory.tokenToUser.set("tok-2", "user-2");
+    const { app, profile } = buildTestApp();
+    profile.tokenToUser.set("tok-1", "user-1");
+    profile.tokenToUser.set("tok-2", "user-2");
     await app.ready();
 
     const created = await app.inject({
@@ -848,7 +847,7 @@ describe("agent-harness", () => {
   });
 
   it("condition B does not send personalization context, taste, or energy weights (P0-4)", async () => {
-    const { app, memory, music } = buildTestApp();
+    const { app, profile, music } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying", condition: "B" } });
     expect(created.json<{ personalization_context: string }>()).toMatchObject({
@@ -861,7 +860,7 @@ describe("agent-harness", () => {
   });
 
   it("condition C appends sanitized Spotify taste summary to planning memories", async () => {
-    const { app, memory, music } = buildTestApp();
+    const { app, profile, music } = buildTestApp();
     await app.ready();
     const spotifySummary = " Spotify-derived Auracle taste summary:\nTop genres: dream pop, ambient.  ";
     const created = await app.inject({
@@ -876,7 +875,7 @@ describe("agent-harness", () => {
   });
 
   it("explicit condition C requires a Spotify taste summary", async () => {
-    const { app, memory, music } = buildTestApp();
+    const { app, profile, music } = buildTestApp();
     await app.ready();
     const created = await app.inject({
       method: "POST",
@@ -891,7 +890,7 @@ describe("agent-harness", () => {
   it("swaps the next track deterministically after repeated same-energy quick skips, no Flow LLM (E4)", async () => {
     const now = vi.spyOn(Date, "now");
     now.mockReturnValue(1_000);
-    const { app, memory, music, proxy } = buildTestApp();
+    const { app, profile, music, proxy } = buildTestApp();
     // Longer queue so rolling extend (E1) does not fire while exercising skip-swap.
     music.extraTracks = [candidate("g", 3), candidate("h", 4)];
     await app.ready();
@@ -927,7 +926,7 @@ describe("agent-harness", () => {
     // deterministic: search_catalog only, never a Flow plan/replan beyond the initial full plan.
     expect(music.searchCalls).toHaveLength(1);
     expect(music.planCalls.filter((c) => c.mode !== "provisional" && c.mode !== "full")).toEqual([]);
-    await vi.waitFor(() => expect(memory.events.map((e) => e.eventType)).toContain("skip_queue_adjusted"));
+    await vi.waitFor(() => expect(profile.events.map((e) => e.eventType)).toContain("skip_queue_adjusted"));
     now.mockRestore();
     await app.close();
   });
@@ -962,7 +961,7 @@ describe("agent-harness", () => {
   });
 
   it("rolling-extends the queue when remaining drops to the threshold (E1)", async () => {
-    const { app, memory, music, proxy } = buildTestApp();
+    const { app, profile, music, proxy } = buildTestApp();
     await app.ready();
     const created = await app.inject({
       method: "POST",
@@ -992,8 +991,8 @@ describe("agent-harness", () => {
     expect(updated!.changed_ids).toEqual(["x1", "x2", "x3", "x4"]);
     expect(updated!.before_remaining_ids).toEqual(["c", "f"]);
 
-    await vi.waitFor(() => expect(memory.events.some((e) => e.eventType === "queue_extended")).toBe(true));
-    const ext = memory.events.find((e) => e.eventType === "queue_extended")!;
+    await vi.waitFor(() => expect(profile.events.some((e) => e.eventType === "queue_extended")).toBe(true));
+    const ext = profile.events.find((e) => e.eventType === "queue_extended")!;
     expect(ext.payload).toMatchObject({ before_count: 2, after_count: 6 });
 
     // Debounce: advancing into the now-long queue does not trigger another extend.
@@ -1085,10 +1084,10 @@ describe("applyReplan scopes (E2 mood_change nudge)", () => {
     });
   }
 
-  function makeDeps(store: SessionStore, music: MusicEngineClient): { deps: OrchestrationDeps; memory: FakeMemoryService; proxy: FakeProxyClient } {
-    const memory = new FakeMemoryService();
+  function makeDeps(store: SessionStore, music: MusicEngineClient): { deps: OrchestrationDeps; profile: FakeProfileService; proxy: FakeProxyClient } {
+    const profile = new FakeProfileService();
     const proxy = new FakeProxyClient();
-    return { deps: { store, memory, music, proxy }, memory, proxy };
+    return { deps: { store, profile, music, proxy }, profile, proxy };
   }
 
   it("nudge (default) re-fills only the next 1–2 slots and keeps the tail", async () => {
@@ -1127,11 +1126,11 @@ describe("applyReplan scopes (E2 mood_change nudge)", () => {
   it("records scope:\"nudge\" in the replan event", async () => {
     const store = new SessionStore();
     const state = makeSession(store);
-    const { deps, memory } = makeDeps(store, new NudgeMusicEngine());
+    const { deps, profile } = makeDeps(store, new NudgeMusicEngine());
 
     await applyReplan(deps, state, { mood: "darker" });
 
-    const ev = memory.events.find((e) => e.eventType === "replan");
+    const ev = profile.events.find((e) => e.eventType === "replan");
     expect(ev?.payload).toMatchObject({ scope: "nudge" });
   });
 
@@ -1227,7 +1226,7 @@ describe("routeMoodScope (E5 intent tiers)", () => {
 
 describe("mood_change routing end-to-end (E5)", () => {
   it("routes a significant mood change to steer and keeps the head of the queue", async () => {
-    const { app, memory } = buildTestApp();
+    const { app, profile } = buildTestApp();
     await app.ready();
     const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
     const { session_id } = created.json<{ session_id: string }>();
@@ -1239,8 +1238,8 @@ describe("mood_change routing end-to-end (E5)", () => {
       payload: { name: "mood_change", args: { mood: "energetic", energy_delta: "same" } },
     });
 
-    await vi.waitFor(() => expect(memory.events.some((e) => e.eventType === "replan")).toBe(true));
-    const ev = memory.events.find((e) => e.eventType === "replan")!;
+    await vi.waitFor(() => expect(profile.events.some((e) => e.eventType === "replan")).toBe(true));
+    const ev = profile.events.find((e) => e.eventType === "replan")!;
     expect(ev.payload).toMatchObject({ scope: "steer" });
     // steer keeps the head ("b") and re-fills the latter half (c,f → d,e).
     expect((ev.payload as { after: string[] }).after).toEqual(["b", "d", "e"]);

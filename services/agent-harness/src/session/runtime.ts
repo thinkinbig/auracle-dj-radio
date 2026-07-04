@@ -35,7 +35,7 @@ export interface SessionRuntime {
 export function createSessionRuntime(deps: SessionRuntimeDeps): SessionRuntime {
   const orchestration: OrchestrationDeps = {
     store: deps.store,
-    memory: deps.memory,
+    profile: deps.profile,
     music: deps.music,
     proxy: deps.proxy,
   };
@@ -159,6 +159,6 @@ async function recordSessionClientEvent(
 ): Promise<boolean> {
   const state = deps.store.get(sessionId);
   if (!state) return false;
-  await deps.memory.recordEvent(sessionId, state.userId, eventType, payload ?? {});
+  await deps.profile.recordEvent(sessionId, state.userId, eventType, payload ?? {});
   return true;
 }

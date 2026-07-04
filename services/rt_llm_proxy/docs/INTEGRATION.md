@@ -2,7 +2,7 @@
 
 How to wire the voice proxy into a downstream orchestrator. **Auracle** is the
 reference integration; the patterns below match `agent-harness` +
-`memory-service` in this monorepo.
+`profile-service` in this monorepo.
 
 Composition root: `cmd/proxy/root.go` → `runProxy`.
 
@@ -12,7 +12,7 @@ Composition root: `cmd/proxy/root.go` → `runProxy`.
 
 | # | Concern | Production wiring |
 |---|---|---|
-| 1 | **User identity** | `-auth-url http://memory-service:3020` (or `PROXY_AUTH_URL`) — validates browser `Authorization: Bearer` via `GET /auth/me` |
+| 1 | **User identity** | `-auth-url http://profile-service:3020` (or `PROXY_AUTH_URL`) — validates browser `Authorization: Bearer` via `GET /auth/me` |
 | 2 | **Orchestrator auth** | `PROXY_REGISTER_SECRET` on proxy + harness — gates `POST /session/{id}/{register,inject}` |
 | 3 | **Session hijack** | Browser sends `X-Session-Token` on first connect; must match registration |
 | 4 | **Lane-1 tools** | `-harness-url http://agent-harness:3030` — server-side tool forwarding for registered sessions |
@@ -67,11 +67,11 @@ TypeScript client: `packages/clients/src/proxy.ts` (`HttpProxyClient`).
 When `-auth-url` is set, `auth.HTTPVerifier` calls `GET {auth-url}/auth/me`
 with the browser's Bearer token and maps `user.id` → `identity.UserID`.
 
-Auracle uses memory-service's opaque session tokens (not JWT). Env fallbacks:
+Auracle uses profile-service's opaque session tokens (not JWT). Env fallbacks:
 
 ```
 PROXY_AUTH_URL=http://localhost:3020
-MEMORY_SERVICE_URL=http://localhost:3020   # used if PROXY_AUTH_URL unset
+PROFILE_SERVICE_URL=http://localhost:3020   # used if PROXY_AUTH_URL unset
 ```
 
 **Failure policy:** invalid or missing token → anonymous `user_id=""`. Identity

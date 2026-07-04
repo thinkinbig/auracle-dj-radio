@@ -35,7 +35,7 @@ export async function runTool(
       return runSkipTrack(deps, state, "dj_tool");
     case "pause_playback": {
       const action = args.action === "resume" ? "resume" : "pause";
-      await deps.memory.recordEvent(state.id, state.userId, "pause_playback", { action });
+      await deps.profile.recordEvent(state.id, state.userId, "pause_playback", { action });
       return {
         gemini_result: { ok: true, action },
         ui_events: [{ type: "intent", intent: { type: "pause_playback", action } }],

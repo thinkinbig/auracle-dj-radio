@@ -92,7 +92,7 @@ docker compose up --build
 ## How do I use it in production?
 
 1. **Front with a reverse proxy** (Nginx) — TLS termination, load balancing
-2. **Enable auth** — `-auth-url` pointing to memory-service
+2. **Enable auth** — `-auth-url` pointing to profile-service
 3. **Set register secret** — `PROXY_REGISTER_SECRET` on proxy + harness
 4. **Enable Redis** — rate limiting
 5. **Enable Kafka** — transcript archival, audit log

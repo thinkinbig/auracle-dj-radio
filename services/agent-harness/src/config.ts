@@ -9,7 +9,7 @@ loadEnv({ path: resolve(here, "../../../.env") });
 export interface Config {
   port: number;
   /** Base URL of the compatibility service that owns auth, analytics events, and session feedback derivation. */
-  memoryServiceUrl: string;
+  profileServiceUrl: string;
   /** Base URL of the music-engine HTTP service (catalog retrieval + planning). */
   musicEngineUrl: string;
   /** Base URL of the media proxy (rt_llm_proxy) agent-harness registers sessions with. */
@@ -22,7 +22,7 @@ export interface Config {
 
 export const config: Config = {
   port: Number(process.env.AGENT_HARNESS_PORT ?? 3030),
-  memoryServiceUrl: process.env.MEMORY_SERVICE_URL ?? "http://localhost:3020",
+  profileServiceUrl: process.env.PROFILE_SERVICE_URL ?? "http://localhost:3020",
   musicEngineUrl: process.env.MUSIC_ENGINE_URL ?? "http://localhost:3010",
   proxyUrl: process.env.PROXY_URL ?? "http://localhost:8080",
   proxyRegisterSecret: process.env.PROXY_REGISTER_SECRET ?? "",

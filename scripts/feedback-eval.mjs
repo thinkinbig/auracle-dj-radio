@@ -2,7 +2,7 @@
 /**
  * Offline feedback-loop eval over `session_events` (#66–#69).
  *
- * Reads events via memory-service `POST /events/query` (internal) and track
+ * Reads events via profile-service `POST /events/query` (internal) and track
  * metadata via music-engine `GET /tracks/:id`, then reports:
  *
  *   --session <id>        Feedback timeline (#66) + per-feedback #68 metrics
@@ -12,13 +12,13 @@
  *   --compare <idA> <idB> Played-tracklist Jaccard + energy histograms (C vs B).
  *
  * HITL runs: see doc/auracle_feedback_eval_runbook.md. Requires a running
- * memory-service (+ music-engine for metadata); no Gemini/proxy needed.
+ * profile-service (+ music-engine for metadata); no Gemini/proxy needed.
  */
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeFile } from "node:fs/promises";
 
-const memoryUrl = process.env.MEMORY_SERVICE_URL ?? "http://localhost:3020";
+const profileUrl = process.env.PROFILE_SERVICE_URL ?? "http://localhost:3020";
 const musicUrl = process.env.MUSIC_ENGINE_URL ?? "http://localhost:3010";
 const output = process.env.FEEDBACK_EVAL_OUTPUT ?? join(tmpdir(), `auracle-feedback-eval-${Date.now()}.json`);
 
@@ -48,7 +48,7 @@ async function requestJson(url, options = {}) {
 const postJson = (base, path, body) => requestJson(`${base}${path}`, { method: "POST", body: JSON.stringify(body) });
 
 async function queryEvents(filter) {
-  const { events } = await postJson(memoryUrl, "/events/query", filter);
+  const { events } = await postJson(profileUrl, "/events/query", filter);
   return events;
 }
 
@@ -108,7 +108,7 @@ const FEEDBACK_FIELDS = ["feedback", "track_id", "remaining_ids", "source"];
 
 async function sessionReport(sessionId) {
   const events = await queryEvents({ session_id: sessionId, limit: 2000 });
-  if (events.length === 0) throw new Error(`no events for session ${sessionId} — wrong id or memory-service DB?`);
+  if (events.length === 0) throw new Error(`no events for session ${sessionId} — wrong id or profile-service DB?`);
   const t0 = events[0].ts;
 
   const created = events.find((e) => e.event_type === "session_created");
@@ -301,7 +301,7 @@ function summarizeCompare(r) {
 function usage() {
   console.error(
     "usage: node scripts/feedback-eval.mjs --session <id> | --user <id> | --compare <idA> <idB>\n" +
-      "env: MEMORY_SERVICE_URL (default :3020), MUSIC_ENGINE_URL (default :3010), FEEDBACK_EVAL_OUTPUT",
+      "env: PROFILE_SERVICE_URL (default :3020), MUSIC_ENGINE_URL (default :3010), FEEDBACK_EVAL_OUTPUT",
   );
   process.exit(2);
 }
@@ -325,7 +325,7 @@ async function main() {
     return;
   }
   report.generated_at = new Date().toISOString();
-  report.memory_service = memoryUrl;
+  report.profile_service = profileUrl;
   await writeFile(output, JSON.stringify(report, null, 2));
   console.log(summary);
   console.log(`\nreport: ${output}`);

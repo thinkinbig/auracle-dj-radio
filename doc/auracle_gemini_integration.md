@@ -104,7 +104,7 @@ C is not mem0-backed. C is Spotify-backed.
 | Track cues | Gemini Live | speak opening / segue / response |
 | User intent | Gemini Live tools | call session tools |
 | Replan / feedback | agent-harness + music-engine | mutate only current session queue |
-| Events | memory-service | persist analytics/eval data |
+| Events | profile-service | persist analytics/eval data |
 
 ---
 

@@ -11,11 +11,9 @@ export interface SessionTasteFeedbackRequest {
   userId: string;
   trackId: string;
   feedback: "like" | "dislike";
-  /** Compatibility flag; product callers should keep this false. */
-  persist: boolean;
 }
 
-export interface MemoryServiceClient {
+export interface ProfileServiceClient {
   recordEvent(sessionId: string, userId: string, eventType: string, payload: unknown): Promise<void>;
   /**
    * Derive the taste prefs a like/dislike rolls up to. Returns the derived prefs
@@ -26,7 +24,7 @@ export interface MemoryServiceClient {
   resolveSessionUser(token?: string): Promise<ResolveSessionUserResult>;
 }
 
-export class HttpMemoryServiceClient implements MemoryServiceClient {
+export class HttpProfileServiceClient implements ProfileServiceClient {
   constructor(private readonly baseUrl: string) {}
 
   private async postJson<T>(path: string, body: unknown): Promise<T> {
@@ -35,7 +33,7 @@ export class HttpMemoryServiceClient implements MemoryServiceClient {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`memory-service ${path}: ${res.status} ${await res.text()}`);
+    if (!res.ok) throw new Error(`profile-service ${path}: ${res.status} ${await res.text()}`);
     return (await res.json()) as T;
   }
 
@@ -49,7 +47,6 @@ export class HttpMemoryServiceClient implements MemoryServiceClient {
       user_id: input.userId,
       track_id: input.trackId,
       feedback: input.feedback,
-      persist: input.persist,
     });
     return body.preferences;
   }

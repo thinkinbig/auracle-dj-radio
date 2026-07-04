@@ -7,13 +7,13 @@ import type { ServerResponse } from 'node:http';
 
 const webDir = dirname(fileURLToPath(import.meta.url));
 const srcDir = resolve(webDir, 'src');
-/** Same repo-root .env as music-engine / memory-service (see .env.example). */
+/** Same repo-root .env as music-engine / profile service (see .env.example). */
 const repoRoot = resolve(webDir, '../..');
 
 /** agent-harness owns session orchestration. */
 const harnessTarget = process.env.AGENT_HARNESS_PROXY_TARGET ?? 'http://localhost:3030';
-/** memory-service owns auth, memory, and analytics events. */
-const memoryTarget = process.env.MEMORY_PROXY_TARGET ?? 'http://localhost:3020';
+/** Profile service owns lightweight auth. */
+const profileTarget = process.env.PROFILE_PROXY_TARGET ?? 'http://localhost:3020';
 /** Go rt_llm_proxy receives the browser's WebRTC SDP offer. */
 const proxyTarget = process.env.PROXY_PROXY_TARGET ?? 'http://localhost:8080';
 
@@ -89,10 +89,8 @@ export default defineConfig(() => {
       proxy: {
         // Session orchestration → agent-harness.
         '/sessions': harnessTarget,
-        // Lightweight login/register endpoints → memory-service.
-        '/auth': memoryTarget,
-        // Per-user taste profile (S2) → memory-service.
-        '/users': memoryTarget,
+        // Lightweight login/register endpoints.
+        '/auth': profileTarget,
         // WebRTC SDP offer: same-origin in dev (no CORS in Go). The /proxy prefix
         // is stripped so the proxy sees its native offer path at `/`.
         '/proxy': { target: proxyTarget, rewrite: (p) => p.replace(/^\/proxy/, '') },

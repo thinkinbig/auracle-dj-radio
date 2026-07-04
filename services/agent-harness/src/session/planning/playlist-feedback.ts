@@ -25,7 +25,7 @@ export async function runPlaylistFeedback(
 ): Promise<PlaylistFeedbackOutcome> {
   const trackId = state.tracklist[state.currentTrackIndex]?.id ?? null;
   const remainingIds = state.tracklist.slice(state.currentTrackIndex + 1).map((track) => track.id);
-  await deps.memory.recordEvent(state.id, state.userId, "playlist_feedback", {
+  await deps.profile.recordEvent(state.id, state.userId, "playlist_feedback", {
     feedback,
     track_id: trackId,
     remaining_ids: remainingIds,
@@ -61,7 +61,7 @@ export async function runPlaylistFeedback(
   }
 
   const outcome = await regenerateRemaining(deps, state);
-  await deps.memory.recordEvent(state.id, state.userId, "playlist_regenerate_requested", {
+  await deps.profile.recordEvent(state.id, state.userId, "playlist_regenerate_requested", {
     current_track_id: trackId,
     before: outcome.before,
     after: outcome.remaining.map((track) => track.id),
@@ -79,7 +79,7 @@ export async function runPlaylistFeedback(
  * Background like/dislike effects (Lane 3), closing the feedback loop the eval
  * series flagged as telemetry-only (#68/#69):
  *
- * 1. memory-service derives the track+artist prefs the reaction rolls up to.
+ * 1. profile-service derives the track+artist prefs the reaction rolls up to.
  *    The derived prefs are merged into `state.sessionTaste`, so the signal
  *    shifts this session's queue in B and C alike. Deduped per (feedback,
  *    track) against DJ tool double-fires.
@@ -102,16 +102,15 @@ async function applyFeedbackEffects(
     if (!state.tasteFeedbackSent.has(dedupeKey)) {
       state.tasteFeedbackSent.add(dedupeKey);
       try {
-        const prefs = await deps.memory.sessionTasteFeedback({
+        const prefs = await deps.profile.sessionTasteFeedback({
           sessionId: state.id,
           userId: state.userId,
           trackId,
           feedback,
-          persist: false,
         });
         mergeSessionTaste(state, prefs);
       } catch (err) {
-        await deps.memory
+        await deps.profile
           .recordEvent(state.id, state.userId, "taste_feedback_failed", {
             feedback,
             track_id: trackId,

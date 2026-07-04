@@ -5,7 +5,7 @@ import { createSession, extendSession, postHostMode, postPlaylistFeedback, postS
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
 import { gatherSpotifyCandidates, isSpotifyPlaybackEnabled } from '@/features/spotify/spotifyPlayback';
-import { buildSpotifyTasteMemory, canReadSpotifyTaste, getSpotifyTasteProfile } from '@/features/spotify/spotifyTaste';
+import { buildSpotifyTasteContext, canReadSpotifyTaste, getSpotifyTasteProfile } from '@/features/spotify/spotifyTaste';
 import { queryKeys } from '@/shared/query/keys';
 import { queryClient } from '@/shared/query/queryClient';
 import type { RadioCommands } from '../lib/radioCommands';
@@ -58,7 +58,7 @@ export function useRadioHandlers({
         isSpotifyPlaybackEnabled()
           ? gatherSpotifyCandidates().catch(() => undefined)
           : Promise.resolve(undefined),
-        readSpotifyTasteMemory().catch(() => undefined),
+        readSpotifyTasteContext().catch(() => undefined),
       ]);
       const session = await createSession(intent, seeds, spotifyTasteSummary);
       void prefetchTracks(session.tracklist);
@@ -177,12 +177,12 @@ export function useRadioHandlers({
   };
 }
 
-async function readSpotifyTasteMemory(): Promise<string | undefined> {
+async function readSpotifyTasteContext(): Promise<string | undefined> {
   if (canReadSpotifyTaste() !== 'ready') return undefined;
   const profile = await queryClient.fetchQuery({
     queryKey: queryKeys.spotifyTaste,
     queryFn: getSpotifyTasteProfile,
     staleTime: 5 * 60 * 1000,
   });
-  return buildSpotifyTasteMemory(profile);
+  return buildSpotifyTasteContext(profile);
 }

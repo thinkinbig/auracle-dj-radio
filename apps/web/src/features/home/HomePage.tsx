@@ -9,8 +9,6 @@ import {
   hasStartedSession,
 } from '@/features/radio/session/sessionDisplay';
 import type { SessionHistoryEntry } from '@/features/radio/session/sessionHistory';
-import { resolveProfileTasteWords, resolveTasteWords } from '@/features/sound/tasteDisplay';
-import { useTasteQuery } from '@/features/sound/useTasteQuery';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
 import { IconArrowRight, IconPlay } from '@/shared/ui/icons';
 import chrome from '@/app/ProductChrome.module.css';
@@ -36,18 +34,14 @@ export function HomePage({
   const { user } = useAuth();
   if (!user) return null;
   const state = useRadioState();
-  const tasteQuery = useTasteQuery(!isGuestUser(user));
   const hasSession = hasStartedSession(state);
   const latestSavedSession = history[0];
   const firstName = firstNameFromUser(user);
   const sessionTitle = deriveSessionTitle(hasSession, state, latestSavedSession);
   const sessionDuration = deriveSessionDurationLabel(hasSession, state, latestSavedSession);
   const generatedSessions = deriveGeneratedSessions(hasSession, state, history);
-  const tasteWords = resolveProfileTasteWords(
-    user,
-    tasteQuery.data ? resolveTasteWords(tasteQuery.data.preferences) : [],
-    tasteQuery,
-  );
+  const tasteSignal = isGuestUser(user) ? 'Demo catalog' : 'Spotify taste';
+  const tasteWords = isGuestUser(user) ? ['Demo catalog', 'Guest mode', 'Fresh session'] : ['Spotify taste', 'Live session', 'No Auracle profile'];
   const libraryTrackCount = state.sessionTracklist.length;
   const previewArtworkTrackId = hasSession ? state.trackId : latestSavedSession?.tracks[0]?.id ?? '';
   const previewArtwork = useTrackMeta(previewArtworkTrackId);
@@ -75,7 +69,7 @@ export function HomePage({
         ]
       : [
           { label: 'Start', value: 'Mood first' },
-          { label: 'Taste', value: tasteWords[0] ?? 'Learning' },
+          { label: 'Taste', value: tasteSignal },
           { label: 'Library', value: libraryTrackCount > 0 ? `${libraryTrackCount} ready` : 'Ready' },
         ];
 
@@ -155,7 +149,7 @@ export function HomePage({
             </div>
           </div>
           <button className={chrome.textButton} type="button" onClick={onOpenSound}>
-            Edit My Sound
+            View Spotify Taste
             <IconArrowRight size={18} />
           </button>
         </article>

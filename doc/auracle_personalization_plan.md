@@ -133,7 +133,7 @@ Reason: `record_preference` means "save this for future sessions." That conflict
 - mixed local/Spotify seed ranking
 - no durable user memory
 
-### current `memory-service`
+### current `profile-service`
 
 Short-term retained for:
 
@@ -157,7 +157,7 @@ Target direction:
 5. Make C require Spotify taste summary. Done.
 6. Ensure A/B ignore Spotify summary and seeds. Done.
 7. Keep `/events` and `/events/query` for evaluation. Done.
-8. Remove `/memory/*`, `/taste/weights`, Qdrant, and the mem0 effectiveness smoke path. Done. `/users/me/taste` remains only as legacy profile UI compatibility.
+8. Remove `/memory/*`, `/taste/weights`, `/users/me/taste`, Qdrant, and the mem0 effectiveness smoke path. Done.
 
 ---
 

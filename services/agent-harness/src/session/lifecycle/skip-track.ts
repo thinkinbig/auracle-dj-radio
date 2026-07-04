@@ -17,7 +17,7 @@ export async function runSkipTrack(
   trackId?: string | null,
 ): Promise<SkipTrackOutcome> {
   const skippedTrackId = trackId ?? state.tracklist[state.currentTrackIndex]?.id ?? null;
-  await deps.memory.recordEvent(state.id, state.userId, "skip_track", {
+  await deps.profile.recordEvent(state.id, state.userId, "skip_track", {
     source,
     track_id: skippedTrackId,
   });

@@ -5,26 +5,24 @@ import type { EventsDb } from "./events-db.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { registerTasteRoutes } from "./routes/taste.js";
-import type { TasteStore } from "./taste/taste-store.js";
 
-export interface MemoryServiceDeps {
+export interface ProfileServiceDeps {
   events: EventsDb;
   auth: AuthStore;
-  taste: TasteStore;
-  /** Live catalog (S1) for validating/resolving taste entities. */
+  /** Live catalog (S1) for deriving session feedback entities. */
   catalog: CatalogIndex;
 }
 
-/** Compatibility service for auth, analytics events, and legacy taste profile endpoints. */
-export function buildServer(deps: MemoryServiceDeps): FastifyInstance {
-  const { events, auth, taste, catalog } = deps;
+/** Service for auth, analytics events, and session feedback derivation. */
+export function buildServer(deps: ProfileServiceDeps): FastifyInstance {
+  const { events, auth, catalog } = deps;
   const app = Fastify({ logger: true });
 
-  app.get("/health", async () => ({ ok: true, memory: { enabled: false, degraded: false, retired: true } }));
+  app.get("/health", async () => ({ ok: true, profile: { auth: true, events: true } }));
 
   registerEventRoutes(app, events);
   registerAuthRoutes(app, auth);
-  registerTasteRoutes(app, { auth, taste, catalog });
+  registerTasteRoutes(app, { catalog });
 
   return app;
 }

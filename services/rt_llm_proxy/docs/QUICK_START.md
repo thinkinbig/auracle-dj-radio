@@ -32,7 +32,7 @@ Open http://localhost:8080/demo/
 
 ## Auracle full stack
 
-From the repo root (music-engine + memory-service + agent-harness + proxy + web):
+From the repo root (music-engine + profile-service + agent-harness + proxy + web):
 
 ```bash
 ./scripts/dev-stack.sh

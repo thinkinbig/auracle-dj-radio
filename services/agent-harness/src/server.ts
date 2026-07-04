@@ -1,12 +1,12 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import type { MemoryServiceClient, MusicEngineClient, ProxyClient } from "@auracle/clients";
+import type { ProfileServiceClient, MusicEngineClient, ProxyClient } from "@auracle/clients";
 import { registerSessionRoutes } from "./routes/sessions.js";
 import { createSessionRuntime } from "./session/runtime.js";
 import { SessionStore } from "./session/state.js";
 
 export interface SessionServerDeps {
   store: SessionStore;
-  memory: MemoryServiceClient;
+  profile: ProfileServiceClient;
   music: MusicEngineClient;
   proxy: ProxyClient;
   /** Public base URL of the proxy handed to the browser for the SDP offer. */
@@ -22,7 +22,7 @@ export function buildServer(deps: SessionServerDeps): FastifyInstance {
   const harness = createSessionRuntime({ ...deps, log: app.log });
 
   app.get("/health", async () => ({ ok: true }));
-  registerSessionRoutes(app, { harness, memory: deps.memory });
+  registerSessionRoutes(app, { harness, profile: deps.profile });
 
   return app;
 }

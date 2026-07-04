@@ -62,16 +62,16 @@ Auracle still keeps session-scoped adaptation:
 - These signals live on `SessionState.sessionTaste` or equivalent session state only.
 - They do not write durable taste rows or mem0 facts.
 
-## What Remains From `memory-service`
+## What Remains In `profile-service`
 
-The service name is now misleading. Short term, keep the process to avoid a risky service-boundary refactor, but narrow the responsibility to:
+The old `memory-service` process has been renamed and narrowed to `profile-service`. Its responsibilities are:
 
 - auth / user identity
 - `session_events`
 - eval and analytics queries
-- compatibility shims while code is migrated
+- session feedback derivation for current-queue nudges
 
-Target naming: `profile-service` or `events-service`. Do not introduce new product memory features under the old `memory-service` name.
+Do not introduce new durable product memory features under this service.
 
 ## Implementation Implications
 
@@ -86,7 +86,7 @@ Target naming: `profile-service` or `events-service`. Do not introduce new produ
 
 The previous plan was:
 
-- mem0 OSS in `services/memory-service`
+- mem0 OSS product path and its old service implementation
 - Qdrant vector store
 - Gemini embedding / LLM extraction
 - per-user recall injected into Flow and DJ prompts

@@ -28,7 +28,7 @@ music-engine
 rt_llm_proxy
   live audio / model bridge
 
-memory-service (temporary name)
+profile-service (temporary name)
   auth
   session_events
   eval / analytics queries

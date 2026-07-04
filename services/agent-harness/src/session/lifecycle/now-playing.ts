@@ -81,10 +81,10 @@ async function recordSkipTransition(
   const energy = skipped ? (state.energyById.get(skipped.id) ?? null) : null;
   const listenedMs = prevStartedAtMs != null ? state.pendingSkipAtMs! - prevStartedAtMs : null;
 
-  // Clear before any await so a memory-service failure cannot leak into the
+  // Clear before any await so a profile-service failure cannot leak into the
   // next now_playing report.
   state.pendingSkipAtMs = undefined;
-  await deps.memory
+  await deps.profile
     .recordEvent(state.id, state.userId, "skip_latency", { ms, from_index: prevIndex, to_index: state.currentTrackIndex, energy })
     .catch((err) => log?.warn({ err: (err as Error).message, sessionId: state.id }, "record skip_latency failed"));
 

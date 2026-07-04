@@ -127,7 +127,7 @@ async function recordQueueExtended(
   context: ExtendContext,
   appended: PlannedTrack[],
 ): Promise<void> {
-  await deps.memory.recordEvent(state.id, state.userId, "queue_extended", {
+  await deps.profile.recordEvent(state.id, state.userId, "queue_extended", {
     before_count: context.before.length,
     after_count: deps.store.remaining(state).length,
     appended: appended.map((r) => r.id),

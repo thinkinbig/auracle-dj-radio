@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { ANONYMOUS_USER_ID } from "@auracle/shared";
 
-// Memory-service owns the analytics event log. Every tool side-effect and
+// Profile-service owns the analytics event log. Every tool side-effect and
 // lifecycle event flows through here; transcripts live in the Go side-channel
 // and are joined offline by session_id (refactor-three-services).
 const SCHEMA = `

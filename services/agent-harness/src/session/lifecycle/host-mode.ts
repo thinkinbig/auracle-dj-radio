@@ -33,7 +33,7 @@ export async function changeHostMode(
   }
 
   state.hostMode = nextMode;
-  await deps.memory.recordEvent(state.id, state.userId, "change_host_mode", {
+  await deps.profile.recordEvent(state.id, state.userId, "change_host_mode", {
     host_mode: nextMode,
     previous,
     ...(source === "ui" ? { source: "ui" } : {}),

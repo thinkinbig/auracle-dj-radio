@@ -20,7 +20,6 @@ Retired:
 
 Still useful:
 
-- `/users/me/taste` as legacy profile UI compatibility only
 - catalog taxonomy and stable slugs for internal metadata quality
 - deterministic local catalog retrieval
 - session-scoped feedback overlay while a station is live
@@ -75,10 +74,10 @@ These fields are useful for deterministic retrieval, UI display, and future offl
 Implementation should:
 
 1. Remove product callers and endpoint support for `/taste/weights`. Done.
-2. Stop persisting session feedback to `TasteStore`.
+2. Stop persisting session feedback to `TasteStore`. Done.
 3. Keep session-scoped taste merge logic in `agent-harness`.
 4. Keep catalog slug fields.
-5. Keep `/users/me/taste` compatibility-only until the legacy profile UI is retired.
+5. Remove `/users/me/taste` and the legacy profile UI. Done.
 
 ---
 

@@ -13,7 +13,7 @@ import (
 )
 
 // HTTPVerifier validates opaque bearer tokens against an auth HTTP API.
-// Auracle wires this to memory-service GET /auth/me.
+// Auracle wires this to profile-service GET /auth/me.
 type HTTPVerifier struct {
 	baseURL string
 	client  *http.Client

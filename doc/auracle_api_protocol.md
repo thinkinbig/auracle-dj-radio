@@ -17,20 +17,20 @@ agent-harness
   queue / playhead / replan / feedback
   DJ registration for proxy
   calls music-engine for planning
-  records events through memory-service
+  records events through profile-service
 
 music-engine
   deterministic catalog + seed ranking
   provisional / full / replan / extend plans
 
-memory-service (name pending)
+profile-service (name pending)
   auth
   session_events
   eval / analytics queries
   legacy memory endpoints during migration only
 ```
 
-`memory-service` is no longer the owner of product memory. See `auracle_memory_decision.md`.
+`profile-service` is no longer the owner of product memory. See `auracle_memory_decision.md`.
 
 ---
 

@@ -119,7 +119,7 @@ See root `docker-compose.prod.yml`. Key proxy settings:
 | Env / flag | Purpose |
 |---|---|
 | `GEMINI_API_KEY` | Gemini Live API key |
-| `PROXY_AUTH_URL` / `-auth-url` | memory-service `GET /auth/me` |
+| `PROXY_AUTH_URL` / `-auth-url` | profile-service `GET /auth/me` |
 | `PROXY_REGISTER_SECRET` / `-register-secret` | Gates register/inject |
 | `-harness-url` | agent-harness Lane-1 tool forwarding |
 
@@ -331,7 +331,7 @@ successful offer — re-register before a fresh connect.
 
 - [ ] **Secrets**: API keys in secure vault, not `.env`
 - [ ] **TLS**: Reverse proxy terminates HTTPS
-- [ ] **Auth**: `-auth-url` points to memory-service; DevVerifier disabled
+- [ ] **Auth**: `-auth-url` points to profile-service; DevVerifier disabled
 - [ ] **Register secret**: `PROXY_REGISTER_SECRET` set on proxy + harness
 - [ ] **Rate limiting**: Redis configured, `-rl-max` set
 - [ ] **Transcripts**: Kafka enabled for audit trail

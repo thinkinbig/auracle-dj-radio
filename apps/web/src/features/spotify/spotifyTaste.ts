@@ -198,7 +198,7 @@ export async function getSpotifyTasteProfile(): Promise<SpotifyTasteProfile> {
   };
 }
 
-export function buildSpotifyTasteMemory(profile: SpotifyTasteProfile | undefined): string | undefined {
+export function buildSpotifyTasteContext(profile: SpotifyTasteProfile | undefined): string | undefined {
   if (!profile || profile.status !== 'ready') return undefined;
   const genres = profile.topGenres.slice(0, 5).map((g) => g.name).join(', ');
   const artists = profile.topArtists.slice(0, 5).map((a) => a.name).join(', ');
