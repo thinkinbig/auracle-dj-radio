@@ -201,6 +201,8 @@
 .moodCard {
   position: relative;
   display: grid;
+  grid-template-rows: auto auto auto minmax(150px, 1fr) auto;
+  row-gap: 0;
   min-height: 330px;
   padding: clamp(20px, 3vw, 28px);
   overflow: hidden;
@@ -425,6 +427,7 @@
   justify-content: space-between;
   gap: 12px;
   align-self: start;
+  grid-row: 1;
   color: rgba(248, 250, 252, 0.46);
   font-size: 0.76rem;
   font-weight: 780;
@@ -447,8 +450,9 @@
 .genreCard h2,
 .moodCard h2 {
   z-index: 1;
+  grid-row: 2;
   align-self: start;
-  margin-top: 16px;
+  margin-top: clamp(28px, 4vw, 36px);
   color: rgba(248, 250, 252, 0.96);
   font-size: clamp(1.55rem, 3vw, 2.2rem);
   font-weight: 760;
@@ -459,7 +463,9 @@
 .genreCard > strong,
 .moodCard > strong {
   z-index: 1;
+  grid-row: 3;
   align-self: start;
+  margin-top: 10px;
   color: #9d8cff;
   font-size: clamp(1.65rem, 3vw, 2.35rem);
   line-height: 1;
@@ -468,7 +474,7 @@
 .genreLines {
   position: absolute;
   right: -4%;
-  bottom: 74px;
+  bottom: 122px;
   left: -4%;
   width: 108%;
   height: 150px;
@@ -490,6 +496,7 @@
 .genreLegend,
 .moodLegend {
   z-index: 1;
+  grid-row: 5;
   align-self: end;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -542,7 +549,7 @@
 
 .ring {
   position: absolute;
-  top: 52%;
+  top: calc(50% + 18px);
   left: 50%;
   width: 190px;
   height: 190px;
@@ -565,7 +572,7 @@
 }
 
 .moodLegend {
-  margin-top: 220px;
+  margin-top: 0;
 }
 
 .artistRail {
