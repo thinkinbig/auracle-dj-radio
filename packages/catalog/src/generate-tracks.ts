@@ -162,7 +162,6 @@ async function main(): Promise<void> {
 
   console.log("\nNext: pnpm --filter @auracle/catalog catalog-ingest");
   console.log("      pnpm --filter @auracle/catalog export-catalog");
-  console.log("      pnpm --filter @auracle/music-engine seed");
 }
 
 main().catch((error) => {

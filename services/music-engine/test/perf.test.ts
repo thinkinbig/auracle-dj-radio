@@ -1,10 +1,9 @@
-import { mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { TastePreference } from "@auracle/shared";
-import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
+import { Catalog, type TrackRow } from "../src/catalog-store.js";
 import { retrieveCandidates } from "../src/flow/retrieval/retrieve.js";
 
 function row(i: number): TrackRow {
@@ -51,19 +50,16 @@ describe("P5.3 retrieval performance (no embedding path)", () => {
     expect(performance.now() - t0).toBeLessThan(100);
   });
 
-  it("catalog DB allTracks() for 1000 rows loads in <1s (startup path)", () => {
-    const dbPath = join(mkdtempSync(join(tmpdir(), "auracle-perf-")), "perf.sqlite");
-    const seeder = new CatalogDb(dbPath);
-    for (let i = 0; i < 1000; i++) seeder.upsertTrack(row(i));
-    seeder.close();
-
-    const db = new CatalogDb(dbPath);
+  it("in-memory catalog for 1000 rows loads + indexes in <1s (startup path)", () => {
+    const rows = Array.from({ length: 1000 }, (_, i) => row(i));
     const t0 = performance.now();
-    const rows = db.allTracks();
+    const catalog = new Catalog(rows);
+    const all = catalog.allTracks();
+    const one = catalog.getTrack("t500");
     const elapsed = performance.now() - t0;
-    db.close();
 
-    expect(rows.length).toBe(1000);
+    expect(all.length).toBe(1000);
+    expect(one?.id).toBe("t500");
     expect(elapsed).toBeLessThan(1000);
   });
 

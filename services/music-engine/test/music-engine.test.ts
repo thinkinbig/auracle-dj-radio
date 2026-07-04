@@ -1,46 +1,23 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FlowResult, GenreCount, TrackCandidate, TrackMeta } from "@auracle/shared";
-import { CatalogDb, type TrackRow } from "../src/catalog-db.js";
+import { Catalog, type TrackRow } from "../src/catalog-store.js";
 import { HeuristicFlowModel } from "../src/flow/llm/heuristic-flow.js";
 import { createPlan, replan } from "../src/flow/plan.js";
 import { energyWeightsFromMemories, mergeEnergyWeights } from "../src/flow/weighting/memory-energy.js";
-import { resolveCatalogPath, tracksWithAssets } from "../src/catalog/manifest.js";
 import { buildServer, type MusicEngine } from "../src/server.js";
 
 let engine: MusicEngine;
 let firstTrackId: string;
 
-/** Seed a throwaway catalog DB from the manifest (structured metadata only). */
-async function seedTempDb(): Promise<string> {
-  const dbPath = join(mkdtempSync(join(tmpdir(), "music-engine-")), "catalog.sqlite");
-  const db = new CatalogDb(dbPath);
-  const tracks = tracksWithAssets();
-  for (const t of tracks) {
-    const row: TrackRow = {
-      ...t,
-      filePath: resolveCatalogPath(t.filePath),
-      albumCoverPath: resolveCatalogPath(t.albumCoverPath),
-      artistPhotoPath: resolveCatalogPath(t.artistPhotoPath),
-    };
-    db.upsertTrack(row);
-  }
-  firstTrackId = tracks[0]!.id;
-  db.close();
-  return dbPath;
-}
-
 beforeAll(async () => {
-  const dbPath = await seedTempDb();
-  engine = buildServer(dbPath);
+  const catalog = Catalog.fromManifest();
+  firstTrackId = catalog.allTracks()[0]!.id;
+  engine = buildServer(catalog);
   await engine.app.ready();
 });
 
 afterAll(async () => {
   await engine.app.close();
-  engine.db.close();
 });
 
 describe("music-engine HTTP", () => {
@@ -320,13 +297,13 @@ describe("music-engine HTTP", () => {
     expect(genres.length).toBeGreaterThan(0);
     expect(genres[0]).toEqual(expect.objectContaining({ slug: expect.any(String), label: expect.any(String), count: expect.any(Number) }));
 
-    const totalTracks = engine.db.allTracks().length;
+    const totalTracks = engine.catalog.allTracks().length;
     const counted = genres.reduce((sum, g) => sum + g.count, 0);
     expect(counted).toBe(totalTracks);
   });
 
   it("structured taste shifts the candidate pool (S4)", async () => {
-    const genreById = new Map(engine.db.allTracks().map((t) => [t.id, t.genreSlug]));
+    const genreById = new Map(engine.catalog.allTracks().map((t) => [t.id, t.genreSlug]));
 
     async function planCandidates(taste?: unknown): Promise<TrackCandidate[]> {
       const res = await engine.app.inject({

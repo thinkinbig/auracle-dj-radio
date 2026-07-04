@@ -27,10 +27,9 @@ services:
     env_file: .env
     environment:
       MUSIC_ENGINE_PORT: "3010"
-      MUSIC_ENGINE_DB_PATH: /data/auracle-catalog.sqlite
+      # Catalog is loaded into memory from the manifest baked into the image
+      # (/app/data) — no persistent DB, so no volume.
       CATALOG_DATA_DIR: /app/data
-    volumes:
-      - music_engine_data:/data
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3010/health"]
       interval: 15s
@@ -122,5 +121,4 @@ services:
 
 volumes:
   qdrant_data:
-  music_engine_data:
   memory_service_data:
