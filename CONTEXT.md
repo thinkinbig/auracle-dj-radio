@@ -6,7 +6,7 @@ gives way to it, and how a listener skips past either.
 
 ## Language
 
-**DJ turn** (口播 / voice-over):
+**DJ turn** (voice-over):
 A single bounded stretch of synthesized DJ speech. It opens when the DJ
 starts speaking and closes on completion, a barge-in, or a skip.
 _Avoid_: announcement, narration, segment.

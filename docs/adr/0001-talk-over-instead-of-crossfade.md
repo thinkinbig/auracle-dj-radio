@@ -1,6 +1,6 @@
 # Talk-over the track intro instead of a between-track crossfade
 
-`doc/auracle_pwa_audio_notes.md` §坑2 originally specified a radio-style
+`doc/auracle_pwa_audio_notes.md` §Pitfall 2 originally specified a radio-style
 between-track crossfade: at track end the music fades fully to 0, the DJ
 speaks in the gap, then a ~2s crossfade brings the next track up. We instead
 duck the music to ~0.25 and let the DJ **talk over the intro of the

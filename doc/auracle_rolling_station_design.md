@@ -1,70 +1,72 @@
 # Auracle — Rolling Station & on-air queue surgery
 
-> 状态：**设计拍板**（2026-06-27）  
-> 父 Epic：[GitHub #19](https://github.com/thinkinbig/auracle-dj-radio/issues/19)  
-> 关联：`auracle_flow_prompt_design.md`、`auracle_sound_ia.md`、`docs/adr/0004-end-of-track-talk-window.md`
+> Status: **design locked** (2026-06-27)
+> Parent Epic: [GitHub #19](https://github.com/thinkinbig/auracle-dj-radio/issues/19)
+> Related: `auracle_flow_prompt_design.md`, `auracle_sound_ia.md`, `docs/adr/0004-end-of-track-talk-window.md`
 
 ---
 
-## 1. 问题陈述
+## 1. Problem Statement
 
-当前 Station 存在三个产品缺口：
+The current Station has three product gaps:
 
-| 缺口 | 现象 | 根因 |
+| Gap | Symptom | Root cause |
 |------|------|------|
-| **不像电台** | 固定 8 首播完 → `idle`，回到 onboarding | 无滚动续播；末曲无 extend |
-| **重排无感** | `mood_change` → 全量 replan remaining，用户听不出差别 | 曲库小、replan 弧线锁 wind-down、硬约束压缩换歌空间 |
-| **反馈不可见** | DJ 说「在调下一批」，queue UI 几乎不变 | 无 before/after diff |
+| **Doesn't feel like a radio station** | Fixed 8-track session ends → `idle`, back to onboarding | No rolling continuation; no extend at the last track |
+| **Replan is imperceptible** | `mood_change` → full replan of remaining, user can't tell anything changed | Small catalog, replan arc is locked into wind-down, hard constraints compress the room to swap tracks |
+| **Feedback is invisible** | DJ says "adjusting the next batch," queue UI barely changes | No before/after diff |
 
-`replan` 作为引擎能力保留，但**不应再是 mid-session 的默认路径**。跨 session 个性化来自 **Spotify taste**；空中只做 **局部、即时、可见** 的当前 session 调整。
+`replan` stays as an engine capability, but **should no longer be the default mid-session path**. Cross-session personalization comes from **Spotify taste**; on-air adjustments should be **local, immediate, and visible** changes to the current session only.
 
 ---
 
-## 2. 核心决策
+## 2. Core Decisions
 
-### 2.1 Station 模型：滚动窗口，非固定 session
+### 2.1 Station model: rolling window, not a fixed session
 
 ```
-[已播 …] [当前] [remaining ≤ 2] ──后台 extend──▶ append 下一批（默认 4 首）
+[played …] [current] [remaining ≤ 2] ──background extend──▶ append next batch (default 4 tracks)
 ```
 
-- Session 持续 on air，直到用户主动结束（返回 setup / 关页）。
-- `extend` **只增不减**：不改当前曲与已排队列（去重冲突除外）。
-- 与 `replan`（replace remaining）语义分离。
+- The session stays on air until the user actively ends it (returns to setup / closes the page).
+- `extend` **only adds, never removes**: it does not change the current track or the already-queued tracks (except to resolve dedup conflicts).
+- Semantically distinct from `replan` (which replaces remaining).
 
-### 2.2 On-air 调整三档
+### 2.2 Three tiers of on-air adjustment
 
-| 档位 | 触发 | 行为 | 是否调 Flow LLM |
+| Tier | Trigger | Behavior | Calls Flow LLM? |
 |------|------|------|-----------------|
-| **nudge** | `mood_change` 默认；`energy_delta` lighter/heavier | 只改下 **1–2** 槽 | 是（`remainingSlots ≤ 2`） |
-| **steer** | mood 文本显著变化（非同义词微调） | 重填 remaining **后 50%** | 是 |
-| **full** | UI **Regenerate**；显式「换一批」 | 现有全量 `replaceRemaining` | 是 |
+| **nudge** | `mood_change` default; `energy_delta` lighter/heavier | Changes only the next **1–2** slots | Yes (`remainingSlots ≤ 2`) |
+| **steer** | Significant mood-text change (not a synonym-level tweak) | Refills the **back 50%** of remaining | Yes |
+| **full** | UI **Regenerate**; explicit "give me a different batch" | Existing full `replaceRemaining` | Yes |
 
-**默认路径**：nudge。全量 replan 不再绑在每次曲间随口 mood 上。
+**Default path**: nudge. Full replan is no longer tied to every offhand mood comment between tracks.
 
-### 2.3 确定性信号优先于等 DJ 调 tool
+### 2.3 Deterministic signals take priority over waiting for the DJ to call a tool
 
-| 信号 | 动作 |
+| Signal | Action |
 |------|------|
-| 快速 skip（<60s） | 确定性 swap `remaining[0]`（不调 Flow） |
-| Queue dislike | 未来：swap 下一首 |
-| `playlist_feedback(like/dislike)` | 当前 session 内 nudge 下一首；不写长期 memory |
+| Fast skip (<60s) | Deterministic swap of `remaining[0]` (does not call Flow) |
+| Queue dislike | Future: swap the next track |
+| `playlist_feedback(like/dislike)` | Nudges the next track within the current session; does not write long-term memory |
 
-### 2.4 可见性
+### 2.4 Visibility
 
-任何 queue 变更 payload 携带 `changed_ids` / `before_remaining_ids`；UI 高亮 30s + brief copy（「接下来 2 首已更新」）。
+Any queue-change payload carries `changed_ids` / `before_remaining_ids`; the UI highlights for 30s with brief copy ("the next 2 tracks have been updated").
 
-### 2.5 实验 / 个性化
+### 2.5 Experiment / Personalization
 
-- Condition C vs B：主指标改为 **开场 plan 差异** + **skip 后下一首变化** + **nudge 后 Δenergy**。
-- 全量 replan 保留给 Regenerate / steer，不作为默认 mood 路径。
+> **The metrics in this section are stale**: the canonical evaluation metrics are in `auracle_evaluation_design.md` (updated 2026-07-04). This section is kept only as a record of the original design motivation.
+
+- Condition C vs B: primary metrics changed to **opening-plan difference** + **next-track change after a skip** + **Δenergy after a nudge**.
+- Full replan is reserved for Regenerate / steer, not the default mood path.
 
 ---
 
-## 3. 与现有架构的关系
+## 3. Relationship to Existing Architecture
 
 ```
-Spotify taste ───────读取──▶ createPlan (mode: full)   ← 跨 session taste 来源
+Spotify taste ───────read──▶ createPlan (mode: full)   ← source of cross-session taste
                               │
 Station on-air ──────────────┼── extend (append)
                              ├── nudge / steer (partial replan)
@@ -72,23 +74,23 @@ Station on-air ──────────────┼── extend (appen
                              └── full replan (Regenerate only)
 ```
 
-- **Playhead**：浏览器仍单写；harness 镜像用于 extend/replan 触发（`CONTEXT.md`）。
-- **曲间 break**（ADR-0004）：非末曲仍开 window；末曲靠 extend 避免真·末曲。
-- **Condition A**：所有 replan/extend 调整仍为 noop（ablation）。
+- **Playhead**: still single-writer in the browser; the harness mirror is used to trigger extend/replan (`CONTEXT.md`).
+- **Between-track break** (ADR-0004): still opens a window on non-final tracks; the final track relies on extend to avoid a true "last track."
+- **Condition A**: all replan/extend adjustments remain a noop (ablation).
 
 ---
 
-## 4. API 草图
+## 4. API Sketch
 
 ### 4.1 music-engine `POST /plan_tracklist`
 
-| mode | 语义 |
+| mode | Meaning |
 |------|------|
-| `full` | 初始 8 首弧（不变） |
-| `replan` | replace remaining（Regenerate / steer） |
-| `extend` | append N 首，exclude played + current |
+| `full` | Initial 8-track arc (unchanged) |
+| `replan` | Replace remaining (Regenerate / steer) |
+| `extend` | Append N tracks, excluding played + current |
 
-`extend` body 示例：
+`extend` body example:
 
 ```json
 {
@@ -98,12 +100,12 @@ Station on-air ──────────────┼── extend (appen
 }
 ```
 
-### 4.2 harness 触发 extend
+### 4.2 Harness triggers extend
 
-- 在 `markNowPlaying` 后：`remaining.length ≤ EXTEND_THRESHOLD`（默认 2）→ 后台 `extendQueue`。
-- Debounce：`extendPending` 旗标，避免重复风暴。
+- After `markNowPlaying`: `remaining.length ≤ EXTEND_THRESHOLD` (default 2) → background `extendQueue`.
+- Debounce: `extendPending` flag, to avoid a storm of repeated calls.
 
-### 4.3 `tracklist_updated` 扩展字段
+### 4.3 `tracklist_updated` extended fields
 
 ```json
 {
@@ -115,53 +117,53 @@ Station on-air ──────────────┼── extend (appen
 }
 ```
 
-`extend` 可用同一 event，或新 `tracklist_extended`（实现时二选一，优先复用 + `op: "append"` 字段）。
+`extend` can reuse the same event, or a new `tracklist_extended` (pick one at implementation time; prefer reuse + an `op: "append"` field).
 
 ---
 
-## 5. 子 issue 映射
+## 5. Sub-issue Mapping
 
-| Slice | Issue | 标题 | 优先级 |
+| Slice | Issue | Title | Priority |
 |-------|-------|------|--------|
 | Epic | [#19](https://github.com/thinkinbig/auracle-dj-radio/issues/19) | Rolling Station + on-air queue surgery | — |
-| E1 | [#20](https://github.com/thinkinbig/auracle-dj-radio/issues/20) | Rolling extend 续播 | P0 |
-| E2 | [#22](https://github.com/thinkinbig/auracle-dj-radio/issues/22) | mood_change 默认 nudge | P1 |
-| E3 | [#23](https://github.com/thinkinbig/auracle-dj-radio/issues/23) | Queue diff 可视化 | P1 |
-| E4 | [#21](https://github.com/thinkinbig/auracle-dj-radio/issues/21) | Skip 驱动下一首换轨 | P1 |
-| E5 | [#25](https://github.com/thinkinbig/auracle-dj-radio/issues/25) | Intent 分档 steer / full | P2 |
-| E6 | [#24](https://github.com/thinkinbig/auracle-dj-radio/issues/24) | 末曲 / idle 体验收尾 | P2 |
+| E1 | [#20](https://github.com/thinkinbig/auracle-dj-radio/issues/20) | Rolling extend continuation | P0 |
+| E2 | [#22](https://github.com/thinkinbig/auracle-dj-radio/issues/22) | `mood_change` defaults to nudge | P1 |
+| E3 | [#23](https://github.com/thinkinbig/auracle-dj-radio/issues/23) | Queue diff visualization | P1 |
+| E4 | [#21](https://github.com/thinkinbig/auracle-dj-radio/issues/21) | Skip-driven next-track swap | P1 |
+| E5 | [#25](https://github.com/thinkinbig/auracle-dj-radio/issues/25) | Intent tiering: steer / full | P2 |
+| E6 | [#24](https://github.com/thinkinbig/auracle-dj-radio/issues/24) | Last-track / idle experience polish | P2 |
 
-实现顺序建议：**E1 → E4 → E2 → E3 → E5 → E6**
+Suggested implementation order: **E1 → E4 → E2 → E3 → E5 → E6**
 
 ---
 
-## 6. 不在范围
+## 6. Out of Scope
 
-- Catalog 扩容（但 [#12](https://github.com/thinkinbig/auracle-dj-radio/issues/12) 检索质量影响 extend/nudge 多样性）
-- Sound 页 L1 编辑（Epic #3 已完成）
+- Catalog expansion (but [#12](https://github.com/thinkinbig/auracle-dj-radio/issues/12) retrieval quality affects extend/nudge diversity)
+- Sound page L1 editing (Epic #3 already done)
 - Studio
-- 末曲 talk break（默认不开；靠 extend）
+- Talk break on the final track (off by default; handled by extend instead)
 
 ---
 
-## 7. HITL 待决（E5）
+## 7. HITL Decisions (E5)
 
-- [x] steer 触发：**纯规则**（mood label 归一化 + Levenshtein 比 ≥ 0.5 视为显著变化）。
-  `energy_delta` lighter/heavier 永远 nudge；同义/微调（含子串）保持 nudge；不引入 LLM 分类。
-  实现：`session/planning/mood-scope.ts` `routeMoodScope()`。
-- [x] steer 比例：**后 50%**（`count = ceil(remaining/2)`，保留头部、重填尾部）。实现：`planning/replan.ts` `scopeWindow()` + `state.ts` `SessionStore.replaceRemaining({ start, count })`。
-- [x] extend 批次：**4 首**（E1 已落地，`EXTEND_APPEND_SLOTS = 4`）。
+- [x] steer trigger: **pure rules** (mood label normalization + Levenshtein ratio ≥ 0.5 counts as a significant change).
+  `energy_delta` lighter/heavier is always a nudge; synonyms/minor tweaks (including substrings) stay a nudge; no LLM classification introduced.
+  Implementation: `session/planning/mood-scope.ts` `routeMoodScope()`.
+- [x] steer ratio: **back 50%** (`count = ceil(remaining/2)`, keep the head, refill the tail). Implementation: `planning/replan.ts` `scopeWindow()` + `state.ts` `SessionStore.replaceRemaining({ start, count })`.
+- [x] extend batch size: **4 tracks** (E1 shipped, `EXTEND_APPEND_SLOTS = 4`).
 
-三档语义（E2 + E5 落地）：
+Three-tier semantics (shipped as E2 + E5):
 
-| scope | 触发 | 窗口 |
+| scope | trigger | window |
 |-------|------|------|
-| nudge | `mood_change` 默认 / `energy_delta` lighter·heavier / mood 微调 | 头部前 `min(2, remaining)` 槽，保留尾部 |
-| steer | `mood_change` 且 mood label 显著变化 | 尾部后 `ceil(remaining/2)` 槽，保留头部 |
-| full  | UI Regenerate（`POST /playlist-feedback` + `feedback:"regenerate"`，`scope:"full"`） | 全量 remaining |
+| nudge | `mood_change` default / `energy_delta` lighter·heavier / minor mood tweak | front `min(2, remaining)` slots, keep the tail |
+| steer | `mood_change` with a significant mood-label change | back `ceil(remaining/2)` slots, keep the head |
+| full  | UI Regenerate (`POST /playlist-feedback` + `feedback:"regenerate"`, `scope:"full"`) | all of remaining |
 
 ---
 
-## 8. 讨论记录
+## 8. Discussion Log
 
-**2026-06-27** — 确认 replan 产品价值低：触发面窄、曲库 ~40 首、replan 弧线锁 wind-down、UI 无 diff。决议：Rolling Station + nudge 默认 + extend 续播；全量 replan 降级为显式 Regenerate。
+**2026-06-27** — Confirmed replan has low product value: narrow trigger surface, catalog is ~40 tracks, replan arc is locked into wind-down, no UI diff. Decision: Rolling Station + nudge as default + extend continuation; full replan is demoted to an explicit Regenerate action.

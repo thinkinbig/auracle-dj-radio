@@ -1,18 +1,18 @@
-# Auracle — Web 音频播放注意事项
+# Auracle — Web Audio Playback Notes
 
-> Phase 1：**Desktop Chrome** 为主。iOS 双工 Live 为 Phase 2。
+> Phase 1: **Desktop Chrome** primary target. iOS duplex Live is Phase 2.
 
 ---
 
-## 音频架构：双路混音
+## Audio Architecture: Two-Path Mixing
 
-| 路 | 来源 | 进入方式 |
+| Path | Source | Entry point |
 |----|------|----------|
 | **DJ** | Gemini Live → Fastify WS | 24k PCM → AudioWorklet queue → `djGain` |
-| **Music** | 曲库 mp3 | `<audio>` + `createMediaElementSource` → `musicGain`（流式加载，无需完整下载） |
+| **Music** | Catalog mp3 | `<audio>` + `createMediaElementSource` → `musicGain` (streamed, no full download needed) |
 
-**禁止**两个 `<audio>` 标签硬切。  
-**禁止**假设 DJ 有固定时长；fade 由 **WS phase 事件** 驱动。
+**Forbidden**: hard-cutting between two `<audio>` tags.
+**Forbidden**: assuming the DJ has a fixed duration; fades are driven by **WS phase events**.
 
 ```
 AudioContext
@@ -21,11 +21,11 @@ AudioContext
                               └── StageWaveform (getByteFrequencyData)
 ```
 
-`AnalyserNode` 挂在 `masterGain` 与 `destination` 之间，混音后的 DJ + 曲库信号驱动 Stage 波形。**禁止**用 `Math.random()` 等假波形占位。
+`AnalyserNode` sits between `masterGain` and `destination`; the mixed DJ + catalog signal drives the Stage waveform. **Forbidden**: using `Math.random()` or similar as a fake waveform placeholder.
 
 ---
 
-## 坑 1：必须用户手势启动 AudioContext 🔴
+## Pitfall 1: AudioContext must be started by a user gesture 🔴
 
 ```js
 const handleStart = async () => {
@@ -36,95 +36,95 @@ const handleStart = async () => {
 }
 ```
 
-WS 连接、麦克风、第一场播放挂在 **同一点击事件** 链上。
+WS connection, microphone, and the first playback all hang off the **same click event** chain.
 
 ---
 
-## 坑 2：DJ ↔ 音乐 fade（talk-over 压音）🔴
+## Pitfall 2: DJ ↔ music fade (talk-over ducking) 🔴
 
-> 决定改为 **talk-over**，不做曲间 crossfade —— 见 `docs/adr/0001-talk-over-instead-of-crossfade.md`。
-> 原 crossfade 表（音乐淡到 0 → DJ 空档 → ~2s 进歌）已废弃。
+> Decision: use **talk-over**, not a between-track crossfade — see `docs/adr/0001-talk-over-instead-of-crossfade.md`.
+> The original crossfade table (music fades to 0 → DJ gap → ~2s fade-in) is deprecated.
 
-DJ 盖在**当前曲前奏**上讲，音乐 duck 到 0.25，过渡用 ~0.4s 平滑 ramp：
+The DJ speaks over the **current track's intro**; music ducks to 0.25, with a ~0.4s smooth ramp for the transition:
 
-| 场景 | musicGain | djGain | 时长 |
+| Scenario | musicGain | djGain | Duration |
 |------|-----------|--------|------|
-| 开讲（talk-over 前奏） | 1 → 0.25 | 0 → 1 | 音乐 duck ~0.4s；DJ in ~0.15s |
-| DJ 完 → 续播 | 0.25 → 1 | 1 → 0 | 音乐 restore ~0.4s；DJ out ~0.3s |
-| 手动 skip track | dip → 0 → 1 | （如在讲则截断） | dip ~0.2s |
-| skip voice-over | 0.25 → 1 | 1 → 0 | 服务端 `skip_dj` 截断 → `dj_turn_end` |
-| 用户打断（barge-in） | duck → 0.25 | Live | ~300ms |
+| Talk begins (talk-over intro) | 1 → 0.25 | 0 → 1 | Music ducks ~0.4s; DJ in ~0.15s |
+| DJ finishes → playback resumes | 0.25 → 1 | 1 → 0 | Music restores ~0.4s; DJ out ~0.3s |
+| Manual skip track | dip → 0 → 1 | (cut short if speaking) | dip ~0.2s |
+| skip voice-over | 0.25 → 1 | 1 → 0 | Server-side `skip_dj` cuts it short → `dj_turn_end` |
+| User barge-in | duck → 0.25 | Live | ~300ms |
 
 ```js
-// 仅用 phase 驱动 gain；djGain 由 dj_turn_start/end 淡入淡出。
+// Gain is driven only by phase; djGain fades in/out on dj_turn_start/end.
 onPhase('dj_turn_start', () => ramp(musicGain, 0.25, 0.4)) // duck
 onPhase('dj_turn_end',   () => ramp(musicGain, 1.0, 0.4))  // restore
 ```
 
 ---
 
-## 坑 3：phase 事件来源
+## Pitfall 3: Source of phase events
 
-| phase | 来源 |
+| phase | Source |
 |-------|------|
-| `dj_turn_start` / `dj_turn_end` | Fastify → WS（Gemini `turnComplete`） |
-| `user_barge_in` | Fastify（Gemini `Interrupted`） |
-| `track_started` | web 本地 + `POST /sessions/:id/events` |
+| `dj_turn_start` / `dj_turn_end` | Fastify → WS (Gemini `turnComplete`) |
+| `user_barge_in` | Fastify (Gemini `Interrupted`) |
+| `track_started` | Local to web + `POST /sessions/:id/events` |
 
-详见 `auracle_api_protocol.md`。
-
----
-
-## 坑 4：单后端 — REST + WS 同 host 🔴
-
-Demo 只连 **Fastify :3000**：
-
-- `POST /sessions` — tracklist  
-- `WS /sessions/:id/live` — Live PCM + JSON  
-- `GET /tracks/:id/audio` — mp3  
-
-开发时 Vite proxy 把 `/sessions` 和 `/ws` 转到 api 即可；**无需**第二个 Go 进程。
+See `auracle_api_protocol.md` for details.
 
 ---
 
-## 坑 5：PCM 上下行
+## Pitfall 4: Single backend — REST + WS on the same host 🔴
 
-| 方向 | 格式 |
+Demo only connects to **Fastify :3000**:
+
+- `POST /sessions` — tracklist
+- `WS /sessions/:id/live` — Live PCM + JSON
+- `GET /tracks/:id/audio` — mp3
+
+In dev, the Vite proxy forwards `/sessions` and `/ws` to the api; **no** second Go process is needed.
+
+---
+
+## Pitfall 5: PCM up/downlink
+
+| Direction | Format |
 |------|------|
-| 上行（mic） | s16le mono **16kHz** |
-| 下行（DJ） | s16le mono **24kHz** |
+| Uplink (mic) | s16le mono **16kHz** |
+| Downlink (DJ) | s16le mono **24kHz** |
 
-浏览器需 AudioWorklet 做重采样 / 播放队列（可参考 Gemini Live 前端示例；协议语义见 rt_llm_proxy 的 gemini 适配器，不必引入 Go）。
-
----
-
-## 坑 6：Media Session API 🟡
-
-播歌时更新 `navigator.mediaSession.metadata`（曲名、封面）。
+The browser needs an AudioWorklet for resampling / a playback queue (see Gemini Live's frontend examples for reference; protocol semantics live in rt_llm_proxy's gemini adapter — no need to introduce Go).
 
 ---
 
-## 坑 7：曲库格式 🟢
+## Pitfall 6: Media Session API 🟡
 
-- 曲库 **mp3**（128kbps）  
-- 不用 `.ogg`
+Update `navigator.mediaSession.metadata` (track title, cover) during playback.
+
+---
+
+## Pitfall 7: Catalog format 🟢
+
+- Catalog is **mp3** (128kbps)
+- Do not use `.ogg`
 
 ---
 
 ## Phase 1 vs Phase 2
 
-| 优先级 | 项 | Phase |
+| Priority | Item | Phase |
 |--------|-----|-------|
-| 🔴 | 手势 + AudioContext + WS Live | 1 |
+| 🔴 | Gesture + AudioContext + WS Live | 1 |
 | 🔴 | Web Audio crossfade + phase | 1 |
 | 🟡 | Media Session | 1 |
-| 🟡 | iOS 双工 / 后台 | 2 |
-| 🟢 | WebRTC 媒体面（生产） | 2 |
+| 🟡 | iOS duplex / background | 2 |
+| 🟢 | WebRTC media plane (production) | 2 |
 
 ---
 
-## 相关文档
+## Related Docs
 
-- 协议：`auracle_api_protocol.md`  
-- 架构：`auracle_architecture_storage.md`
-- UI：`auracle_ui_design.md`
+- Protocol: `auracle_api_protocol.md`
+- Architecture: `auracle_architecture_storage.md`
+- UI: `auracle_ui_design.md`
