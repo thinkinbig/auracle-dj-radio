@@ -1,5 +1,6 @@
 const TOKEN_STORAGE_KEY = 'auracle.spotify.token';
 const PKCE_STORAGE_KEY = 'auracle.spotify.pkce';
+const DEFAULT_SPOTIFY_CLIENT_ID = '89539a85d2db4db090b6985e3daa2ab0';
 
 export const SPOTIFY_SCOPES = [
   'streaming',
@@ -36,7 +37,7 @@ interface SpotifyTokenResponse {
 }
 
 export function getSpotifyConfig(): SpotifyConfig | null {
-  const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID?.trim();
+  const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID?.trim() || DEFAULT_SPOTIFY_CLIENT_ID;
   if (!clientId) return null;
   const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI?.trim()
     || `${window.location.origin}/spotify/callback`;
