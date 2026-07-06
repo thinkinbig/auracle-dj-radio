@@ -5,6 +5,7 @@ import { firstNameFromUser } from '@/features/marketing/guest';
 import { evalMode } from '@/shared/lib/evalMode';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { isCurating } from '@/features/radio/session/playbackSelectors';
+import { useSpotifySceneQuery } from '@/features/spotify/useSpotifySceneQuery';
 import { IntentOnboarding } from './IntentOnboarding';
 import styles from './OnboardingPage.module.css';
 
@@ -21,6 +22,7 @@ export function OnboardingPage() {
   const curating = isCurating(state.phase);
   const greeting = useMemo(() => getGreeting(new Date()), []);
   const firstName = firstNameFromUser(user);
+  const { data: suggestedScene } = useSpotifySceneQuery();
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
@@ -44,6 +46,7 @@ export function OnboardingPage() {
             disabled={curating}
             tasteSummary="your Taste DNA"
             momentSummary="today's session"
+            suggestedScene={suggestedScene}
           />
         </section>
       </main>

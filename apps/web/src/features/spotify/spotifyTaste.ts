@@ -1,6 +1,6 @@
 import { clearSpotifyToken, getSpotifyConfig, getValidSpotifyAccessToken, hasSpotifyToken } from './spotifyAuth';
 
-const API_BASE = 'https://api.spotify.com/v1';
+export const API_BASE = 'https://api.spotify.com/v1';
 const MAX_SAVED_TRACKS = 100;
 
 const KNOWN_ARTIST_GENRES: Record<string, string[]> = {
@@ -174,12 +174,16 @@ export async function getSpotifyTasteProfile(): Promise<SpotifyTasteProfile> {
     : fallbackArtists.length > 0
       ? fallbackArtists
       : spotifyTopArtists;
-  const recentArtists = rankCounts(countTrackArtists(firstNonEmpty(recentTracks, savedTracks))).slice(0, 6);
+  const recentArtistWeights = recentTracks.length > 0
+    ? weightedCountTrackArtists(recent.items, Date.now())
+    : countTrackArtists(savedTracks);
+  const recentArtists = rankCounts(recentArtistWeights).slice(0, 6);
+  const recentTotalWeight = sumMapValues(recentArtistWeights);
   const topGenres = firstNonEmpty(
     rankCounts(countGenres(artists)),
     inferGenreCounts({ artists, tracks, recentArtists }),
   );
-  const metrics = buildMetrics({ artists, tracks, savedTracks, topGenres, recentArtists });
+  const metrics = buildMetrics({ artists, tracks, savedTracks, topGenres, recentArtists, recentTotalWeight });
   const hostSeed = buildHostSeed({ topGenres, artists, tracks, recentArtists });
   const summary = buildSummary({ topGenres, artists, tracks, recentArtists, metrics });
 
@@ -289,13 +293,13 @@ function emptyTasteProfile(status: SpotifyTasteStatus): SpotifyTasteProfile {
   };
 }
 
-async function requireTasteToken(): Promise<string> {
+export async function requireTasteToken(): Promise<string> {
   const token = await getValidSpotifyAccessToken();
   if (!token) throw new Error('Spotify sign-in required');
   return token;
 }
 
-async function fetchSpotify<T>(token: string, url: string): Promise<T> {
+export async function fetchSpotify<T>(token: string, url: string): Promise<T> {
   const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -441,6 +445,41 @@ function countTrackArtists(tracks: SpotifyTrack[]): Map<string, number> {
   return counts;
 }
 
+// Half-life for weighting recently-played plays: a play from a few hours ago should
+// dominate "what are you into right now" far more than one from three days ago, even
+// though both count equally toward the flat 50-play fetch window.
+const RECENT_PLAY_HALF_LIFE_HOURS = 36;
+
+function recencyWeight(playedAt: string | undefined, nowMs: number): number {
+  if (!playedAt) return 1;
+  const playedMs = Date.parse(playedAt);
+  if (!Number.isFinite(playedMs)) return 1;
+  const ageHours = Math.max(0, (nowMs - playedMs) / 3_600_000);
+  return Math.pow(0.5, ageHours / RECENT_PLAY_HALF_LIFE_HOURS);
+}
+
+/** Like countTrackArtists, but a play's contribution decays with its age (played_at) instead of counting every play equally. */
+function weightedCountTrackArtists(
+  items: Array<{ track: SpotifyTrack | null; played_at?: string }>,
+  nowMs: number,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    if (!item.track) continue;
+    const weight = recencyWeight(item.played_at, nowMs);
+    for (const artist of item.track.artists) {
+      counts.set(artist.name, (counts.get(artist.name) ?? 0) + weight);
+    }
+  }
+  return counts;
+}
+
+function sumMapValues(map: Map<string, number>): number {
+  let total = 0;
+  for (const value of map.values()) total += value;
+  return total;
+}
+
 function uniqueTracks(tracks: SpotifyTrack[]): SpotifyTrack[] {
   const seen = new Set<string>();
   const unique: SpotifyTrack[] = [];
@@ -514,6 +553,8 @@ function buildMetrics(input: {
   savedTracks: SpotifyTrack[];
   topGenres: Array<{ name: string; count: number }>;
   recentArtists: Array<{ name: string; count: number }>;
+  /** Sum of recency-weighted play counts across all recent artists (denominator for "Recent repeat" share). */
+  recentTotalWeight: number;
 }): SpotifyTasteMetric[] {
   const popularityValues = [
     ...input.artists.map((a) => a.popularity),
@@ -524,8 +565,8 @@ function buildMetrics(input: {
   const genreFocus = input.topGenres.length
     ? Math.max(0, Math.min(100, Math.round((input.topGenres[0].count / Math.max(1, input.artists.length)) * 100)))
     : 0;
-  const recentRepeat = input.recentArtists.length
-    ? Math.max(0, Math.min(100, Math.round((input.recentArtists[0].count / 50) * 100)))
+  const recentRepeat = input.recentArtists.length && input.recentTotalWeight > 0
+    ? Math.max(0, Math.min(100, Math.round((input.recentArtists[0].count / input.recentTotalWeight) * 100)))
     : 0;
 
   return [

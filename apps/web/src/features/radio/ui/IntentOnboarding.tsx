@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import type { SessionIntent } from '@auracle/shared';
 import { cn } from '@/shared/lib/cn';
 import styles from './IntentOnboarding.module.css';
@@ -8,6 +8,8 @@ interface IntentOnboardingProps {
   disabled?: boolean;
   tasteSummary?: string;
   momentSummary?: string;
+  /** Best-guess scene from the listener's Spotify playlists (e.g. "study"); prefills the picker until they choose something themselves. */
+  suggestedScene?: string;
 }
 
 type IntentPreset = {
@@ -116,19 +118,34 @@ export function IntentOnboarding({
   disabled,
   tasteSummary = 'your Taste DNA',
   momentSummary = 'this moment',
+  suggestedScene,
 }: IntentOnboardingProps) {
   const [prompt, setPrompt] = useState('');
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
   const [selectedVibeId, setSelectedVibeId] = useState(VIBE_LIBRARY[0]!.id);
+  const [hasUserPicked, setHasUserPicked] = useState(false);
 
   const trimmedPrompt = prompt.trim();
-  const suggestedVibes = useMemo(() => rankSuggestedVibes(trimmedPrompt), [trimmedPrompt]);
+  const suggestedVibes = useMemo(
+    () => (trimmedPrompt ? rankSuggestedVibes(trimmedPrompt) : defaultVibes(suggestedScene)),
+    [trimmedPrompt, suggestedScene],
+  );
   const selectedVibe =
     VIBE_LIBRARY.find((vibe) => vibe.id === selectedVibeId) ?? suggestedVibes[0] ?? VIBE_LIBRARY[0]!;
   const canCreate = Boolean(trimmedPrompt || selectedVibe) && !disabled;
   const ctaLabel = disabled ? 'Creating Session' : 'Create Session';
 
+  // Prefill from the listener's own Spotify playlists once the suggestion arrives —
+  // but never override a choice they've already made (quick prompt, typed prompt, or
+  // a manual vibe click).
+  useEffect(() => {
+    if (hasUserPicked || !suggestedScene) return;
+    const match = VIBE_LIBRARY.find((vibe) => vibe.scene === suggestedScene);
+    if (match) setSelectedVibeId(match.id);
+  }, [suggestedScene, hasUserPicked]);
+
   const selectQuickPrompt = (preset: QuickPrompt) => {
+    setHasUserPicked(true);
     setPrompt(preset.label);
     setSelectedPromptId(preset.id);
     setSelectedVibeId(preset.vibeId);
@@ -136,6 +153,7 @@ export function IntentOnboarding({
 
   const handlePromptChange = (value: string) => {
     const nextVibes = rankSuggestedVibes(value.trim());
+    setHasUserPicked(true);
     setPrompt(value);
     setSelectedPromptId(null);
     setSelectedVibeId(nextVibes[0]?.id ?? VIBE_LIBRARY[0]!.id);
@@ -201,7 +219,10 @@ export function IntentOnboarding({
                 key={vibe.id}
                 type="button"
                 className={cn(styles.vibeCard, active && styles.vibeCardActive)}
-                onClick={() => setSelectedVibeId(vibe.id)}
+                onClick={() => {
+                  setHasUserPicked(true);
+                  setSelectedVibeId(vibe.id);
+                }}
                 disabled={disabled}
                 aria-pressed={active}
               >
@@ -229,6 +250,13 @@ export function IntentOnboarding({
       </footer>
     </div>
   );
+}
+
+/** No-prompt default grid: the Spotify-suggested scene's vibe floats to the front (and stays visible) so a prefilled selection is actually shown, not just picked under the hood. */
+function defaultVibes(suggestedScene: string | undefined): IntentPreset[] {
+  const match = suggestedScene ? VIBE_LIBRARY.find((vibe) => vibe.scene === suggestedScene) : undefined;
+  if (!match) return VIBE_LIBRARY.slice(0, DEFAULT_VIBE_COUNT);
+  return [match, ...VIBE_LIBRARY.filter((vibe) => vibe.id !== match.id)].slice(0, DEFAULT_VIBE_COUNT);
 }
 
 function rankSuggestedVibes(prompt: string): IntentPreset[] {

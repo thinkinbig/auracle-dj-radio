@@ -183,6 +183,40 @@ describe('getSpotifyTasteProfile', () => {
     expect(taste.topGenres.map((genre) => genre.name)).toContain('dream pop');
     expect(taste.metrics.find((metric) => metric.label === 'Genre focus')?.value).not.toBe('0%');
   });
+
+  it('weighs a single very recent play over several plays from days ago', async () => {
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/me/top/artists')) return jsonResponse({ items: [] });
+      if (url.includes('/me/top/tracks')) return jsonResponse({ items: [] });
+      if (url.includes('/me/tracks')) return jsonResponse({ total: 0, items: [], next: null });
+      if (url.includes('/me/player/recently-played')) {
+        return jsonResponse({
+          items: [
+            // One play, seconds ago.
+            { track: spotifyTrack('track-new', 'Right Now', 'artist-new', 'Fresh Signal'), played_at: hoursAgo(0) },
+            // Three plays, four days ago each — would win on raw frequency alone.
+            { track: spotifyTrack('track-old-1', 'Old Loop A', 'artist-old', 'Stale Rotation'), played_at: hoursAgo(96) },
+            { track: spotifyTrack('track-old-2', 'Old Loop B', 'artist-old', 'Stale Rotation'), played_at: hoursAgo(96) },
+            { track: spotifyTrack('track-old-3', 'Old Loop C', 'artist-old', 'Stale Rotation'), played_at: hoursAgo(96) },
+          ],
+        });
+      }
+      if (url.includes('/artists?ids=')) {
+        return jsonResponse({
+          artists: [
+            { id: 'artist-new', name: 'Fresh Signal', genres: [], popularity: 50, images: [] },
+            { id: 'artist-old', name: 'Stale Rotation', genres: [], popularity: 50, images: [] },
+          ],
+        });
+      }
+      return jsonResponse({});
+    }));
+
+    const taste = await getSpotifyTasteProfile();
+
+    expect(taste.recentArtists[0]?.name).toBe('Fresh Signal');
+  });
 });
 
 function jsonResponse(body: unknown): Response {
