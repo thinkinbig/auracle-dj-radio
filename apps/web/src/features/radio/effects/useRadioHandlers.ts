@@ -1,11 +1,16 @@
 import { useCallback } from 'react';
-import type { HostMode, SessionIntent } from '@auracle/shared';
+import type { HostMode, SessionIntent, TastePreference } from '@auracle/shared';
 import { createAudioBus } from '../lib/liveAudio';
 import { createSession, extendSession, postHostMode, postPlaylistFeedback, postSkipTrack, SessionAuthError } from '../lib/sessionApi';
 import { DEMO_SESSION } from '@/data/demoData';
 import { prefetchTracks } from '@/data/trackCatalog';
 import { gatherSpotifyCandidates, isSpotifyPlaybackEnabled } from '@/features/spotify/spotifyPlayback';
-import { buildSpotifyTasteContext, canReadSpotifyTaste, getSpotifyTasteProfile } from '@/features/spotify/spotifyTaste';
+import {
+  buildSpotifyTasteContext,
+  buildSpotifyTastePreferences,
+  canReadSpotifyTaste,
+  getSpotifyTasteProfile,
+} from '@/features/spotify/spotifyTaste';
 import { queryKeys } from '@/shared/query/keys';
 import { queryClient } from '@/shared/query/queryClient';
 import type { RadioCommands } from '../lib/radioCommands';
@@ -54,13 +59,13 @@ export function useRadioHandlers({
       // Gather the listener's Spotify library as seeds for the server to rank into
       // the queue (ADR-0005). Best-effort: a failure or non-Premium user just yields
       // a catalog-only session.
-      const [seeds, spotifyTasteSummary] = await Promise.all([
+      const [seeds, spotifyTaste] = await Promise.all([
         isSpotifyPlaybackEnabled()
           ? gatherSpotifyCandidates().catch(() => undefined)
           : Promise.resolve(undefined),
-        readSpotifyTasteContext().catch(() => undefined),
+        readSpotifyTaste().catch(() => undefined),
       ]);
-      const session = await createSession(intent, seeds, spotifyTasteSummary);
+      const session = await createSession(intent, seeds, spotifyTaste?.summary, spotifyTaste?.preferences);
       void prefetchTracks(session.tracklist);
       store.dispatchRef.current({ type: 'start', session });
     } catch (err) {
@@ -177,12 +182,12 @@ export function useRadioHandlers({
   };
 }
 
-async function readSpotifyTasteContext(): Promise<string | undefined> {
+async function readSpotifyTaste(): Promise<{ summary?: string; preferences?: TastePreference[] } | undefined> {
   if (canReadSpotifyTaste() !== 'ready') return undefined;
   const profile = await queryClient.fetchQuery({
     queryKey: queryKeys.spotifyTaste,
     queryFn: getSpotifyTasteProfile,
     staleTime: 5 * 60 * 1000,
   });
-  return buildSpotifyTasteContext(profile);
+  return { summary: buildSpotifyTasteContext(profile), preferences: buildSpotifyTastePreferences(profile) };
 }

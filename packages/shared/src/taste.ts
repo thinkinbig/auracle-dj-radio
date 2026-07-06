@@ -1,7 +1,7 @@
 /** Session-scoped taste delta used for current-queue feedback nudges. */
 export type TasteEntityType = "genre" | "artist" | "album" | "track";
 export type TastePolarity = "prefer" | "avoid";
-export type TasteSource = "onboarding" | "search" | "session";
+export type TasteSource = "onboarding" | "search" | "session" | "spotify";
 
 export interface TastePreference {
   entityType: TasteEntityType;

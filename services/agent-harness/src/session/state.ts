@@ -34,6 +34,8 @@ export interface SessionState {
    * queue in B and C alike; never persisted here.
    */
   sessionTaste: TastePreference[];
+  /** Cross-session prefs from Spotify at session start (condition C only); empty for A/B. */
+  storedTaste: TastePreference[];
   /** `feedback:trackId` pairs already forwarded to taste derivation (dedupe DJ tool double-fires). */
   tasteFeedbackSent: Set<string>;
   tieBreakSeed: string;
@@ -126,6 +128,7 @@ export class SessionStore {
     candidatesById: Map<string, TrackCandidate>;
     personalizationContext: string;
     seeds?: TrackSeed[];
+    storedTaste?: TastePreference[];
   }): SessionState {
     const energyById = new Map<string, number>();
     for (const ref of params.tracklist) {
@@ -151,6 +154,7 @@ export class SessionStore {
       planRefined: false,
       refineListeners: new Set(),
       sessionTaste: [],
+      storedTaste: params.storedTaste ?? [],
       tasteFeedbackSent: new Set(),
     };
     this.sessions.set(state.id, state);

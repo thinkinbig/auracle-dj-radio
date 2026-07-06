@@ -3,6 +3,7 @@ import type { PlanResponse } from "@auracle/clients";
 import { pushQueueRefresh, pushQueueUpdate } from "../delivery/queue-update.js";
 import type { OrchestrationDeps } from "../deps.js";
 import { changedIdsFromRemaining } from "../planning/replan.js";
+import { overlaySessionTaste } from "../planning/session-taste.js";
 import type { SessionState } from "../state.js";
 
 /** Append a fresh batch once the queue runs this low (slots after current). */
@@ -77,7 +78,7 @@ async function buildExtendContext(deps: OrchestrationDeps, state: SessionState):
     playedIds: state.tracklist.map((r) => r.id),
     lastPlayedEnergy: tailEnergy(state),
     personalized,
-    taste: state.sessionTaste.length > 0 ? state.sessionTaste : undefined,
+    taste: overlaySessionTaste(state.storedTaste.length > 0 ? state.storedTaste : undefined, state.sessionTaste),
   };
 }
 

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Condition, PlannedTrack, SessionIntent, TrackSeed } from "@auracle/shared";
+import type { Condition, PlannedTrack, SessionIntent, TastePreference, TrackSeed } from "@auracle/shared";
 import { ANONYMOUS_USER_ID } from "@auracle/shared";
 import { buildRegistration } from "../../dj/registration.js";
 import type { PlanResponse } from "@auracle/clients";
@@ -25,6 +25,8 @@ interface SessionCreateContext extends SessionPersonalization {
   supersededId?: string;
   tieBreakSeed: string;
   seeds?: TrackSeed[];
+  /** Structured Spotify prefer/avoid, gated to condition C (see initialPersonalization). */
+  taste: TastePreference[];
 }
 
 interface RefineSnapshot {
@@ -46,6 +48,8 @@ export interface CreateSessionInput extends SessionIntent {
   seeds?: TrackSeed[];
   /** Short aggregate Spotify taste summary from the browser; no raw listening history. */
   spotify_taste_summary?: string;
+  /** Structured genre prefer/avoid derived from Spotify taste (condition C only). */
+  taste?: TastePreference[];
 }
 
 export interface CreateSessionDeps extends OrchestrationDeps {
@@ -92,6 +96,7 @@ async function prepareSessionCreateContext(
   const personalization = initialPersonalization(condition, input.spotify_taste_summary);
   const tieBreakSeed = randomUUID();
   const seeds = input.seeds?.length ? input.seeds : undefined;
+  const taste = condition === "C" ? (input.taste ?? []) : [];
 
   return {
     userId,
@@ -101,6 +106,7 @@ async function prepareSessionCreateContext(
     supersededId,
     tieBreakSeed,
     seeds,
+    taste,
     ...personalization,
   };
 }
@@ -112,6 +118,7 @@ async function buildProvisionalPlan(deps: CreateSessionDeps, context: SessionCre
     memories: context.personalizationContext,
     tieBreakSeed: context.tieBreakSeed,
     seeds: context.seeds,
+    taste: context.taste.length > 0 ? context.taste : undefined,
   });
 }
 
@@ -129,6 +136,7 @@ function persistProvisionalSession(deps: CreateSessionDeps, context: SessionCrea
     candidatesById,
     personalizationContext: context.personalizationContext,
     seeds: context.seeds,
+    storedTaste: context.taste,
   });
 }
 
@@ -208,6 +216,7 @@ async function buildFullRefinePlan(deps: CreateSessionDeps, state: SessionState)
     memories: state.personalizationContext,
     tieBreakSeed: state.tieBreakSeed,
     seeds: state.seeds,
+    taste: state.storedTaste.length > 0 ? state.storedTaste : undefined,
   });
 }
 

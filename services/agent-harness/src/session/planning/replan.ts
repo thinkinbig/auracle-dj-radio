@@ -5,6 +5,7 @@ import { pushQueueUpdate, pushQueueRefresh } from "../delivery/queue-update.js";
 import type { PlaylistFeedbackSource } from "@auracle/shared";
 import type { OrchestrationDeps } from "../deps.js";
 import type { SessionState } from "../state.js";
+import { overlaySessionTaste } from "./session-taste.js";
 
 /**
  * On-air adjustment tier (design §2.2):
@@ -127,7 +128,7 @@ async function buildReplanContext(
     lastPlayedEnergy: windowSeedEnergy(state, params, window),
     replacedWindow: remainingRefs.slice(window.start, window.start + window.count).map((r) => r.id),
     personalized,
-    taste: state.sessionTaste.length > 0 ? state.sessionTaste : undefined,
+    taste: overlaySessionTaste(state.storedTaste.length > 0 ? state.storedTaste : undefined, state.sessionTaste),
   };
 }
 

@@ -1,5 +1,5 @@
 import { HarnessSessionClient, SessionAuthError } from '@auracle/clients';
-import type { CreateSessionResponse, SessionIntent, TrackSeed } from '@auracle/shared';
+import type { CreateSessionResponse, SessionIntent, TastePreference, TrackSeed } from '@auracle/shared';
 import { authHeaders, clearStoredToken, jsonAuthHeaders } from '@/features/marketing/authApi';
 import { DEMO_SESSION } from '@/data/demoData';
 
@@ -18,6 +18,7 @@ export async function createSession(
   intent: SessionIntent,
   seeds?: TrackSeed[],
   spotifyTasteSummary?: string,
+  taste?: TastePreference[],
 ): Promise<CreateSessionResponse> {
   try {
     const res = await fetch('/sessions', {
@@ -27,6 +28,7 @@ export async function createSession(
         ...intent,
         ...(seeds?.length ? { seeds } : {}),
         ...(spotifyTasteSummary ? { spotify_taste_summary: spotifyTasteSummary } : {}),
+        ...(taste?.length ? { taste } : {}),
       }),
     });
     if (res.status === 401) {

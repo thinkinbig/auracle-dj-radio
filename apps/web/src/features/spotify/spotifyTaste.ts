@@ -1,3 +1,4 @@
+import type { TastePreference } from '@auracle/shared';
 import { clearSpotifyToken, getSpotifyConfig, getValidSpotifyAccessToken, hasSpotifyToken } from './spotifyAuth';
 
 export const API_BASE = 'https://api.spotify.com/v1';
@@ -216,6 +217,54 @@ export function buildSpotifyTasteContext(profile: SpotifyTasteProfile | undefine
     metrics ? `Taste signals: ${metrics}.` : '',
     profile.hostSeed ? `AI host seed: ${profile.hostSeed}.` : '',
   ].filter(Boolean).join(' ').slice(0, 900);
+}
+
+// Soft family mapping from the broad Spotify genre buckets above (see GENRE_KEYWORDS)
+// to Auracle's own catalog taxonomy — the catalog is original, curated content with no
+// real-world artist/genre overlap, so this is a best-effort analog, not an identity
+// match. `strength` reflects mapping confidence (3 = close family match, 1 = weak
+// analog) and stays intentionally low: `taste-weighting.ts` already treats genre as the
+// lightest-weighted preference type, so even a strength-3 entry only nudges ranking.
+const GENRE_TO_CATALOG_SLUGS: Record<string, { slugs: string[]; strength: 1 | 2 | 3 }> = {
+  house: { slugs: ['house', 'deep-house', 'afro-house'], strength: 3 },
+  ambient: { slugs: ['ambient'], strength: 3 },
+  electropop: { slugs: ['synthwave'], strength: 2 },
+  'dance pop': { slugs: ['nu-disco'], strength: 2 },
+  pop: { slugs: ['k-pop'], strength: 1 },
+  'hip hop': { slugs: ['phonk'], strength: 1 },
+  'r&b': { slugs: ['chillhop'], strength: 1 },
+  'dream pop': { slugs: ['future-garage'], strength: 1 },
+  'art pop': { slugs: ['jazztronica'], strength: 1 },
+  'indie pop': { slugs: ['lo-fi'], strength: 1 },
+  'indie rock': { slugs: ['synthwave'], strength: 1 },
+  folk: { slugs: ['downtempo'], strength: 1 },
+};
+
+const TOP_GENRES_FOR_TASTE = 5;
+
+/**
+ * Structured genre prefer-preferences for condition C session creation — the
+ * only piece of Spotify taste that can transfer to track selection, since the
+ * catalog's artists/tracks are original and have no real-world identity to
+ * match against. Undefined mappings are skipped rather than forced.
+ */
+export function buildSpotifyTastePreferences(profile: SpotifyTasteProfile | undefined): TastePreference[] {
+  if (!profile || profile.status !== 'ready') return [];
+  const bySlug = new Map<string, number>();
+  for (const { name, count: _count } of profile.topGenres.slice(0, TOP_GENRES_FOR_TASTE)) {
+    const mapping = GENRE_TO_CATALOG_SLUGS[name.toLowerCase()];
+    if (!mapping) continue;
+    for (const slug of mapping.slugs) {
+      bySlug.set(slug, Math.max(bySlug.get(slug) ?? 0, mapping.strength));
+    }
+  }
+  return [...bySlug.entries()].map(([entityId, strength]) => ({
+    entityType: 'genre' as const,
+    entityId,
+    polarity: 'prefer' as const,
+    strength: strength as 1 | 2 | 3,
+    source: 'spotify' as const,
+  }));
 }
 
 export function buildSpotifyTasteRoast(profile: SpotifyTasteProfile): SpotifyTasteRoast {
