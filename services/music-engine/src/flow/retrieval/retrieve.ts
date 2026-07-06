@@ -1,5 +1,5 @@
 import type { TastePreference, TrackCandidate } from "@auracle/shared";
-import { FULL_SESSION_LENGTH, createMoodEnergyProfile, energyTargetsForMood, toCandidate } from "@auracle/shared";
+import { FULL_SESSION_LENGTH, createMoodEnergyProfile, energyTargetsForMood, tieBreakValue, toCandidate } from "@auracle/shared";
 import type { TrackRow } from "../../catalog-store.js";
 import { buildTasteScorer, type TasteScorer } from "../weighting/taste-weighting.js";
 
@@ -168,14 +168,4 @@ function rankByFit(
     return tieBreakValue(tieBreakSeed, a.item.id) - tieBreakValue(tieBreakSeed, b.item.id);
   });
   return scored.slice(0, limit);
-}
-
-function tieBreakValue(seed: string, id: string): number {
-  let hash = 0x811c9dc5;
-  const input = seed + ":" + id;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0;
 }

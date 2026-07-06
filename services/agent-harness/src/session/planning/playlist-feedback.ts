@@ -23,7 +23,12 @@ export async function runPlaylistFeedback(
   feedback: PlaylistFeedback,
   source: PlaylistFeedbackSource,
 ): Promise<PlaylistFeedbackOutcome> {
-  const trackId = state.tracklist[state.currentTrackIndex]?.id ?? null;
+  const currentTrack = state.tracklist[state.currentTrackIndex];
+  const trackId = currentTrack?.id ?? null;
+  // Only local catalog tracks resolve to taste prefs (taste.ts feedbackPreferences);
+  // an external (Spotify) uri has no catalog identity, so a reaction here is
+  // telemetry-only — don't have the DJ promise a queue effect it can't deliver.
+  const hasCatalogIdentity = currentTrack?.uri.startsWith("local:") ?? false;
   const remainingIds = state.tracklist.slice(state.currentTrackIndex + 1).map((track) => track.id);
   await deps.profile.recordEvent(state.id, state.userId, "playlist_feedback", {
     feedback,
@@ -42,7 +47,9 @@ export async function runPlaylistFeedback(
       gemini_result: {
         ok: true,
         feedback,
-        note: "Noted — the upcoming picks will lean accordingly. Acknowledge briefly; don't announce a playlist rebuild.",
+        note: hasCatalogIdentity
+          ? "Noted — the upcoming picks will lean accordingly. Acknowledge briefly; don't announce a playlist rebuild."
+          : "Noted. Acknowledge briefly; don't announce a playlist rebuild or promise the queue will change.",
       },
       ui_events,
     };

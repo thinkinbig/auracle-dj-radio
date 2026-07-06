@@ -288,21 +288,21 @@ export async function createProvisionalPlan(
       session_title: provisionalTitle(intent, tieBreakSeed),
       session_subtitle: `${intent.duration_min} min`,
       arc: "warm_up",
-      tracklist: stampPlanned(buildProvisionalArc(candidates, intent.mood), tracks, seed),
+      tracklist: stampPlanned(buildProvisionalArc(candidates, intent.mood, tieBreakSeed), tracks, seed),
     },
     candidatesById,
   };
 }
 
 /** Fill starter slots by closest candidate energy to the mood-dependent arc targets. */
-function buildProvisionalArc(candidates: TrackCandidate[], mood: string): FlowSlot[] {
+function buildProvisionalArc(candidates: TrackCandidate[], mood: string, tieBreakSeed?: string): FlowSlot[] {
   const pool = [...candidates];
   const slots: FlowSlot[] = [];
   const targets = energyTargetsForMood(FULL_SESSION_LENGTH, mood, null);
   let prev: TrackCandidate | undefined;
 
   targets.forEach((target, i) => {
-    const pick = chooseNext(pool, target, prev);
+    const pick = chooseNext(pool, target, prev, tieBreakSeed);
     if (!pick) return;
     pool.splice(pool.indexOf(pick), 1);
     slots.push({ id: pick.id, flow_position: i + 1, reason: "mood arc target " + target.toFixed(1) + " (provisional)" });
@@ -478,7 +478,7 @@ export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<Pl
     ...seed.pool.filter((c) => !exclude.has(c.id)),
   ];
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
-  const tracklist = stampPlanned(buildExtendChain(candidates, input.appendSlots, input.lastPlayedEnergy), tracks, seed);
+  const tracklist = stampPlanned(buildExtendChain(candidates, input.appendSlots, input.lastPlayedEnergy, input.tieBreakSeed), tracks, seed);
   return {
     result: { session_title: "", session_subtitle: "", arc: "peak", tracklist },
     violations: [],
@@ -487,14 +487,14 @@ export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<Pl
 }
 
 /** Greedy energy chain of up to `count` candidates, starting near `seedEnergy`. */
-function buildExtendChain(candidates: TrackCandidate[], count: number, seedEnergy: number | null): FlowSlot[] {
+function buildExtendChain(candidates: TrackCandidate[], count: number, seedEnergy: number | null, tieBreakSeed?: string): FlowSlot[] {
   const pool = [...candidates];
   const slots: FlowSlot[] = [];
   let prev: TrackCandidate | undefined;
 
   for (let pos = 1; pos <= count && pool.length > 0; pos++) {
     const target = prev?.energy ?? seedEnergy ?? pool[0]!.energy;
-    const pick = chooseNext(pool, target, prev);
+    const pick = chooseNext(pool, target, prev, tieBreakSeed);
     if (!pick) break;
     pool.splice(pool.indexOf(pick), 1);
     slots.push({ id: pick.id, flow_position: pos, reason: "rolling extend" });

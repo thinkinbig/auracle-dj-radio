@@ -13,7 +13,7 @@ export class HeuristicFlowModel {
     let prev: TrackCandidate | undefined;
 
     targets.forEach((target, i) => {
-      const pick = chooseNext(pool, target, prev);
+      const pick = chooseNext(pool, target, prev, input.tieBreakSeed);
       if (!pick) return;
       pool.splice(pool.indexOf(pick), 1);
       tracklist.push({
