@@ -301,6 +301,76 @@ describe("agent-harness", () => {
     await app.close();
   });
 
+  it("switches host mode from a DJ tool call (voice command) without a proxy announcement", async () => {
+    const { app, proxy, profile } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "change_host_mode", args: { host_mode: "hype" } },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{
+      gemini_result: { ok: boolean; host_mode: string; previous: string; changed: boolean; note?: string };
+      ui_events: { type: string; intent?: { type: string; host_mode?: string } }[];
+    }>();
+    expect(body.gemini_result).toMatchObject({ ok: true, host_mode: "hype", previous: "curator", changed: true });
+    expect(body.gemini_result.note).toBeTruthy();
+    expect(body.ui_events).toContainEqual({ type: "intent", intent: { type: "host_mode_changed", host_mode: "hype" } });
+    expect(profile.events).toContainEqual(
+      expect.objectContaining({
+        eventType: "change_host_mode",
+        payload: expect.objectContaining({ host_mode: "hype", previous: "curator" }),
+      }),
+    );
+    // dj_tool switches carry the new style back in the tool response note (the LLM
+    // adopts it from its next line); only the UI route pushes a proxy announcement.
+    expect(proxy.injectCalls).toEqual([]);
+    await app.close();
+  });
+
+  it("no-ops a DJ tool call for the host mode already active", async () => {
+    const { app, profile } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "change_host_mode", args: { host_mode: "curator" } },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{
+      gemini_result: { ok: boolean; changed: boolean; note?: string };
+      ui_events: unknown[];
+    }>();
+    expect(body.gemini_result).toMatchObject({ ok: true, changed: false });
+    expect(body.gemini_result.note).toBeUndefined();
+    expect(body.ui_events).toEqual([]);
+    expect(profile.events.some((e) => e.eventType === "change_host_mode")).toBe(false);
+    await app.close();
+  });
+
+  it("rejects an invalid host_mode from a DJ tool call", async () => {
+    const { app } = buildTestApp();
+    await app.ready();
+    const created = await app.inject({ method: "POST", url: "/sessions", payload: { mood: "calm", scene: "studying" } });
+    const { session_id } = created.json<{ session_id: string }>();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${session_id}/tool`,
+      payload: { name: "change_host_mode", args: { host_mode: "chaotic-evil" } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ gemini_result: { ok: false, error: "invalid host_mode" }, ui_events: [] });
+    await app.close();
+  });
+
   it("records playlist_feedback from the UI playlist-feedback route", async () => {
     const { app, profile } = buildTestApp();
     await app.ready();
