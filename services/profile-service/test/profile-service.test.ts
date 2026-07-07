@@ -1,6 +1,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { SignJWT } from "jose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ANONYMOUS_USER_ID, type CatalogManifest } from "@auracle/shared";
 import { AuthStore } from "../src/auth-store.js";
@@ -29,12 +30,13 @@ function testCatalog(artistId?: string, revision = "test-rev-001"): CatalogIndex
 let app: ReturnType<typeof buildServer>;
 let events: EventsDb;
 let auth: AuthStore;
+const authSecret = "profile-service-test-secret";
+const authIssuer = "https://auracle-test.supabase.co/auth/v1";
 
 beforeAll(async () => {
   const dbPath = join(mkdtempSync(join(tmpdir(), "profile-service-")), "events.sqlite");
-  const authDbPath = join(mkdtempSync(join(tmpdir(), "profile-service-auth-")), "auth.sqlite");
   events = new EventsDb(dbPath);
-  auth = new AuthStore(authDbPath);
+  auth = new AuthStore({ jwtSecret: authSecret, issuer: authIssuer });
   app = buildServer({ events, auth, catalog: testCatalog() });
   await app.ready();
 });
@@ -42,87 +44,86 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close();
   events.close();
-  auth.close();
 });
 
-/** Register a fresh user and return its id + bearer token. */
+async function supabaseToken(input: { sub: string; email: string; name?: string; provider?: string }): Promise<string> {
+  return new SignJWT({
+    email: input.email,
+    user_metadata: { name: input.name },
+    app_metadata: { provider: input.provider ?? "email" },
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(input.sub)
+    .setIssuer(authIssuer)
+    .setAudience("authenticated")
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(new TextEncoder().encode(authSecret));
+}
+
+/** Create a profile mapping through the same Supabase JWT path production uses. */
 async function registerUser(email: string): Promise<{ id: string; token: string }> {
-  const res = await app.inject({ method: "POST", url: "/auth/register", payload: { email, password: "Secret123" } });
-  const body = res.json<{ user: { id: string }; token: string }>();
-  return { id: body.user.id, token: body.token };
+  const id = `supabase-${email}`;
+  const token = await supabaseToken({ sub: id, email, name: "Listener" });
+  const res = await app.inject({ method: "GET", url: "/auth/me", headers: { authorization: `Bearer ${token}` } });
+  expect(res.statusCode).toBe(200);
+  return { id, token };
 }
 
 describe("profile-service /auth", () => {
-  it("registers, restores the current user, rejects duplicate email, and logs out", async () => {
-    const created = await app.inject({
+  it("deprecates local password registration and login", async () => {
+    const register = await app.inject({
       method: "POST",
       url: "/auth/register",
-      payload: { email: "Listener@Example.com", password: "Secret123", name: "Listener" },
+      payload: { email: "listener@example.com", password: "Secret123", name: "Listener" },
     });
-    expect(created.statusCode).toBe(200);
-    const body = created.json<{ user: { email: string; name: string }; token: string }>();
-    expect(body.user.email).toBe("listener@example.com");
-    expect(body.user.name).toBe("Listener");
-    expect(body.token).toBeTruthy();
+    expect(register.statusCode).toBe(410);
 
-    const duplicate = await app.inject({
+    const login = await app.inject({
       method: "POST",
-      url: "/auth/register",
+      url: "/auth/login",
       payload: { email: "listener@example.com", password: "Secret123" },
     });
-    expect(duplicate.statusCode).toBe(409);
+    expect(login.statusCode).toBe(410);
+  });
 
-    const weakPassword = await app.inject({
-      method: "POST",
-      url: "/auth/register",
-      payload: { email: "weak@example.com", password: "secret123" },
+  it("restores the current user from a Supabase JWT", async () => {
+    const token = await supabaseToken({
+      sub: "supabase-user-1",
+      email: "Listener@Example.com",
+      name: "Listener",
+      provider: "google",
     });
-    expect(weakPassword.statusCode).toBe(400);
-
     const me = await app.inject({
       method: "GET",
       url: "/auth/me",
-      headers: { authorization: `Bearer ${body.token}` },
+      headers: { authorization: `Bearer ${token}` },
     });
     expect(me.statusCode).toBe(200);
-    expect(me.json<{ user: { email: string } }>().user.email).toBe("listener@example.com");
+    const body = me.json<{ user: { id: string; email: string; name: string; provider?: string } }>();
+    expect(body.user).toEqual({ id: "supabase-user-1", email: "listener@example.com", name: "Listener", provider: "google" });
 
     const logout = await app.inject({
       method: "POST",
       url: "/auth/logout",
-      headers: { authorization: `Bearer ${body.token}` },
+      headers: { authorization: `Bearer ${token}` },
     });
     expect(logout.statusCode).toBe(200);
 
     const afterLogout = await app.inject({
       method: "GET",
       url: "/auth/me",
-      headers: { authorization: `Bearer ${body.token}` },
+      headers: { authorization: `Bearer ${token}` },
     });
-    expect(afterLogout.statusCode).toBe(401);
+    expect(afterLogout.statusCode).toBe(200);
   });
 
-  it("logs in an existing user and rejects a bad password", async () => {
-    await app.inject({
-      method: "POST",
-      url: "/auth/register",
-      payload: { email: "login@example.com", password: "Secret123" },
-    });
-
-    const bad = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: { email: "login@example.com", password: "wrong123" },
-    });
+  it("rejects invalid or missing Supabase JWTs", async () => {
+    const bad = await app.inject({ method: "GET", url: "/auth/me", headers: { authorization: "Bearer not-a-jwt" } });
     expect(bad.statusCode).toBe(401);
 
-    const ok = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: { email: "login@example.com", password: "Secret123" },
-    });
-    expect(ok.statusCode).toBe(200);
-    expect(ok.json<{ token: string }>().token).toBeTruthy();
+    const missing = await app.inject({ method: "GET", url: "/auth/me" });
+    expect(missing.statusCode).toBe(401);
   });
 });
 

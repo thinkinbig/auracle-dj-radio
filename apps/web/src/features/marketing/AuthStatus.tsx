@@ -2,7 +2,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { useEffect, useState } from 'react';
 import { deriveSessionMeta, hasStartedSession } from '@/features/radio/session/sessionDisplay';
 import type { PlaybackState } from '@/features/radio/session/types';
-import { isGuestUser } from '@/features/marketing/guest';
+import { isGuestUser, isSpotifyUser } from '@/features/marketing/guest';
 import { useAuth } from '@/features/marketing/AuthProvider';
 import styles from './AuthStatus.module.css';
 
@@ -32,6 +32,7 @@ export function AuthStatus({ onLogout, onOpenListen, playback }: AuthStatusProps
 
   const hasSession = hasStartedSession(playback);
   const { title: sessionTitle, meta: sessionMeta, action: sessionAction } = deriveSessionMeta(hasSession, playback);
+  const hasSpotifyTaste = isSpotifyUser(user);
   const tasteWords = isGuestUser(user) ? ['Demo catalog', 'Guest mode', 'Fresh session'] : ['Spotify taste', 'Live session', 'No Auracle profile'];
   const accountStatus = isGuestUser(user) ? 'Demo station' : 'Signed in';
 
@@ -64,16 +65,18 @@ export function AuthStatus({ onLogout, onOpenListen, playback }: AuthStatusProps
 
             {view === 'overview' && (
               <div className={styles.profileSections}>
-                <section className={styles.profileSection} aria-labelledby="profile-taste-title">
-                  <p className={styles.sectionLabel} id="profile-taste-title">
-                    Your Taste DNA
-                  </p>
-                  <div className={styles.tasteWords} aria-label="Taste DNA">
-                    {tasteWords.map((word) => (
-                      <span key={word}>{word}</span>
-                    ))}
-                  </div>
-                </section>
+                {hasSpotifyTaste || isGuestUser(user) ? (
+                  <section className={styles.profileSection} aria-labelledby="profile-taste-title">
+                    <p className={styles.sectionLabel} id="profile-taste-title">
+                      Your Taste DNA
+                    </p>
+                    <div className={styles.tasteWords} aria-label="Taste DNA">
+                      {tasteWords.map((word) => (
+                        <span key={word}>{word}</span>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
 
                 <section className={styles.profileSection} aria-labelledby="profile-session-title">
                   <div className={styles.sectionActionRow}>

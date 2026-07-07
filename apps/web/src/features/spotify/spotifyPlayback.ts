@@ -2,11 +2,10 @@ import { useSyncExternalStore } from 'react';
 import type { TrackSeed } from '@auracle/shared';
 import {
   beginSpotifyLogin,
-  clearSpotifyToken,
-  completeSpotifyRedirectIfPresent,
-  getSpotifyConfig,
+  clearSpotifyConnection,
+  getSpotifyAuthConfig,
   getValidSpotifyAccessToken,
-  hasSpotifyToken,
+  hasSpotifySession,
 } from './spotifyAuth';
 import { refreshSpotifyTasteQuery } from '@/shared/query/queryClient';
 
@@ -16,6 +15,8 @@ const SDK_SRC = 'https://sdk.scdn.co/spotify-player.js';
 type SpotifyAuthStatus = 'missing_config' | 'signed_out' | 'signed_in' | 'error';
 type SpotifyPlayerStatus = 'idle' | 'connecting' | 'ready' | 'not_ready' | 'error';
 type SpotifyGatherStatus = 'idle' | 'loading' | 'ready' | 'error';
+/** 'unknown' until the first GET /me check runs (or after sign-out); 'checking' while it's in flight. */
+export type SpotifyPremiumStatus = 'unknown' | 'checking' | 'yes' | 'no';
 
 /**
  * Connection + gather state. Under ADR-0005 the client only *gathers* candidates
@@ -25,8 +26,8 @@ export interface SpotifyPlaybackState {
   enabled: boolean;
   authStatus: SpotifyAuthStatus;
   playerStatus: SpotifyPlayerStatus;
-  /** True only after GET /me confirmed `product === "premium"` (playback requires it). */
-  premium: boolean;
+  /** Result of the GET /me `product === "premium"` check (playback requires Premium). */
+  premiumStatus: SpotifyPremiumStatus;
   deviceId: string | null;
   currentUri: string | null;
   gatherStatus: SpotifyGatherStatus;
@@ -110,9 +111,9 @@ declare global {
 
 let state: SpotifyPlaybackState = {
   enabled: readEnabled(),
-  authStatus: getSpotifyConfig() ? (hasSpotifyToken() ? 'signed_in' : 'signed_out') : 'missing_config',
+  authStatus: getSpotifyAuthConfig() ? (hasSpotifySession() ? 'signed_in' : 'signed_out') : 'missing_config',
   playerStatus: 'idle',
-  premium: false,
+  premiumStatus: 'unknown',
   deviceId: null,
   currentUri: null,
   gatherStatus: 'idle',
@@ -142,36 +143,23 @@ export function isSpotifyPlaybackEnabled(): boolean {
   return state.enabled;
 }
 
-export async function handleSpotifyRedirect(): Promise<void> {
-  try {
-    const completed = await completeSpotifyRedirectIfPresent();
-    if (completed) {
-      setEnabled(true);
-      refreshSpotifyTasteQuery();
-      patchState({ authStatus: 'signed_in', error: null });
-    }
-  } catch (err) {
-    patchState({ authStatus: 'error', error: describeError(err, 'Spotify sign-in failed') });
-  }
-}
-
 export function setSpotifyPlaybackEnabled(enabled: boolean): void {
   setEnabled(enabled);
 }
 
 export async function connectSpotifyPlayback(): Promise<void> {
-  if (!getSpotifyConfig()) {
-    patchState({ authStatus: 'missing_config', error: 'Missing VITE_SPOTIFY_CLIENT_ID' });
+  if (!getSpotifyAuthConfig()) {
+    patchState({ authStatus: 'missing_config', error: 'Missing Supabase configuration' });
     return;
   }
-  if (!hasSpotifyToken()) {
+  if (!(await getValidSpotifyAccessToken())) {
     await beginSpotifyLogin();
     return;
   }
   try {
-    const premium = await checkPremium();
+    const premium = state.premiumStatus === 'yes' ? true : await checkPremium();
     if (!premium) {
-      patchState({ premium: false, error: 'Spotify Premium is required for playback' });
+      patchState({ error: 'Spotify Premium is required for playback' });
       return;
     }
     await ensurePlayer();
@@ -190,16 +178,16 @@ export function disconnectSpotifyPlayback(): void {
 }
 
 export function signOutSpotify(): void {
-  clearSpotifyToken();
+  void clearSpotifyConnection();
   player?.disconnect();
   player = null;
   playerPromise = null;
   setEnabled(false);
   refreshSpotifyTasteQuery();
   patchState({
-    authStatus: getSpotifyConfig() ? 'signed_out' : 'missing_config',
+    authStatus: getSpotifyAuthConfig() ? 'signed_out' : 'missing_config',
     playerStatus: 'idle',
-    premium: false,
+    premiumStatus: 'unknown',
     deviceId: null,
     currentUri: null,
     gatherStatus: 'idle',
@@ -210,14 +198,15 @@ export function signOutSpotify(): void {
 
 /** GET /me → cache `product === "premium"`; the hard gate for any programmatic playback (ADR-0005 §8). */
 export async function checkPremium(): Promise<boolean> {
+  patchState({ premiumStatus: 'checking' });
   try {
     const token = await requireAccessToken();
     const me = await fetchSpotify<SpotifyMeResponse>(token, 'https://api.spotify.com/v1/me');
     const premium = me.product === 'premium';
-    patchState({ premium });
+    patchState({ premiumStatus: premium ? 'yes' : 'no' });
     return premium;
   } catch {
-    patchState({ premium: false });
+    patchState({ premiumStatus: 'no' });
     return false;
   }
 }
@@ -229,11 +218,12 @@ export async function checkPremium(): Promise<boolean> {
  */
 export async function gatherSpotifyCandidates(targetCount = 50): Promise<TrackSeed[]> {
   if (!state.enabled) return [];
-  // `enabled` persists across page loads, but `premium` is re-derived per load
-  // (it resets to false and is only set by an explicit connect). Re-confirm it
-  // here so a reload with Spotify left enabled doesn't silently fall back to a
-  // local-only pool — the GET /me is cheap and the player connects lazily on play.
-  if (!state.premium && !(await checkPremium())) return [];
+  // `enabled` persists across page loads, but `premiumStatus` is re-derived per
+  // load (it resets to 'unknown' and is only set by a checkPremium() call).
+  // Re-confirm it here so a reload with Spotify left enabled doesn't silently
+  // fall back to a local-only pool — the GET /me is cheap and the player
+  // connects lazily on play.
+  if (state.premiumStatus !== 'yes' && !(await checkPremium())) return [];
   patchState({ gatherStatus: 'loading', gatherError: null });
   try {
     const token = await requireAccessToken();
@@ -412,7 +402,7 @@ async function fetchSpotify<T = void>(token: string, url: string, init?: Request
     },
   });
   if (res.status === 401) {
-    clearSpotifyToken();
+    void clearSpotifyConnection();
     patchState({ authStatus: 'signed_out', error: 'Spotify sign-in expired' });
   }
   if (!res.ok) {

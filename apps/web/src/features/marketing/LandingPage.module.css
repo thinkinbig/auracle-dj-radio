@@ -501,6 +501,52 @@
   background: #8df7a7;
 }
 
+.oauthGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.oauthGrid button {
+  min-width: 0;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 0 10px;
+  color: rgba(248, 250, 252, 0.86);
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.oauthGrid button:hover:not(:disabled) {
+  color: #ffffff;
+  border-color: rgba(141, 247, 167, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.oauthGrid button:disabled {
+  cursor: progress;
+  opacity: 0.62;
+}
+
+.googleMark {
+  width: 18px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #071108;
+  background: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .loginCard label {
   display: grid;
   gap: 8px;
@@ -566,6 +612,7 @@
 .brand:focus-visible,
 .formRow button:focus-visible,
 .authSwitch button:focus-visible,
+.oauthGrid button:focus-visible,
 .passwordToggle:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(141, 247, 167, 0.38);
@@ -1471,6 +1518,10 @@
   .formRow {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .oauthGrid {
+    grid-template-columns: 1fr;
   }
 
   .soundPreview li {

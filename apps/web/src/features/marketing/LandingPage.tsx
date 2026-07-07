@@ -1,6 +1,6 @@
 import type { CSSProperties, FormEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Music2 } from 'lucide-react';
 import {
   REGISTER_PASSWORD_HINT,
   REGISTER_PASSWORD_PATTERN,
@@ -10,7 +10,8 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { DJ_NAME } from '@/shared/lib/constants';
 import { evalMode } from '@/shared/lib/evalMode';
-import { login, register } from './authApi';
+import { login, register, signInWithGoogle, signInWithSpotify } from './authApi';
+import { RateLimitError } from './authRateLimit';
 import styles from './LandingPage.module.css';
 
 gsap.registerPlugin(useGSAP);
@@ -38,6 +39,23 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBrandTransitioning, setIsBrandTransitioning] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rateLimitedUntil, setRateLimitedUntil] = useState<number | undefined>();
+  const [now, setNow] = useState(() => Date.now());
+
+  const isRateLimited = rateLimitedUntil !== undefined && now < rateLimitedUntil;
+
+  useEffect(() => {
+    if (rateLimitedUntil === undefined) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [rateLimitedUntil]);
+
+  useEffect(() => {
+    if (rateLimitedUntil !== undefined && now >= rateLimitedUntil) {
+      setRateLimitedUntil(undefined);
+      setAuthError(undefined);
+    }
+  }, [now, rateLimitedUntil]);
 
   useEffect(() => {
     return () => {
@@ -189,6 +207,15 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
     onEnterApp(user);
   }
 
+  function handleAuthError(err: unknown) {
+    if (err instanceof RateLimitError) {
+      setRateLimitedUntil(Date.now() + err.retryAfterMs);
+      setNow(Date.now());
+      return;
+    }
+    setAuthError((err as Error).message);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -213,8 +240,32 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
           : await login({ email, password }, remember);
       enterApp(response.user);
     } catch (err) {
-      setAuthError((err as Error).message);
+      handleAuthError(err);
     } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSpotifyLogin() {
+    setAuthError(undefined);
+    setAuthNotice(undefined);
+    setIsSubmitting(true);
+    try {
+      await signInWithSpotify();
+    } catch (err) {
+      handleAuthError(err);
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setAuthError(undefined);
+    setAuthNotice(undefined);
+    setIsSubmitting(true);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      handleAuthError(err);
       setIsSubmitting(false);
     }
   }
@@ -436,6 +487,16 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   Sign up
                 </button>
               </div>
+              <div className={styles.oauthGrid} aria-label="Social login options">
+                <button type="button" onClick={() => void handleGoogleLogin()} disabled={isSubmitting || isRateLimited}>
+                  <span className={styles.googleMark} aria-hidden>G</span>
+                  Continue with Google
+                </button>
+                <button type="button" onClick={() => void handleSpotifyLogin()} disabled={isSubmitting || isRateLimited}>
+                  <Music2 size={18} aria-hidden />
+                  Continue with Spotify
+                </button>
+              </div>
               {authMode === 'register' ? (
                 <label>
                   Name
@@ -477,7 +538,13 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   </p>
                 ) : null}
               </label>
-              {authError ? <p className={styles.errorText} role="alert">{authError}</p> : null}
+              {isRateLimited ? (
+                <p className={styles.errorText} role="alert">
+                  Too many attempts. Please wait {Math.max(1, Math.ceil((rateLimitedUntil! - now) / 1000))}s before trying again.
+                </p>
+              ) : authError ? (
+                <p className={styles.errorText} role="alert">{authError}</p>
+              ) : null}
               {authNotice ? <p className={styles.noticeText}>{authNotice}</p> : null}
               <div className={styles.formRow}>
                 <label className={styles.check}>
@@ -494,7 +561,7 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                   Forgot?
                 </button>
               </div>
-              <button className={styles.primaryButton} type="submit" disabled={isSubmitting}>
+              <button className={styles.primaryButton} type="submit" disabled={isSubmitting || isRateLimited}>
                 {isSubmitting ? 'Checking...' : authMode === 'register' ? 'Create account' : 'Log in'}
               </button>
               {!evalMode ? (

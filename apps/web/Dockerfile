@@ -18,6 +18,13 @@ COPY apps/web/index.html apps/web/
 COPY apps/web/vite.config.ts apps/web/
 COPY apps/web/tsconfig.json apps/web/
 
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_PUBLISHABLE_KEY
+ARG VITE_SUPABASE_ANON_KEY
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+
 RUN pnpm --filter @auracle/shared build && pnpm --filter @auracle/clients build && pnpm --filter @auracle/web build
 
 # ── Stage 2: nginx ───────────────────────────────────────────────

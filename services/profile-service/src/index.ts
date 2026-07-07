@@ -6,7 +6,13 @@ import { buildServer } from "./server.js";
 
 const app = buildServer({
   events: new EventsDb(config.eventsDbPath),
-  auth: new AuthStore(config.authDbPath),
+  auth: new AuthStore({
+    supabaseUrl: config.supabaseUrl,
+    jwtSecret: config.supabaseJwtSecret,
+    jwksUrl: config.supabaseJwksUrl,
+    issuer: config.supabaseJwtIssuer,
+    audience: config.supabaseJwtAudience,
+  }),
   catalog: loadCatalogIndex(),
 });
 

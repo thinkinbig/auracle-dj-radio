@@ -1,4 +1,4 @@
-import { API_BASE, canReadSpotifyTaste, fetchSpotify, requireTasteToken } from './spotifyTaste';
+import { API_BASE, fetchSpotify, requireTasteToken } from './spotifyTaste';
 
 /**
  * Scenes actually reachable from IntentOnboarding.tsx's VIBE_LIBRARY (chill / study /
@@ -23,7 +23,6 @@ interface SpotifyPlaylistsResponse {
  * signal returns undefined and the picker just falls back to its normal default.
  */
 export async function getSuggestedScene(): Promise<string | undefined> {
-  if (canReadSpotifyTaste() !== 'ready') return undefined;
   try {
     const token = await requireTasteToken();
     const res = await fetchSpotify<SpotifyPlaylistsResponse>(token, `${API_BASE}/me/playlists?limit=50`);

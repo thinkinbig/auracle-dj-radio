@@ -1,5 +1,5 @@
 import { useAuth } from '@/features/marketing/AuthProvider';
-import { firstNameFromUser, isGuestUser } from '@/features/marketing/guest';
+import { firstNameFromUser, isGuestUser, isSpotifyUser } from '@/features/marketing/guest';
 import { useRadioState } from '@/features/radio/session/RadioSessionContext';
 import {
   deriveGeneratedSessions,
@@ -40,8 +40,9 @@ export function HomePage({
   const sessionTitle = deriveSessionTitle(hasSession, state, latestSavedSession);
   const sessionDuration = deriveSessionDurationLabel(hasSession, state, latestSavedSession);
   const generatedSessions = deriveGeneratedSessions(hasSession, state, history);
-  const tasteSignal = isGuestUser(user) ? 'Demo catalog' : 'Spotify taste';
-  const tasteWords = isGuestUser(user) ? ['Demo catalog', 'Guest mode', 'Fresh session'] : ['Spotify taste', 'Live session', 'No Auracle profile'];
+  const hasSpotifyTaste = isSpotifyUser(user);
+  const tasteSignal = hasSpotifyTaste ? 'Spotify taste' : 'Demo catalog';
+  const tasteWords = isGuestUser(user) ? ['Demo catalog', 'Guest mode', 'Fresh session'] : ['Local catalog', 'Live session', 'No Spotify taste'];
   const libraryTrackCount = state.sessionTracklist.length;
   const previewArtworkTrackId = hasSession ? state.trackId : latestSavedSession?.tracks[0]?.id ?? '';
   const previewArtwork = useTrackMeta(previewArtworkTrackId);
@@ -79,7 +80,11 @@ export function HomePage({
         <div className={styles.homeCopy}>
           <h1 id="home-title">Welcome back, {firstName}.</h1>
           <p className={styles.homeSignal}>Your music, your moment.</p>
-          <p className={styles.homeLede}>Start a station from your mood, Spotify taste, and this moment.</p>
+          <p className={styles.homeLede}>
+            {hasSpotifyTaste
+              ? 'Start a station from your mood, Spotify taste, and this moment.'
+              : 'Start a station from your mood, the local catalog, and this moment.'}
+          </p>
           <div className={styles.homeActions}>
             <button className={chrome.primaryButton} type="button" onClick={onStartNew}>
               <IconPlay size={18} />
@@ -132,27 +137,29 @@ export function HomePage({
       </section>
 
       <section className={styles.homeCardGrid} aria-label="Home shortcuts">
-        <article className={`${styles.homeShortcutCard} ${styles.tasteGraphCard}`}>
-          <div className={styles.cardHeading}>
-            <p className={chrome.kicker}>Your Taste DNA</p>
-            <h2>Signals at a glance.</h2>
-          </div>
-          <div className={styles.tasteGraphWrap} aria-label="Taste DNA overview">
-            <div className={styles.tasteLegend}>
-              {tasteWords.map((item) => (
-                <span key={item}>
-                  <i aria-hidden />
-                  <strong>{item}</strong>
-                  <small />
-                </span>
-              ))}
+        {hasSpotifyTaste ? (
+          <article className={`${styles.homeShortcutCard} ${styles.tasteGraphCard}`}>
+            <div className={styles.cardHeading}>
+              <p className={chrome.kicker}>Your Taste DNA</p>
+              <h2>Signals at a glance.</h2>
             </div>
-          </div>
-          <button className={chrome.textButton} type="button" onClick={onOpenSound}>
-            View Spotify Taste
-            <IconArrowRight size={18} />
-          </button>
-        </article>
+            <div className={styles.tasteGraphWrap} aria-label="Taste DNA overview">
+              <div className={styles.tasteLegend}>
+                {tasteWords.map((item) => (
+                  <span key={item}>
+                    <i aria-hidden />
+                    <strong>{item}</strong>
+                    <small />
+                  </span>
+                ))}
+              </div>
+            </div>
+            <button className={chrome.textButton} type="button" onClick={onOpenSound}>
+              View Spotify Taste
+              <IconArrowRight size={18} />
+            </button>
+          </article>
+        ) : null}
 
         <article className={`${styles.homeShortcutCard} ${styles.libraryCard}`}>
           <div className={styles.cardHeading}>

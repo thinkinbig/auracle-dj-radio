@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./spotifyAuth', () => ({
-  clearSpotifyToken: vi.fn(),
-  getSpotifyConfig: vi.fn(() => ({ clientId: 'spotify-client', redirectUri: 'http://localhost/spotify/callback' })),
+  clearSpotifyConnection: vi.fn(),
+  getSpotifyAuthConfig: vi.fn(() => 'supabase'),
   getValidSpotifyAccessToken: vi.fn(async () => 'spotify-token'),
-  hasSpotifyToken: vi.fn(() => true),
+  hasSpotifySession: vi.fn(() => true),
 }));
 
 import { getSuggestedScene } from './spotifyScene';

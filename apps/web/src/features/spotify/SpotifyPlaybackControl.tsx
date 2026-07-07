@@ -1,10 +1,12 @@
+import { useEffect } from 'react';
 import {
+  checkPremium,
   connectSpotifyPlayback,
   disconnectSpotifyPlayback,
   signOutSpotify,
   useSpotifyPlaybackState,
 } from './spotifyPlayback';
-import { getSpotifyConfig } from './spotifyAuth';
+import { getSpotifyAuthConfig } from './spotifyAuth';
 import type { SpotifyPlaybackState } from './spotifyPlayback';
 import { cn } from '@/shared/lib/cn';
 import styles from './SpotifyPlaybackControl.module.css';
@@ -16,11 +18,19 @@ interface SpotifyPlaybackControlProps {
 
 export function SpotifyPlaybackControl({ compact = false, className }: SpotifyPlaybackControlProps) {
   const spotify = useSpotifyPlaybackState();
-  const configured = getSpotifyConfig() !== null;
+  const configured = getSpotifyAuthConfig() !== null;
   const connected = spotify.authStatus === 'signed_in';
   const active = connected && spotify.enabled;
   const busy = spotify.playerStatus === 'connecting';
+  const checkingPremium = spotify.premiumStatus === 'unknown' || spotify.premiumStatus === 'checking';
+  const notPremium = spotify.premiumStatus === 'no';
   const label = resolveStatusLabel(spotify);
+
+  // Know up front whether playback is even possible for this Spotify account,
+  // rather than letting the listener click "Spotify" and discover it isn't.
+  useEffect(() => {
+    if (connected && spotify.premiumStatus === 'unknown') void checkPremium();
+  }, [connected, spotify.premiumStatus]);
 
   async function enableSpotifyMode() {
     if (!configured) return;
@@ -56,13 +66,25 @@ export function SpotifyPlaybackControl({ compact = false, className }: SpotifyPl
               type="button"
               className={cn(styles.modeButton, active && styles.modeButtonActive)}
               onClick={() => void enableSpotifyMode()}
-              disabled={busy}
+              disabled={busy || checkingPremium || notPremium}
               aria-pressed={active}
-              aria-label={busy ? 'Connecting Spotify' : 'Use Spotify library'}
-              title={busy ? 'Connecting Spotify' : 'Spotify library'}
+              aria-label={
+                checkingPremium ? 'Checking Spotify Premium status' : notPremium ? 'Spotify Premium required' : busy ? 'Connecting Spotify' : 'Use Spotify library'
+              }
+              title={
+                checkingPremium
+                  ? 'Checking Spotify Premium status'
+                  : notPremium
+                    ? 'Spotify Premium is required for playback'
+                    : busy
+                      ? 'Connecting Spotify'
+                      : 'Spotify library'
+              }
             >
               <SpotifyGlyph />
-              <span className={styles.buttonLabel}>{busy ? 'Wait' : 'Spotify'}</span>
+              <span className={styles.buttonLabel}>
+                {checkingPremium ? 'Checking' : notPremium ? 'Premium required' : busy ? 'Wait' : 'Spotify'}
+              </span>
             </button>
           </div>
         ) : (
@@ -107,9 +129,11 @@ export function SpotifyPlaybackControl({ compact = false, className }: SpotifyPl
 
 function resolveStatusLabel(spotify: SpotifyPlaybackState): string {
   if (spotify.error) return spotify.error;
-  if (spotify.authStatus === 'missing_config') return 'Add client id';
+  if (spotify.authStatus === 'missing_config') return 'Set up Supabase';
   if (spotify.authStatus === 'signed_out') return 'Premium playback';
   if (spotify.authStatus === 'error') return 'Needs reconnect';
+  if (spotify.authStatus === 'signed_in' && spotify.premiumStatus === 'checking') return 'Checking Spotify Premium…';
+  if (spotify.authStatus === 'signed_in' && spotify.premiumStatus === 'no') return 'Local file catalog · Premium required for Spotify';
   if (!spotify.enabled) return 'Local file catalog';
   if (spotify.gatherStatus === 'loading') return 'Reading liked tracks';
   if (spotify.gatherError) return spotify.gatherError;

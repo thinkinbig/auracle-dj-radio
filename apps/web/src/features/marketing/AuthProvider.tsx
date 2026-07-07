@@ -1,6 +1,6 @@
 import type { AuthUser } from '@auracle/shared';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { logout as logoutApi, restoreUser } from '@/features/marketing/authApi';
+import { logout as logoutApi, restoreUser, supabase, syncStoredToken } from '@/features/marketing/authApi';
 import { clearUserQueries } from '@/shared/query/queryClient';
 
 interface AuthContextValue {
@@ -18,13 +18,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    restoreUser().then((restoredUser) => {
+    restoreUser()
+      .then((restoredUser) => {
+        if (cancelled) return;
+        setUser(restoredUser);
+      })
+      .catch(() => {
+        if (!cancelled) setUser(undefined);
+      })
+      .finally(() => {
+        if (!cancelled) setIsRestoringUser(false);
+      });
+
+    const subscription = supabase?.auth.onAuthStateChange((_event, session) => {
+      syncStoredToken(session);
       if (cancelled) return;
-      setUser(restoredUser);
-      setIsRestoringUser(false);
-    });
+      if (!session) {
+        setUser(undefined);
+        clearUserQueries();
+        return;
+      }
+      void restoreUser().then((restoredUser) => {
+        if (!cancelled) setUser(restoredUser);
+      });
+    }).data.subscription;
+
     return () => {
       cancelled = true;
+      subscription?.unsubscribe();
     };
   }, []);
 

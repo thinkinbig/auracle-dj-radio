@@ -8,7 +8,6 @@ import { gatherSpotifyCandidates, isSpotifyPlaybackEnabled } from '@/features/sp
 import {
   buildSpotifyTasteContext,
   buildSpotifyTastePreferences,
-  canReadSpotifyTaste,
   getSpotifyTasteProfile,
 } from '@/features/spotify/spotifyTaste';
 import { queryKeys } from '@/shared/query/keys';
@@ -183,7 +182,6 @@ export function useRadioHandlers({
 }
 
 async function readSpotifyTaste(): Promise<{ summary?: string; preferences?: TastePreference[] } | undefined> {
-  if (canReadSpotifyTaste() !== 'ready') return undefined;
   const profile = await queryClient.fetchQuery({
     queryKey: queryKeys.spotifyTaste,
     queryFn: getSpotifyTasteProfile,

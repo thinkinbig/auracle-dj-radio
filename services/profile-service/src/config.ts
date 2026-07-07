@@ -10,12 +10,19 @@ export interface Config {
   port: number;
   /** Profile-service owns the analytics/event DB (session_events). */
   eventsDbPath: string;
-  /** Lightweight user auth DB for the web app login flow. */
-  authDbPath: string;
+  supabaseUrl?: string;
+  supabaseJwtSecret?: string;
+  supabaseJwksUrl?: string;
+  supabaseJwtIssuer?: string;
+  supabaseJwtAudience?: string;
 }
 
 export const config: Config = {
   port: Number(process.env.PROFILE_SERVICE_PORT ?? 3020),
   eventsDbPath: process.env.PROFILE_EVENTS_DB_PATH ?? resolve(here, "../auracle-events.sqlite"),
-  authDbPath: process.env.AUTH_DB_PATH ?? resolve(here, "../auracle-auth.sqlite"),
+  supabaseUrl: process.env.SUPABASE_URL,
+  supabaseJwtSecret: process.env.SUPABASE_JWT_SECRET,
+  supabaseJwksUrl: process.env.SUPABASE_JWKS_URL,
+  supabaseJwtIssuer: process.env.SUPABASE_JWT_ISSUER,
+  supabaseJwtAudience: process.env.SUPABASE_JWT_AUDIENCE,
 };

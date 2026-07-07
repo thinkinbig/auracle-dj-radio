@@ -61,6 +61,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
+  provider?: string;
 }
 
 /** Fallback memory/analytics identity for unauthenticated (demo) sessions. */

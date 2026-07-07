@@ -1,5 +1,5 @@
 import type { TastePreference } from '@auracle/shared';
-import { clearSpotifyToken, getSpotifyConfig, getValidSpotifyAccessToken, hasSpotifyToken } from './spotifyAuth';
+import { clearSpotifyConnection, getSpotifyAuthConfig, getValidSpotifyAccessToken, hasSpotifySession } from './spotifyAuth';
 
 export const API_BASE = 'https://api.spotify.com/v1';
 const MAX_SAVED_TRACKS = 100;
@@ -132,16 +132,15 @@ interface SpotifyArtistsResponse {
 }
 
 export function canReadSpotifyTaste(): SpotifyTasteStatus {
-  if (!getSpotifyConfig()) return 'missing_config';
-  if (!hasSpotifyToken()) return 'signed_out';
+  if (!getSpotifyAuthConfig()) return 'missing_config';
+  if (!hasSpotifySession()) return 'signed_out';
   return 'ready';
 }
 
 export async function getSpotifyTasteProfile(): Promise<SpotifyTasteProfile> {
-  const status = canReadSpotifyTaste();
-  if (status !== 'ready') return emptyTasteProfile(status);
-
-  const token = await requireTasteToken();
+  if (!getSpotifyAuthConfig()) return emptyTasteProfile('missing_config');
+  const token = await getValidSpotifyAccessToken();
+  if (!token) return emptyTasteProfile('signed_out');
   const [artistsShort, artistsMedium, artistsLong, tracksMedium, saved, recent] = await Promise.all([
     fetchSpotify<SpotifyTopArtistsResponse>(token, `${API_BASE}/me/top/artists?limit=20&time_range=short_term`).catch(() => ({ items: [] })),
     fetchSpotify<SpotifyTopArtistsResponse>(token, `${API_BASE}/me/top/artists?limit=20&time_range=medium_term`).catch(() => ({ items: [] })),
@@ -153,7 +152,6 @@ export async function getSpotifyTasteProfile(): Promise<SpotifyTasteProfile> {
 
   const savedTracks = saved.items.flatMap((item) => (item.track ? [item.track] : []));
   const recentTracks = recent.items.flatMap((item) => (item.track ? [item.track] : []));
-  if (!hasSpotifyToken()) return emptyTasteProfile('signed_out');
 
   const trackArtistDetails = await fetchArtistsForTracks(token, [
     ...tracksMedium.items,
@@ -355,7 +353,7 @@ export async function fetchSpotify<T>(token: string, url: string): Promise<T> {
       'Content-Type': 'application/json',
     },
   });
-  if (res.status === 401) clearSpotifyToken();
+  if (res.status === 401) void clearSpotifyConnection();
   if (!res.ok) throw new Error(`Spotify taste read failed (${res.status})`);
   return (await res.json()) as T;
 }
