@@ -4,10 +4,15 @@ import { EMAIL_ALREADY_REGISTERED_MESSAGE, getAuthErrorMessage } from './authErr
 import { checkAuthRateLimit, resetAuthRateLimit } from './authRateLimit';
 
 const TOKEN_KEY = 'auracle.authToken';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+// Publishable key: safe to ship client-side by design (Supabase's public,
+// RLS-scoped key), same as the Spotify client id default below.
+const DEFAULT_SUPABASE_URL = 'https://ltghoxrkovuwhdubzpbf.supabase.co';
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_L-EuniMnNmtyvfZmeRQVyA_6agfpeaZ';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || DEFAULT_SUPABASE_URL;
 const supabasePublishableKey =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+  import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ||
+  DEFAULT_SUPABASE_PUBLISHABLE_KEY;
 
 export const SPOTIFY_OAUTH_SCOPES = [
   'streaming',
