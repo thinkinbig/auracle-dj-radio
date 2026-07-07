@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import type { SessionIntent } from '@auracle/shared';
 import { useAuth } from '@/features/marketing/AuthProvider';
-import { firstNameFromUser } from '@/features/marketing/guest';
+import { firstNameFromUser, isSpotifyUser } from '@/features/marketing/guest';
 import { evalMode } from '@/shared/lib/evalMode';
 import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { isCurating } from '@/features/radio/session/playbackSelectors';
@@ -22,6 +22,7 @@ export function OnboardingPage() {
   const curating = isCurating(state.phase);
   const greeting = useMemo(() => getGreeting(new Date()), []);
   const firstName = firstNameFromUser(user);
+  const tasteSummary = isSpotifyUser(user) ? 'your Taste DNA' : 'the local catalog';
   const { data: suggestedScene } = useSpotifySceneQuery();
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export function OnboardingPage() {
           <IntentOnboarding
             onStart={(intent: SessionIntent) => void handleStart(intent)}
             disabled={curating}
-            tasteSummary="your Taste DNA"
+            tasteSummary={tasteSummary}
             momentSummary="today's session"
             suggestedScene={suggestedScene}
           />

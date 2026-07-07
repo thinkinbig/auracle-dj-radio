@@ -14,12 +14,12 @@ import { HistoryPage } from '@/features/history/HistoryPage';
 import { AppBrand } from '@/features/marketing/AppBrand';
 import { AuthStatus } from '@/features/marketing/AuthStatus';
 import { useAuth } from '@/features/marketing/AuthProvider';
+import { isSpotifyUser } from '@/features/marketing/guest';
 import { LandingPage } from '@/features/marketing/LandingPage';
 import { LibraryScreen } from '@/features/library/LibraryScreen';
 import { OnboardingPage } from '@/features/radio/ui/OnboardingPage';
 import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import { SoundScreen } from '@/features/sound/SoundScreen';
-import { handleSpotifyRedirect } from '@/features/spotify/spotifyPlayback';
 import { handleGlobalRadioShortcut } from './globalShortcuts';
 import { paths, PRODUCT_NAV } from './paths';
 import navStyles from './AppNav.module.css';
@@ -47,6 +47,7 @@ function AppContent() {
 function LoggedInApp() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const hasSpotifyTaste = isSpotifyUser(user!);
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryEntry[]>(() => loadSessionHistory(user!.id));
   const state = useRadioState();
   const { handleReturnToSetup } = useRadioActions();
@@ -83,7 +84,7 @@ function LoggedInApp() {
     <>
       <AppBrand onClick={() => navigate(paths.home)} label="Home" />
       <nav className={navStyles.appNav} aria-label="Primary">
-        {PRODUCT_NAV.map((item) => (
+        {PRODUCT_NAV.filter((item) => item.path !== paths.sound || hasSpotifyTaste).map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -116,11 +117,11 @@ function LoggedInApp() {
         <Route
           path={paths.sound}
           element={
-            <main className={`${chrome.productSurface} ${chrome.featureSurface} ${chrome.pageTransition}`}>
-              <SoundScreen
-                onGuestBack={() => navigate(paths.home)}
-              />
-            </main>
+            hasSpotifyTaste ? (
+              <main className={`${chrome.productSurface} ${chrome.featureSurface} ${chrome.pageTransition}`}>
+                <SoundScreen />
+              </main>
+            ) : <Navigate to={paths.home} replace />
           }
         />
         <Route path={paths.history} element={<HistoryPage history={sessionHistory} onOpenListen={openListen} />} />
@@ -144,18 +145,8 @@ function LoggedInApp() {
 }
 
 export default function App() {
-  const navigate = useNavigate();
   const { user, isRestoringUser, setUser } = useAuth();
   useTrackCatalogBootstrap();
-
-  useEffect(() => {
-    const wasSpotifyCallback = window.location.pathname === '/spotify/callback';
-    void handleSpotifyRedirect().then(() => {
-      if (!wasSpotifyCallback) return;
-      const nextPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      navigate(nextPath, { replace: true });
-    });
-  }, [navigate]);
 
   if (isRestoringUser) {
     return null;
