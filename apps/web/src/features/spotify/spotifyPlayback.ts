@@ -350,6 +350,10 @@ async function createPlayer(): Promise<SpotifyWebPlaybackPlayer> {
   });
   for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error'] as const) {
     nextPlayer.addListener(event, (error) => {
+      if (event === 'playback_error' && isEmptyPlayerQueueError(error.message)) {
+        patchState({ error: null });
+        return;
+      }
       patchState({ playerStatus: 'error', error: error.message });
     });
   }
@@ -432,4 +436,8 @@ function patchState(patch: Partial<SpotifyPlaybackState>): void {
 
 function describeError(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
+}
+
+function isEmptyPlayerQueueError(message: string): boolean {
+  return /no list was loaded/i.test(message);
 }

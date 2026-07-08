@@ -16,6 +16,8 @@ const harnessTarget = process.env.AGENT_HARNESS_PROXY_TARGET ?? 'http://localhos
 const profileTarget = process.env.PROFILE_PROXY_TARGET ?? 'http://localhost:3020';
 /** Go rt_llm_proxy receives the browser's WebRTC SDP offer. */
 const proxyTarget = process.env.PROXY_PROXY_TARGET ?? 'http://localhost:8080';
+/** Web dev port; useful when another worktree already owns 5173. */
+const webPort = Number(process.env.WEB_PORT ?? 5173);
 
 /**
  * Serve the static catalog (packages/catalog/data) in dev — the api service was
@@ -72,7 +74,7 @@ export default defineConfig(() => {
     },
     server: {
       host: '127.0.0.1',
-      port: 5173,
+      port: Number.isFinite(webPort) ? webPort : 5173,
       strictPort: true,
       // Linux inotify limit (fs.inotify.max_user_watches) is shared across every
       // watcher — Cursor, tsx watch services, and Vite. Ignore static catalog

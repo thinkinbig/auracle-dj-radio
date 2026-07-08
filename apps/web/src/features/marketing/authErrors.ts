@@ -89,6 +89,7 @@ function messageForCode(code: string): string | undefined {
       return 'New password must be different from your current password.';
 
     default:
+      console.warn('[auth] unknown Supabase auth error code:', code);
       return undefined;
   }
 }

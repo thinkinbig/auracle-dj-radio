@@ -12,10 +12,10 @@
 # so push-registration + Lane-1 tools work, and on :8090 so it does NOT clash with a proxy on :8080.
 # Vite is pointed at that port. Ctrl-C tears the whole group down.
 #
-# Ports are overridable: MUSIC_PORT PROFILE_PORT AGENT_PORT PROXY_PORT.
+# Ports are overridable: MUSIC_PORT PROFILE_PORT AGENT_PORT PROXY_PORT WEB_PORT.
 
-# No `set -e`: a dev launcher should survive one child's non-zero exit rather
-# than abort the whole stack (and grep-misses in envget below are expected).
+# No `set -e`: grep-misses in envget below are expected. Child process failures
+# are handled explicitly in run(), so a port conflict cannot leave a mixed stack.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
@@ -23,6 +23,7 @@ MUSIC_PORT=${MUSIC_PORT:-3010}
 PROFILE_PORT=${PROFILE_PORT:-3020}
 AGENT_PORT=${AGENT_PORT:-3030}
 PROXY_PORT=${PROXY_PORT:-8090}
+WEB_PORT=${WEB_PORT:-5173}
 
 # The Go proxy reads GEMINI_API_KEY from its environment (it does not load the
 # repo-root .env). Lift it (and an optional model override) out without sourcing
@@ -37,15 +38,29 @@ if [ -z "${GEMINI_API_KEY:-}" ]; then
   echo "WARN: GEMINI_API_KEY not set — the DJ voice (Gemini Live) will not connect." >&2
 fi
 
-# Run a labelled child in the background; its output is line-prefixed. Teardown
-# is by process group (kill 0 in the trap), so no PID bookkeeping is needed.
+# Run a labelled child in the background; its output is line-prefixed. If a
+# child exits, tear down the process group so stale ports do not mix checkouts.
 run() {
   local name=$1; shift
-  ( "$@" 2>&1 | sed -u "s/^/[$name] /" ) &
+  (
+    trap - INT TERM EXIT
+    "$@" 2>&1 | sed -u "s/^/[$name] /"
+    status=${PIPESTATUS[0]}
+    if [ "$status" -ne 0 ]; then
+      echo "[$name] exited with status $status; shutting down stack" >&2
+      kill 0 2>/dev/null
+    fi
+  ) &
 }
 
 # kill 0 signals the whole process group (children + the go-built binary).
-trap 'echo; echo "shutting down…"; kill 0 2>/dev/null' INT TERM EXIT
+cleanup() {
+  trap - INT TERM EXIT
+  echo
+  echo "shutting down…"
+  kill 0 2>/dev/null
+}
+trap cleanup INT TERM EXIT
 
 run music  env MUSIC_ENGINE_PORT="$MUSIC_PORT" pnpm --filter @auracle/music-engine dev
 run profile env PROFILE_SERVICE_PORT="$PROFILE_PORT" \
@@ -58,7 +73,8 @@ run harness env AGENT_HARNESS_PORT="$AGENT_PORT" \
 run proxy  bash -c "cd services/rt_llm_proxy && exec go run ./cmd/proxy -addr ':$PROXY_PORT' -harness-url 'http://localhost:$AGENT_PORT' -auth-url 'http://localhost:$PROFILE_PORT'"
 run web    env AGENT_HARNESS_PROXY_TARGET="http://localhost:$AGENT_PORT" \
   PROXY_PROXY_TARGET="http://localhost:$PROXY_PORT" \
+  WEB_PORT="$WEB_PORT" \
   pnpm --filter @auracle/web dev
 
-echo "stack up → web http://localhost:5173  (proxy :$PROXY_PORT, harness :$AGENT_PORT, profile :$PROFILE_PORT, music :$MUSIC_PORT)"
+echo "stack up → web http://localhost:$WEB_PORT  (proxy :$PROXY_PORT, harness :$AGENT_PORT, profile :$PROFILE_PORT, music :$MUSIC_PORT)"
 wait

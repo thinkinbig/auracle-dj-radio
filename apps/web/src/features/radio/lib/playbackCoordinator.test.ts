@@ -9,10 +9,10 @@ describe('playbackCoordinator', () => {
     expect(shouldPlayMusic(input)).toBe(false);
   });
 
-  it('does not auto-play during opening even if the release state is briefly stale', () => {
+  it('plays during opening once the gate is released', () => {
     const input = { phase: 'opening' as const, currentTrackIndex: 0, openingReleased: true };
     expect(musicVolume(input)).toBe(MUSIC_VOLUME.full);
-    expect(shouldPlayMusic(input)).toBe(false);
+    expect(shouldPlayMusic(input)).toBe(true);
   });
 
   it('ducks during DJ turn after opening', () => {

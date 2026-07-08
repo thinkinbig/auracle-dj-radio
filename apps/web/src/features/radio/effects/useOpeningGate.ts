@@ -5,16 +5,19 @@ import type { AudioRefs, StoreRefs } from './sessionRefs';
 
 export interface OpeningGateControls {
   openingReleased: boolean;
+  isOpeningReleased: () => boolean;
   releaseOpening: () => void;
   armForTrack: (trackIndex: number) => void;
 }
 
 export function useOpeningGate(store: StoreRefs, audio: AudioRefs): OpeningGateControls {
   const [openingReleased, setOpeningReleased] = useState(true);
+  const openingReleasedRef = useRef(true);
   // Owned here: the opening controller (gate + fallback timer) lives and dies with this hook.
   const openingRef = useRef<OpeningController | null>(null);
 
   const notifyOpeningReleased = useCallback(() => {
+    openingReleasedRef.current = true;
     setOpeningReleased(true);
     const bus = audio.audioBusRef.current;
     const s = store.stateRef.current;
@@ -35,10 +38,13 @@ export function useOpeningGate(store: StoreRefs, audio: AudioRefs): OpeningGateC
   }, []);
 
   const armForTrack = useCallback((trackIndex: number) => {
-    if (trackIndex === 0) setOpeningReleased(false);
-    else setOpeningReleased(true);
+    const released = trackIndex !== 0;
+    openingReleasedRef.current = released;
+    setOpeningReleased(released);
     openingRef.current?.armForTrack(trackIndex);
   }, []);
 
-  return { openingReleased, releaseOpening, armForTrack };
+  const isOpeningReleased = useCallback(() => openingReleasedRef.current, []);
+
+  return { openingReleased, isOpeningReleased, releaseOpening, armForTrack };
 }

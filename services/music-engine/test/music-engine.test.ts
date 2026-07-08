@@ -82,6 +82,21 @@ describe("music-engine HTTP", () => {
     result.tracklist.forEach((ref, i) => expect(ref.flow_position).toBe(i + 1));
   });
 
+  it("plan_tracklist returns public cover URLs for local catalog tracks", async () => {
+    const res = await engine.app.inject({
+      method: "POST",
+      url: "/plan_tracklist",
+      payload: { mode: "provisional", intent: { mood: "focused", scene: "study" } },
+    });
+    expect(res.statusCode).toBe(200);
+    const { result } = res.json<{ result: FlowResult }>();
+    const first = result.tracklist[0]!;
+    expect(first.uri).toMatch(/^local:/);
+    expect(first.albumCoverUrl).toMatch(/^\/covers\/[^/]+\.jpg$/);
+    expect(first.albumCoverUrl).not.toContain("/Users/");
+    expect(first.albumCoverUrl).not.toContain("packages/catalog/data");
+  });
+
   it("plan_tracklist (full) orders candidates and reports violations", async () => {
     const res = await engine.app.inject({
       method: "POST",

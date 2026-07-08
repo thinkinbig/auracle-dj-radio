@@ -24,10 +24,25 @@ interface TrackPlaybackInput {
   opening: OpeningGateControls;
 }
 
+type TrackLoadState = Pick<PlaybackState, 'sessionId' | 'currentTrackIndex' | 'trackId' | 'sessionTracklist'>;
+
 /** Resolve a slot's backend from its uri scheme; absent slot means local. ADR-0005. */
-function backendAt(state: Pick<PlaybackState, 'sessionTracklist'>, index: number): Backend {
-  const uri = state.sessionTracklist[index]?.uri;
-  return uri ? backendForUri(uri) : 'local';
+function playableUriAt(state: Pick<PlaybackState, 'sessionTracklist'>, index: number, fallbackId: string | undefined): string {
+  return state.sessionTracklist[index]?.uri ?? (fallbackId ? `local:${fallbackId}` : 'local:');
+}
+
+function backendAt(state: Pick<PlaybackState, 'sessionTracklist'>, index: number, fallbackId?: string): Backend {
+  return backendForUri(playableUriAt(state, index, fallbackId));
+}
+
+export function trackLoadKey(state: TrackLoadState): string | null {
+  if (!state.sessionId) return null;
+  return [
+    state.sessionId,
+    state.currentTrackIndex,
+    state.trackId,
+    playableUriAt(state, state.currentTrackIndex, state.trackId),
+  ].join(':');
 }
 
 /**
@@ -37,10 +52,13 @@ function backendAt(state: Pick<PlaybackState, 'sessionTracklist'>, index: number
  * into the player.
  */
 export function useTrackPlayback({ store, audio, commands, state, opening }: TrackPlaybackInput): void {
-  const { openingReleased, armForTrack } = opening;
+  const { openingReleased, isOpeningReleased, armForTrack } = opening;
   const nextTrackId = state.remainingTrackIds[0];
-  const currentSource = backendAt(state, state.currentTrackIndex);
-  const nextSource = backendAt(state, state.currentTrackIndex + 1);
+  const currentUri = playableUriAt(state, state.currentTrackIndex, state.trackId);
+  const nextUri = playableUriAt(state, state.currentTrackIndex + 1, nextTrackId);
+  const currentSource = backendAt(state, state.currentTrackIndex, state.trackId);
+  const nextSource = backendAt(state, state.currentTrackIndex + 1, nextTrackId);
+  const currentTrackLoadKey = trackLoadKey(state);
   const prevPhaseRef = useRef(state.phase);
   // Track index we've already fired an end-of-track cue for, so the final-seconds
   // trigger runs once per track (ADR-0004).
@@ -121,15 +139,15 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
     const policy = {
       phase: s.phase,
       currentTrackIndex: s.currentTrackIndex,
-      openingReleased,
+      openingReleased: isOpeningReleased(),
     };
     player.setMusicVolume(musicVolume(policy));
     if (s.phase === 'paused') player.pause();
     else if (shouldPlayMusic(policy)) player.resume();
-  }, [store, openingReleased]);
+  }, [store, isOpeningReleased]);
 
   useEffect(() => {
-    if (!state.sessionId) return;
+    if (!state.sessionId || !currentTrackLoadKey) return;
 
     const isOpening = state.currentTrackIndex === 0;
     armForTrack(state.currentTrackIndex);
@@ -148,9 +166,8 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
     for (const [src, p] of Object.entries(players)) {
       if (src !== currentSource) p?.pause();
     }
-    const currentRef = state.sessionTracklist[state.currentTrackIndex];
     players[currentSource]?.load(
-      { id: state.trackId, uri: currentRef?.uri ?? `local:${state.trackId}` },
+      { id: state.trackId, uri: currentUri },
       { autostart: !isOpening },
     );
   }, [
@@ -159,17 +176,17 @@ export function useTrackPlayback({ store, audio, commands, state, opening }: Tra
     state.sessionId,
     state.currentTrackIndex,
     state.trackId,
+    currentTrackLoadKey,
     currentSource,
-    state.sessionTracklist,
+    currentUri,
     armForTrack,
   ]);
 
   useEffect(() => {
     if (!state.sessionId || !nextTrackId) return;
-    const nextRef = state.sessionTracklist[state.currentTrackIndex + 1];
-    const track: PlayableTrack = { id: nextTrackId, uri: nextRef?.uri ?? `local:${nextTrackId}` };
+    const track: PlayableTrack = { id: nextTrackId, uri: nextUri };
     playersRef.current[nextSource]?.preload(track);
-  }, [state.sessionId, nextTrackId, nextSource, state.currentTrackIndex, state.sessionTracklist]);
+  }, [state.sessionId, nextTrackId, nextUri, nextSource]);
 
   useEffect(() => {
     applyPlaybackPolicy();

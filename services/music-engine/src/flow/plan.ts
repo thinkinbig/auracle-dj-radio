@@ -1,5 +1,6 @@
 import type { Energy, FlowResult, PlannedTrack, SessionIntent, TastePreference, TrackCandidate, TrackSeed, Voicing } from "@auracle/shared";
 import { FULL_SESSION_LENGTH, energyTargetsForMood } from "@auracle/shared";
+import { basename } from "node:path";
 import type { TrackRow } from "../catalog-store.js";
 import { HeuristicFlowModel } from "./llm/heuristic-flow.js";
 import type { FlowInput, FlowPlan, FlowSlot } from "./llm/flow-model.js";
@@ -34,6 +35,10 @@ export interface PlanDeps {
  */
 const PLACEHOLDER_ENERGY: Energy = 3;
 const EMPTY_VOICING: Voicing = { artistPersona: "", albumConcept: "", lore: "" };
+
+function publicAssetUrl(segment: "covers" | "artists", path: string | undefined): string {
+  return path ? `/${segment}/${basename(path)}` : "";
+}
 
 /** Normalize a title/artist for tolerant equality (case, punctuation, spacing). */
 function normalizeMatchKey(value: string): string {
@@ -153,7 +158,7 @@ function stampPlanned(slots: FlowSlot[], tracks: TrackRow[], seed: SeedContext):
       title: t?.title ?? s.id,
       artist: t?.artist ?? "",
       albumTitle: t?.albumTitle ?? "",
-      albumCoverUrl: t?.albumCoverPath ?? "",
+      albumCoverUrl: publicAssetUrl("covers", t?.albumCoverPath),
       durationSec: 0,
       energy: t?.energy ?? PLACEHOLDER_ENERGY,
       voicing: t

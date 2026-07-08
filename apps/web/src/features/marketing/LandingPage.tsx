@@ -209,11 +209,14 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
 
   function handleAuthError(err: unknown) {
     if (err instanceof RateLimitError) {
+      console.warn('[ui] rate-limited auth attempt, retry after', err.retryAfterMs, 'ms');
       setRateLimitedUntil(Date.now() + err.retryAfterMs);
       setNow(Date.now());
       return;
     }
-    setAuthError((err as Error).message);
+    const error = err as Error & { code?: string; status?: number };
+    console.error('[ui] auth error:', error.code ? `code=${error.code}` : '', error.status ? `status=${error.status}` : '', error.message);
+    setAuthError(error.message);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

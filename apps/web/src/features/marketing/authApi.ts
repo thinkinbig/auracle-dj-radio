@@ -50,6 +50,24 @@ function requireSupabase() {
   return supabase;
 }
 
+/**
+ * Log the original Supabase error and create a user-friendly Error that still
+ * carries the original code/status for programmatic inspection.
+ */
+function toAuthError(error: unknown, context: string): Error {
+  console.error(`[auth] ${context}:`, error);
+  const err = new Error(getAuthErrorMessage(error));
+  if (error instanceof Object) {
+    const source = error as unknown as Record<string, unknown>;
+    const code = source.code;
+    const status = source.status;
+    const target = err as unknown as Record<string, unknown>;
+    if (typeof code === 'string') target.code = code;
+    if (typeof status === 'number') target.status = status;
+  }
+  return err;
+}
+
 function userFromSupabase(user: User): AuthUser {
   const metadata = user.user_metadata ?? {};
   const provider = stringValue(user.app_metadata?.provider);
@@ -93,7 +111,10 @@ async function exchangeRedirectCodeIfPresent(): Promise<Session | undefined> {
   }
   const { data, error } = await client.auth.exchangeCodeForSession(code);
   clearAuthRedirectParams();
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error('[auth] exchangeCodeForSession failed:', error);
+    throw new Error(error.message);
+  }
   return data.session ?? undefined;
 }
 
@@ -143,7 +164,10 @@ async function authFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const res = await fetch(path, { ...init, headers });
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    const body = (await res.json().catch((parseErr) => {
+      console.warn('[auth] authFetch failed to parse error response body:', parseErr);
+      return null;
+    })) as { error?: string } | null;
     throw new ApiError(body?.error ?? 'Request failed', res.status);
   }
   return (await res.json()) as T;
@@ -163,7 +187,7 @@ export async function register(credentials: RegisterCredentials, remember: boole
     password: credentials.password,
     options: { data: { name: credentials.name } },
   });
-  if (error) throw new Error(getAuthErrorMessage(error));
+  if (error) throw toAuthError(error, 'signUp failed');
   // signUp() for an already-registered, confirmed email returns 200 with no
   // error and session: null (Supabase obfuscates this to avoid leaking
   // which emails are registered). identities: [] is the documented way to
@@ -185,7 +209,7 @@ export async function login(credentials: RegisterCredentials, remember: boolean)
     email: credentials.email,
     password: credentials.password,
   });
-  if (error) throw new Error(getAuthErrorMessage(error));
+  if (error) throw toAuthError(error, 'signInWithPassword failed');
   if (!data.session) throw new Error('Supabase did not return a session');
   resetAuthRateLimit();
   return syncAuracleUser(data.session, remember);
@@ -201,7 +225,7 @@ export async function signInWithSpotify(): Promise<void> {
       scopes: SPOTIFY_OAUTH_SCOPES.join(' '),
     },
   });
-  if (error) throw new Error(getAuthErrorMessage(error));
+  if (error) throw toAuthError(error, 'signInWithOAuth(spotify) failed');
 }
 
 export async function signInWithGoogle(): Promise<void> {
@@ -213,15 +237,15 @@ export async function signInWithGoogle(): Promise<void> {
       redirectTo: window.location.origin,
     },
   });
-  if (error) throw new Error(getAuthErrorMessage(error));
+  if (error) throw toAuthError(error, 'signInWithOAuth(google) failed');
 }
 
 export async function logout(): Promise<void> {
   try {
     if (supabase) await supabase.auth.signOut();
     await authFetch<{ ok: true }>('/auth/logout', { method: 'POST' });
-  } catch {
-    /* local sign-out still succeeds */
+  } catch (err) {
+    console.warn('[auth] logout server call failed (local sign-out still succeeds):', err);
   } finally {
     clearStoredToken();
   }
@@ -239,6 +263,7 @@ export async function restoreUser(): Promise<AuthUser | undefined> {
   try {
     return (await syncAuracleUser(data.session)).user;
   } catch (err) {
+    console.error('[auth] restoreUser syncAuracleUser failed:', err);
     // Only a genuine auth rejection means the token is invalid. A transient
     // outage (network error / 5xx) must NOT wipe a still-valid login.
     if (err instanceof ApiError && err.status === 401) {
