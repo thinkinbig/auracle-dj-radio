@@ -1,6 +1,6 @@
 import type { CSSProperties, FormEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff, Music2 } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import {
   REGISTER_PASSWORD_HINT,
   REGISTER_PASSWORD_PATTERN,
@@ -488,15 +488,36 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                 </button>
               </div>
               <div className={styles.oauthGrid} aria-label="Social login options">
-                <button type="button" onClick={() => void handleGoogleLogin()} disabled={isSubmitting || isRateLimited}>
-                  <span className={styles.googleMark} aria-hidden>G</span>
-                  Continue with Google
+                <button
+                  className={styles.oauthButton}
+                  type="button"
+                  onClick={() => void handleGoogleLogin()}
+                  disabled={isSubmitting || isRateLimited}
+                >
+                  <span className={styles.googleMark} aria-hidden>
+                    <i />
+                  </span>
+                  <span>
+                    <strong>Continue with Google</strong>
+                    <small>Use your saved Auracle account</small>
+                  </span>
                 </button>
-                <button type="button" onClick={() => void handleSpotifyLogin()} disabled={isSubmitting || isRateLimited}>
-                  <Music2 size={18} aria-hidden />
-                  Continue with Spotify
+                <button
+                  className={`${styles.oauthButton} ${styles.spotifyButton}`}
+                  type="button"
+                  onClick={() => void handleSpotifyLogin()}
+                  disabled={isSubmitting || isRateLimited}
+                >
+                  <span className={styles.spotifyMark} aria-hidden>
+                    <i />
+                  </span>
+                  <span>
+                    <strong>Continue with Spotify</strong>
+                    <small>Bring liked tracks into Taste DNA</small>
+                  </span>
                 </button>
               </div>
+              <div className={styles.formDivider}>or continue with email</div>
               {authMode === 'register' ? (
                 <label>
                   Name
