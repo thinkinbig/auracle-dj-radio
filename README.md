@@ -6,7 +6,7 @@ AI radio DJ: real-time voice conversation + energy-arc curation + Spotify-taste 
 
 ```
 apps/web (React)
-  · Spotify OAuth / taste summary / playback adapter
+  · Supabase Auth / Spotify taste summary / playback adapter
   · REST ↔ agent-harness
   · Web Audio (local catalog mp3 + DJ voice)
        │
@@ -38,6 +38,12 @@ pnpm install
 # Reads GEMINI_API_KEY from the root .env and injects it into each service; Ctrl-C stops the whole group. Ports can be overridden (PROXY_PORT etc.).
 pnpm dev                      # → http://localhost:5173
 ```
+
+Supabase Auth is the source of truth for user accounts. Set `SUPABASE_URL`,
+`VITE_SUPABASE_URL`, and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env`; enable the
+Google and Spotify providers in Supabase, with `http://localhost:5173` as a
+local redirect URL. OAuth client credentials live in Supabase provider settings,
+not in the web app environment.
 
 The catalog needs no seeding: music-engine loads the manifest from `packages/catalog/data` straight into memory at boot (refuses to start if the catalog is empty). After editing the catalog, just re-export the browser-facing `tracks.json`: `pnpm --filter @auracle/catalog export-catalog`.
 
