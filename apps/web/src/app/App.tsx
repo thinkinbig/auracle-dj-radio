@@ -17,6 +17,7 @@ import { useAuth } from '@/features/marketing/AuthProvider';
 import { isSpotifyUser } from '@/features/marketing/guest';
 import { LandingPage } from '@/features/marketing/LandingPage';
 import { LibraryScreen } from '@/features/library/LibraryScreen';
+import { setSpotifyPlaybackEnabled } from '@/features/spotify/spotifyPlayback';
 import { OnboardingPage } from '@/features/radio/ui/OnboardingPage';
 import { PlayerScreen } from '@/features/radio/ui/PlayerScreen';
 import { SoundScreen } from '@/features/sound/SoundScreen';
@@ -56,6 +57,10 @@ function LoggedInApp() {
   useEffect(() => {
     setSessionHistory(loadSessionHistory(user!.id));
   }, [user]);
+
+  useEffect(() => {
+    setSpotifyPlaybackEnabled(hasSpotifyTaste);
+  }, [hasSpotifyTaste]);
 
   const saveCurrentSession = useCallback(() => {
     const entry = createSessionHistoryEntry(state, user!.id);

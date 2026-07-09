@@ -78,7 +78,6 @@
 }
 
 .catalogCard,
-.sourcePanel,
 .catalogPanel {
   position: relative;
   overflow: hidden;
@@ -96,7 +95,6 @@
 }
 
 .catalogCard::after,
-.sourcePanel::after,
 .catalogPanel::after {
   content: '';
   position: absolute;
@@ -106,7 +104,6 @@
   pointer-events: none;
 }
 
-.sourcePanel > *,
 .catalogPanel > *,
 .catalogCard > * {
   position: relative;
@@ -172,7 +169,6 @@
   background: rgba(244, 114, 182, 0.42);
 }
 
-.sourcePanel,
 .catalogPanel {
   display: grid;
   gap: clamp(18px, 3vw, 24px);
@@ -215,10 +211,6 @@
   font-size: 0.72rem;
   font-weight: 850;
   white-space: nowrap;
-}
-
-.spotifyControl {
-  min-height: 74px;
 }
 
 @media (max-width: 900px) {

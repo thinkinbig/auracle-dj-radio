@@ -385,21 +385,31 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
             </main>
 
             <section id="how" className={styles.productGuide} aria-labelledby="guide-title">
-              <div className={styles.historyFlow} aria-labelledby="guide-title">
-                <h2 id="guide-title">Every session starts here.</h2>
-                <div className={styles.flowSteps}>
-                  <article>
-                    <span>History</span>
-                  </article>
-                  <article>
-                    <span>DNA</span>
-                  </article>
-                  <article>
-                    <span>Moment</span>
-                  </article>
-                  <article>
-                    <span>Session</span>
-                  </article>
+              <div className={styles.starterGuide} aria-labelledby="guide-title">
+                <section className={styles.starterCopy}>
+                  <h2 id="guide-title">Every session starts here.</h2>
+                  <p>Connect your music, read the pattern, then choose the room you need right now.</p>
+                </section>
+
+                <div className={styles.starterProduct}>
+                  <div className={styles.starterCards} aria-label="How to start an Auracle session">
+                    <article>
+                      <strong>Connect Spotify or local</strong>
+                      <span>Use your Spotify taste, or start instantly from Auracle’s local catalog.</span>
+                    </article>
+                    <article>
+                      <strong>Read your DNA</strong>
+                      <span>Auracle turns your history into clear traits, not a maze of settings.</span>
+                    </article>
+                    <article>
+                      <strong>Pick the moment</strong>
+                      <span>Choose focus, wind-down, pregame, or whatever the next hour needs.</span>
+                    </article>
+                    <article>
+                      <strong>Start the room</strong>
+                      <span>The AI DJ opens with music and commentary shaped around that context.</span>
+                    </article>
+                  </div>
                 </div>
               </div>
 
@@ -407,10 +417,12 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                 <section className={styles.sessionCopy}>
                   <p className={styles.eyebrow}>Example session</p>
                   <h2>
-                    Writing. Focused.
-                    <span>Medium energy.</span>
+                    A station built
+                    <span>around this moment.</span>
                   </h2>
-                  <p>Generated from your Taste DNA.</p>
+                  <p>
+                    Auracle reads your Taste DNA, chooses a flow, then hosts the room with music-aware commentary.
+                  </p>
                   <button className={styles.listenLink} type="button" onClick={() => enterApp(guestUser)}>
                     Preview session
                     <span aria-hidden>→</span>
@@ -418,9 +430,14 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                 </section>
 
                 <section className={styles.sessionPlayer} aria-label="AI DJ example">
-                  <p className={styles.status}>Now playing</p>
+                  <div className={styles.sessionTopline}>
+                    <p className={styles.status}>Live AI room</p>
+                    <span>Focus · medium energy</span>
+                  </div>
                   <h3>Midnight Signal</h3>
-                  <p>Welcome back.</p>
+                  <p className={styles.djLine}>
+                    “I’m keeping this one steady and bright, with just enough lift to keep your writing moving.”
+                  </p>
                   <div className={styles.sessionPlayback}>
                     <button type="button" onClick={() => enterApp(guestUser)} aria-label="Play example session">
                       ▶
@@ -434,26 +451,40 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                       ))}
                     </div>
                   </div>
+                  <dl className={styles.sessionFacts}>
+                    <div>
+                      <dt>Source</dt>
+                      <dd>Spotify taste + local catalog</dd>
+                    </div>
+                    <div>
+                      <dt>DJ mode</dt>
+                      <dd>Hosted intro ready</dd>
+                    </div>
+                    <div>
+                      <dt>Arc</dt>
+                      <dd>Focus → lift → cooldown</dd>
+                    </div>
+                    <div>
+                      <dt>Next cue</dt>
+                      <dd>Lower vocals, warmer pulse</dd>
+                    </div>
+                  </dl>
                 </section>
               </div>
 
               <section className={styles.finalCta} aria-label="Start your AI radio">
-                <div>
+                <div className={styles.ctaCopy}>
                   <h2>
-                    Every station
-                    <span>finds a direction.</span>
-                    <span>Yours is waiting.</span>
+                    Turn your taste
+                    <span>into a live radio room.</span>
                   </h2>
                   <p>
-                    Connect Spotify or start from the local catalog. Auracle will shape the next station around your taste.
+                    Connect Spotify or use the local catalog. Auracle builds the queue, sets the energy arc, and hosts the session in real time.
                   </p>
+                  <button className={styles.primaryButton} type="button" onClick={() => showAuth('register')}>
+                    Create My Station
+                  </button>
                 </div>
-                <div className={styles.ctaVisual} aria-hidden>
-                  <i />
-                </div>
-                <button className={styles.primaryButton} type="button" onClick={() => showAuth('register')}>
-                  Discover My DNA
-                </button>
               </section>
             </section>
           </>
