@@ -67,6 +67,7 @@ Current docs:
 
 | Doc | Content |
 |------|------|
+| [auracle_technical_report.md](doc/auracle_technical_report.md) | Technical report draft: architecture, implementation, evaluation, deployment limits |
 | [auracle_architecture_storage.md](doc/auracle_architecture_storage.md) | Overall architecture, demo vs. production, SQLite, Gemini division of labor |
 | [auracle_gemini_integration.md](doc/auracle_gemini_integration.md) | **Deep Gemini integration** (mapped against the Group 24 four pillars) |
 | [auracle_api_protocol.md](doc/auracle_api_protocol.md) | REST + Live WS protocol, implementation checklist |

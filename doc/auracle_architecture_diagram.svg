@@ -1,0 +1,262 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1120" viewBox="0 0 1500 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Auracle system architecture — monorepo runtime</title>
+  <desc id="desc">Technical architecture diagram of Auracle DJ Radio showing apps/web, agent-harness, music-engine, profile-service, rt_llm_proxy, and their external dependencies Spotify, Supabase Auth, and Gemini Live, connected by REST, WebRTC, and external-boundary flows.</desc>
+
+  <defs>
+    <pattern id="dotgrid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#1c2833"/>
+    </pattern>
+
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#e0923c"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4bb3a7"/>
+    </marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#647588"/>
+    </marker>
+
+    <style>
+      .sans  { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+      .mono  { font-family: "Menlo", "SF Mono", Consolas, monospace; }
+
+      .eyebrow    { font: 700 10.5px "Menlo", monospace; fill: #e0923c; letter-spacing: 1.6px; }
+      .doc-title  { font: 700 33px "Helvetica Neue", Arial, sans-serif; fill: #f2f6f9; letter-spacing: 0.2px; }
+      .doc-sub    { font: 400 14.5px "Helvetica Neue", Arial, sans-serif; fill: #8a9db0; }
+      .rev        { font: 500 10.5px "Menlo", monospace; fill: #55697c; letter-spacing: 0.6px; }
+
+      .row-label  { font: 700 11px "Menlo", monospace; fill: #55697c; letter-spacing: 2px; }
+
+      .box-cat    { font: 700 9.5px "Menlo", monospace; fill: #6c8098; letter-spacing: 1.2px; }
+      .box-cat-ext{ font: 700 9.5px "Menlo", monospace; fill: #7a7196; letter-spacing: 1.2px; }
+      .box-name   { font: 700 17px "Menlo", monospace; fill: #eef3f7; }
+      .box-detail { font: 400 11.6px "Helvetica Neue", Arial, sans-serif; fill: #9aacbd; }
+
+      .chip-label { font: 700 9.6px "Menlo", monospace; fill: #cdd9e3; letter-spacing: 0.4px; }
+      .chip-sub   { font: 400 9.6px "Helvetica Neue", Arial, sans-serif; fill: #7e93a6; }
+
+      .edge-label { font: 500 10.3px "Menlo", monospace; fill: #b7c3ce; }
+      .edge-label-dim { font: 500 10px "Menlo", monospace; fill: #64788c; }
+
+      .panel      { fill: #121b25; stroke: #2b3d50; stroke-width: 1.4; }
+      .panel-hub  { fill: #121b25; stroke: #3a4f66; stroke-width: 1.8; }
+      .panel-ext  { fill: #0f1620; stroke: #3c4a5c; stroke-width: 1.3; stroke-dasharray: 5 4; }
+      .panel-data { fill: #141b22; stroke: #3a4436; stroke-width: 1.4; }
+      .chip       { fill: #0c131b; stroke: #263646; stroke-width: 1; }
+      .divider    { stroke: #223140; stroke-width: 1; }
+
+      .line-amber { fill: none; stroke: #e0923c; stroke-width: 2.1; marker-end: url(#arrow-amber); }
+      .line-teal  { fill: none; stroke: #4bb3a7; stroke-width: 2.1; marker-end: url(#arrow-teal); }
+      .line-slate { fill: none; stroke: #647588; stroke-width: 1.7; stroke-dasharray: 6 5; marker-end: url(#arrow-slate); }
+
+      .port-amber { fill: #e0923c; }
+      .port-teal  { fill: #4bb3a7; }
+      .port-slate { fill: #647588; }
+    </style>
+  </defs>
+
+  <!-- canvas -->
+  <rect x="0" y="0" width="1500" height="1120" fill="#0a1017"/>
+  <rect x="0" y="0" width="1500" height="1120" fill="url(#dotgrid)"/>
+  <rect x="0.75" y="0.75" width="1498.5" height="1118.5" fill="none" stroke="#1c2833" stroke-width="1.5"/>
+
+  <!-- corner ticks -->
+  <path d="M20,20 L20,40 M20,20 L40,20" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+  <path d="M1480,20 L1480,40 M1480,20 L1460,20" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+  <path d="M20,1100 L20,1080 M20,1100 L40,1100" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+  <path d="M1480,1100 L1480,1080 M1480,1100 L1460,1100" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+
+  <!-- header -->
+  <text class="eyebrow" x="60" y="46">SYSTEM ARCHITECTURE — MONOREPO RUNTIME</text>
+  <text class="doc-title" x="60" y="80">Auracle DJ Radio</text>
+  <text class="doc-sub" x="60" y="106">Live DJ session runtime: deterministic curation, Gemini Live voice, and a Spotify-owned taste boundary.</text>
+  <text class="rev" x="1440" y="70" text-anchor="end">DOC 04 · RUNTIME</text>
+  <text class="rev" x="1440" y="86" text-anchor="end">REV 2026-07</text>
+  <line class="divider" x1="60" y1="128" x2="1440" y2="128"/>
+
+  <!-- row labels -->
+  <text class="row-label" x="60" y="176">CLIENT + EXTERNAL EDGE</text>
+  <text class="row-label" x="60" y="416">APPLICATION SERVICES</text>
+  <text class="row-label" x="60" y="646">PERSISTENCE + ASSETS</text>
+  <text class="row-label" x="60" y="876">EVENT STORE</text>
+
+  <!-- ============ ROW A ============ -->
+  <!-- Spotify (external) -->
+  <rect class="panel-ext" x="60" y="190" width="300" height="150" rx="3"/>
+  <text class="box-cat-ext" x="84" y="216">EXTERNAL · TASTE + PLAYBACK</text>
+  <text class="box-name" x="84" y="242">Spotify</text>
+  <line class="divider" x1="84" y1="254" x2="336" y2="254"/>
+  <text class="box-detail" x="84" y="276">Top artists/tracks, saved tracks,</text>
+  <text class="box-detail" x="84" y="292">recently played, Premium status</text>
+  <text class="box-detail" x="84" y="316">Web Playback SDK (Premium)</text>
+
+  <!-- apps/web (client hub) -->
+  <rect class="panel-hub" x="420" y="190" width="660" height="150" rx="3"/>
+  <text class="box-cat" x="444" y="216">CLIENT · REACT + VITE</text>
+  <text class="box-name" x="444" y="242">apps/web</text>
+  <text class="box-detail" x="600" y="242">owns playback truth · mic · Spotify token</text>
+
+  <!-- capability chips -->
+  <g>
+    <rect class="chip" x="444" y="264" width="150" height="58" rx="2"/>
+    <text class="chip-label" x="458" y="286">PLAYBACK ENGINE</text>
+    <text class="chip-sub" x="458" y="302">local + Spotify SDK</text>
+
+    <rect class="chip" x="604" y="264" width="150" height="58" rx="2"/>
+    <text class="chip-label" x="618" y="286">MIC CAPTURE</text>
+    <text class="chip-sub" x="618" y="302">WebRTC audio track</text>
+
+    <rect class="chip" x="764" y="264" width="150" height="58" rx="2"/>
+    <text class="chip-label" x="778" y="286">SUPABASE CLIENT</text>
+    <text class="chip-sub" x="778" y="302">auth session</text>
+
+    <rect class="chip" x="924" y="264" width="150" height="58" rx="2"/>
+    <text class="chip-label" x="938" y="286">SPOTIFY OAUTH</text>
+    <text class="chip-sub" x="938" y="302">token stays in browser</text>
+  </g>
+
+  <!-- Gemini Live (external) -->
+  <rect class="panel-ext" x="1140" y="190" width="300" height="150" rx="3"/>
+  <text class="box-cat-ext" x="1164" y="216">EXTERNAL · SPOKEN AI</text>
+  <text class="box-name" x="1164" y="242">Gemini Live</text>
+  <line class="divider" x1="1164" y1="254" x2="1416" y2="254"/>
+  <text class="box-detail" x="1164" y="276">DJ voice synthesis</text>
+  <text class="box-detail" x="1164" y="292">Tool-call interpretation</text>
+  <text class="box-detail" x="1164" y="316">Talk-over cueing per turn</text>
+
+  <!-- ============ ROW B ============ -->
+  <!-- Supabase Auth (external) -->
+  <rect class="panel-ext" x="60" y="430" width="300" height="140" rx="3"/>
+  <text class="box-cat-ext" x="84" y="456">EXTERNAL · IDENTITY</text>
+  <text class="box-name" x="84" y="482">Supabase Auth</text>
+  <line class="divider" x1="84" y1="494" x2="336" y2="494"/>
+  <text class="box-detail" x="84" y="516">Source of truth for users</text>
+  <text class="box-detail" x="84" y="532">JWKS-issued session JWTs</text>
+  <text class="box-detail" x="84" y="548">OAuth provider config</text>
+
+  <!-- agent-harness (hub) -->
+  <rect class="panel-hub" x="420" y="430" width="300" height="140" rx="3"/>
+  <text class="box-cat" x="444" y="456">FASTIFY · TYPESCRIPT · ORCHESTRATOR</text>
+  <text class="box-name" x="444" y="482">agent-harness</text>
+  <line class="divider" x1="444" y1="494" x2="696" y2="494"/>
+  <text class="box-detail" x="444" y="516">Session lifecycle, queue state</text>
+  <text class="box-detail" x="444" y="532">Playhead mirror, replanning</text>
+  <text class="box-detail" x="444" y="548">DJ tool execution boundary</text>
+
+  <!-- music-engine -->
+  <rect class="panel" x="780" y="430" width="300" height="140" rx="3"/>
+  <text class="box-cat" x="804" y="456">FASTIFY · TYPESCRIPT</text>
+  <text class="box-name" x="804" y="482">music-engine</text>
+  <line class="divider" x1="804" y1="494" x2="1056" y2="494"/>
+  <text class="box-detail" x="804" y="516">Deterministic ranking</text>
+  <text class="box-detail" x="804" y="532">Energy-arc planning</text>
+  <text class="box-detail" x="804" y="548">Local + Spotify seed candidates</text>
+
+  <!-- rt_llm_proxy -->
+  <rect class="panel" x="1140" y="430" width="300" height="140" rx="3"/>
+  <text class="box-cat" x="1164" y="456">GO · PION WEBRTC</text>
+  <text class="box-name" x="1164" y="482">rt_llm_proxy</text>
+  <line class="divider" x1="1164" y1="494" x2="1416" y2="494"/>
+  <text class="box-detail" x="1164" y="516">Browser WebRTC termination</text>
+  <text class="box-detail" x="1164" y="532">Gemini Live bridge</text>
+  <text class="box-detail" x="1164" y="548">DJ tool + transcript frames</text>
+
+  <!-- ============ ROW C ============ -->
+  <!-- profile-service -->
+  <rect class="panel" x="60" y="660" width="300" height="130" rx="3"/>
+  <text class="box-cat" x="84" y="686">FASTIFY · TYPESCRIPT</text>
+  <text class="box-name" x="84" y="712">profile-service</text>
+  <line class="divider" x1="84" y1="724" x2="336" y2="724"/>
+  <text class="box-detail" x="84" y="746">Supabase JWT validation</text>
+  <text class="box-detail" x="84" y="762">session_events persistence + eval queries</text>
+
+  <!-- catalog data -->
+  <rect class="panel-data" x="780" y="660" width="300" height="130" rx="3"/>
+  <text class="box-cat" x="804" y="686">STATIC MANIFEST</text>
+  <text class="box-name" x="804" y="712">packages/catalog/data</text>
+  <line class="divider" x1="804" y1="724" x2="1056" y2="724"/>
+  <text class="box-detail" x="804" y="746">Title, artist, mood, scene, energy</text>
+  <text class="box-detail" x="804" y="762">Cover art + audio assets</text>
+
+  <!-- ============ ROW D ============ -->
+  <rect class="panel-data" x="60" y="890" width="300" height="100" rx="3"/>
+  <text class="box-cat" x="84" y="916">SQLITE · APPEND-ONLY</text>
+  <text class="box-name" x="84" y="942">session_events</text>
+  <line class="divider" x1="84" y1="954" x2="336" y2="954"/>
+  <text class="box-detail" x="84" y="974">session_created · track_started · replan · skip_latency …</text>
+
+  <!-- ============ EDGES ============ -->
+
+  <!-- E1 Spotify -> apps/web -->
+  <path class="line-slate" d="M360,265 L420,265"/>
+  <text class="edge-label-dim" x="390" y="255" text-anchor="middle">browser-only</text>
+  <rect class="port-slate" x="357" y="262" width="6" height="6"/>
+
+  <!-- E2 Gemini Live <-> rt_llm_proxy -->
+  <path class="line-slate" d="M1250,340 L1250,430"/>
+  <text class="edge-label-dim" x="1238" y="412" text-anchor="end">media + tool bridge</text>
+  <rect class="port-slate" x="1247" y="337" width="6" height="6"/>
+
+  <!-- E3 apps/web -> agent-harness -->
+  <path class="line-amber" d="M570,340 L570,430"/>
+  <text class="edge-label" x="585" y="390">POST /sessions*</text>
+  <rect class="port-amber" x="567" y="337" width="6" height="6"/>
+
+  <!-- E4 apps/web -> rt_llm_proxy (routed through the row gap to clear the Gemini Live box) -->
+  <path class="line-teal" d="M1000,340 V380 H1330 V430"/>
+  <text class="edge-label" x="1055" y="372">WebRTC · /proxy/*</text>
+  <rect class="port-teal" x="997" y="337" width="6" height="6"/>
+
+  <!-- E5 apps/web -> profile-service -->
+  <path class="line-amber" d="M480,340 V395 H20 V705 H60"/>
+  <text class="edge-label" x="120" y="388">/auth/*</text>
+  <rect class="port-amber" x="477" y="337" width="6" height="6"/>
+
+  <!-- E6 Supabase Auth -> profile-service -->
+  <path class="line-slate" d="M210,570 L210,660"/>
+  <text class="edge-label-dim" x="222" y="618">JWKS validation</text>
+  <rect class="port-slate" x="207" y="567" width="6" height="6"/>
+
+  <!-- E7 agent-harness -> profile-service -->
+  <path class="line-amber" d="M480,570 V610 H320 V660"/>
+  <text class="edge-label" x="340" y="604">session events</text>
+  <rect class="port-amber" x="477" y="567" width="6" height="6"/>
+
+  <!-- E8 agent-harness -> music-engine -->
+  <path class="line-amber" d="M720,500 L780,500"/>
+  <text class="edge-label" x="750" y="490" text-anchor="middle">plan</text>
+  <rect class="port-amber" x="717" y="497" width="6" height="6"/>
+
+  <!-- E9 agent-harness <-> rt_llm_proxy (tool forwarding, routed under music-engine) -->
+  <path class="line-amber" d="M680,570 V610 H1290 V570"/>
+  <text class="edge-label" x="950" y="604" text-anchor="middle">DJ tool forwarding · cue registration</text>
+  <rect class="port-amber" x="677" y="567" width="6" height="6"/>
+
+  <!-- E10 music-engine -> catalog data -->
+  <path class="line-amber" d="M930,570 L930,660"/>
+  <text class="edge-label" x="942" y="652">read manifest</text>
+  <rect class="port-amber" x="927" y="567" width="6" height="6"/>
+
+  <!-- E11 profile-service -> session_events -->
+  <path class="line-amber" d="M210,790 L210,890"/>
+  <text class="edge-label" x="222" y="843">persist</text>
+  <rect class="port-amber" x="207" y="787" width="6" height="6"/>
+
+  <!-- ============ FOOTER / LEGEND ============ -->
+  <line class="divider" x1="60" y1="1030" x2="1440" y2="1030"/>
+
+  <g transform="translate(60,1050)">
+    <line x1="0" y1="0" x2="30" y2="0" stroke="#e0923c" stroke-width="2.1" marker-end="url(#arrow-amber)"/>
+    <text class="box-detail" x="40" y="4">internal REST / control call</text>
+
+    <line x1="270" y1="0" x2="300" y2="0" stroke="#4bb3a7" stroke-width="2.1" marker-end="url(#arrow-teal)"/>
+    <text class="box-detail" x="310" y="4">internal realtime media (WebRTC)</text>
+
+    <line x1="590" y1="0" x2="620" y2="0" stroke="#647588" stroke-width="1.7" stroke-dasharray="6 5" marker-end="url(#arrow-slate)"/>
+    <text class="box-detail" x="630" y="4">crosses external third-party boundary</text>
+  </g>
+
+  <text class="box-detail" x="1440" y="1046" text-anchor="end">Spotify owns long-term taste; Auracle owns only the live session.</text>
+  <text class="box-detail" x="1440" y="1062" text-anchor="end">session_events supports evaluation/debugging — not cross-session recommendation memory.</text>
+</svg>

@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1220" viewBox="0 0 1900 1220" role="img" aria-labelledby="title desc">
+  <title id="title">rt_llm_proxy — boundary diagram</title>
+  <desc id="desc">Boundary diagram of rt_llm_proxy: the browser and Gemini Live sit outside the process; inside the process, a control-plane boundary and a per-session data-plane boundary are drawn separately, with Redis, Kafka, profile-service, and agent-harness as optional backend dependencies. Solid lines are hot-path; dashed lines are best-effort or optional.</desc>
+
+  <defs>
+    <pattern id="dotgrid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#1c2833"/>
+    </pattern>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#e0923c"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4bb3a7"/>
+    </marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#647588"/>
+    </marker>
+    <style>
+      .eyebrow    { font: 700 10.5px "Menlo", monospace; fill: #e0923c; letter-spacing: 1.6px; }
+      .doc-title  { font: 700 30px "Helvetica Neue", Arial, sans-serif; fill: #f2f6f9; }
+      .doc-sub    { font: 400 14px "Helvetica Neue", Arial, sans-serif; fill: #8a9db0; }
+      .rev        { font: 500 10.5px "Menlo", monospace; fill: #55697c; letter-spacing: 0.6px; }
+      .boundary     { fill: rgba(120,150,180,0.02); stroke: #3a4f66; stroke-width: 1.6; }
+      .boundary-ext { fill: rgba(140,120,170,0.02); stroke: #4a4560; stroke-width: 1.6; stroke-dasharray: 9 6; }
+      .boundary-sub { fill: rgba(120,150,180,0.015); stroke: #2b3d50; stroke-width: 1.2; stroke-dasharray: 4 4; }
+      .b-label-bg { fill: #0a1017; }
+      .b-label    { font: 700 11px "Menlo", monospace; fill: #8fa3b8; letter-spacing: 1.5px; }
+      .b-label-ext{ font: 700 11px "Menlo", monospace; fill: #9c8fb8; letter-spacing: 1.5px; }
+      .box-cat    { font: 700 9.5px "Menlo", monospace; fill: #6c8098; letter-spacing: 1px; }
+      .box-name   { font: 700 15px "Menlo", monospace; fill: #eef3f7; }
+      .box-detail { font: 400 11.5px "Helvetica Neue", Arial, sans-serif; fill: #9aacbd; }
+      .edge-label { font: 500 10px "Menlo", monospace; fill: #b7c3ce; }
+      .panel      { fill: #121b25; stroke: #2b3d50; stroke-width: 1.4; }
+      .panel-hub  { fill: #121b25; stroke: #3a4f66; stroke-width: 1.8; }
+      .divider    { stroke: #223140; stroke-width: 1; }
+      .line-amber { fill: none; stroke: #e0923c; stroke-width: 2; marker-end: url(#arrow-amber); }
+      .line-teal  { fill: none; stroke: #4bb3a7; stroke-width: 2.1; marker-end: url(#arrow-teal); }
+      .line-slate { fill: none; stroke: #647588; stroke-width: 1.5; stroke-dasharray: 6 5; marker-end: url(#arrow-slate); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1900" height="1220" fill="#0a1017"/>
+  <rect x="0" y="0" width="1900" height="1220" fill="url(#dotgrid)"/>
+  <rect x="0.75" y="0.75" width="1898.5" height="1218.5" fill="none" stroke="#1c2833" stroke-width="1.5"/>
+  <path d="M20,20 L20,40 M20,20 L40,20" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+  <path d="M1880,20 L1880,40 M1880,20 L1860,20" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+  <path d="M20,1200 L20,1180 M20,1200 L40,1200" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+  <path d="M1880,1200 L1880,1180 M1880,1200 L1860,1200" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+
+  <text class="eyebrow" x="60" y="46">BOUNDARY DIAGRAM — TRUST + DEPLOYMENT</text>
+  <text class="doc-title" x="60" y="78">rt_llm_proxy</text>
+  <text class="doc-sub" x="60" y="104">Control plane and per-session data plane are separate boundaries inside one process.</text>
+  <text class="rev" x="1840" y="68" text-anchor="end">DOC 04b · RT_LLM_PROXY</text>
+  <text class="rev" x="1840" y="84" text-anchor="end">REV 2026-07</text>
+  <line class="divider" x1="60" y1="126" x2="1840" y2="126"/>
+
+  <!-- BROWSER boundary -->
+  <rect class="boundary-ext" x="60" y="170" width="420" height="150" rx="8"/>
+  <rect class="b-label-bg" x="80" y="162" width="180" height="18"/>
+  <text class="b-label-ext" x="86" y="176">BROWSER · UNTRUSTED</text>
+  <rect class="panel" x="90" y="210" width="360" height="90" rx="3"/>
+  <text class="box-cat" x="110" y="234">CLIENT</text>
+  <text class="box-name" x="110" y="258">WebRTC</text>
+  <text class="box-detail" x="110" y="282">Opus audio + DataChannel JSON</text>
+
+  <!-- PROVIDER boundary -->
+  <rect class="boundary-ext" x="1420" y="170" width="420" height="150" rx="8"/>
+  <rect class="b-label-bg" x="1440" y="162" width="180" height="18"/>
+  <text class="b-label-ext" x="1446" y="176">PROVIDER · UPSTREAM</text>
+  <rect class="panel" x="1450" y="210" width="360" height="90" rx="3"/>
+  <text class="box-cat" x="1470" y="234">EXTERNAL</text>
+  <text class="box-name" x="1470" y="258">Gemini Live</text>
+  <text class="box-detail" x="1470" y="282">WebSocket · PCM</text>
+
+  <!-- PROCESS boundary -->
+  <rect class="boundary" x="60" y="360" width="1780" height="520" rx="8"/>
+  <rect class="b-label-bg" x="80" y="352" width="330" height="18"/>
+  <text class="b-label" x="86" y="366">RT_LLM_PROXY · PROCESS</text>
+
+  <!-- CONTROL PLANE sub-boundary -->
+  <rect class="boundary-sub" x="100" y="430" width="800" height="410" rx="6"/>
+  <rect class="b-label-bg" x="120" y="422" width="150" height="16"/>
+  <text class="b-label" x="126" y="434">CONTROL PLANE</text>
+
+  <rect class="panel-hub" x="130" y="460" width="740" height="90" rx="3"/>
+  <text class="box-cat" x="150" y="486">offer.Intake</text>
+  <text class="box-name" x="150" y="510">Session Intake</text>
+  <text class="box-detail" x="360" y="510">rate limit → auth → circuit breaker → replay → Hub.Serve</text>
+
+  <rect class="panel" x="130" y="570" width="170" height="120" rx="3"/>
+  <text class="box-cat" x="148" y="596">ratelimit</text>
+  <text class="box-name" x="148" y="618">Rate Limit</text>
+  <text class="box-detail" x="148" y="642">Redis, fail-open</text>
+
+  <rect class="panel" x="320" y="570" width="170" height="120" rx="3"/>
+  <text class="box-cat" x="338" y="596">auth</text>
+  <text class="box-name" x="338" y="618">Verifier</text>
+  <text class="box-detail" x="338" y="642">fail-open anonymous</text>
+
+  <rect class="panel" x="510" y="570" width="170" height="120" rx="3"/>
+  <text class="box-cat" x="528" y="596">modelcb</text>
+  <text class="box-name" x="528" y="618">Circuit Breaker</text>
+  <text class="box-detail" x="528" y="642">per provider</text>
+
+  <rect class="panel" x="700" y="570" width="170" height="120" rx="3"/>
+  <text class="box-cat" x="718" y="596">replayindex</text>
+  <text class="box-name" x="718" y="618">Replay</text>
+  <text class="box-detail" x="718" y="642">reconnect restore</text>
+
+  <!-- DATA PLANE sub-boundary -->
+  <rect class="boundary-sub" x="940" y="430" width="900" height="410" rx="6"/>
+  <rect class="b-label-bg" x="960" y="422" width="270" height="16"/>
+  <text class="b-label" x="966" y="434">DATA PLANE · PER SESSION</text>
+
+  <rect class="panel-hub" x="970" y="460" width="840" height="100" rx="3"/>
+  <text class="box-cat" x="990" y="486">internal/rtc</text>
+  <text class="box-name" x="990" y="512">Hub / Bridge</text>
+  <text class="box-detail" x="1250" y="512">one session per connection · Opus ⇄ PCM</text>
+
+  <rect class="panel" x="970" y="600" width="390" height="110" rx="3"/>
+  <text class="box-cat" x="988" y="626">transcript.Recorder</text>
+  <text class="box-name" x="988" y="650">Recorder</text>
+  <text class="box-detail" x="988" y="674">seq, role, text</text>
+
+  <rect class="panel" x="1390" y="600" width="190" height="110" rx="3" stroke-dasharray="5 4"/>
+  <text class="box-cat" x="1408" y="626">adaptive</text>
+  <text class="box-name" x="1408" y="650">Complexity</text>
+  <text class="box-detail" x="1408" y="674">optional, load-based</text>
+
+  <rect class="panel" x="1610" y="600" width="200" height="110" rx="3"/>
+  <text class="box-cat" x="1628" y="626">sidechannel</text>
+  <text class="box-name" x="1628" y="650">Tap</text>
+  <text class="box-detail" x="1628" y="674">taps every turn</text>
+
+  <!-- OPTIONAL BACKENDS boundary -->
+  <rect class="boundary-ext" x="60" y="940" width="1780" height="150" rx="8"/>
+  <rect class="b-label-bg" x="80" y="932" width="220" height="18"/>
+  <text class="b-label-ext" x="86" y="946">OPTIONAL BACKENDS</text>
+
+  <rect class="panel" x="100" y="975" width="390" height="90" rx="3"/>
+  <text class="box-cat" x="118" y="1000">STORE</text>
+  <text class="box-name" x="118" y="1024">Redis</text>
+  <text class="box-detail" x="118" y="1048">rate-limit window</text>
+
+  <rect class="panel" x="530" y="975" width="390" height="90" rx="3"/>
+  <text class="box-cat" x="548" y="1000">HTTP</text>
+  <text class="box-name" x="548" y="1024">profile-service</text>
+  <text class="box-detail" x="548" y="1048">GET /auth/me</text>
+
+  <rect class="panel" x="960" y="975" width="390" height="90" rx="3"/>
+  <text class="box-cat" x="978" y="1000">HTTP</text>
+  <text class="box-name" x="978" y="1024">agent-harness</text>
+  <text class="box-detail" x="978" y="1048">POST /sessions/:id/tool</text>
+
+  <rect class="panel" x="1390" y="975" width="390" height="90" rx="3"/>
+  <text class="box-cat" x="1408" y="1000">EVENT LOG</text>
+  <text class="box-name" x="1408" y="1024">Kafka</text>
+  <text class="box-detail" x="1408" y="1048">transcript events</text>
+
+  <!-- edges -->
+  <path class="line-teal" d="M450,255 V300 H1390 V460"/>
+  <text class="edge-label" x="820" y="292">Opus + DataChannel</text>
+
+  <path class="line-teal" d="M1650,460 V300"/>
+  <text class="edge-label" x="1662" y="390">PCM · 48kHz</text>
+
+  <path class="line-amber" d="M215,550 L215,570"/>
+  <path class="line-amber" d="M405,550 L405,570"/>
+  <path class="line-amber" d="M595,550 L595,570"/>
+  <path class="line-amber" d="M785,550 L785,570"/>
+
+  <path class="line-amber" d="M870,505 H970"/>
+  <text class="edge-label" x="880" y="497">registered contract</text>
+
+  <path class="line-amber" d="M215,690 V900 H295 V975"/>
+  <path class="line-amber" d="M405,690 V900 H725 V975"/>
+
+  <path class="line-slate" d="M595,570 V390 H1650 V300"/>
+  <text class="edge-label" x="1000" y="382">early stream fault</text>
+
+  <path class="line-slate" d="M870,630 H900 V530 H970"/>
+  <text class="edge-label" x="885" y="522">reconnect restore</text>
+
+  <path class="line-amber" d="M1165,560 L1165,600"/>
+
+  <path class="line-slate" d="M1485,600 L1485,560"/>
+
+  <path class="line-amber" d="M1360,650 V580 H1610 V650"/>
+
+  <path class="line-slate" d="M1710,710 V940 H1585 V975"/>
+  <text class="edge-label" x="1720" y="850" text-anchor="middle">non-blocking</text>
+
+  <path class="line-slate" d="M1300,560 V580 H1375 V900 H1155 V975"/>
+  <text class="edge-label" x="1160" y="892">Lane 1 tool calls</text>
+
+  <!-- legend + invariant -->
+  <line class="divider" x1="60" y1="1090" x2="1840" y2="1090"/>
+  <text class="box-detail" x="60" y="1116">Invariant — the control plane never gates the media plane; only rate-limit-at-capacity and circuit-open are hard guards.</text>
+  <g transform="translate(60,1150)">
+    <line x1="0" y1="0" x2="30" y2="0" stroke="#4bb3a7" stroke-width="2.1" marker-end="url(#arrow-teal)"/>
+    <text class="box-detail" x="40" y="4">media hot path</text>
+    <line x1="220" y1="0" x2="250" y2="0" stroke="#e0923c" stroke-width="2" marker-end="url(#arrow-amber)"/>
+    <text class="box-detail" x="260" y="4">control hot path</text>
+    <line x1="440" y1="0" x2="470" y2="0" stroke="#647588" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#arrow-slate)"/>
+    <text class="box-detail" x="480" y="4">best-effort / degradable</text>
+  </g>
+  <text class="box-detail" x="1840" y="1154" text-anchor="end">Dashed-border boundaries cross a process or trust edge; the dotted inner frames do not.</text>
+</svg>

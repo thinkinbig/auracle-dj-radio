@@ -1,0 +1,203 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1040" viewBox="0 0 2000 1040" role="img" aria-labelledby="title desc">
+  <title id="title">music-engine — ranking pipeline component diagram</title>
+  <desc id="desc">Component diagram of the music-engine service: entry routes, candidate retrieval, seed context, deterministic sequencing, validation, and the plan cache. Spotify seeds and the local catalog are an exclusive source switch, never merged into one pool.</desc>
+
+  <defs>
+    <pattern id="dotgrid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#1c2833"/>
+    </pattern>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#e0923c"/>
+    </marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#647588"/>
+    </marker>
+    <style>
+      .eyebrow    { font: 700 10.5px "Menlo", monospace; fill: #e0923c; letter-spacing: 1.6px; }
+      .doc-title  { font: 700 30px "Helvetica Neue", Arial, sans-serif; fill: #f2f6f9; }
+      .doc-sub    { font: 400 14px "Helvetica Neue", Arial, sans-serif; fill: #8a9db0; }
+      .rev        { font: 500 10.5px "Menlo", monospace; fill: #55697c; letter-spacing: 0.6px; }
+      .row-label  { font: 700 11px "Menlo", monospace; fill: #55697c; letter-spacing: 2px; }
+      .box-cat    { font: 700 9.5px "Menlo", monospace; fill: #6c8098; letter-spacing: 1px; }
+      .box-cat-ext{ font: 700 9.5px "Menlo", monospace; fill: #7a7196; letter-spacing: 1px; }
+      .box-name   { font: 700 17px "Menlo", monospace; fill: #eef3f7; }
+      .box-detail { font: 400 12px "Helvetica Neue", Arial, sans-serif; fill: #9aacbd; }
+      .chip-label { font: 700 10px "Menlo", monospace; fill: #cdd9e3; }
+      .edge-label { font: 500 10.2px "Menlo", monospace; fill: #b7c3ce; }
+      .edge-label-dim { font: 500 9.6px "Menlo", monospace; fill: #64788c; }
+      .panel      { fill: #121b25; stroke: #2b3d50; stroke-width: 1.4; }
+      .panel-hub  { fill: #121b25; stroke: #3a4f66; stroke-width: 1.8; }
+      .panel-ext  { fill: #0f1620; stroke: #3c4a5c; stroke-width: 1.3; stroke-dasharray: 5 4; }
+      .boundary     { fill: rgba(120,150,180,0.02); stroke: #3a4f66; stroke-width: 1.6; }
+      .boundary-ext { fill: rgba(140,120,170,0.02); stroke: #4a4560; stroke-width: 1.6; stroke-dasharray: 9 6; }
+      .b-label-bg { fill: #0a1017; }
+      .b-label    { font: 700 11px "Menlo", monospace; fill: #8fa3b8; letter-spacing: 1.5px; }
+      .b-label-ext{ font: 700 11px "Menlo", monospace; fill: #9c8fb8; letter-spacing: 1.5px; }
+      .chip       { fill: #0c131b; stroke: #263646; stroke-width: 1; }
+      .divider    { stroke: #223140; stroke-width: 1; }
+      .line-amber { fill: none; stroke: #e0923c; stroke-width: 2.1; marker-end: url(#arrow-amber); }
+      .line-slate { fill: none; stroke: #647588; stroke-width: 1.6; stroke-dasharray: 6 5; marker-end: url(#arrow-slate); }
+      .port-amber { fill: #e0923c; }
+      .port-slate { fill: #647588; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="2000" height="1040" fill="#0a1017"/>
+  <rect x="0" y="0" width="2000" height="1040" fill="url(#dotgrid)"/>
+  <rect x="0.75" y="0.75" width="1998.5" height="1038.5" fill="none" stroke="#1c2833" stroke-width="1.5"/>
+  <path d="M20,20 L20,40 M20,20 L40,20" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+  <path d="M1980,20 L1980,40 M1980,20 L1960,20" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+  <path d="M20,1020 L20,1000 M20,1020 L40,1020" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+  <path d="M1980,1020 L1980,1000 M1980,1020 L1960,1020" stroke="#2b3d50" stroke-width="1.3" fill="none"/>
+
+  <text class="eyebrow" x="60" y="46">BOUNDARY DIAGRAM — SERVICE INTERNALS</text>
+  <text class="doc-title" x="60" y="78">music-engine — ranking pipeline</text>
+  <text class="doc-sub" x="60" y="104">Local catalog and Spotify seeds are an exclusive source switch, never one merged pool. Gemini appears once, outside the process.</text>
+  <text class="rev" x="1940" y="68" text-anchor="end">DOC 04a · MUSIC-ENGINE</text>
+  <text class="rev" x="1940" y="84" text-anchor="end">REV 2026-07</text>
+  <line class="divider" x1="60" y1="126" x2="1940" y2="126"/>
+
+  <!-- PROCESS boundary -->
+  <rect class="boundary" x="40" y="150" width="1600" height="810" rx="8"/>
+  <rect class="b-label-bg" x="60" y="142" width="270" height="18"/>
+  <text class="b-label" x="66" y="156">MUSIC-ENGINE · PROCESS</text>
+
+  <!-- EXTERNAL boundary -->
+  <rect class="boundary-ext" x="1680" y="150" width="280" height="810" rx="8"/>
+  <rect class="b-label-bg" x="1700" y="142" width="130" height="18"/>
+  <text class="b-label-ext" x="1706" y="156">EXTERNAL</text>
+
+  <text class="row-label" x="60" y="200">ENTRY POINTS</text>
+
+  <!-- ENTRY row -->
+  <rect class="panel" x="60" y="210" width="280" height="130" rx="3"/>
+  <text class="box-cat" x="84" y="238">ROUTE</text>
+  <text class="box-name" x="84" y="262">/search_catalog</text>
+  <line class="divider" x1="84" y1="274" x2="316" y2="274"/>
+  <text class="box-detail" x="84" y="298">Retrieval only, no ordering</text>
+
+  <rect class="panel-hub" x="380" y="210" width="1000" height="130" rx="3"/>
+  <text class="box-cat" x="404" y="238">ROUTE</text>
+  <text class="box-name" x="404" y="262">/plan_tracklist</text>
+  <g>
+    <rect class="chip" x="404" y="282" width="150" height="38" rx="2"/>
+    <text class="chip-label" x="418" y="306">provisional</text>
+    <rect class="chip" x="566" y="282" width="150" height="38" rx="2"/>
+    <text class="chip-label" x="580" y="306">full</text>
+    <rect class="chip" x="728" y="282" width="150" height="38" rx="2"/>
+    <text class="chip-label" x="742" y="306">replan</text>
+    <rect class="chip" x="890" y="282" width="150" height="38" rx="2"/>
+    <text class="chip-label" x="904" y="306">extend</text>
+  </g>
+  <text class="box-detail" x="1054" y="306">mode selects the path below</text>
+
+  <rect class="panel" x="1420" y="210" width="200" height="130" rx="3"/>
+  <text class="box-cat" x="1440" y="238">LRU CACHE</text>
+  <text class="box-name" x="1440" y="262">Plan Cache</text>
+  <line class="divider" x1="1440" y1="274" x2="1600" y2="274"/>
+  <text class="box-detail" x="1440" y="298">full mode only</text>
+
+  <!-- STEP 1 row -->
+  <text class="row-label" x="60" y="380">STEP 1 — CANDIDATES</text>
+
+  <rect class="panel" x="60" y="390" width="480" height="170" rx="3"/>
+  <text class="box-cat" x="84" y="418">flow/retrieval</text>
+  <text class="box-name" x="84" y="444">retrieveCandidates()</text>
+  <line class="divider" x1="84" y1="456" x2="516" y2="456"/>
+  <text class="box-detail" x="84" y="480">Buckets catalog by arc energy</text>
+  <text class="box-detail" x="84" y="500">Ranks by scene, genre, taste fit</text>
+  <text class="box-detail" x="84" y="520">Runs only when no seeds</text>
+
+  <rect class="panel" x="580" y="390" width="480" height="170" rx="3"/>
+  <text class="box-cat" x="604" y="418">flow/plan.ts</text>
+  <text class="box-name" x="604" y="444">buildSeedContext()</text>
+  <line class="divider" x1="604" y1="456" x2="1036" y2="456"/>
+  <text class="box-detail" x="604" y="480">Exact catalog reuse first</text>
+  <text class="box-detail" x="604" y="500">Unmatched seeds → resolveSeeds</text>
+  <text class="box-detail" x="604" y="520">Seeds present → sole source</text>
+
+  <!-- resolveSeeds lives outside the process boundary -->
+  <rect class="panel-ext" x="1700" y="390" width="260" height="170" rx="3"/>
+  <text class="box-cat-ext" x="1718" y="418">GEMINI</text>
+  <text class="box-name" x="1718" y="444">resolveSeeds()</text>
+  <line class="divider" x1="1718" y1="456" x2="1942" y2="456"/>
+  <text class="box-detail" x="1718" y="480">Infers energy + voicing</text>
+  <text class="box-detail" x="1718" y="500">Memoized, best-effort</text>
+
+  <!-- STEP 2 row -->
+  <text class="row-label" x="60" y="600">STEP 2 — SEQUENCING</text>
+  <rect class="panel-hub" x="60" y="610" width="1560" height="110" rx="3"/>
+  <text class="box-cat" x="84" y="638">flow/llm/heuristic-flow.ts</text>
+  <text class="box-name" x="84" y="664">HeuristicFlowModel.plan()</text>
+  <text class="box-detail" x="600" y="664">Orders candidates along the mood energy arc — no model call, pure arithmetic</text>
+
+  <!-- STEP 3 row -->
+  <text class="row-label" x="60" y="780">SAFETY NET + OUTPUT</text>
+
+  <rect class="panel" x="60" y="790" width="760" height="130" rx="3"/>
+  <text class="box-cat" x="84" y="818">flow/validation</text>
+  <text class="box-name" x="84" y="844">validateTracklist()</text>
+  <line class="divider" x1="84" y1="856" x2="796" y2="856"/>
+  <text class="box-detail" x="84" y="880">Flags tempo, energy, genre issues</text>
+
+  <rect class="panel" x="860" y="790" width="760" height="130" rx="3"/>
+  <text class="box-cat" x="884" y="818">flow/plan.ts</text>
+  <text class="box-name" x="884" y="844">stampPlanned()</text>
+  <line class="divider" x1="884" y1="856" x2="1596" y2="856"/>
+  <text class="box-detail" x="884" y="880">Merges metadata into PlannedTrack</text>
+
+  <!-- response -->
+  <text class="box-detail" x="60" y="957">→ agent-harness · tracklist, violations, candidates</text>
+
+  <!-- edges -->
+  <path class="line-amber" d="M200,340 L200,390"/>
+  <rect class="port-amber" x="197" y="337" width="6" height="6"/>
+  <text class="edge-label-dim" x="212" y="368">/search_catalog only</text>
+
+  <path class="line-amber" d="M900,340 V365 H820 V390"/>
+  <rect class="port-amber" x="897" y="337" width="6" height="6"/>
+  <text class="edge-label-dim" x="912" y="358">all /plan_tracklist modes</text>
+
+  <path class="line-slate" d="M1060,465 L1700,465"/>
+  <rect class="port-slate" x="1057" y="462" width="6" height="6"/>
+
+  <path class="line-slate" d="M1700,500 L1060,500"/>
+  <rect class="port-slate" x="1697" y="497" width="6" height="6"/>
+
+  <!-- exclusive branch: buildSeedContext decides whether retrieveCandidates runs at all -->
+  <path class="line-amber" d="M580,530 L540,530"/>
+  <text class="edge-label" x="560" y="520" text-anchor="middle">no seeds</text>
+  <rect class="port-amber" x="577" y="527" width="6" height="6"/>
+
+  <path class="line-amber" d="M300,560 L300,610"/>
+  <text class="edge-label" x="185" y="590">catalog pool</text>
+  <rect class="port-amber" x="297" y="557" width="6" height="6"/>
+
+  <path class="line-amber" d="M820,560 L820,610"/>
+  <text class="edge-label" x="835" y="590">seed pool</text>
+  <rect class="port-amber" x="817" y="557" width="6" height="6"/>
+
+  <path class="line-amber" d="M300,720 L300,790"/>
+  <rect class="port-amber" x="297" y="717" width="6" height="6"/>
+
+  <path class="line-amber" d="M1200,720 L1200,790"/>
+  <rect class="port-amber" x="1197" y="717" width="6" height="6"/>
+
+  <path class="line-amber" d="M300,920 V938 H60"/>
+  <rect class="port-amber" x="297" y="917" width="6" height="6"/>
+
+  <path class="line-amber" d="M1200,920 V938 H1560"/>
+  <rect class="port-amber" x="1197" y="917" width="6" height="6"/>
+
+  <path class="line-amber" d="M1380,270 L1420,270"/>
+  <rect class="port-amber" x="1377" y="267" width="6" height="6"/>
+
+  <!-- legend -->
+  <line class="divider" x1="60" y1="990" x2="1940" y2="990"/>
+  <g transform="translate(60,1014)">
+    <line x1="0" y1="0" x2="30" y2="0" stroke="#e0923c" stroke-width="2.1" marker-end="url(#arrow-amber)"/>
+    <text class="box-detail" x="40" y="4">deterministic</text>
+    <line x1="200" y1="0" x2="230" y2="0" stroke="#647588" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#arrow-slate)"/>
+    <text class="box-detail" x="240" y="4">crosses the process boundary</text>
+  </g>
+</svg>
