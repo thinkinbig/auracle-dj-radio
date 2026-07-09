@@ -66,6 +66,14 @@ interface SpotifySavedTracksResponse {
   items: Array<{ track: SpotifyApiTrack | null }>;
 }
 
+interface SpotifyTopTracksResponse {
+  items: SpotifyApiTrack[];
+}
+
+interface SpotifyRecentlyPlayedResponse {
+  items: Array<{ track: SpotifyApiTrack | null }>;
+}
+
 interface SpotifyMeResponse {
   product?: string;
 }
@@ -125,6 +133,7 @@ let player: SpotifyWebPlaybackPlayer | null = null;
 let playerPromise: Promise<SpotifyWebPlaybackPlayer> | null = null;
 let sdkPromise: Promise<void> | null = null;
 const listeners = new Set<() => void>();
+const deviceReadyWaiters = new Set<(deviceId: string | null) => void>();
 
 export function getSpotifyPlaybackState(): SpotifyPlaybackState {
   return state;
@@ -213,17 +222,12 @@ export async function checkPremium(): Promise<boolean> {
 
 /**
  * Gather the listener's library as candidates for the server to rank (ADR-0005).
- * Premium-gated; market-unplayable tracks are filtered here so the queue never
- * contains a track the DJ would introduce but cannot play. No client-side ranking.
+ * Reading a library only needs the Spotify token; Premium is checked by playback.
+ * Market-unplayable tracks are filtered here so the queue never contains a track
+ * the DJ would introduce but cannot play. No client-side ranking.
  */
 export async function gatherSpotifyCandidates(targetCount = 50): Promise<TrackSeed[]> {
   if (!state.enabled) return [];
-  // `enabled` persists across page loads, but `premiumStatus` is re-derived per
-  // load (it resets to 'unknown' and is only set by a checkPremium() call).
-  // Re-confirm it here so a reload with Spotify left enabled doesn't silently
-  // fall back to a local-only pool — the GET /me is cheap and the player
-  // connects lazily on play.
-  if (state.premiumStatus !== 'yes' && !(await checkPremium())) return [];
   patchState({ gatherStatus: 'loading', gatherError: null });
   try {
     const token = await requireAccessToken();
@@ -231,9 +235,26 @@ export async function gatherSpotifyCandidates(targetCount = 50): Promise<TrackSe
       token,
       'https://api.spotify.com/v1/me/tracks?limit=50&market=from_token',
     ).catch(() => ({ items: [] }));
+    const top = saved.items.length > 0
+      ? { items: [] as SpotifyApiTrack[] }
+      : await fetchSpotify<SpotifyTopTracksResponse>(
+        token,
+        'https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=medium_term&market=from_token',
+      ).catch(() => ({ items: [] }));
+    const recent = saved.items.length > 0 || top.items.length > 0
+      ? { items: [] as Array<{ track: SpotifyApiTrack | null }> }
+      : await fetchSpotify<SpotifyRecentlyPlayedResponse>(
+        token,
+        'https://api.spotify.com/v1/me/player/recently-played?limit=50',
+      ).catch(() => ({ items: [] }));
     const seen = new Set<string>();
     const candidates: TrackSeed[] = [];
-    for (const t of saved.items.flatMap((i) => (i.track ? [i.track] : []))) {
+    const tracks = [
+      ...saved.items.flatMap((i) => (i.track ? [i.track] : [])),
+      ...top.items,
+      ...recent.items.flatMap((i) => (i.track ? [i.track] : [])),
+    ];
+    for (const t of tracks) {
       if (t.is_playable === false) continue;
       if (seen.has(t.uri)) continue;
       seen.add(t.uri);
@@ -258,11 +279,12 @@ export async function playSpotifyUri(uri: string): Promise<boolean> {
   try {
     await ensurePlayer();
     const token = await requireAccessToken();
-    if (!state.deviceId) {
+    const deviceId = state.deviceId ?? await waitForDeviceId();
+    if (!deviceId) {
       patchState({ currentUri: null, error: 'Spotify player is not ready yet' });
       return false;
     }
-    await fetchSpotify(token, `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(state.deviceId)}`, {
+    await fetchSpotify(token, `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
       method: 'PUT',
       body: JSON.stringify({ uris: [uri] }),
     });
@@ -338,6 +360,7 @@ async function createPlayer(): Promise<SpotifyWebPlaybackPlayer> {
 
   nextPlayer.addListener('ready', ({ device_id }) => {
     patchState({ playerStatus: 'ready', deviceId: device_id, authStatus: 'signed_in', error: null });
+    notifyDeviceReady(device_id);
   });
   nextPlayer.addListener('not_ready', ({ device_id }) => {
     if (state.deviceId !== device_id) return;
@@ -362,6 +385,26 @@ async function createPlayer(): Promise<SpotifyWebPlaybackPlayer> {
   if (!connected) throw new Error('Spotify player could not connect');
   player = nextPlayer;
   return nextPlayer;
+}
+
+function waitForDeviceId(timeoutMs = 5000): Promise<string | null> {
+  if (state.deviceId) return Promise.resolve(state.deviceId);
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (deviceId: string | null): void => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      deviceReadyWaiters.delete(done);
+      resolve(deviceId);
+    };
+    const timeout = window.setTimeout(() => done(null), timeoutMs);
+    deviceReadyWaiters.add(done);
+  });
+}
+
+function notifyDeviceReady(deviceId: string): void {
+  for (const waiter of [...deviceReadyWaiters]) waiter(deviceId);
 }
 
 async function loadSpotifySdk(): Promise<void> {

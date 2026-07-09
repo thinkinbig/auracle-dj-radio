@@ -89,7 +89,7 @@ function LoggedInApp() {
     <>
       <AppBrand onClick={() => navigate(paths.home)} label="Home" />
       <nav className={navStyles.appNav} aria-label="Primary">
-        {PRODUCT_NAV.filter((item) => item.path !== paths.sound || hasSpotifyTaste).map((item) => (
+        {PRODUCT_NAV.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -122,11 +122,9 @@ function LoggedInApp() {
         <Route
           path={paths.sound}
           element={
-            hasSpotifyTaste ? (
-              <main className={`${chrome.productSurface} ${chrome.featureSurface} ${chrome.pageTransition}`}>
-                <SoundScreen />
-              </main>
-            ) : <Navigate to={paths.home} replace />
+            <main className={`${chrome.productSurface} ${chrome.featureSurface} ${chrome.pageTransition}`}>
+              <SoundScreen />
+            </main>
           }
         />
         <Route path={paths.history} element={<HistoryPage history={sessionHistory} onOpenListen={openListen} />} />

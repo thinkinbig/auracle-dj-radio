@@ -18,12 +18,13 @@ vi.mock('@/shared/query/queryClient', () => ({
 }));
 
 type Listener = (payload: never) => void;
+let autoReady = true;
 
 class MockSpotifyPlayer {
   listeners = new Map<string, Listener>();
 
   connect = vi.fn(async () => {
-    this.listeners.get('ready')?.({ device_id: 'device-1' } as never);
+    if (autoReady) this.listeners.get('ready')?.({ device_id: 'device-1' } as never);
     return true;
   });
 
@@ -44,6 +45,8 @@ let player: MockSpotifyPlayer;
 function installBrowser() {
   const storage = new Map<string, string>();
   vi.stubGlobal('window', {
+    setTimeout: globalThis.setTimeout,
+    clearTimeout: globalThis.clearTimeout,
     localStorage: {
       getItem: (key: string) => storage.get(key) ?? null,
       setItem: (key: string, value: string) => storage.set(key, value),
@@ -67,6 +70,7 @@ async function loadPlayback() {
 
 describe('spotifyPlayback SDK error handling', () => {
   beforeEach(() => {
+    autoReady = true;
     installBrowser();
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
@@ -104,5 +108,76 @@ describe('spotifyPlayback SDK error handling', () => {
       playerStatus: 'error',
       error: 'Track unavailable',
     });
+  });
+
+  it('gathers Spotify candidates without requiring Premium playback first', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('/me/tracks')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            items: [
+              {
+                track: {
+                  id: 'track-1',
+                  uri: 'spotify:track:1',
+                  name: 'Real Song',
+                  duration_ms: 181_000,
+                  is_playable: true,
+                  artists: [{ name: 'Real Artist' }],
+                  album: { name: 'Real Album', images: [{ url: '/cover.jpg' }] },
+                },
+              },
+            ],
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { gatherSpotifyCandidates, setSpotifyPlaybackEnabled } = await loadPlayback();
+
+    setSpotifyPlaybackEnabled(true);
+    const seeds = await gatherSpotifyCandidates();
+
+    expect(seeds).toEqual([
+      {
+        uri: 'spotify:track:1',
+        title: 'Real Song',
+        artist: 'Real Artist',
+        albumTitle: 'Real Album',
+        albumCoverUrl: '/cover.jpg',
+        durationSec: 181,
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the Spotify device id before sending the play request', async () => {
+    autoReady = false;
+    const fetchMock = vi.fn(async (url: string) => ({
+      ok: true,
+      status: url.includes('/me/player/play') ? 204 : 200,
+      json: async () => ({ product: 'premium' }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { playSpotifyUri, setSpotifyPlaybackEnabled } = await loadPlayback();
+
+    setSpotifyPlaybackEnabled(true);
+    const playing = playSpotifyUri('spotify:track:late-device');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/me/player/play'),
+      expect.anything(),
+    );
+
+    player.listeners.get('ready')?.({ device_id: 'late-device' } as never);
+    await expect(playing).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('device_id=late-device'),
+      expect.objectContaining({ method: 'PUT' }),
+    );
   });
 });

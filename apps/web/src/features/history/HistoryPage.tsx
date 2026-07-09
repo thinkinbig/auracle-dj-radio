@@ -23,44 +23,58 @@ export function HistoryPage({ history, onOpenListen }: HistoryPageProps) {
   const latestSession = history[0];
   const sessionHeading = deriveSessionTitle(hasSession, state, latestSession);
   const liveRows = deriveHistoryLiveRows(hasSession, state);
-  const recentTranscript = latestSession?.transcript.slice(-3) ?? state.transcript.slice(-3);
-  const trackHistory = latestSession?.tracks ?? state.sessionTracklist;
-  const favoriteSession = history.find((session) => session.playlistFeedback === 'like');
+  const trackHistory = latestSession?.tracks ?? (hasSession ? state.sessionTracklist : []);
+  const savedCountLabel = history.length === 1 ? '1 saved session' : `${history.length} saved sessions`;
 
   return (
     <main className={`${chrome.productSurface} ${chrome.pageTransition}`}>
       <section className={styles.pageIntro} aria-labelledby="history-title">
-        <h1 id="history-title">Listening memories, without the clutter.</h1>
+        <p className={chrome.kicker}>History</p>
+        <h1 id="history-title">Your saved radio rooms.</h1>
         <p>
-          A calm record of sessions, saved moments, and the small preferences Auracle can carry into the next radio
-          flow.
+          Review the sessions Auracle has finished on this device, then jump back into a fresh room when you are ready.
         </p>
         <button className={chrome.primaryButton} type="button" onClick={onOpenListen}>
-          Open Listen
+          Start New Session
         </button>
       </section>
 
+      <section className={styles.historySummary} aria-label="History summary">
+        <span>
+          <strong>{history.length > 0 ? savedCountLabel : 'No saved sessions yet'}</strong>
+          <small>Saved locally for this listener</small>
+        </span>
+        <span>
+          <strong>
+            {latestSession ? formatTime(latestSession.durationSec) : hasSession ? formatTime(state.sessionElapsedSec) : '0:00'}
+          </strong>
+          <small>{latestSession ? 'Latest saved duration' : hasSession ? 'Current session time' : 'Waiting for first session'}</small>
+        </span>
+        <span>
+          <strong>{trackHistory.length > 0 ? trackHistory.length : 'Ready'}</strong>
+          <small>{trackHistory.length > 0 ? 'Tracks in the latest path' : 'Tracks appear after planning'}</small>
+        </span>
+      </section>
+
       <section className={styles.historyLayout} aria-label="Listening history">
-        <article className={styles.historyPanel}>
+        <article className={`${styles.historyPanel} ${styles.sessionPanel}`}>
           <div className={styles.sectionHeading}>
             <p className={chrome.kicker}>Sessions</p>
             <h2>{sessionHeading}</h2>
           </div>
           {history.length > 0 ? (
             <div className={styles.sessionRows}>
-              {history.slice(0, 5).map((session) => (
-                <span key={`${session.id}-${session.savedAt}`}>
-                  <strong>{session.title}</strong>
-                  {formatSavedAt(session.savedAt)} · {formatTime(session.durationSec)} · {session.trackCount} tracks
-                </span>
+              {history.slice(0, 6).map((session, index) => (
+                <HistorySessionRow key={`${session.id}-${session.savedAt}`} session={session} index={index} />
               ))}
             </div>
           ) : hasSession ? (
             <div className={styles.sessionRows}>
               {liveRows.map((row) => (
                 <span key={row.strong}>
+                  <small>Live</small>
                   <strong>{row.strong}</strong>
-                  {row.detail}
+                  <em>{row.detail}</em>
                 </span>
               ))}
             </div>
@@ -69,49 +83,10 @@ export function HistoryPage({ history, onOpenListen }: HistoryPageProps) {
           )}
         </article>
 
-        <article className={styles.historyPanel}>
-          <div className={styles.sectionHeading}>
-            <p className={chrome.kicker}>Favorites</p>
-            <h2>
-              {favoriteSession
-                ? favoriteSession.title
-                : state.playlistFeedback === 'like'
-                  ? state.trackTitle
-                  : 'No favorites yet'}
-            </h2>
-          </div>
-          <p className={chrome.emptyText}>
-            {favoriteSession
-              ? `${favoriteSession.title} was saved as a liked session signal.`
-              : state.playlistFeedback === 'like'
-                ? `${state.artist} is marked as the current favorite signal.`
-                : 'Liked tracks will become taste signals for future sessions.'}
-          </p>
-        </article>
-
-        <article className={`${styles.historyPanel} ${styles.memoryPanel}`}>
-          <div className={styles.sectionHeading}>
-            <p className={chrome.kicker}>Listening Memories</p>
-            <h2>{recentTranscript.length > 0 ? 'Recent conversation' : 'No memories yet'}</h2>
-          </div>
-          {recentTranscript.length > 0 ? (
-            <div className={styles.memoryList}>
-              {recentTranscript.map((line) => (
-                <span key={line.id}>
-                  <strong>{line.role === 'user' ? 'You' : 'Auracle'}</strong>
-                  {line.text}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className={chrome.emptyText}>Talk to the DJ during a session to create memories.</p>
-          )}
-        </article>
-
         <article className={`${styles.historyPanel} ${styles.trackHistoryPanel}`}>
           <div className={styles.sectionHeading}>
             <p className={chrome.kicker}>Track path</p>
-            <h2>{trackHistory.length > 0 ? `${trackHistory.length} planned tracks` : 'Waiting for a flow'}</h2>
+            <h2>{trackHistory.length > 0 ? 'Latest listening path' : 'Waiting for a flow'}</h2>
           </div>
           {trackHistory.length > 0 ? (
             <div className={styles.trackHistory}>
@@ -125,6 +100,18 @@ export function HistoryPage({ history, onOpenListen }: HistoryPageProps) {
         </article>
       </section>
     </main>
+  );
+}
+
+function HistorySessionRow({ session, index }: { session: SessionHistoryEntry; index: number }) {
+  return (
+    <span>
+      <small>{String(index + 1).padStart(2, '0')}</small>
+      <strong>{session.title}</strong>
+      <em>
+        {formatSavedAt(session.savedAt)} - {formatTime(session.durationSec)} - {session.trackCount} tracks
+      </em>
+    </span>
   );
 }
 

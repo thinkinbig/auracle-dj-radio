@@ -42,7 +42,39 @@ export async function createSession(
   } catch (err) {
     if (err instanceof SessionAuthError) throw err;
   }
+  if (seeds?.length) return createSpotifyFallbackSession(intent, seeds);
   return DEMO_SESSION;
+}
+
+export function createSpotifyFallbackSession(intent: SessionIntent, seeds: TrackSeed[]): CreateSessionResponse {
+  const tracklist = seeds.slice(0, 8).map((seed, index) => ({
+    id: seed.uri,
+    uri: seed.uri,
+    flow_position: index + 1,
+    reason: index === 0 ? 'Spotify library opener' : 'Spotify library continuation',
+    title: seed.title,
+    artist: seed.artist,
+    albumTitle: seed.albumTitle,
+    albumCoverUrl: seed.albumCoverUrl,
+    durationSec: seed.durationSec,
+    energy: 3 as const,
+    voicing: {
+      artistPersona: '',
+      albumConcept: seed.albumTitle,
+      lore: `${seed.title} by ${seed.artist} from your connected Spotify library.`,
+    },
+  }));
+
+  return {
+    session_id: `spotify-fallback-${Date.now()}`,
+    session_title: 'Spotify Radio',
+    session_subtitle: `${intent.duration_min} min · ${intent.scene}`,
+    host_mode: 'curator',
+    tracklist,
+    personalization_context: 'Spotify library fallback',
+    proxy_url: '',
+    token: '',
+  };
 }
 
 export const postSessionEvent = client.postSessionEvent.bind(client);
