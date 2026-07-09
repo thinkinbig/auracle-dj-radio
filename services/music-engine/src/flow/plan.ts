@@ -30,8 +30,8 @@ export interface PlanDeps {
 
 /**
  * Fallback energy for a seeded track with no resolved value yet (the fast
- * provisional path): it sits mid-arc so `chooseNext` can still rank it against
- * catalog tracks on this one axis until a full plan infers its real energy.
+ * provisional path): it sits mid-arc so `chooseNext` can still order Spotify-only
+ * queues until a full plan infers its real energy.
  */
 const PLACEHOLDER_ENERGY: Energy = 3;
 const EMPTY_VOICING: Voicing = { artistPersona: "", albumConcept: "", lore: "" };
@@ -233,7 +233,7 @@ export async function createPlanCached(
   tieBreakSeed?: string,
   seeds?: TrackSeed[],
 ): Promise<PlanResult> {
-  // A mixed pool is per-user (the listener's own seeded library), so it must not
+  // A seeded pool is per-user (the listener's own Spotify library), so it must not
   // be served from — or written to — the shared catalog-only plan cache.
   if (seeds?.length) {
     return createPlan(deps, intent, memories, energyWeights, taste, tieBreakSeed, seeds);
@@ -275,8 +275,9 @@ export async function createProvisionalPlan(
 ): Promise<{ result: FlowResult; candidatesById: Map<string, TrackCandidate> }> {
   const tracks = deps.tracks();
   const seed = await buildSeedContext(seeds, intent.scene, tracks);
-  const candidates = [
-    ...retrieveCandidates(tracks, {
+  const candidates = seed.pool.length > 0
+    ? seed.pool
+    : retrieveCandidates(tracks, {
       mood: intent.mood,
       scene: intent.scene,
       limit: 24,
@@ -284,9 +285,7 @@ export async function createProvisionalPlan(
       energyWeights,
       taste,
       tieBreakSeed,
-    }),
-    ...seed.pool,
-  ];
+    });
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
   return {
     result: {
@@ -333,8 +332,9 @@ export async function createPlan(
 ): Promise<PlanResult> {
   const tracks = deps.tracks();
   const seed = await buildSeedContext(seeds, intent.scene, tracks, deps.resolveSeeds);
-  const candidates = [
-    ...retrieveCandidates(tracks, {
+  const candidates = seed.pool.length > 0
+    ? seed.pool
+    : retrieveCandidates(tracks, {
       mood: intent.mood,
       scene: intent.scene,
       limit: 24,
@@ -342,9 +342,7 @@ export async function createPlan(
       energyWeights,
       taste,
       tieBreakSeed,
-    }),
-    ...seed.pool,
-  ];
+    });
   const plan = await runHeuristicFlow({
     intent,
     memories,
@@ -411,20 +409,30 @@ export async function replan(deps: PlanDeps, input: ReplanInput): Promise<PlanRe
     const seen = new Set(candidates.map((c) => c.id));
     candidates = [...candidates, ...retrieve(hardExclude).filter((c) => !seen.has(c.id))];
   }
-  // Re-rank the cached seeded pool into the same refill (#77): the library is
-  // static per session, so no fresh gather. Resolution is memoized by uri, so a
-  // replan reuses the energy/voicing the full plan already inferred. Exclude
-  // played/kept slots — and, on a re-roll, the slots being replaced.
   const seed = await buildSeedContext(input.seeds, input.intent.scene, tracks, deps.resolveSeeds);
-  const seedExclude = new Set([...input.playedIds, ...(input.avoidIds ?? [])]);
-  const mixed = [...candidates, ...seed.pool.filter((c) => !seedExclude.has(c.id))];
+  if (seed.pool.length > 0) {
+    // Spotify mode is a hard source switch, not a mixed queue: re-rank only the
+    // cached seeded library. Avoids drive a different Spotify ordering; local
+    // catalog tracks are not used as top-up while Spotify playback is selected.
+    const seedHardExclude = new Set(input.playedIds);
+    const seedAvoid = new Set((input.avoidIds ?? []).filter((id) => !seedHardExclude.has(id)));
+    let seedCandidates = seed.pool.filter((c) => !seedHardExclude.has(c.id) && !seedAvoid.has(c.id));
+    if (seedAvoid.size > 0 && seedCandidates.length < input.remainingSlots) {
+      const seen = new Set(seedCandidates.map((c) => c.id));
+      seedCandidates = [
+        ...seedCandidates,
+        ...seed.pool.filter((c) => !seedHardExclude.has(c.id) && !seen.has(c.id)),
+      ];
+    }
+    candidates = seedCandidates;
+  }
   const plan = await runHeuristicFlow({
     intent: input.intent,
     memories: input.memories ?? "",
     played: input.played,
     lastPlayedEnergy: input.lastPlayedEnergy,
     remainingSlots: input.remainingSlots,
-    candidates: mixed,
+    candidates,
     tieBreakSeed: input.tieBreakSeed,
   });
   return {
@@ -464,12 +472,13 @@ export interface ExtendInput {
 export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<PlanResult> {
   const tracks = deps.tracks();
   const exclude = new Set(input.playedIds);
-  // Append from the same mixed pool (#77): cached seeded library (minus already-
-  // queued uris) ranked alongside the catalog against the rolling target. Seed
-  // resolution is memoized by uri, so extend reuses the full plan's inference.
+  // Spotify mode is a hard source switch: append from cached seeded library only.
+  // Local mode (no seeds) appends from the catalog. Seed resolution is memoized by
+  // uri, so extend reuses the full plan's inference.
   const seed = await buildSeedContext(input.seeds, input.intent.scene, tracks, deps.resolveSeeds);
-  const candidates = [
-    ...retrieveCandidates(tracks, {
+  const candidates = seed.pool.length > 0
+    ? seed.pool.filter((c) => !exclude.has(c.id))
+    : retrieveCandidates(tracks, {
       mood: input.intent.mood,
       scene: input.intent.scene,
       excludeIds: exclude,
@@ -479,9 +488,7 @@ export async function extendPlan(deps: PlanDeps, input: ExtendInput): Promise<Pl
       energyWeights: input.energyWeights,
       taste: input.taste,
       tieBreakSeed: input.tieBreakSeed,
-    }),
-    ...seed.pool.filter((c) => !exclude.has(c.id)),
-  ];
+    });
   const candidatesById = new Map(candidates.map((c) => [c.id, c]));
   const tracklist = stampPlanned(buildExtendChain(candidates, input.appendSlots, input.lastPlayedEnergy, input.tieBreakSeed), tracks, seed);
   return {

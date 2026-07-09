@@ -1,4 +1,9 @@
-# A single server-ranked queue that interleaves local and Spotify tracks
+# A source-selected server-ranked queue for local or Spotify tracks
+
+> Status update: the original interleaving design below has been narrowed by the
+> product source switch. Local mode uses only the local catalog. Spotify mode uses
+> only the listener's gathered Spotify library seeds. The shared queue contract,
+> server ranking, seed resolution, and per-track playback backend still apply.
 
 Spotify playback already works (`apps/web/src/features/spotify/*`): OAuth, a
 Premium Web Playback device, library gathering (`buildSpotifyQueueFromTaste`),

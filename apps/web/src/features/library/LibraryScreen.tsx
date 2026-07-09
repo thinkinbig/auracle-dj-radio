@@ -55,7 +55,7 @@ export function LibraryScreen() {
               <p className={styles.kicker}>Source</p>
               <h2 id="library-source-title">Choose the playback lane</h2>
               <p className={styles.panelCopy}>
-                Stay with the local catalog for quick sessions, or connect Spotify when you want liked tracks in the mix.
+                Stay with the local catalog for quick sessions, or switch to Spotify when you want a liked-tracks queue.
               </p>
             </div>
             <span className={styles.countBadge}>Spotify optional</span>

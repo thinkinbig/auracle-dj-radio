@@ -4,7 +4,7 @@ export interface PlanTracklistRequest {
   intent: SessionIntent;
   mode?: "provisional" | "full" | "replan" | "extend";
   memories?: string;
-  /** Externally-seeded candidates (e.g. the listener's Spotify library), ranked into the same pool. music-engine resolves their energy + voicing internally on `full`. */
+  /** Externally-seeded candidates (e.g. the listener's Spotify library). When present, they are the active source; music-engine resolves their energy + voicing internally on `full`. */
   seeds?: TrackSeed[];
   /** Energy-level skip weights (1–5 → 0–0.7) from user history; passed to retrieval scoring. */
   energyWeights?: Partial<Record<number, number>>;

@@ -103,7 +103,7 @@ Different purpose from `doc/`: `docs/adr/` is a time-ordered engineering decisio
 | [docs/adr/0002-phased-catalog-embedding.md](docs/adr/0002-phased-catalog-embedding.md) | Phased catalog embedding (superseded by 0001) |
 | [docs/adr/0003-catalog-manifest-staged-cli.md](docs/adr/0003-catalog-manifest-staged-cli.md) | Catalog manifest with a staged offline CLI |
 | [docs/adr/0004-end-of-track-talk-window.md](docs/adr/0004-end-of-track-talk-window.md) | End-of-track user voice interaction window |
-| [docs/adr/0005-mixed-local-spotify-queue.md](docs/adr/0005-mixed-local-spotify-queue.md) | Single queue mixing local and Spotify tracks |
+| [docs/adr/0005-mixed-local-spotify-queue.md](docs/adr/0005-mixed-local-spotify-queue.md) | Source-selected queue for local-only or Spotify-only playback |
 
 ## License
 

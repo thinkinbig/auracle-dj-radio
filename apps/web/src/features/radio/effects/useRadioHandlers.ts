@@ -55,9 +55,9 @@ export function useRadioHandlers({
       }
       await audio.audioBusRef.current.resume();
       store.dispatchRef.current({ type: 'begin' });
-      // Gather the listener's Spotify library as seeds for the server to rank into
-      // the queue (ADR-0005). Best-effort: a failure or non-Premium user just yields
-      // a catalog-only session.
+      // Gather the listener's Spotify library as the active source when Spotify
+      // playback is selected. Best-effort: a failure or non-Premium user yields a
+      // catalog-only session.
       const [seeds, spotifyTaste] = await Promise.all([
         isSpotifyPlaybackEnabled()
           ? gatherSpotifyCandidates().catch(() => undefined)

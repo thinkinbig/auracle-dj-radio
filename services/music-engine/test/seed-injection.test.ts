@@ -1,8 +1,8 @@
 /**
- * ADR-0005 (#73): externally-seeded tracks are ranked into the same pool as
- * catalog tracks and the chosen slots are stamped as self-describing PlannedTracks
- * — `uri` carries the playback scheme, metadata/energy/voicing are inline. There is
- * no per-slot provider branch; music-engine resolves seed energy + voicing.
+ * ADR-0005 (#73): externally-seeded tracks can drive a Spotify-only queue and
+ * the chosen slots are stamped as self-describing PlannedTracks — `uri` carries
+ * the playback scheme, metadata/energy/voicing are inline. There is no per-slot
+ * provider branch; music-engine resolves seed energy + voicing.
  */
 import { describe, expect, it } from "vitest";
 import type { Energy, Track, TrackSeed } from "@auracle/shared";
@@ -83,11 +83,14 @@ describe("seed candidate injection", () => {
     for (const s of seeds) expect(candidatesById.has(s.uri)).toBe(true);
   });
 
-  it("ranks seeded candidates into the same pool as the real catalog", async () => {
-    const seeds = [seed(1), seed(2)];
-    const { candidatesById } = await createProvisionalPlan(
+  it("uses only seeded candidates when Spotify seeds are present", async () => {
+    const seeds = Array.from({ length: 8 }, (_, i) => seed(i));
+    const { result, candidatesById } = await createProvisionalPlan(
       realDeps, intent, "", undefined, undefined, undefined, seeds,
     );
+    expect(result.tracklist.length).toBeGreaterThan(0);
+    expect(result.tracklist.every((ref) => ref.uri.startsWith("spotify:"))).toBe(true);
+    expect([...candidatesById.keys()].every((id) => id.startsWith("spotify:"))).toBe(true);
     for (const s of seeds) expect(candidatesById.has(s.uri)).toBe(true);
   });
 
@@ -193,7 +196,7 @@ describe("seed candidate injection", () => {
     expect(p.result.tracklist.map((r) => r.id)).not.toContain(seeds[0]!.uri);
   });
 
-  it("appends mixed seeded tracks on rolling extend, excluding queued uris (#77)", async () => {
+  it("appends only seeded tracks on rolling extend, excluding queued uris (#77)", async () => {
     const seeds = [seed(1), seed(2)];
     const p = await extendPlan(emptyDeps, {
       intent,

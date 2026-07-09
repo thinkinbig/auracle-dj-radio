@@ -137,10 +137,10 @@ function resolveStatusLabel(spotify: SpotifyPlaybackState): string {
   if (!spotify.enabled) return 'Local file catalog';
   if (spotify.gatherStatus === 'loading') return 'Reading liked tracks';
   if (spotify.gatherError) return spotify.gatherError;
-  if (spotify.playerStatus === 'ready') return 'Spotify library mixed in';
+  if (spotify.playerStatus === 'ready') return 'Spotify library only';
   if (spotify.playerStatus === 'connecting') return 'Connecting';
   if (spotify.playerStatus === 'error') return 'Player error';
-  return 'Spotify library mixed in';
+  return 'Spotify library only';
 }
 
 function FilesGlyph() {
