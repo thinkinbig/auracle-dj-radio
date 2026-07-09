@@ -503,130 +503,58 @@
 
 .oauthGrid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 9px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .oauthButton {
+  position: relative;
   min-width: 0;
-  min-height: 60px;
+  min-height: 54px;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  justify-content: center;
+  border: 0;
   border-radius: 8px;
-  padding: 9px 12px;
+  padding: 6px;
   color: rgba(248, 250, 252, 0.9);
-  background: rgba(255, 255, 255, 0.07);
+  background: transparent;
+  box-shadow: none;
   text-align: left;
   transition:
     transform var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out),
-    background var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
-}
-
-.oauthButton > span:last-child {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.oauthButton strong,
-.oauthButton small {
-  display: block;
-}
-
-.oauthButton strong {
-  color: #ffffff;
-  font-size: 0.9rem;
-  font-weight: 850;
-  line-height: 1.12;
-}
-
-.oauthButton small {
-  color: rgba(248, 250, 252, 0.52);
-  font-size: 0.75rem;
-  font-weight: 720;
-  line-height: 1.25;
+    opacity var(--duration-fast) var(--ease-out);
 }
 
 .oauthButton:hover:not(:disabled) {
   color: #ffffff;
-  border-color: rgba(141, 247, 167, 0.28);
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
   transform: translateY(-1px);
+}
+
+.oauthButton:active:not(:disabled) {
+  transform: translateY(1px) scale(0.992);
 }
 
 .oauthGrid button:disabled {
   cursor: progress;
-  opacity: 0.62;
+  opacity: 0.66;
+  transform: none;
 }
 
 .googleMark,
 .spotifyMark {
-  position: relative;
-  width: 34px;
+  width: 42px;
   aspect-ratio: 1;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.12),
-    0 8px 18px rgba(0, 0, 0, 0.12);
 }
 
-.googleMark i::before {
-  content: 'G';
-  color: #1f1f1f;
-  font-size: 1rem;
-  font-style: normal;
-  font-weight: 900;
-  line-height: 1;
-  background: linear-gradient(90deg, #4285f4 0 28%, #34a853 28% 50%, #fbbc05 50% 72%, #ea4335 72%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.spotifyMark {
-  background: #1ed760;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.12),
-    0 8px 18px rgba(30, 215, 96, 0.18);
-}
-
-.spotifyMark::before,
-.spotifyMark::after,
-.spotifyMark i {
-  position: absolute;
-  left: 9px;
-  height: 2px;
-  border-radius: 999px;
-  background: #102116;
-  transform: rotate(12deg);
-  transform-origin: left center;
-}
-
-.spotifyMark::before {
-  content: '';
-  top: 11px;
-  width: 17px;
-}
-
-.spotifyMark i {
-  top: 16px;
-  width: 14px;
-}
-
-.spotifyMark::after {
-  content: '';
-  top: 21px;
-  width: 11px;
+.googleMark svg,
+.spotifyMark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .formDivider {
@@ -1622,7 +1550,17 @@
   }
 
   .oauthGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .oauthButton {
+    min-height: 56px;
+    padding: 8px;
+  }
+
+  .googleMark,
+  .spotifyMark {
+    width: 38px;
   }
 
   .soundPreview li {
@@ -1757,5 +1695,10 @@
   .soundPreview,
   .experienceDevice {
     animation: none;
+  }
+
+  .oauthButton:hover:not(:disabled),
+  .oauthButton:active:not(:disabled) {
+    transform: none;
   }
 }

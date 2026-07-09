@@ -494,29 +494,23 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
                 <button
                   className={styles.oauthButton}
                   type="button"
+                  aria-label="Continue with Google"
                   onClick={() => void handleGoogleLogin()}
                   disabled={isSubmitting || isRateLimited}
                 >
                   <span className={styles.googleMark} aria-hidden>
-                    <i />
-                  </span>
-                  <span>
-                    <strong>Continue with Google</strong>
-                    <small>Use your saved Auracle account</small>
+                    <GoogleIcon />
                   </span>
                 </button>
                 <button
-                  className={`${styles.oauthButton} ${styles.spotifyButton}`}
+                  className={styles.oauthButton}
                   type="button"
+                  aria-label="Continue with Spotify"
                   onClick={() => void handleSpotifyLogin()}
                   disabled={isSubmitting || isRateLimited}
                 >
                   <span className={styles.spotifyMark} aria-hidden>
-                    <i />
-                  </span>
-                  <span>
-                    <strong>Continue with Spotify</strong>
-                    <small>Bring liked tracks into Taste DNA</small>
+                    <SpotifyIcon />
                   </span>
                 </button>
               </div>
@@ -598,5 +592,43 @@ export function LandingPage({ onEnterApp }: LandingPageProps) {
         )}
       </div>
     </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 48 48" focusable="false" aria-hidden="true">
+      <path
+        fill="#FFC107"
+        d="M43.61 20.08H42V20H24v8h11.3C33.65 32.66 29.22 36 24 36c-6.63 0-12-5.37-12-12s5.37-12 12-12c3.06 0 5.84 1.15 7.96 3.04l5.66-5.66C34.05 6.05 29.27 4 24 4 12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20c0-1.34-.14-2.65-.39-3.92z"
+      />
+      <path
+        fill="#FF3D00"
+        d="m6.31 14.69 6.57 4.82C14.66 15.11 18.96 12 24 12c3.06 0 5.84 1.15 7.96 3.04l5.66-5.66C34.05 6.05 29.27 4 24 4 16.32 4 9.66 8.34 6.31 14.69z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 44c5.17 0 9.86-1.98 13.41-5.19l-6.19-5.24C29.21 35.09 26.72 36 24 36c-5.2 0-9.62-3.32-11.28-7.95L6.2 33.08C9.51 39.56 16.23 44 24 44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.61 20.08H42V20H24v8h11.3a12.04 12.04 0 0 1-4.08 5.57l6.19 5.24C36.97 39.2 44 34 44 24c0-1.34-.14-2.65-.39-3.92z"
+      />
+    </svg>
+  );
+}
+
+function SpotifyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path
+        fill="#1ED760"
+        d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0z"
+      />
+      <path
+        fill="#121212"
+        d="M17.52 17.34a.75.75 0 0 1-1.03.25c-2.83-1.73-6.39-2.12-10.59-1.16a.75.75 0 1 1-.33-1.46c4.6-1.05 8.54-.6 11.7 1.33.35.21.47.68.25 1.04zm1.47-3.27a.94.94 0 0 1-1.29.31c-3.24-1.99-8.18-2.57-12.01-1.41a.94.94 0 1 1-.54-1.8c4.38-1.33 9.82-.68 13.53 1.6.44.27.58.85.31 1.3zm.13-3.4C15.23 8.36 8.82 8.15 5.09 9.28a1.13 1.13 0 0 1-.65-2.16c4.29-1.3 11.35-1.06 15.82 1.59a1.13 1.13 0 1 1-1.14 1.96z"
+      />
+    </svg>
   );
 }
