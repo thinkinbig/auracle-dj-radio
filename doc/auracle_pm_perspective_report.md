@@ -1,7 +1,5 @@
 # Auracle — PM Perspective Report
 
-> Status: **draft** (2026-07-10) — for citation in a product proposal report.
-
 ---
 
 ## 1. Product Summary
@@ -48,7 +46,7 @@ Today there are research metrics but no business metrics — `auracle_evaluation
 
 ## 4. Architecture–Metric Tension (Risk)
 
-`auracle_personalization_plan.md` explicitly states that "Auracle does not maintain a second long-term taste profile" — cross-session personalization is fully outsourced to Spotify, and Auracle only handles live, in-session adaptation. If retention is set as a core business metric, this architectural choice may limit the retention levers Auracle itself can claim credit for (retention would be attributable more to the Spotify ecosystem than to any user understanding Auracle accumulates). This tension should be stated explicitly as a risk/open question in the report, not glossed over.
+Currently, Auracle does not maintain its own long-term user taste profile. Cross-session personalization is fully outsourced to the Spotify ecosystem, meaning Auracle only handles live, in-session adaptation. While this architectural choice significantly simplifies the MVP development, it introduces a critical business risk: if user retention is set as a core north-star metric, Auracle currently lacks proprietary retention levers. Any long-term retention would be attributable more to Spotify's underlying algorithm than to Auracle's own accumulated user understanding. This strategic dependency poses a defensibility risk that must be addressed before scaling commercialization.
 
 ---
 
