@@ -1,6 +1,6 @@
 # Auracle — PM Perspective Report
 
-> Status: **draft** (2026-07-07) — for citation in a product proposal report.
+> Status: **draft** (2026-07-10) — for citation in a product proposal report.
 >
 > This document is derived from existing code and design docs (README, `auracle_evaluation_design.md`, `auracle_personalization_plan.md`, `auracle_ui_design.md`), **not the output of real user research**. Sections marked "to be validated" must be flagged as assumptions, not findings, in the final report.
 
@@ -30,7 +30,7 @@ Our N=5 testing validates the "Focused Companion" and "Music Discovery Seeker" p
 
 Today there are research metrics but no business metrics — `auracle_evaluation_design.md` explicitly excludes cross-session skip-rate as a product metric to avoid contaminating the experiment, which is correct for research validity, but it means there is currently zero commercialization instrumentation. The table below splits "existing" from "to be added."
 
-### 3.1 Existing Signals (research-only, not final business metrics)
+### 3.1 Existing Signals
 
 | Metric | Description |
 |---|---|
