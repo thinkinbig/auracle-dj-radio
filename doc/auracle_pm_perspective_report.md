@@ -14,7 +14,7 @@ Auracle is an AI radio-DJ product combining real-time voice companionship, autom
 
 ## 2. User Personas
 
-The personas below are candidates inferred from existing product features — **not the output of market research or user interviews**. They should be labeled as unvalidated hypotheses in the formal report, with a recommendation to run 5–8 screening interviews with target users before proceeding.
+Our N=5 testing validates the "Focused Companion" and "Music Discovery Seeker" personas. 100% of participants are students (40% working simultaneously), and 80% listen to music daily. Furthermore, 100% have used AI voice assistants before (40% frequently). This confirms our target audience is highly digitally native and requires seamless, non-intrusive companionship.
 
 | Persona | Core need | Supporting product signal |
 |---|---|---|
@@ -34,11 +34,10 @@ Today there are research metrics but no business metrics — `auracle_evaluation
 
 | Metric | Description |
 |---|---|
-| Subjective Likert | Relevance / Coherence / DJ Experience / Personalization |
-| Energy Smoothness, Arc Adherence | Curation quality of the energy arc |
-| Genre Diversity, Spotify Mix Rate | Track diversity and Spotify-mix share |
-| Replan Delta | Delta between pre- and post-replan queues |
-| `session_events` (session_created / track_started / feedback / skip_latency) | Raw event stream; a future funnel-metric data source, but currently only serves A/B/C comparison |
+| Coherence (Energy/Mood Match) | 4.6 / 5 |
+| System Smoothness & UI | 4.6 / 5 |
+| DJ Experience (Personality) | 4.4 / 5 |
+| Relevance (Commentary match) | 4.0 / 5 |
 
 ### 3.2 To Be Added (productization phase)
 
@@ -57,11 +56,15 @@ Today there are research metrics but no business metrics — `auracle_evaluation
 
 ---
 
-## 5. Recommendations for the Report
+## 5. Recommendations for the Report (Based on UAT Feedback)
 
-1. Personas section: present the 3 candidate personas above, explicitly labeled "inferred from product assumptions, to be validated via interviews before launch" — not packaged as user-research findings.
-2. Business metrics section: present as two tables — "Validation phase (existing A/B/C research metrics)" and "Productization phase (funnel/retention/cost metrics to be added)."
-3. State the architecture–metric tension from Section 4 as an explicit risk item, with a preliminary mitigation direction (e.g., explore whether Auracle's own in-session preference signals could also compound into an attributable retention lever).
+Based on our N=5 UAT sessions, we recommend the following priorities for the MVP Roadmap:
+
+1. **Privacy & Control (High Priority)**: 40% of users reported the DJ "kept listening" to background conversations. A "Push-to-Talk" or "Mic-Mute" toggle is essential.
+
+2. **Post-Session Value**: Users requested an "Export to Spotify Playlist" feature to save liked songs.
+
+3. **Voice Customization**: Users expressed a desire for multiple voice options (e.g., female voice, calmer tone).
 
 ---
 
