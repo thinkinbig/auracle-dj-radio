@@ -51,8 +51,14 @@ jobs:
         run: |
           RUNNER_IP=$(curl -fsS https://api.ipify.org)
           echo "Runner egress IP: $RUNNER_IP"
+          # Pick a free inbound priority (existing rules occupy 1001-1003, etc.).
+          USED=$(az network nsg rule list -g "$AZ_RG" --nsg-name "$AZ_NSG" \
+            --query "[?direction=='Inbound'].priority" -o tsv)
+          PRIO=3900
+          while printf '%s\n' "$USED" | grep -qx "$PRIO"; do PRIO=$((PRIO + 1)); done
+          echo "Using priority $PRIO"
           az network nsg rule create -g "$AZ_RG" --nsg-name "$AZ_NSG" -n "$JIT_RULE" \
-            --priority 1002 --access Allow --direction Inbound --protocol Tcp \
+            --priority "$PRIO" --access Allow --direction Inbound --protocol Tcp \
             --destination-port-ranges 22 --source-address-prefixes "$RUNNER_IP/32" \
             --description "Ephemeral CI SSH; removed at job end" -o none
           echo "Opened $JIT_RULE for $RUNNER_IP/32"
