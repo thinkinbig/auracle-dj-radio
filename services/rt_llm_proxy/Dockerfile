@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libopus0 libopusfile0 ca-certificates curl \
+    libopus0 libopusfile0 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /proxy /usr/local/bin/proxy

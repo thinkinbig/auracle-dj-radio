@@ -43,17 +43,8 @@ jobs:
             git fetch --all --prune
             git reset --hard "origin/$REF"
             git log -1 --oneline
-            if ! grep -q '^PROXY_REGISTER_SECRET=.' .env; then
-              echo "==> Bootstrapping proxy control secret"
-              secret=\$(openssl rand -hex 32)
-              if grep -q '^PROXY_REGISTER_SECRET=' .env; then
-                sed -i "s/^PROXY_REGISTER_SECRET=.*/PROXY_REGISTER_SECRET=\$secret/" .env
-              else
-                printf '\nPROXY_REGISTER_SECRET=%s\n' "\$secret" >> .env
-              fi
-            fi
             echo "==> Building & starting stack"
-            docker compose -f docker-compose.prod.yml up -d --build --wait --wait-timeout 180
+            docker compose -f docker-compose.prod.yml up -d --build
             echo "==> Pruning dangling images"
             docker image prune -f
             echo "==> Status"

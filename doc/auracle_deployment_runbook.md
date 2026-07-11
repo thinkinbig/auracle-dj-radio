@@ -43,7 +43,6 @@ Copy [`.env.example`](../.env.example) to `.env`. Production-required keys:
 | Variable | When required | Notes |
 |----------|---------------|-------|
 | `GEMINI_API_KEY` | Always | Live DJ + Flow |
-| `PROXY_REGISTER_SECRET` | Production | Shared secret for proxy register/inject control endpoints |
 | `SUPABASE_URL` | Production | profile-service backend |
 | `SUPABASE_SECRET_KEY` | Production | Server-only; `PROFILE_EVENTS_STORE=supabase` in compose |
 | `VITE_SUPABASE_URL` | Web image build | Build arg in `docker-compose.prod.yml` |
@@ -124,7 +123,7 @@ Without this, OAuth login will fail after redirect.
 On the VM:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build --wait --wait-timeout 180
+docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml ps
 ```
 
@@ -154,7 +153,7 @@ curl -I "https://<SITE_DOMAIN>/catalog/tracks"
 
 Workflow: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — **manual only** (`workflow_dispatch`).
 
-The VM must already have the repo cloned and a populated `.env`. The job SSHs in, `git fetch` + `reset --hard origin/<ref>`, bootstraps `PROXY_REGISTER_SECRET` when it is missing, then rebuilds the stack and waits for all configured healthchecks before reporting success.
+The VM must already have the repo cloned and a populated `.env`. The job SSHs in, `git fetch` + `reset --hard origin/<ref>`, then `docker compose -f docker-compose.prod.yml up -d --build`.
 
 ### GitHub Environment: `production`
 
