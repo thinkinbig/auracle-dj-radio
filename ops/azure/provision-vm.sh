@@ -36,6 +36,10 @@ az network nsg rule create -g "$RG" --nsg-name "$NSG" -n allow-webrtc-udp \
   --priority 1003 --access Allow --protocol Udp --direction Inbound \
   --destination-port-ranges "${UDP_MIN}-${UDP_MAX}" -o none
 
+# Azure auto-adds a world-open SSH rule (default-allow-ssh, 22 from *). Drop it
+# so only the /32 allow-ssh rule above can reach port 22.
+az network nsg rule delete -g "$RG" --nsg-name "$NSG" -n default-allow-ssh -o none 2>/dev/null || true
+
 IP="$(az vm show -d -g "$RG" -n "$VM" --query publicIps -o tsv)"
 echo "VM_PUBLIC_IP=$IP"
 echo "SITE_DOMAIN=${DNS_LABEL}.${LOCATION}.cloudapp.azure.com"
