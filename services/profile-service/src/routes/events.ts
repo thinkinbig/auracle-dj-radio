@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import type { EventsDb } from "../events-db.js";
+import type { EventsStore } from "../events-db.js";
 
-export function registerEventRoutes(app: FastifyInstance, events: EventsDb): void {
+export function registerEventRoutes(app: FastifyInstance, events: EventsStore): void {
   app.post("/events", async (req, reply) => {
     const { session_id, user_id, event_type, payload } = (req.body ?? {}) as {
       session_id?: string;
@@ -12,7 +12,12 @@ export function registerEventRoutes(app: FastifyInstance, events: EventsDb): voi
     if (!session_id || !user_id || !event_type) {
       return reply.code(400).send({ error: "session_id, user_id, and event_type are required" });
     }
-    events.recordEvent(session_id, user_id, event_type, payload ?? {});
+    try {
+      await events.recordEvent(session_id, user_id, event_type, payload ?? {});
+    } catch (error) {
+      req.log.error({ err: error, session_id, user_id, event_type }, "failed to record session event");
+      return reply.code(500).send({ error: "failed to record event" });
+    }
     return { ok: true };
   });
 
@@ -28,13 +33,18 @@ export function registerEventRoutes(app: FastifyInstance, events: EventsDb): voi
     if (!session_id && !user_id) {
       return reply.code(400).send({ error: "session_id or user_id is required" });
     }
-    return {
-      events: events.queryEvents({
-        sessionId: session_id,
-        userId: user_id,
-        eventType: event_type,
-        limit: typeof limit === "number" ? limit : undefined,
-      }),
-    };
+    try {
+      return {
+        events: await events.queryEvents({
+          sessionId: session_id,
+          userId: user_id,
+          eventType: event_type,
+          limit: typeof limit === "number" ? limit : undefined,
+        }),
+      };
+    } catch (error) {
+      req.log.error({ err: error, session_id, user_id, event_type }, "failed to query session events");
+      return reply.code(500).send({ error: "failed to query events" });
+    }
   });
 }

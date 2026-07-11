@@ -5,9 +5,6 @@ import {
   Mic,
   Pause,
   Play,
-  Repeat,
-  Shuffle,
-  SkipBack,
   SkipForward,
 } from 'lucide-react';
 
@@ -25,6 +22,3 @@ export const IconArrowRight = sized(ArrowRight, 20);
 export const IconChevronUp = sized(ChevronUp);
 export const IconMic = sized(Mic, 20);
 export const IconSkipNext = sized(SkipForward);
-export const IconSkipPrevious = sized(SkipBack);
-export const IconShuffle = sized(Shuffle, 20);
-export const IconRepeat = sized(Repeat, 20);

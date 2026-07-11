@@ -7,11 +7,13 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/tsconfig.json packages/shared/
+COPY packages/clients/package.json packages/clients/tsconfig.json packages/clients/
 COPY services/agent-harness/package.json services/agent-harness/tsconfig.json services/agent-harness/
 
 RUN pnpm install --frozen-lockfile --filter @auracle/agent-harness...
 
 COPY packages/shared/src packages/shared/src
+COPY packages/clients/src packages/clients/src
 COPY services/agent-harness/src services/agent-harness/src
 
 RUN pnpm --filter @auracle/shared build && pnpm --filter @auracle/clients build && pnpm --filter @auracle/agent-harness build

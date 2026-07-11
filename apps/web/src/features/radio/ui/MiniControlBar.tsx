@@ -1,9 +1,10 @@
 import { useRef } from 'react';
 import type { CSSProperties } from 'react';
 import type { HostMode } from '@auracle/shared';
-import { useRadioActions, useRadioState } from '@/features/radio/session/RadioSessionContext';
+import { useRadioActions, useRadioAnalyser, useRadioState } from '@/features/radio/session/RadioSessionContext';
 import { useBarCount } from '@/shared/hooks/useBarCount';
 import { useTrackMeta } from '@/shared/hooks/useTrackCatalog';
+import { useWaveform } from '@/shared/hooks/useWaveform';
 import { formatTime } from '@/shared/lib/formatTime';
 import { cn } from '@/shared/lib/cn';
 import {
@@ -17,10 +18,7 @@ import {
 import {
   IconPause,
   IconPlay,
-  IconRepeat,
-  IconShuffle,
   IconSkipNext,
-  IconSkipPrevious,
 } from '@/shared/ui/icons';
 import styles from './MiniControlBar.module.css';
 
@@ -33,6 +31,7 @@ const HOST_MODE_OPTIONS: Array<{ value: HostMode; label: string }> = [
 
 export function MiniControlBar() {
   const state = useRadioState();
+  const analyser = useRadioAnalyser();
   const track = useTrackMeta(state.trackId);
   const {
     handleTogglePause,
@@ -40,8 +39,8 @@ export function MiniControlBar() {
     handleContinue,
     handleChangeHostMode,
   } = useRadioActions();
-  const waveRef = useRef<HTMLDivElement>(null);
-  const barCount = useBarCount(waveRef, 5, 32, 160);
+  const waveformRef = useRef<HTMLDivElement>(null);
+  const barCount = useBarCount(waveformRef, 3, 28, 96);
   const paused = isPaused(state.phase);
   const idle = isIdle(state.phase);
   const curating = isCurating(state.phase);
@@ -49,13 +48,20 @@ export function MiniControlBar() {
   const modeDisabled = hostModeDisabled(state);
   const pct = playbackProgressPct(state);
   const currentCoverUrl = state.albumCoverUrl || track.albumCoverUrl;
+  const coverInitial = (state.trackTitle || state.artist || 'A').trim().slice(0, 1).toUpperCase();
+  const animateWaveform = !idle && !curating && !paused;
+  useWaveform(waveformRef, animateWaveform ? 'playing' : 'idle', barCount, analyser);
 
   return (
     <footer className={styles.root} aria-label="Playback controls">
       <div className={styles.trackCard}>
-        {currentCoverUrl ? (
-          <img className={styles.cover} src={currentCoverUrl} alt="" width={52} height={52} loading="lazy" />
-        ) : null}
+        <div className={styles.coverShell} aria-hidden>
+          {currentCoverUrl ? (
+            <img className={styles.cover} src={currentCoverUrl} alt="" width={52} height={52} loading="lazy" />
+          ) : (
+            <span className={styles.coverFallback}>{coverInitial}</span>
+          )}
+        </div>
         <div className={styles.trackCopy}>
           <p>{state.trackTitle}</p>
           <span>{state.artist}</span>
@@ -65,27 +71,31 @@ export function MiniControlBar() {
       <div className={styles.timeline}>
         <time className={styles.time}>{formatTime(state.progressSec)}</time>
         <div
-          ref={waveRef}
-          className={styles.wave}
+          ref={waveformRef}
+          className={cn(styles.progressRail, animateWaveform && styles.progressRailPlaying)}
           style={{ '--bar-count': barCount } as CSSProperties}
-          aria-hidden
+          role="progressbar"
+          aria-label="Track progress"
+          aria-valuemin={0}
+          aria-valuemax={Math.max(0, state.durationSec)}
+          aria-valuenow={Math.min(state.progressSec, state.durationSec)}
+          aria-valuetext={`${formatTime(state.progressSec)} of ${formatTime(state.durationSec)}`}
         >
           {Array.from({ length: barCount }, (_, i) => {
-            const threshold = (i / barCount) * 100;
-            const active = threshold <= pct;
-            return <span key={i} className={cn(styles.bar, active && styles.barActive)} />;
+            const active = ((i + 1) / barCount) * 100 <= pct;
+            return (
+              <span
+                key={i}
+                className={cn(styles.waveBar, active && styles.waveBarActive)}
+                data-wave-bar
+              />
+            );
           })}
         </div>
         <time className={styles.timeEnd}>{formatTime(state.durationSec)}</time>
       </div>
 
       <div className={styles.transport} aria-label="Track transport">
-        <button type="button" className={styles.btnGhost} disabled aria-label="Shuffle unavailable">
-          <IconShuffle size={16} />
-        </button>
-        <button type="button" className={styles.btnGhost} disabled aria-label="Previous track unavailable">
-          <IconSkipPrevious size={18} />
-        </button>
         <button
           type="button"
           className={styles.playBtn}
@@ -108,7 +118,7 @@ export function MiniControlBar() {
         ) : (
           <button
             type="button"
-            className={styles.btnGhost}
+            className={styles.skipBtn}
             onClick={handleSkipTrack}
             disabled={skipDisabled}
             aria-label="Next track"
@@ -116,9 +126,6 @@ export function MiniControlBar() {
             <IconSkipNext size={18} />
           </button>
         )}
-        <button type="button" className={styles.btnGhost} disabled aria-label="Repeat unavailable">
-          <IconRepeat size={16} />
-        </button>
       </div>
 
       <div className={styles.rightControls}>

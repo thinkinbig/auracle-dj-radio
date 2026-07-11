@@ -8,11 +8,14 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/shared/tsconfig.json packages/shared/
+COPY packages/clients/package.json packages/clients/
+COPY packages/clients/tsconfig.json packages/clients/
 COPY apps/web/package.json apps/web/
 
 RUN pnpm install --frozen-lockfile --filter @auracle/web...
 
 COPY packages/shared/src packages/shared/src
+COPY packages/clients/src packages/clients/src
 COPY apps/web/src apps/web/src
 COPY apps/web/index.html apps/web/
 COPY apps/web/vite.config.ts apps/web/
@@ -36,6 +39,7 @@ COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 # Catalog + media baked in so nginx serves them statically (api+web merge).
 # Run `pnpm --filter @auracle/catalog export-catalog` after editing the manifest.
 COPY packages/catalog/data/catalog/tracks.json /usr/share/nginx/html/catalog/tracks.json
+COPY packages/catalog/data/catalog/genres.json /usr/share/nginx/html/catalog/genres.json
 COPY packages/catalog/data/catalog/track       /usr/share/nginx/html/catalog/track
 COPY packages/catalog/data/tracks              /usr/share/nginx/html/media/tracks
 COPY packages/catalog/data/covers              /usr/share/nginx/html/covers

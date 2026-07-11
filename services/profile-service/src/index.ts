@@ -2,10 +2,19 @@ import { config } from "./config.js";
 import { AuthStore } from "./auth-store.js";
 import { loadCatalogIndex } from "./catalog-index.js";
 import { EventsDb } from "./events-db.js";
+import { SupabaseEventsStore } from "./supabase-events-store.js";
 import { buildServer } from "./server.js";
 
+const events = config.eventsStore === "supabase"
+  ? new SupabaseEventsStore(config.supabaseUrl!, config.supabaseSecretKey!)
+  : new EventsDb(config.eventsDbPath);
+
+if (events instanceof SupabaseEventsStore) {
+  await events.verifySchema();
+}
+
 const app = buildServer({
-  events: new EventsDb(config.eventsDbPath),
+  events,
   auth: new AuthStore({
     supabaseUrl: config.supabaseUrl,
     jwtSecret: config.supabaseJwtSecret,

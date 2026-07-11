@@ -1,4 +1,5 @@
 node_modules/
+.pnpm-store/
 dist/
 /data/
 *.tsbuildinfo
@@ -10,5 +11,8 @@ dist/
 *.db
 .DS_Store
 .codegraph/
+.claude/
+.agents/skills/
+supabase/.temp/
 
 packages/catalog/data/.audio-backups

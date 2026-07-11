@@ -1,6 +1,7 @@
 # Prod / demo: music-engine + profile-service + agent-harness + rt-llm-proxy + web.
 # web (nginx) serves the SPA *and* the static catalog/audio/images (api+web merge).
-# Only web (host :8080) and the host-networked proxy are reachable from outside.
+# Web is externally reachable on :8080. The proxy uses host networking so its
+# host ICE candidates and random WebRTC UDP media ports are browser-reachable.
 # Requires repo-root .env (see .env.example). Circuit breaker defaults ON via NODE_ENV=production.
 
 services:
@@ -30,11 +31,18 @@ services:
     env_file: .env
     environment:
       PROFILE_SERVICE_PORT: "3020"
-      PROFILE_EVENTS_DB_PATH: /data/auracle-events.sqlite
+      PROFILE_EVENTS_STORE: supabase
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:?SUPABASE_SECRET_KEY is required for production profile events}
+    # Host-networked rt-llm-proxy verifies the browser token through this
+    # loopback-only mapping; it is not exposed to the public network.
     ports:
       - "127.0.0.1:3020:3020"
-    volumes:
-      - profile_service_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3020/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   agent-harness:
     build:
@@ -46,16 +54,15 @@ services:
       AGENT_HARNESS_PORT: "3030"
       PROFILE_SERVICE_URL: http://profile-service:3020
       MUSIC_ENGINE_URL: http://music-engine:3010
-      # Proxy runs on the host network (WebRTC) — reach it via the host gateway.
+      # The WebRTC proxy is host-networked so it can advertise host ICE candidates.
       PROXY_URL: http://host.docker.internal:8090
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    # Loopback-only publish so the host-networked proxy can reach Lane-1 tools.
     ports:
       - "127.0.0.1:3030:3030"
     depends_on:
       profile-service:
-        condition: service_started
+        condition: service_healthy
       music-engine:
         condition: service_healthy
     healthcheck:
@@ -73,13 +80,13 @@ services:
     # Namespaced so it never collides with a standalone rt_llm_proxy:latest image.
     image: auracle-rt-llm-proxy:local
     restart: unless-stopped
-    # WebRTC media needs host-reachable ICE candidates — on a Docker bridge pion
-    # would advertise an unreachable 172.x IP on a random UDP port. Host network
-    # lets it use the host's real interfaces (single-host / LAN demo).
+    # No STUN/TURN is configured. Bridge networking would advertise an
+    # unreachable 172.x host candidate and random UDP media ports.
     network_mode: host
     env_file: .env
     environment:
       PROXY_AUTH_URL: http://localhost:3020
+      PROXY_HARNESS_URL: http://localhost:3030
     command: ["-addr", ":8090", "-harness-url", "http://localhost:3030", "-auth-url", "http://localhost:3020"]
     depends_on:
       agent-harness:
@@ -96,16 +103,13 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-8080}:80"
-    # nginx reverse-proxies /proxy → the host-networked rt-llm-proxy.
+    # nginx's control-plane proxy reaches the host-networked WebRTC proxy.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       agent-harness:
         condition: service_started
       profile-service:
-        condition: service_started
+        condition: service_healthy
       rt-llm-proxy:
         condition: service_started
-
-volumes:
-  profile_service_data:

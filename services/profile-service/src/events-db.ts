@@ -34,7 +34,14 @@ function safeParse(json: string): unknown {
   }
 }
 
-export class EventsDb {
+export interface EventsStore {
+  recordEvent(sessionId: string, userId: string, eventType: string, payload: unknown): void | Promise<void>;
+  queryEvents(filter: { sessionId?: string; userId?: string; eventType?: string; limit?: number }): SessionEventRow[] | Promise<SessionEventRow[]>;
+  countEvents(sessionId: string): number | Promise<number>;
+  close(): void | Promise<void>;
+}
+
+export class EventsDb implements EventsStore {
   private readonly db: Database.Database;
 
   constructor(path: string) {
