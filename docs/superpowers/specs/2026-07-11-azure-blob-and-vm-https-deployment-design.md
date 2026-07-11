@@ -2,6 +2,7 @@
 
 **日期**: 2026-07-11
 **状态**: 已批准设计,待写实现计划
+**运维文档**: 主 runbook 见 [`doc/auracle_deployment_runbook.md`](../../doc/auracle_deployment_runbook.md)
 **订阅**: Azure for Students (`cf1f480e-562c-4428-978e-5182874bcb0b`),角色 Owner
 **区域**: swedencentral
 

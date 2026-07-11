@@ -229,17 +229,20 @@ The evaluation deliberately avoids cross-session skip-rate improvement as a prod
 
 ## 12. Deployment Model
 
-The current full-stack deployment target is Docker Compose on a machine that can run long-lived processes. The production compose stack includes:
+The current full-stack deployment target is **Docker Compose on a long-lived VM** (Azure demo: `swedencentral`, Caddy + Let's Encrypt on 443). The production compose stack includes:
 
-- `music-engine`
-- `profile-service`
-- `agent-harness`
-- `rt_llm_proxy`
-- `web` served by nginx
+- `music-engine` — deterministic planning; catalog manifest loaded from the image at boot
+- `profile-service` — auth validation; **`PROFILE_EVENTS_STORE=supabase`** in production
+- `agent-harness` — live sessions, queue, DJ tools (in-memory state)
+- `rt-llm-proxy` — WebRTC media bridge; UDP published to the host public IP
+- `web` — nginx SPA + API reverse proxy; catalog JSON baked in; **mp3/covers/artists proxied to Azure Blob**
+- `caddy` — TLS termination and reverse proxy to `web:80`
 
-This deployment model matches the architecture because the system depends on long-running services, in-memory live session state, WebRTC media handling, and backend-to-backend REST calls.
+Operational steps, environment variables, GitHub Actions deploy, and verification checklist: [`auracle_deployment_runbook.md`](auracle_deployment_runbook.md). Design rationale (Blob proxy, no TURN, Azure DNS label): [`docs/superpowers/specs/2026-07-11-azure-blob-and-vm-https-deployment-design.md`](../docs/superpowers/specs/2026-07-11-azure-blob-and-vm-https-deployment-design.md).
 
-Vercel is suitable for the static React frontend, but not for the full current stack. Moving only the frontend would require rewrites for `/sessions`, `/auth`, and `/proxy`, plus a separate hosting path for static catalog/audio assets. Moving the real-time proxy and session services into serverless functions would conflict with WebRTC, long-lived state, and current in-memory session assumptions.
+This deployment model matches the architecture because the system depends on long-running services, in-memory live session state, WebRTC media handling, and backend-to-backend REST calls. HTTPS is required for browser `getUserMedia` (barge-in microphone).
+
+Vercel is suitable for the static React frontend alone, but not for the full current stack. Moving only the frontend would require rewrites for `/sessions`, `/auth`, and `/proxy`, plus separate hosting for catalog media and WebRTC. Moving the real-time proxy and session services into serverless functions would conflict with WebRTC UDP, long-lived state, and current in-memory session assumptions.
 
 ## 13. Implementation Notes
 
@@ -262,7 +265,7 @@ Auracle is currently a demo-scale system rather than a horizontally scalable pro
 
 - Live session state is in memory inside agent-harness.
 - Real-time reconnect support is bounded and service-local.
-- Event storage is SQLite rather than a multi-instance database.
+- Production `session_events` use Supabase; local dev may still use SQLite — not multi-instance analytics yet.
 - Spotify playback requires Premium for programmatic playback.
 - Spotify-backed DJ ducking is less precise than local Web Audio ducking.
 - Gemini Live availability and latency affect the live DJ experience.
@@ -273,7 +276,6 @@ Auracle is currently a demo-scale system rather than a horizontally scalable pro
 
 The most direct next steps are:
 
-- Migrate `session_events` to Supabase Postgres or another managed database for production analytics.
 - Add durable external session/replay storage if multi-instance deployment becomes necessary.
 - Improve Spotify candidate enrichment and measure the accuracy of inferred energy.
 - Expand the catalog and continue catalog balance checks across mood, scene, genre, and energy.

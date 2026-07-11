@@ -47,15 +47,18 @@ not in the web app environment.
 
 The catalog needs no seeding: music-engine loads the manifest from `packages/catalog/data` straight into memory at boot (refuses to start if the catalog is empty). After editing the catalog, just re-export the browser-facing `tracks.json`: `pnpm --filter @auracle/catalog export-catalog`.
 
-### Docker Full Stack (demo defense / single-machine deployment)
+### Docker Full Stack (demo / production compose)
 
 ```bash
-pnpm docker:prod                   # build and start the full stack (reads .env)
-# open http://localhost:8080 in a browser (WEB_PORT can be changed)
-pnpm docker:down                   # stop containers, keep volumes
+pnpm docker:prod                   # build and start docker-compose.prod.yml (reads .env)
+# Production (Azure VM): https://<SITE_DOMAIN> via Caddy :443
+# Local: set SITE_DOMAIN and free ports 80/443, or see doc/auracle_deployment_runbook.md
+pnpm docker:down                   # stop containers
 ```
 
-Compose: `docker-compose.prod.yml` (for demo defense / deployment; only exposes web; no longer starts the old Qdrant/mem0 dependencies).
+Compose: [`docker-compose.prod.yml`](docker-compose.prod.yml) — six services (`music-engine`, `profile-service`, `agent-harness`, `rt-llm-proxy`, `web`, `caddy`). Catalog **media** (mp3, covers) is served from Azure Blob via nginx proxy; catalog JSON is baked into the web image. External entry is Caddy on 80/443, not a direct `:8080` web port.
+
+**Deploy to Azure VM:** GitHub Actions → **Deploy (Azure VM)** (manual). First-time setup, env vars, and verification: [`doc/auracle_deployment_runbook.md`](doc/auracle_deployment_runbook.md).
 
 Phase 1 Demo: **Desktop Chrome**. See `doc/auracle_pwa_audio_notes.md`.
 
@@ -68,6 +71,7 @@ Current docs:
 | Doc | Content |
 |------|------|
 | [auracle_technical_report.md](doc/auracle_technical_report.md) | Technical report draft: architecture, implementation, evaluation, deployment limits |
+| [auracle_deployment_runbook.md](doc/auracle_deployment_runbook.md) | **Production / demo deploy**: Azure VM, Blob, Caddy TLS, env, GitHub Actions, verification |
 | [auracle_architecture_storage.md](doc/auracle_architecture_storage.md) | Overall architecture, demo vs. production, SQLite, Gemini division of labor |
 | [auracle_gemini_integration.md](doc/auracle_gemini_integration.md) | **Deep Gemini integration** (mapped against the Group 24 four pillars) |
 | [auracle_api_protocol.md](doc/auracle_api_protocol.md) | REST + Live WS protocol, implementation checklist |
