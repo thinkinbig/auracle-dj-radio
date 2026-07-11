@@ -1,0 +1,52 @@
+name: Deploy (Azure VM)
+
+# Manual only. Rebuilds and restarts the docker-compose.prod.yml stack on the VM.
+# The VM must already have the repo cloned and a populated .env (secrets live there,
+# never in git). This job only ships new code and rebuilds images in place.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to deploy (branch/tag/SHA)
+        required: true
+        default: main
+
+concurrency:
+  group: deploy-azure-vm
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH build & up
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      VM_HOST: ${{ secrets.VM_HOST }}
+      VM_USER: ${{ vars.VM_USER || 'azureuser' }}
+      # Relative to the SSH login home dir; a quoted "~" would not expand remotely.
+      VM_APP_DIR: ${{ vars.VM_APP_DIR || 'auracle-dj-radio' }}
+      REF: ${{ inputs.ref }}
+    steps:
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VM_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key "$VM_USER@$VM_HOST" bash -euo pipefail <<REMOTE
+            cd "$VM_APP_DIR"
+            echo "==> Fetching origin/$REF"
+            git fetch --all --prune
+            git reset --hard "origin/$REF"
+            git log -1 --oneline
+            echo "==> Building & starting stack"
+            docker compose -f docker-compose.prod.yml up -d --build
+            echo "==> Pruning dangling images"
+            docker image prune -f
+            echo "==> Status"
+            docker compose -f docker-compose.prod.yml ps
+          REMOTE
