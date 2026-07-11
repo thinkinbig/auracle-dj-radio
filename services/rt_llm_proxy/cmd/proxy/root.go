@@ -92,6 +92,7 @@ func runProxy(cfg runConfig) error {
 	}.Build()
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", healthHandler)
 	mux.Handle("POST /session/{id}/register", &offer.RegisterHandler{Registry: registry, Auth: internalAuth})
 	mux.Handle("POST /session/{id}/inject", &offer.InjectHandler{Injector: hub, Auth: internalAuth})
 	mux.Handle("/demo/", http.StripPrefix("/demo/", http.FileServer(http.Dir("demo"))))
@@ -107,6 +108,11 @@ func runProxy(cfg runConfig) error {
 		return err
 	}
 	return nil
+}
+
+func healthHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func gracefulShutdown(ctx context.Context, srv *http.Server, hub *rtc.Hub, publisher sidechannel.Publisher) {
