@@ -2,8 +2,14 @@ name: Deploy (Azure VM)
 
 # Manual only. Rebuilds and restarts the docker-compose.prod.yml stack on the VM.
 # The VM must already have the repo cloned and a populated .env. Most app secrets
-# live in that .env (never in git). PROXY_REGISTER_SECRET is the exception: it is a
-# GitHub production-environment secret this job upserts into the VM's .env on deploy.
+# live in that .env (never in git); the runtime secrets PROXY_REGISTER_SECRET,
+# GEMINI_API_KEY and SUPABASE_SECRET_KEY are GitHub production-environment secrets
+# this job upserts into the VM's .env on deploy.
+#
+# SSH is locked to a single /32 in the VM's NSG, so GitHub's ephemeral runner IPs
+# cannot reach port 22. This job logs in to Azure via OIDC (no stored credential),
+# opens a just-in-time NSG rule for the runner's egress IP, deploys over SSH, and
+# always removes that rule again — even if the deploy fails.
 on:
   workflow_dispatch:
     inputs:
@@ -21,20 +27,51 @@ jobs:
     name: SSH build & up
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      id-token: write   # mint the OIDC token azure/login exchanges
+      contents: read
     env:
       VM_HOST: ${{ secrets.VM_HOST }}
       VM_USER: ${{ vars.VM_USER || 'azureuser' }}
       # Relative to the SSH login home dir; a quoted "~" would not expand remotely.
       VM_APP_DIR: ${{ vars.VM_APP_DIR || 'auracle-dj-radio' }}
       REF: ${{ inputs.ref }}
+      AZ_RG: ${{ vars.AZURE_RG || 'AURACLE-DEMO-RG' }}
+      AZ_NSG: ${{ vars.AZURE_NSG || 'auracle-demo-vmNSG' }}
+      JIT_RULE: allow-ssh-cicd
     steps:
-      - name: Configure SSH key
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Open JIT SSH (NSG)
+        run: |
+          RUNNER_IP=$(curl -fsS https://api.ipify.org)
+          echo "Runner egress IP: $RUNNER_IP"
+          az network nsg rule create -g "$AZ_RG" --nsg-name "$AZ_NSG" -n "$JIT_RULE" \
+            --priority 1002 --access Allow --direction Inbound --protocol Tcp \
+            --destination-port-ranges 22 --source-address-prefixes "$RUNNER_IP/32" \
+            --description "Ephemeral CI SSH; removed at job end" -o none
+          echo "Opened $JIT_RULE for $RUNNER_IP/32"
+
+      - name: Configure SSH & known_hosts
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           printf '%s\n' "${{ secrets.VM_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # The NSG change can take a few seconds to apply; retry until the host
+          # key can be fetched (also proves port 22 is now reachable).
+          for i in $(seq 1 12); do
+            if ssh-keyscan -T 5 -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null && [ -s ~/.ssh/known_hosts ]; then
+              echo "Host key acquired"; break
+            fi
+            echo "Waiting for SSH reachability ($i/12)…"; sleep 5
+          done
+          [ -s ~/.ssh/known_hosts ] || { echo "::error::VM SSH still unreachable after NSG open"; exit 1; }
 
       - name: Deploy
         env:
@@ -77,3 +114,9 @@ jobs:
             echo "==> Status"
             docker compose -f docker-compose.prod.yml ps
           REMOTE
+
+      - name: Close JIT SSH (NSG)
+        if: always()
+        run: |
+          az network nsg rule delete -g "$AZ_RG" --nsg-name "$AZ_NSG" -n "$JIT_RULE" -o none 2>/dev/null || true
+          echo "Removed $JIT_RULE"
