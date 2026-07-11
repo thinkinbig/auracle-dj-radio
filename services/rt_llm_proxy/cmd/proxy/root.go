@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/pprof"
@@ -27,6 +28,9 @@ import (
 )
 
 func runProxy(cfg runConfig) error {
+	if cfg.UDPPortMin > 65535 || cfg.UDPPortMax > 65535 {
+		return fmt.Errorf("UDP media ports must be between 0 and 65535")
+	}
 	audio.SetEncoderComplexity(cfg.OpusComplexity)
 
 	limiter := ratelimit.New(cfg.RedisAddr, cfg.RLMax, cfg.RLWindow)
@@ -37,7 +41,7 @@ func runProxy(cfg runConfig) error {
 		replayIndex = sidechannel.NewReplayClient(cfg.ReplayURL)
 	}
 	breakers := newModelBreakers(cfg.ModelCBEnable, cfg.ModelCB)
-	hub, err := rtc.NewHub("")
+	hub, err := rtc.NewHub(cfg.PublicIP, uint16(cfg.UDPPortMin), uint16(cfg.UDPPortMax))
 	if err != nil {
 		return err
 	}

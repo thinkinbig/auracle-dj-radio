@@ -11,6 +11,7 @@ package rtc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -115,7 +116,7 @@ func (s *session) inject(injectText string, uiEvents []json.RawMessage) {
 // in ICE candidates instead of the private interface address. Required when the
 // proxy runs behind a cloud VM's 1:1 NAT (e.g. Volcano Engine / AWS / GCP) and
 // browsers connect from the public internet.
-func NewHub(publicIP string) (*Hub, error) {
+func NewHub(publicIP string, udpPortMin, udpPortMax uint16) (*Hub, error) {
 	me := &webrtc.MediaEngine{}
 	if err := me.RegisterCodec(webrtc.RTPCodecParameters{
 		RTPCodecCapability: webrtc.RTPCodecCapability{
@@ -133,6 +134,14 @@ func NewHub(publicIP string) (*Hub, error) {
 		return nil, err
 	}
 	se := &webrtc.SettingEngine{}
+	if (udpPortMin == 0) != (udpPortMax == 0) {
+		return nil, fmt.Errorf("both UDP port bounds must be set together")
+	}
+	if udpPortMin != 0 {
+		if err := se.SetEphemeralUDPPortRange(udpPortMin, udpPortMax); err != nil {
+			return nil, fmt.Errorf("set UDP port range: %w", err)
+		}
+	}
 	if publicIP != "" {
 		se.SetICEAddressRewriteRules(webrtc.ICEAddressRewriteRule{ //nolint:errcheck
 			External:        []string{publicIP},
@@ -481,7 +490,11 @@ func (h *Hub) Serve(offerSDP string, m model.Model, info SessionInfo) (string, e
 		case webrtc.PeerConnectionStateFailed,
 			webrtc.PeerConnectionStateClosed,
 			webrtc.PeerConnectionStateDisconnected:
-			sess.cleanup()
+			// SetRemoteDescription can fail before scope.commit assigns cleanup.
+			// In that path the deferred scope abort owns teardown instead.
+			if sess.cleanup != nil {
+				sess.cleanup()
+			}
 		}
 	})
 

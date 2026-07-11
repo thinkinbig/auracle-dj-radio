@@ -11,6 +11,11 @@ import (
 type runConfig struct {
 	Addr      string
 	AdminAddr string
+	// PublicIP rewrites host ICE candidates when the proxy is behind Docker or
+	// a 1:1 NAT. UDPPortMin/Max constrain media sockets to a publishable range.
+	PublicIP   string
+	UDPPortMin uint
+	UDPPortMax uint
 
 	RedisAddr string
 	RLMax     int
@@ -55,6 +60,9 @@ type runConfig struct {
 func parseFlags() (runConfig, map[string]bool, string) {
 	configPath := flag.String("config", "proxy.yaml", "config file path (skipped if absent)")
 	addr := flag.String("addr", ":8080", "listen address")
+	publicIP := flag.String("public-ip", "", "public IP to advertise in host ICE candidates (empty = interface address)")
+	udpPortMin := flag.Uint("udp-port-min", 0, "minimum UDP media port (0 with udp-port-max means unconstrained)")
+	udpPortMax := flag.Uint("udp-port-max", 0, "maximum UDP media port (0 with udp-port-min means unconstrained)")
 	redisAddr := flag.String("redis", "", "redis address for rate limiting (empty = disabled)")
 	rlMax := flag.Int("rl-max", 10, "max sessions per client per window")
 	rlWindow := flag.Duration("rl-window", time.Minute, "rate limit window")
@@ -84,6 +92,9 @@ func parseFlags() (runConfig, map[string]bool, string) {
 
 	cfg := runConfig{
 		Addr:            *addr,
+		PublicIP:        *publicIP,
+		UDPPortMin:      *udpPortMin,
+		UDPPortMax:      *udpPortMax,
 		AdminAddr:       *adminAddr,
 		RedisAddr:       *redisAddr,
 		RLMax:           *rlMax,

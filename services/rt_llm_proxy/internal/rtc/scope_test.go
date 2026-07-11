@@ -23,8 +23,25 @@ func (silentModel) Close() error                   { return nil }
 
 var _ model.Model = silentModel{}
 
+func TestNewHubRejectsPartialUDPPortRange(t *testing.T) {
+	_, err := NewHub("", 10000, 0)
+	if err == nil {
+		t.Fatal("NewHub accepted a partial UDP port range")
+	}
+}
+
+func TestServeInvalidOfferReturnsErrorWithoutPanicking(t *testing.T) {
+	h, err := NewHub("", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Serve("", silentModel{}, SessionInfo{ID: "invalid-offer"}); err == nil {
+		t.Fatal("Serve accepted an empty offer")
+	}
+}
+
 func TestSessionScopeAbortUncommitted(t *testing.T) {
-	h, err := NewHub("")
+	h, err := NewHub("", 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +65,7 @@ func TestSessionScopeAbortUncommitted(t *testing.T) {
 }
 
 func TestSessionScopeCommitThenClose(t *testing.T) {
-	h, err := NewHub("")
+	h, err := NewHub("", 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
