@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- 订阅:`Azure for Students` = `cf1f480e-562c-4428-978e-5182874bcb0b`;区域 `germanywestcentral`;角色 Owner。
+- 订阅:`Azure for Students` = `cf1f480e-562c-4428-978e-5182874bcb0b`;区域 `swedencentral`;角色 Owner。
 - Blob 容器:公开只读(`--public-access blob`),**不做** SAS。
 - 迁移范围:仅 `tracks/*.mp3` + `covers/*` + `artists/*`;`catalog/*.json`(含 `catalog/track/<id>.json`)**保持烘焙**。
 - client 音频路径固定为相对 `/tracks/${track.id}/audio`,**不得改动 client 代码**。
@@ -53,7 +53,7 @@ Create `ops/azure/provision-storage.sh`:
 set -euo pipefail
 
 SUBSCRIPTION="${SUBSCRIPTION:-cf1f480e-562c-4428-978e-5182874bcb0b}"
-LOCATION="${LOCATION:-germanywestcentral}"
+LOCATION="${LOCATION:-swedencentral}"
 RG="${RG:-auracle-demo-rg}"
 # 全局唯一、3-24 位小写字母数字。可用 STORAGE_ACCOUNT 覆盖。
 STORAGE_ACCOUNT="${STORAGE_ACCOUNT:-auracledjmedia$RANDOM}"
@@ -465,7 +465,7 @@ volumes:
 
 ```bash
 # Caddy 站点域名(Azure 免费 DNS label,VM 部署时填)
-SITE_DOMAIN=auracle-demo.germanywestcentral.cloudapp.azure.com
+SITE_DOMAIN=auracle-demo.swedencentral.cloudapp.azure.com
 ```
 
 - [ ] **Step 4: 本地验证 compose 配置合法 + Caddy 转发**
@@ -495,7 +495,7 @@ git commit -m "feat(ops): front compose stack with Caddy for auto HTTPS"
 - Create: `ops/azure/provision-vm.sh`
 
 **Interfaces:**
-- Produces: Ubuntu VM,公网 IP 带 DNS label `${DNS_LABEL}` → FQDN `${DNS_LABEL}.germanywestcentral.cloudapp.azure.com`;NSG 放行 22/80/443/tcp + UDP 媒体范围;脚本打印 VM 公网 IP 与 FQDN。
+- Produces: Ubuntu VM,公网 IP 带 DNS label `${DNS_LABEL}` → FQDN `${DNS_LABEL}.swedencentral.cloudapp.azure.com`;NSG 放行 22/80/443/tcp + UDP 媒体范围;脚本打印 VM 公网 IP 与 FQDN。
 
 - [ ] **Step 1: 写 VM 供应脚本**
 
@@ -507,7 +507,7 @@ Create `ops/azure/provision-vm.sh`:
 set -euo pipefail
 
 SUBSCRIPTION="${SUBSCRIPTION:-cf1f480e-562c-4428-978e-5182874bcb0b}"
-LOCATION="${LOCATION:-germanywestcentral}"
+LOCATION="${LOCATION:-swedencentral}"
 RG="${RG:-auracle-demo-rg}"
 VM="${VM:-auracle-demo-vm}"
 DNS_LABEL="${DNS_LABEL:-auracle-demo}"
@@ -552,7 +552,7 @@ chmod +x ops/azure/provision-vm.sh
 SSH_CIDR="$(curl -fsS https://api.ipify.org)/32" ./ops/azure/provision-vm.sh | tee /tmp/vm-env.txt
 ```
 
-Expected: 打印 `VM_PUBLIC_IP=...` 与 `SITE_DOMAIN=auracle-demo.germanywestcentral.cloudapp.azure.com`。
+Expected: 打印 `VM_PUBLIC_IP=...` 与 `SITE_DOMAIN=auracle-demo.swedencentral.cloudapp.azure.com`。
 
 - [ ] **Step 3: 验证 DNS + SSH + NSG**
 

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SUBSCRIPTION="${SUBSCRIPTION:-cf1f480e-562c-4428-978e-5182874bcb0b}"
-LOCATION="${LOCATION:-germanywestcentral}"
+LOCATION="${LOCATION:-swedencentral}"
 RG="${RG:-auracle-demo-rg}"
 # 全局唯一、3-24 位小写字母数字。可用 STORAGE_ACCOUNT 覆盖。
 STORAGE_ACCOUNT="${STORAGE_ACCOUNT:-auracledjmedia$RANDOM}"

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SUBSCRIPTION="${SUBSCRIPTION:-cf1f480e-562c-4428-978e-5182874bcb0b}"
-LOCATION="${LOCATION:-germanywestcentral}"
+LOCATION="${LOCATION:-swedencentral}"
 RG="${RG:-auracle-demo-rg}"
 VM="${VM:-auracle-demo-vm}"
 DNS_LABEL="${DNS_LABEL:-auracle-demo}"
