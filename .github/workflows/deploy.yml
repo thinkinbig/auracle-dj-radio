@@ -1,8 +1,9 @@
 name: Deploy (Azure VM)
 
 # Manual only. Rebuilds and restarts the docker-compose.prod.yml stack on the VM.
-# The VM must already have the repo cloned and a populated .env (secrets live there,
-# never in git). This job only ships new code and rebuilds images in place.
+# The VM must already have the repo cloned and a populated .env. Most app secrets
+# live in that .env (never in git). PROXY_REGISTER_SECRET is the exception: it is a
+# GitHub production-environment secret this job upserts into the VM's .env on deploy.
 on:
   workflow_dispatch:
     inputs:
@@ -36,9 +37,35 @@ jobs:
           ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Deploy
+        env:
+          # GitHub-managed prod secrets, upserted into the VM's .env below.
+          PROXY_REGISTER_SECRET: ${{ secrets.PROXY_REGISTER_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
+          # Pack the managed secrets as NAME<TAB>VALUE lines, then base64 the whole
+          # blob so it survives the heredoc untouched and never appears in the
+          # workflow log, the remote argv/ps, or gets mangled by shell expansion.
+          # The VM decodes it and upserts each line into .env (chmod 600), leaving
+          # every other .env line (WEBRTC_*, BLOB_*, Supabase URLs, …) intact.
+          BLOB_B64=$(
+            {
+              printf 'PROXY_REGISTER_SECRET\t%s\n' "$PROXY_REGISTER_SECRET"
+              printf 'GEMINI_API_KEY\t%s\n'       "$GEMINI_API_KEY"
+              printf 'SUPABASE_SECRET_KEY\t%s\n'  "$SUPABASE_SECRET_KEY"
+            } | base64 | tr -d '\n'
+          )
           ssh -i ~/.ssh/deploy_key "$VM_USER@$VM_HOST" bash -euo pipefail <<REMOTE
             cd "$VM_APP_DIR"
+            echo "==> Upserting managed secrets into .env"
+            touch .env
+            printf '%s' '$BLOB_B64' | base64 -d | while IFS=\$'\t' read -r name value; do
+              [ -n "\$name" ] || continue
+              grep -v "^\$name=" .env > .env.tmp || true
+              printf '%s=%s\n' "\$name" "\$value" >> .env.tmp
+              mv .env.tmp .env
+            done
+            chmod 600 .env
             echo "==> Fetching origin/$REF"
             git fetch --all --prune
             git reset --hard "origin/$REF"
