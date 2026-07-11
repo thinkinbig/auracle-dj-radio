@@ -31,6 +31,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # `packages/clients` etc. import `@auracle/shared` via its `dist/index.d.ts`.
+      # On a fresh runner no dist exists yet, so typecheck must follow a build of
+      # the depended-upon workspaces. Mirrors the root `predev` script.
+      - name: Build workspace dependencies
+        run: pnpm --filter @auracle/shared --filter @auracle/catalog --filter @auracle/clients build
+
       - name: Typecheck
         run: pnpm run typecheck
 
@@ -59,6 +65,15 @@ jobs:
 
       - name: Verify modules
         run: go mod verify
+
+      # `github.com/hraban/opus` is a cgo wrapper around system libopus.
+      # ubuntu-latest runners ship without it; install it here just like the
+      # services/rt_llm_proxy Dockerfile build stage does.
+      - name: Install native deps (libopus)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libopus-dev libopusfile-dev pkg-config
 
       - name: Vet
         run: go vet ./...
