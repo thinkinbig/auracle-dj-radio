@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 幂等创建 VM + 公网 IP(带 DNS label)+ NSG 规则。打印公网 IP / FQDN。
+# Idempotently create VM + public IP (with DNS label) + NSG rules. Prints public IP / FQDN.
 set -euo pipefail
 
 SUBSCRIPTION="${SUBSCRIPTION:-cf1f480e-562c-4428-978e-5182874bcb0b}"
