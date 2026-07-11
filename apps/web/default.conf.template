@@ -1,4 +1,3 @@
-# WebSocket upgrade map — must precede server {} block
 map $http_upgrade $connection_upgrade {
     default upgrade;
     ''      close;
@@ -8,26 +7,25 @@ server {
     listen 80;
     server_name _;
 
+    # 反代 Blob 需运行时 DNS 解析(public resolver 本地/Azure 皆可用)
+    resolver 1.1.1.1 8.8.8.8 valid=300s;
+
     root /usr/share/nginx/html;
     index index.html;
 
-    # Gzip
     gzip on;
     gzip_types text/plain text/css application/javascript application/json image/svg+xml;
     gzip_min_length 1024;
 
-    # Security headers
     add_header X-Frame-Options SAMEORIGIN;
     add_header X-Content-Type-Options nosniff;
     add_header Referrer-Policy strict-origin-when-cross-origin;
 
-    # ── Static assets (immutable hash filenames) ──────────────
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
 
-    # ── Session orchestration → agent-harness (REST) ─────────
     location /sessions {
         proxy_pass http://agent-harness:3030;
         proxy_http_version 1.1;
@@ -36,7 +34,6 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
-    # ── User auth → profile service (REST) ────────────────────
     location /auth {
         proxy_pass http://profile-service:3020;
         proxy_http_version 1.1;
@@ -45,9 +42,6 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
-    # ── WebRTC SDP offer → rt-llm-proxy (Compose service) ────
-    # Front-end posts to /proxy/?model=… ; the prefix is stripped so the proxy
-    # sees its native offer path at /. Media (RTP/ICE) is peer-to-peer, not here.
     location /proxy/ {
         proxy_pass http://rt-llm-proxy:8090/;
         proxy_http_version 1.1;
@@ -56,42 +50,42 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
-    # ── Catalog + media (static, baked from packages/catalog/data) ────
-    # api+web merge: nginx serves the catalog/audio/images directly — no api service.
-
-    # GET /catalog/tracks → bulk catalog JSON
+    # ── Catalog JSON(仍烘焙,不迁 Blob)──
     location = /catalog/tracks {
         default_type application/json;
         alias /usr/share/nginx/html/catalog/tracks.json;
     }
-
-    # GET /catalog/genres → catalog/genres.json
     location = /catalog/genres {
         default_type application/json;
         alias /usr/share/nginx/html/catalog/genres.json;
     }
 
-    # GET /tracks/:id/audio → media/tracks/<id>.mp3  (must precede the meta route)
+    # ── 音频:反代 Blob ──
     location ~ ^/tracks/([^/]+)/audio$ {
-        default_type audio/mpeg;
-        alias /usr/share/nginx/html/media/tracks/$1.mp3;
-        expires 1y;
+        proxy_pass ${BLOB_BASE_URL}/tracks/$1.mp3;
+        proxy_ssl_server_name on;
+        proxy_set_header Host ${BLOB_HOST};
+        proxy_set_header Authorization "";
+        proxy_hide_header x-ms-request-id;
+        proxy_hide_header x-ms-version;
         add_header Cache-Control "public, immutable";
     }
 
-    # GET /tracks/:id → single-track meta JSON (catalog cache fallback)
+    # 单曲 meta JSON(仍烘焙)— 必须在音频块之后
     location ~ ^/tracks/([^/]+)$ {
         default_type application/json;
         alias /usr/share/nginx/html/catalog/track/$1.json;
     }
 
-    # GET /covers/:file , /artists/:file → images (served from root)
-    location ~ ^/(covers|artists)/ {
-        expires 1y;
+    # ── 封面/艺人图:反代 Blob ──
+    location ~ ^/(covers|artists)/(.*)$ {
+        proxy_pass ${BLOB_BASE_URL}/$1/$2;
+        proxy_ssl_server_name on;
+        proxy_set_header Host ${BLOB_HOST};
+        proxy_set_header Authorization "";
         add_header Cache-Control "public, immutable";
     }
 
-    # ── SPA fallback ──────────────────────────────────────────
     location / {
         try_files $uri $uri/ /index.html;
     }

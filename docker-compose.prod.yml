@@ -96,6 +96,10 @@ services:
         VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:-}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
     restart: unless-stopped
+    environment:
+      BLOB_BASE_URL: ${BLOB_BASE_URL:?BLOB_BASE_URL is required}
+      BLOB_HOST: ${BLOB_HOST:?BLOB_HOST is required}
+      NGINX_ENVSUBST_FILTER: "^BLOB_"
     ports:
       - "${WEB_PORT:-8080}:80"
     depends_on:

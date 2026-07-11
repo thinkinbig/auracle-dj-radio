@@ -33,16 +33,13 @@ RUN pnpm --filter @auracle/shared build && pnpm --filter @auracle/clients build 
 # ── Stage 2: nginx ───────────────────────────────────────────────
 FROM nginx:1.27-alpine AS runner
 
-COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/web/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 
-# Catalog + media baked in so nginx serves them statically (api+web merge).
+# 仅 catalog JSON 烘焙;媒体(mp3/covers/artists)已迁至 Blob,由 nginx 反代。
 # Run `pnpm --filter @auracle/catalog export-catalog` after editing the manifest.
 COPY packages/catalog/data/catalog/tracks.json /usr/share/nginx/html/catalog/tracks.json
 COPY packages/catalog/data/catalog/genres.json /usr/share/nginx/html/catalog/genres.json
 COPY packages/catalog/data/catalog/track       /usr/share/nginx/html/catalog/track
-COPY packages/catalog/data/tracks              /usr/share/nginx/html/media/tracks
-COPY packages/catalog/data/covers              /usr/share/nginx/html/covers
-COPY packages/catalog/data/artists             /usr/share/nginx/html/artists
 
 EXPOSE 80
